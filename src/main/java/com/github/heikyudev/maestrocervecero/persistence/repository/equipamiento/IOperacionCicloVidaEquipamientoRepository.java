@@ -79,12 +79,12 @@ public interface IOperacionCicloVidaEquipamientoRepository extends JpaRepository
      * @param idEquipamiento El ID del equipamiento.
      * @param desde Inicio del período, o {@code null} para no acotarlo.
      * @param hasta Fin del período, o {@code null} para no acotarlo.
-     * @return Las operaciones registradas del equipamiento dentro del período, de la más antigua a la más reciente.
+     * @return Las operaciones registradas del equipamiento dentro del período, de la más reciente a la más antigua.
      */
     @Query("SELECT o FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id = :idEquipamiento AND o.estado = 'REGISTRADO' "
             + "AND (CAST(:desde AS LocalDateTime) IS NULL OR o.fecha >= :desde) "
             + "AND (CAST(:hasta AS LocalDateTime) IS NULL OR o.fecha <= :hasta) "
-            + "ORDER BY o.fecha, o.id")
+            + "ORDER BY o.fecha DESC, o.id DESC")
     List<OperacionCicloVidaEquipamiento> buscarRegistradasEnPeriodo(@Param("idEquipamiento") Long idEquipamiento,
                                                                     @Param("desde") LocalDateTime desde,
                                                                     @Param("hasta") LocalDateTime hasta);

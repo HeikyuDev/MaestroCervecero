@@ -4,7 +4,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Est
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
@@ -12,11 +13,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * Interfaz que define las consultas de las pantallas de control de equipamiento: el listado con su estado y su
- * actividad reciente, el resumen de un equipo, el historial de sus operaciones y su línea de tiempo.
+ * actividad reciente, el resumen de un equipo, sus operaciones y su historial.
  * <p>
  * Es un servicio de solo lectura: las operaciones del ciclo de vida (limpieza, falla y mantenimiento) se registran y
  * anulan con sus propios servicios.
@@ -59,17 +59,23 @@ public interface IControlEquipamientoServicio {
     OperacionesEquipamientoResponseDTO listarOperaciones(Long idEquipamiento);
 
     /**
-     * Arma la línea de tiempo de un equipamiento para un período: un bloque por cada etapa de lote con uso real y por
-     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por fecha. Un
-     * extremo nulo no acota el período por ese lado. Los bloques conservan sus fechas reales, sin recortarlas al
-     * período.
+     * Lista el historial de un equipamiento: una fila por cada etapa de lote en la que se usó de verdad y por cada
+     * operación registrada (nunca las anuladas), de la más reciente a la más antigua. Ante igual fecha el orden es
+     * determinista (por tipo y por identificador, de mayor a menor). Cada fila informa el estado operativo en el que
+     * dejó al equipamiento.
+     * <p>
+     * Los filtros de fecha aplican a la fecha de la operación o al inicio de la etapa; un extremo nulo no acota por ese
+     * lado y un tipo nulo no filtra por tipo.
+     * </p>
      *
      * @param idEquipamiento El ID del equipamiento.
-     * @param desde Inicio del período, o {@code null} para no acotarlo.
-     * @param hasta Fin del período, o {@code null} para no acotarlo.
-     * @return Los bloques de la línea de tiempo.
+     * @param tipo Tipo de actividad a mostrar, o {@code null} para todas.
+     * @param desde Límite inferior (inclusive) de la fecha, o {@code null} para no acotarlo.
+     * @param hasta Límite superior (inclusive) de la fecha, o {@code null} para no acotarlo.
+     * @param pageable La configuración de paginación (el orden lo define el servicio).
+     * @return Una página del historial.
      * @throws RecursoNoEncontradoException Si el equipamiento no existe.
      * @throws ReglaNegocioException Si {@code hasta} es anterior a {@code desde}.
      */
-    List<BloqueLineaTiempoEquipamientoResponseDTO> listarLineaDeTiempo(Long idEquipamiento, LocalDateTime desde, LocalDateTime hasta);
+    Page<ActividadEquipamientoResponseDTO> listarHistorial(Long idEquipamiento, TipoActividadEquipamiento tipo, LocalDateTime desde, LocalDateTime hasta, Pageable pageable);
 }

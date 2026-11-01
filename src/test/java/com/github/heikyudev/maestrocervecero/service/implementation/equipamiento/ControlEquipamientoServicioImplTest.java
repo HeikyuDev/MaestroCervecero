@@ -25,14 +25,16 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoBloqueLineaTiempo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -52,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -390,122 +393,155 @@ class ControlEquipamientoServicioImplTest {
         verifyNoInteractions(limpiezaEquipamientoRepository, fallaEquipamientoRepository, mantenimientoEquipamientoRepository);
     }
 
-    // ==================== listarLineaDeTiempo ====================
+    // ==================== listarHistorial ====================
 
     @Test
-    @DisplayName("CP-CE-14: listarLineaDeTiempo combina los bloques de lote y de operaciones registradas ordenados por inicio")
-    void listarLineaDeTiempo_debeCombinarYOrdenarPorInicio() {
+    @DisplayName("CP-CE-14: listarHistorial une las etapas de lote y las operaciones registradas de la más reciente a la más antigua, con el estado operativo que cada una dejó")
+    void listarHistorial_debeUnirYOrdenarPorFechaDescendente() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
-        LocalDateTime desde = INICIO.minusDays(30);
-        LocalDateTime hasta = INICIO.plusDays(30);
         EtapaLoteEntity etapaFinalizada = etapa(5L, "LOT-001", TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, INICIO.plusDays(1), INICIO.plusDays(1).plusHours(3), molino);
         LimpiezaEquipamientoEntity limpieza = limpieza(10L, EstadoTransaccion.REGISTRADO, molino, FIN.plusDays(2));
         when(equipamientoRepository.existsById(1L)).thenReturn(true);
-        when(etapaLoteRepository.buscarEtapasConUsoRealEnPeriodo(1L, desde, hasta)).thenReturn(List.of(etapaFinalizada));
-        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, desde, hasta))
-                .thenReturn(List.of(falla(9L, EstadoTransaccion.REGISTRADO, molino, FIN), limpieza));
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, null, null)).thenReturn(List.of(etapaFinalizada));
+        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null))
+                .thenReturn(List.of(limpieza, falla(9L, EstadoTransaccion.REGISTRADO, molino, FIN)));
 
         // === EJECUCION ===
-        List<BloqueLineaTiempoEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarLineaDeTiempo(1L, desde, hasta);
+        Page<ActividadEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarHistorial(1L, null, null, null, PageRequest.of(0, 20));
 
         // === ASSERTS ===
-        assertThat(resultado).extracting(BloqueLineaTiempoEquipamientoResponseDTO::getTipo)
-                .containsExactly(TipoBloqueLineaTiempo.FALLA, TipoBloqueLineaTiempo.LOTE, TipoBloqueLineaTiempo.LIMPIEZA);
-        BloqueLineaTiempoEquipamientoResponseDTO bloqueLote = resultado.get(1);
-        assertThat(bloqueLote.getIdReferencia()).isEqualTo(5L);
-        assertThat(bloqueLote.getCodigoLote()).isEqualTo("LOT-001");
-        assertThat(bloqueLote.getEtapa()).isEqualTo(TipoEtapa.MOLIENDA);
-        assertThat(bloqueLote.getEstadoEtapa()).isEqualTo(EstadoEtapaLote.FINALIZADA);
-        assertThat(bloqueLote.getFechaInicio()).isEqualTo(INICIO.plusDays(1));
-        assertThat(bloqueLote.getFechaFin()).isEqualTo(INICIO.plusDays(1).plusHours(3));
-        assertThat(bloqueLote.isFinProvisorio()).isFalse();
-        BloqueLineaTiempoEquipamientoResponseDTO bloqueFalla = resultado.get(0);
-        assertThat(bloqueFalla.getIdReferencia()).isEqualTo(9L);
-        assertThat(bloqueFalla.getCodigoLote()).isNull();
-        assertThat(bloqueFalla.getObservaciones()).isEqualTo("Observaciones de prueba");
-        assertThat(bloqueFalla.getFechaInicio()).isEqualTo(FIN);
-        assertThat(bloqueFalla.getFechaFin()).isEqualTo(FIN);
+        assertThat(resultado.getContent()).extracting(ActividadEquipamientoResponseDTO::getTipo)
+                .containsExactly(TipoActividadEquipamiento.LIMPIEZA, TipoActividadEquipamiento.LOTE, TipoActividadEquipamiento.FALLA);
+        ActividadEquipamientoResponseDTO lote = resultado.getContent().get(1);
+        assertThat(lote.getIdReferencia()).isEqualTo(5L);
+        assertThat(lote.getCodigoLote()).isEqualTo("LOT-001");
+        assertThat(lote.getEtapa()).isEqualTo(TipoEtapa.MOLIENDA);
+        assertThat(lote.getFechaInicio()).isEqualTo(INICIO.plusDays(1));
+        assertThat(lote.getFechaFin()).isEqualTo(INICIO.plusDays(1).plusHours(3));
+        assertThat(lote.isEnCurso()).isFalse();
+        assertThat(lote.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+        assertThat(resultado.getContent().get(0).getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        ActividadEquipamientoResponseDTO falla = resultado.getContent().get(2);
+        assertThat(falla.getIdReferencia()).isEqualTo(9L);
+        assertThat(falla.getCodigoLote()).isNull();
+        assertThat(falla.getObservaciones()).isEqualTo("Observaciones de prueba");
+        assertThat(falla.getFechaInicio()).isEqualTo(FIN);
+        assertThat(falla.getFechaFin()).isNull();
+        assertThat(falla.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
     }
 
     @Test
-    @DisplayName("CP-CE-15: listarLineaDeTiempo usa el momento de la consulta como fin provisorio de la etapa en curso")
-    void listarLineaDeTiempo_debeUsarAhoraComoFinProvisorioDeLaEtapaEnCurso() {
+    @DisplayName("CP-CE-15: listarHistorial muestra la etapa en curso sin fecha de fin y con el equipamiento En uso")
+    void listarHistorial_debeMostrarLaEtapaEnCursoSinFin() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.EN_USO);
-        EtapaLoteEntity enCurso = etapa(6L, "LOT-002", TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, INICIO, null, molino);
         when(equipamientoRepository.existsById(1L)).thenReturn(true);
-        when(etapaLoteRepository.buscarEtapasConUsoRealEnPeriodo(1L, null, null)).thenReturn(List.of(enCurso));
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, null, null))
+                .thenReturn(List.of(etapa(6L, "LOT-002", TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, INICIO, null, molino)));
         when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null)).thenReturn(List.of());
-        LocalDateTime antes = LocalDateTime.now();
 
         // === EJECUCION ===
-        List<BloqueLineaTiempoEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarLineaDeTiempo(1L, null, null);
+        ActividadEquipamientoResponseDTO fila = controlEquipamientoServicio.listarHistorial(1L, null, null, null, PageRequest.of(0, 20)).getContent().get(0);
 
         // === ASSERTS ===
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).isFinProvisorio()).isTrue();
-        assertThat(resultado.get(0).getEstadoEtapa()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(fila.isEnCurso()).isTrue();
+        assertThat(fila.getFechaFin()).isNull();
+        assertThat(fila.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_USO);
+    }
+
+    @ParameterizedTest(name = "{0} {1} -> {2}")
+    @CsvSource({"MOLIENDA,FINALIZADA,EN_LIMPIEZA", "MACERACION,FINALIZADA,EN_LIMPIEZA", "HERVIDO,FINALIZADA,EN_LIMPIEZA",
+            "FERMENTACION,FINALIZADA,", "MADURACION,FINALIZADA,", "ENVASADO,FINALIZADA,EN_LIMPIEZA",
+            "FERMENTACION,CANCELADA,EN_LIMPIEZA", "MOLIENDA,CANCELADA,EN_LIMPIEZA"})
+    @DisplayName("CP-CE-16: listarHistorial informa el estado que cada etapa deja en el equipamiento: Fermentación y Maduración no lo cambian (el fermentador pasa a En limpieza al finalizar el Envasado) y una etapa cancelada lo deja En limpieza")
+    void listarHistorial_debeInformarElEstadoQueDejaCadaEtapa(TipoEtapa tipoEtapa, EstadoEtapaLote estado, EstadoOperativo esperado) {
+        // === PREPARACION DE DATOS ===
+        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, null, null))
+                .thenReturn(List.of(etapa(7L, "LOT-003", tipoEtapa, estado, INICIO, INICIO.plusHours(2), molino(1L, EstadoOperativo.DISPONIBLE))));
+        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        ActividadEquipamientoResponseDTO fila = controlEquipamientoServicio.listarHistorial(1L, null, null, null, PageRequest.of(0, 20)).getContent().get(0);
+
+        // === ASSERTS ===
+        assertThat(fila.getEstadoOperativoResultante()).isEqualTo(esperado);
     }
 
     @Test
-    @DisplayName("CP-CE-16: listarLineaDeTiempo muestra una etapa cancelada sin fecha de finalización como un bloque sin duración")
-    void listarLineaDeTiempo_debeMostrarCanceladaSinFinComoBloqueSinDuracion() {
+    @DisplayName("CP-CE-17: listarHistorial por tipo Lote no consulta las operaciones, y por tipo Falla no consulta las etapas y deja solo las fallas")
+    void listarHistorial_debeFiltrarPorTipo() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
-        EtapaLoteEntity cancelada = etapa(7L, "LOT-003", TipoEtapa.MOLIENDA, EstadoEtapaLote.CANCELADA, INICIO, null, molino);
         when(equipamientoRepository.existsById(1L)).thenReturn(true);
-        when(etapaLoteRepository.buscarEtapasConUsoRealEnPeriodo(1L, null, null)).thenReturn(List.of(cancelada));
-        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null)).thenReturn(List.of());
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, null, null))
+                .thenReturn(List.of(etapa(5L, "LOT-001", TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, INICIO, INICIO.plusHours(3), molino)));
+        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null))
+                .thenReturn(List.of(limpieza(10L, EstadoTransaccion.REGISTRADO, molino, FIN), falla(9L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(1))));
 
         // === EJECUCION ===
-        List<BloqueLineaTiempoEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarLineaDeTiempo(1L, null, null);
+        Page<ActividadEquipamientoResponseDTO> lotes = controlEquipamientoServicio.listarHistorial(1L, TipoActividadEquipamiento.LOTE, null, null, PageRequest.of(0, 20));
+        Page<ActividadEquipamientoResponseDTO> fallas = controlEquipamientoServicio.listarHistorial(1L, TipoActividadEquipamiento.FALLA, null, null, PageRequest.of(0, 20));
 
         // === ASSERTS ===
-        assertThat(resultado.get(0).isFinProvisorio()).isFalse();
+        assertThat(lotes.getContent()).extracting(ActividadEquipamientoResponseDTO::getTipo).containsExactly(TipoActividadEquipamiento.LOTE);
+        assertThat(fallas.getContent()).extracting(ActividadEquipamientoResponseDTO::getIdReferencia).containsExactly(9L);
+        verify(operacionCicloVidaEquipamientoRepository, times(1)).buscarRegistradasEnPeriodo(1L, null, null);
+        verify(etapaLoteRepository, times(1)).buscarEtapasConUsoRealPorInicio(1L, null, null);
     }
 
     @Test
-    @DisplayName("CP-CE-17: listarLineaDeTiempo descarta la etapa en curso cuando el período empieza después del momento de la consulta")
-    void listarLineaDeTiempo_debeDescartarEtapaEnCursoSiElPeriodoEsFuturo() {
+    @DisplayName("CP-CE-18: listarHistorial pasa el rango de fechas a las dos consultas y lanza ReglaNegocioException cuando el rango está invertido")
+    void listarHistorial_debePasarElRangoYRechazarElInvertido() {
         // === PREPARACION DE DATOS ===
-        MolinoEntity molino = molino(1L, EstadoOperativo.EN_USO);
-        EtapaLoteEntity enCurso = etapa(6L, "LOT-002", TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, INICIO, null, molino);
-        LocalDateTime desde = LocalDateTime.now().plusDays(10);
-        LocalDateTime hasta = desde.plusDays(5);
+        LocalDateTime desde = INICIO.minusDays(2);
+        LocalDateTime hasta = INICIO.plusDays(2);
         when(equipamientoRepository.existsById(1L)).thenReturn(true);
-        when(etapaLoteRepository.buscarEtapasConUsoRealEnPeriodo(1L, desde, hasta)).thenReturn(List.of(enCurso));
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, desde, hasta)).thenReturn(List.of());
         when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, desde, hasta)).thenReturn(List.of());
 
-        // === EJECUCION ===
-        List<BloqueLineaTiempoEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarLineaDeTiempo(1L, desde, hasta);
-
-        // === ASSERTS ===
-        assertThat(resultado).isEmpty();
-    }
-
-    @Test
-    @DisplayName("CP-CE-18: listarLineaDeTiempo lanza ReglaNegocioException cuando el período termina antes de empezar")
-    void listarLineaDeTiempo_debeRechazarPeriodoInvertido() {
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> controlEquipamientoServicio.listarLineaDeTiempo(1L, INICIO, INICIO.minusDays(1)))
+        assertThat(controlEquipamientoServicio.listarHistorial(1L, null, desde, hasta, PageRequest.of(0, 20)).getContent()).isEmpty();
+        verify(etapaLoteRepository).buscarEtapasConUsoRealPorInicio(1L, desde, hasta);
+        assertThatThrownBy(() -> controlEquipamientoServicio.listarHistorial(1L, null, INICIO, INICIO.minusDays(1), PageRequest.of(0, 20)))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha hasta no puede ser anterior a la fecha desde")
                 .extracting("campo").isEqualTo("hasta");
-        verify(etapaLoteRepository, never()).buscarEtapasConUsoRealEnPeriodo(any(), any(), any());
     }
 
     @Test
-    @DisplayName("CP-CE-19: listarLineaDeTiempo lanza RecursoNoEncontradoException cuando el equipamiento no existe")
-    void listarLineaDeTiempo_debeRechazarInexistente() {
+    @DisplayName("CP-CE-19: listarHistorial lanza RecursoNoEncontradoException cuando el equipamiento no existe")
+    void listarHistorial_debeRechazarInexistente() {
         // === PREPARACION DE DATOS ===
         when(equipamientoRepository.existsById(99L)).thenReturn(false);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> controlEquipamientoServicio.listarLineaDeTiempo(99L, null, null))
+        assertThatThrownBy(() -> controlEquipamientoServicio.listarHistorial(99L, null, null, null, PageRequest.of(0, 20)))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el equipamiento con ID: 99");
         verifyNoInteractions(etapaLoteRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CE-25: listarHistorial pagina el resultado ya ordenado e informa el total, y una página fuera de rango es vacía")
+    void listarHistorial_debePaginar() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
+        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(etapaLoteRepository.buscarEtapasConUsoRealPorInicio(1L, null, null)).thenReturn(List.of());
+        when(operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(1L, null, null)).thenReturn(List.of(
+                falla(1L, EstadoTransaccion.REGISTRADO, molino, FIN), falla(2L, EstadoTransaccion.REGISTRADO, molino, FIN.plusDays(1)),
+                falla(3L, EstadoTransaccion.REGISTRADO, molino, FIN.plusDays(2))));
+
+        // === EJECUCION ===
+        Page<ActividadEquipamientoResponseDTO> segunda = controlEquipamientoServicio.listarHistorial(1L, null, null, null, PageRequest.of(1, 2));
+        Page<ActividadEquipamientoResponseDTO> fuera = controlEquipamientoServicio.listarHistorial(1L, null, null, null, PageRequest.of(5, 2));
+
+        // === ASSERTS ===
+        assertThat(segunda.getTotalElements()).isEqualTo(3);
+        assertThat(segunda.getContent()).extracting(ActividadEquipamientoResponseDTO::getIdReferencia).containsExactly(1L);
+        assertThat(fuera.getContent()).isEmpty();
     }
 
     // ==================== helpers de construcción ====================

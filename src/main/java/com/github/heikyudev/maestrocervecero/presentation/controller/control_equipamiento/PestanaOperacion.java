@@ -28,15 +28,15 @@ public enum PestanaOperacion {
     LIMPIEZAS("limpiezas", "limpieza", TipoOperacionEquipamiento.LIMPIEZA, "una limpieza", "Limpiezas", "bi-stars",
             EstadoOperativo.EN_LIMPIEZA, Permiso.LIMPIEZA_EQUIPAMIENTO_CONSULTAR, Permiso.LIMPIEZA_EQUIPAMIENTO_REGISTRAR,
             Permiso.LIMPIEZA_EQUIPAMIENTO_ANULAR, "Limpieza registrada correctamente", "Limpieza anulada correctamente",
-            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el equipamiento equivocado"),
+            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el equipamiento equivocado", "Observaciones de la limpieza"),
     FALLAS("fallas", "falla", TipoOperacionEquipamiento.FALLA, "una falla", "Fallas", "bi-exclamation-triangle",
             EstadoOperativo.DISPONIBLE, Permiso.FALLA_EQUIPAMIENTO_CONSULTAR, Permiso.FALLA_EQUIPAMIENTO_REGISTRAR,
             Permiso.FALLA_EQUIPAMIENTO_ANULAR, "Falla registrada correctamente", "Falla anulada correctamente",
-            "Ej: Falla en la resistencia de calentamiento", "No hay fallas registradas", "Se registró la falla en el equipamiento equivocado"),
+            "Ej: Falla en la resistencia de calentamiento", "No hay fallas registradas", "Se registró la falla en el equipamiento equivocado", "Observaciones de la falla"),
     MANTENIMIENTOS("mantenimientos", "mantenimiento", TipoOperacionEquipamiento.MANTENIMIENTO, "un mantenimiento", "Mantenimientos", "bi-wrench",
             EstadoOperativo.EN_MANTENIMIENTO, Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR, Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR,
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR, "Mantenimiento registrado correctamente", "Mantenimiento anulado correctamente",
-            "Ej: Cambio de juntas y revisión de válvulas", "No hay mantenimientos registrados", "Se registró el mantenimiento en el equipamiento equivocado");
+            "Ej: Cambio de juntas y revisión de válvulas", "No hay mantenimientos registrados", "Se registró el mantenimiento en el equipamiento equivocado", "Observaciones del mantenimiento");
 
     /** Clave de la pestaña en la URL del panel ({@code ?pestana=}) y en las rutas de registro y anulación. */
     private final String clave;
@@ -56,12 +56,14 @@ public enum PestanaOperacion {
     private final String mensajeAnulada;
     private final String ejemploObservaciones;
     private final String textoSinRegistros;
+    /** Título del diálogo con las observaciones de una operación de este tipo. */
+    private final String tituloObservaciones;
     /** Texto de ejemplo del motivo de anulación, sin el prefijo "Ej: " (lo agrega el diálogo). */
     private final String ejemploMotivo;
 
     PestanaOperacion(String clave, String claveOperacion, TipoOperacionEquipamiento tipo, String articulo, String etiqueta, String icono,
                      EstadoOperativo estadoRequerido, Permiso permisoConsultar, Permiso permisoRegistrar, Permiso permisoAnular,
-                     String mensajeRegistrada, String mensajeAnulada, String ejemploObservaciones, String textoSinRegistros, String ejemploMotivo) {
+                     String mensajeRegistrada, String mensajeAnulada, String ejemploObservaciones, String textoSinRegistros, String ejemploMotivo, String tituloObservaciones) {
         this.clave = clave;
         this.claveOperacion = claveOperacion;
         this.tipo = tipo;
@@ -76,7 +78,38 @@ public enum PestanaOperacion {
         this.mensajeAnulada = mensajeAnulada;
         this.ejemploObservaciones = ejemploObservaciones;
         this.textoSinRegistros = textoSinRegistros;
+        this.tituloObservaciones = tituloObservaciones;
         this.ejemploMotivo = ejemploMotivo;
+    }
+
+    /** Nombre de la operación sin artículo ("limpieza", "falla", "mantenimiento"). */
+    public String getNombreOperacion() {
+        return articulo.substring(articulo.indexOf(' ') + 1);
+    }
+
+    /** Texto del botón de alta de la tabla ("Nueva limpieza", "Nueva falla", "Nuevo mantenimiento"). */
+    public String getTextoNueva() {
+        return (this == MANTENIMIENTOS ? "Nuevo " : "Nueva ") + getNombreOperacion();
+    }
+
+    /** Mensaje de error del formulario de registro ("No se pudo registrar la limpieza", ...). */
+    public String getTituloError() {
+        return "No se pudo registrar " + (this == MANTENIMIENTOS ? "el " : "la ") + getNombreOperacion();
+    }
+
+    /** Título del formulario de registro ("Registrar limpieza", ...). */
+    public String getTituloRegistrar() {
+        return "Registrar " + getNombreOperacion();
+    }
+
+    /** Ruta, relativa al equipamiento, del formulario de registro ("limpiezas/nueva", "fallas/nueva", "mantenimientos/nuevo"). */
+    public String getRutaFormulario() {
+        return clave + (this == MANTENIMIENTOS ? "/nuevo" : "/nueva");
+    }
+
+    /** Título de la tabla de operaciones de este tipo ("Limpiezas registradas", "Mantenimientos registrados"). */
+    public String getTituloRegistradas() {
+        return etiqueta + (this == MANTENIMIENTOS ? " registrados" : " registradas");
     }
 
     /**

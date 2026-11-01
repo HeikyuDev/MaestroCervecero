@@ -80,22 +80,9 @@ public class GanttPlanificacionVista {
      */
     boolean planificacionResaltada;
 
-    /** Título de la columna fija de los carriles, o {@code null} para "Fermentador" (el de los cronogramas de lotes). */
-    String tituloCarriles;
-
-    /** Leyenda de la línea de tiempo de un equipo (solo los tipos presentes), o {@code null} para la leyenda de los cronogramas de lotes. */
-    List<EntradaLeyenda> leyendaEquipamiento;
-
     /**
      * Carril del diagrama: un fermentador con sus lotes en orden cronológico. Puede no tener barras.
      */
-    /** Una entrada de la leyenda: el color (clase {@code gantt-color--<clave>}) y su texto. */
-    @Value
-    public static class EntradaLeyenda {
-        String clave;
-        String texto;
-    }
-
     @Value
     @Builder
     public static class Carril {
@@ -104,7 +91,6 @@ public class GanttPlanificacionVista {
 
         /** Bloques de limpieza del fermentador y demás equipamiento, ordenados por fecha. Vacía en el carril "Sin fermentador". */
         List<Limpieza> limpiezas;
-
     }
 
     /**
@@ -147,14 +133,6 @@ public class GanttPlanificacionVista {
         String estadoClave;
 
         String estadoEtiqueta;
-
-        /** Destino del enlace de la barra, o {@code null} para llevar al detalle del lote {@code idLote}. */
-        String enlace;
-
-
-
-        /** Estilo en línea completo de la barra, o {@code null} para el estándar (izquierda y ancho en %). */
-        String estilo;
         LocalDate desde;
         LocalDate hasta;
 

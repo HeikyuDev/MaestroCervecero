@@ -89,7 +89,7 @@ class OperacionEquipamientoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-OPE-01: el operario registra una limpieza: el service recibe el equipamiento de la ruta, las fechas y las observaciones, y vuelve a la pestaña con la alerta de éxito")
+    @DisplayName("CP-OPE-01: el operario registra una limpieza: el service recibe el equipamiento de la ruta, la fecha y las observaciones, y vuelve a la pestaña con la alerta de éxito")
     void registrarLimpieza() throws Exception {
         mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza con soda"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=limpiezas"))
@@ -118,12 +118,12 @@ class OperacionEquipamientoControllerTest {
     @DisplayName("CP-OPE-03: un formulario inválido vuelve a la pestaña por redirect sin llamar al service, y el GET siguiente muestra los errores y lo escrito")
     void registrarInvalido() throws Exception {
         MvcResult resultado = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "", "  "))
-                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=limpiezas")).andReturn();
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "/limpiezas/nueva")).andReturn();
         verify(limpiezaServicio, never()).registrarLimpiezaEquipamiento(any());
 
-        String html = mockMvc.perform(get(BASE).param("pestana", "limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(resultado.getFlashMap()))
+        String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(resultado.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("No se pudo registrar una limpieza").contains("La fecha de la operación es obligatoria").contains("Las observaciones son obligatorias");
+        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha de la operación es obligatoria").contains("Las observaciones son obligatorias");
     }
 
     @Test
@@ -131,14 +131,14 @@ class OperacionEquipamientoControllerTest {
     void registrarRechazadoPorElService() throws Exception {
         when(limpiezaServicio.registrarLimpiezaEquipamiento(any())).thenThrow(new ReglaNegocioException("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", "fecha"));
         MvcResult campo = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T12:00", "Limpieza"))
-                .andExpect(redirectedUrl(BASE + "?pestana=limpiezas")).andReturn();
+                .andExpect(redirectedUrl(BASE + "/limpiezas/nueva")).andReturn();
         org.mockito.Mockito.doThrow(new ReglaNegocioException("No se puede registrar una limpieza porque el equipamiento está disponible", "idEquipamiento")).when(limpiezaServicio).registrarLimpiezaEquipamiento(any());
         MvcResult general = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza"))
-                .andExpect(redirectedUrl(BASE + "?pestana=limpiezas")).andReturn();
+                .andExpect(redirectedUrl(BASE + "/limpiezas/nueva")).andReturn();
 
-        String htmlCampo = mockMvc.perform(get(BASE).param("pestana", "limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(campo.getFlashMap()))
+        String htmlCampo = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(campo.getFlashMap()))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String htmlGeneral = mockMvc.perform(get(BASE).param("pestana", "limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(general.getFlashMap()))
+        String htmlGeneral = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(general.getFlashMap()))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(htmlCampo).contains("La fecha de la operación debe ser posterior a la última operación registrada");
         assertThat(htmlGeneral).contains("No se puede registrar una limpieza porque el equipamiento está disponible");
@@ -188,6 +188,40 @@ class OperacionEquipamientoControllerTest {
                     .andExpect(flash().attribute("tipo", "danger"));
         }
         verifyNoInteractions(limpiezaServicio, fallaServicio, mantenimientoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-OPE-10: el formulario de registro de una limpieza es una página con el título, el bloque de información del equipo, la fecha y hora y las observaciones en filas propias, Cancelar hacia la pestaña y Registrar limpieza, y es novalidate")
+    void formularioDeRegistro() throws Exception {
+        String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(html).contains("Registrar limpieza").contains("data-informacion-equipo").contains("novalidate").contains("name=\"fecha\"").contains("name=\"observaciones\"")
+                .contains("type=\"datetime-local\"").contains("Fecha y hora de la operación").contains("Ej: Limpieza con soda cáustica y enjuague")
+                .contains("href=\"/control-equipamiento/5?pestana=limpiezas\"").contains(">Cancelar<").contains("action=\"/control-equipamiento/5/limpiezas\"")
+                .doesNotContain("fechaInicio").doesNotContain("fechaFin");
+    }
+
+    @Test
+    @DisplayName("CP-OPE-11: si el estado del equipamiento no permite la operación, el formulario vuelve a la pestaña con el aviso del service; el de mantenimiento está en /mantenimientos/nuevo")
+    void formularioConEstadoNoPermitido() throws Exception {
+        mockMvc.perform(get(BASE + "/fallas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=fallas"))
+                .andExpect(flash().attribute("tipo", "warning"))
+                .andExpect(flash().attribute("mensaje", "Para registrar una falla, primero registre la limpieza del equipamiento"));
+        mockMvc.perform(get(BASE + "/mantenimientos/nuevo").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=mantenimientos"))
+                .andExpect(flash().attribute("tipo", "warning"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-OPE-12: los roles sin permiso de registrar (incluido el gerente de producción) no acceden a los formularios de registro y no se consulta el equipamiento")
+    void formularioRolesNoAutorizados(Rol rol) throws Exception {
+        for (String ruta : List.of("/limpiezas/nueva", "/fallas/nueva", "/mantenimientos/nuevo")) {
+            mockMvc.perform(get(BASE + ruta).with(como(rol))).andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+        }
+        verifyNoInteractions(controlServicio);
     }
 
     @Test

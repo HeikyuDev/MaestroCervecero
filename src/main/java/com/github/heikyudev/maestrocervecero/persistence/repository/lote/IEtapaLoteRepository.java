@@ -39,28 +39,24 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
     boolean existsEtapaAsociada(@Param("idEquipamiento") Long idEquipamiento);
 
     /**
-     * Busca las etapas en las que el equipamiento indicado se usó de verdad y cuyo intervalo se superpone con el período
-     * indicado, con su lote ya cargado (una sola consulta, sin N+1), ordenadas por fecha de inicio.
-     * <p>
-     * Tienen uso real las etapas {@code EN_CURSO}, {@code FINALIZADA} y {@code CANCELADA} con {@code fechaInicio} no
-     * nula. Una etapa {@code EN_CURSO} no tiene fecha de finalización: siempre se considera dentro del límite superior
-     * del período. Un extremo nulo no acota el período por ese lado.
-     * </p>
+     * Busca las etapas de lote en las que el equipamiento se usó de verdad (etapas {@code EN_CURSO}, {@code FINALIZADA} y
+     * {@code CANCELADA} con fecha de inicio) cuya fecha de inicio cae dentro del rango indicado, junto con su lote, de la
+     * de inicio más reciente a la más antigua. Un extremo nulo no acota el rango por ese lado.
      *
      * @param idEquipamiento El ID del equipamiento.
-     * @param desde Inicio del período, o {@code null} para no acotarlo.
-     * @param hasta Fin del período, o {@code null} para no acotarlo.
-     * @return Las etapas con uso real del equipamiento dentro del período.
+     * @param desde Límite inferior (inclusive) de la fecha de inicio, o {@code null} para no acotarlo.
+     * @param hasta Límite superior (inclusive) de la fecha de inicio, o {@code null} para no acotarlo.
+     * @return Las etapas con uso real del equipamiento cuyo inicio cae en el rango.
      */
     @Query("SELECT e FROM EtapaLoteEntity e JOIN FETCH e.lote WHERE e.equipamiento.id = :idEquipamiento "
             + "AND e.fechaInicio IS NOT NULL "
             + "AND e.estado IN ('EN_CURSO', 'FINALIZADA', 'CANCELADA') "
-            + "AND (CAST(:desde AS LocalDateTime) IS NULL OR e.fechaFinalizacion IS NULL OR e.fechaFinalizacion >= :desde) "
+            + "AND (CAST(:desde AS LocalDateTime) IS NULL OR e.fechaInicio >= :desde) "
             + "AND (CAST(:hasta AS LocalDateTime) IS NULL OR e.fechaInicio <= :hasta) "
-            + "ORDER BY e.fechaInicio, e.id")
-    List<EtapaLoteEntity> buscarEtapasConUsoRealEnPeriodo(@Param("idEquipamiento") Long idEquipamiento,
-                                                           @Param("desde") LocalDateTime desde,
-                                                           @Param("hasta") LocalDateTime hasta);
+            + "ORDER BY e.fechaInicio DESC, e.id DESC")
+    List<EtapaLoteEntity> buscarEtapasConUsoRealPorInicio(@Param("idEquipamiento") Long idEquipamiento,
+                                                          @Param("desde") LocalDateTime desde,
+                                                          @Param("hasta") LocalDateTime hasta);
 
     /**
      * Busca la fecha de finalización de la última etapa en la que el equipamiento indicado

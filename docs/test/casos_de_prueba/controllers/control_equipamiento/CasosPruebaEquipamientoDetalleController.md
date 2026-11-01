@@ -4,6 +4,6 @@
 
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
-| **CP-EQD-01** | el gerente y el operario ven el detalle con identidad, solo los parámetros con valor y las fechas de mantenimiento | el gerente y el operario ven el detalle con identidad, solo los parámetros con valor y las fechas de mantenimiento |
-| **CP-EQD-02** | los demás roles no abren el detalle del equipamiento | los demás roles no abren el detalle del equipamiento |
-| **CP-EQD-03** | un equipamiento inexistente o dado de baja vuelve al origen con alerta de error | un equipamiento inexistente o dado de baja vuelve al origen con alerta de error |
+| **CP-EQD-01** | Detalle del equipamiento para el gerente y el operario | Muestra la identidad, solo los parámetros con valor y las fechas de mantenimiento. |
+| **CP-EQD-02** | Roles sin permiso de consulta del equipamiento | No abren el detalle. |
+| **CP-EQD-03** | Equipamiento inexistente o dado de baja | Vuelve al origen con alerta de error. |

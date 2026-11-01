@@ -15,7 +15,8 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaL
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
@@ -25,6 +26,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +45,7 @@ import java.util.function.Function;
  * <p>
  * Es de solo lectura y no toma locks. Cada consulta resuelve todo lo que necesita con un número fijo de consultas, sin
  * importar cuántos equipamientos u operaciones haya: el listado agrega los usos y la última operación de la página
- * completa con una consulta cada uno (por lista de IDs), y la línea de tiempo trae las etapas junto con su lote.
+ * completa con una consulta cada uno (por lista de IDs), y el historial trae las etapas junto con su lote.
  * </p>
  */
 @Service
@@ -148,45 +150,51 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
     }
 
     /**
-     * Arma la línea de tiempo de un equipamiento para un período: un bloque por cada etapa de lote con uso real y por
-     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por fecha.
+     * Lista el historial de un equipamiento: una fila por cada etapa de lote con uso real y por cada operación
+     * registrada (nunca las anuladas), de la más reciente a la más antigua.
      * <p>
-     * Tienen uso real las etapas {@code EN_CURSO}, {@code FINALIZADA} y {@code CANCELADA} con fecha de inicio. La
-     * etapa en curso usa el momento de la consulta como fin provisorio. Los bloques conservan sus fechas reales, sin
-     * recortarlas al período. Ante igual inicio, el bloque que termina antes va primero (las operaciones son un instante).
+     * Las dos fuentes se traen con una consulta cada una (las etapas junto con su lote) y se unen en memoria: el
+     * historial de un equipamiento es acotado y la unión ordenada de dos tablas distintas no se puede paginar en una
+     * sola consulta. Ante igual fecha el orden es por tipo y, dentro del tipo, por identificador de mayor a menor.
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento.
-     * @param desde Inicio del período, o {@code null} para no acotarlo.
-     * @param hasta Fin del período, o {@code null} para no acotarlo.
-     * @return Los bloques de la línea de tiempo.
+     * @param tipo Tipo de actividad a mostrar, o {@code null} para todas.
+     * @param desde Límite inferior (inclusive) de la fecha, o {@code null} para no acotarlo.
+     * @param hasta Límite superior (inclusive) de la fecha, o {@code null} para no acotarlo.
+     * @param pageable La configuración de paginación.
+     * @return Una página del historial.
      * @throws RecursoNoEncontradoException Si el equipamiento no existe.
      * @throws ReglaNegocioException Si {@code hasta} es anterior a {@code desde}.
      */
     @Override
     @Transactional(readOnly = true)
-    public List<BloqueLineaTiempoEquipamientoResponseDTO> listarLineaDeTiempo(Long idEquipamiento, LocalDateTime desde, LocalDateTime hasta) {
+    public Page<ActividadEquipamientoResponseDTO> listarHistorial(Long idEquipamiento, TipoActividadEquipamiento tipo, LocalDateTime desde, LocalDateTime hasta, Pageable pageable) {
         if (desde != null && hasta != null && hasta.isBefore(desde)) {
             throw new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde", "hasta");
         }
         validarQueExisteElEquipamiento(idEquipamiento);
 
-        LocalDateTime ahora = LocalDateTime.now();
-        List<BloqueLineaTiempoEquipamientoResponseDTO> bloques = new ArrayList<>();
+        List<ActividadEquipamientoResponseDTO> actividades = new ArrayList<>();
+        if (tipo == null || tipo == TipoActividadEquipamiento.LOTE) {
+            etapaLoteRepository.buscarEtapasConUsoRealPorInicio(idEquipamiento, desde, hasta).stream()
+                    .map(MapperControlEquipamiento::toActividadDTO)
+                    .forEach(actividades::add);
+        }
+        if (tipo == null || tipo != TipoActividadEquipamiento.LOTE) {
+            operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(idEquipamiento, desde, hasta).stream()
+                    .map(MapperControlEquipamiento::toActividadDTO)
+                    .filter(actividad -> tipo == null || actividad.getTipo() == tipo)
+                    .forEach(actividades::add);
+        }
 
-        etapaLoteRepository.buscarEtapasConUsoRealEnPeriodo(idEquipamiento, desde, hasta).stream()
-                .map(etapa -> MapperControlEquipamiento.toBloqueDTO(etapa, ahora))
-                // Una etapa en curso tiene fin provisorio: si el período empieza después de ahora, no lo toca
-                .filter(bloque -> desde == null || !bloque.getFechaFin().isBefore(desde))
-                .forEach(bloques::add);
+        actividades.sort(Comparator.comparing(ActividadEquipamientoResponseDTO::getFechaInicio).reversed()
+                .thenComparing(ActividadEquipamientoResponseDTO::getTipo)
+                .thenComparing(Comparator.comparing(ActividadEquipamientoResponseDTO::getIdReferencia).reversed()));
 
-        operacionCicloVidaEquipamientoRepository.buscarRegistradasEnPeriodo(idEquipamiento, desde, hasta).stream()
-                .map(MapperControlEquipamiento::toBloqueDTO)
-                .forEach(bloques::add);
-
-        bloques.sort(Comparator.comparing(BloqueLineaTiempoEquipamientoResponseDTO::getFechaInicio)
-                .thenComparing(BloqueLineaTiempoEquipamientoResponseDTO::getFechaFin));
-        return bloques;
+        int inicio = (int) Math.min(pageable.getOffset(), actividades.size());
+        int fin = Math.min(inicio + pageable.getPageSize(), actividades.size());
+        return new PageImpl<>(actividades.subList(inicio, fin), pageable, actividades.size());
     }
 
     private void validarQueExisteElEquipamiento(Long idEquipamiento) {

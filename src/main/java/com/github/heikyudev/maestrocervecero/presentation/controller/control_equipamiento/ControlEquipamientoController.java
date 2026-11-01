@@ -2,13 +2,12 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.control_eq
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
-import com.github.heikyudev.maestrocervecero.presentation.view.GanttEquipamientoBuilder;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
-import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoOperacionEquipamiento;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoBloqueLineaTiempo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
@@ -17,7 +16,10 @@ import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -26,28 +28,22 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
 /**
- * Controller de las pantallas de control de equipamiento: la lista de todos los equipamientos activos, el cronograma de
+ * Controller de las pantallas de control de equipamiento: la lista de todos los equipamientos activos, el historial de
  * un equipo, su panel operativo (limpiezas, fallas y mantenimientos) y el detalle de una operación.
  * <p>
  * Es un controller de lectura: registrar y anular las operaciones lo hace {@link OperacionEquipamientoController}. Cada
  * método se autoriza por permiso. El operario de producción (que registra y anula las operaciones) y el gerente de
- * producción (que solo las consulta) usan la lista y el panel; el cronograma es solo del gerente.
+ * producción (que solo las consulta) usan la lista y el panel; el historial es solo del gerente.
  * </p>
  */
 @Controller
@@ -57,25 +53,15 @@ public class ControlEquipamientoController {
 
     private static final String VISTA_LISTA = "control_equipamiento/control-lista";
     private static final String VISTA_PANEL = "control_equipamiento/control-panel";
-    private static final String VISTA_CRONOGRAMA = "control_equipamiento/control-cronograma";
+    private static final String VISTA_HISTORIAL = "control_equipamiento/control-historial";
     private static final String VISTA_OPERACION = "control_equipamiento/operacion-detalle";
     static final String ATRIBUTO_FORMULARIO = "operacionForm";
     private static final String URL_CONTROL = "/control-equipamiento";
 
-    /** Rango de fechas admitido para la semana: fuera de él la fecha se considera inválida y no se ofrece la semana vecina. */
-    private static final LocalDate FECHA_MINIMA = LocalDate.of(1900, 1, 1);
-    private static final LocalDate FECHA_MAXIMA = LocalDate.of(2200, 12, 31);
-
-    private static final Pattern FECHA_ISO = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
-    private static final String AVISO_SEMANA_INVALIDA = "La semana indicada no es válida, se muestra la semana actual";
-    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final String AVISO_TIPO_ACTIVIDAD_INVALIDO = "El tipo indicado no es válido, se muestran todos";
     private static final String AVISO_TIPO_INVALIDO = "El tipo indicado no es válido, se muestran todos";
 
     private final IControlEquipamientoServicio controlEquipamientoServicio;
-
-    /** Una fila de la tabla de actividad de la semana. */
-    public record FilaActividad(String fecha, String tipo, String detalle, String enlace) {
-    }
 
     // ==================== Lista ====================
 
@@ -118,73 +104,68 @@ public class ControlEquipamientoController {
         return VISTA_LISTA;
     }
 
-    // ==================== Cronograma del equipo ====================
+    // ==================== Historial del equipo ====================
 
     /**
-     * Muestra el cronograma de un equipo: su información, su línea de tiempo de una semana (de lunes a domingo; por
-     * defecto la que contiene hoy) y la tabla con la actividad de esa semana. {@code semana} es cualquier fecha de la
-     * semana pedida; una fecha inválida se avisa y se muestra la semana actual. Es una pantalla del gerente de producción.
+     * Muestra el historial de un equipo: su información y una tabla paginada con sus etapas de lote y sus operaciones
+     * registradas (sin las anuladas), de la más reciente a la más antigua, filtrable por tipo y por fechas. Un tipo
+     * inválido no filtra y se avisa; un rango de fechas invertido muestra el aviso del service y una lista vacía, para no
+     * perder los filtros elegidos. Es una pantalla del gerente de producción.
      */
-    @GetMapping("/{id}/cronograma")
+    @GetMapping("/{id}/historial")
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String mostrarCronograma(@PathVariable Long id,
-                                    @RequestParam(required = false) String semana,
-                                    Model model) {
-        LocalDateTime ahora = LocalDateTime.now();
+    public String mostrarHistorial(@PathVariable Long id,
+                                   @RequestParam(required = false) String tipo,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
+                                   @RequestParam(defaultValue = "0") int pagina,
+                                   Model model) {
         List<String> avisos = new ArrayList<>();
-        LocalDate lunes = resolverSemana(semana, ahora.toLocalDate(), avisos);
-        LocalDate domingo = lunes.plusDays(6);
+        TipoActividadEquipamiento tipoFiltro = aTipoActividad(tipo);
+        if (vacioANulo(tipo) != null && tipoFiltro == null) {
+            avisos.add(AVISO_TIPO_ACTIVIDAD_INVALIDO);
+        }
 
         EquipamientoResumenResponseDTO equipo = controlEquipamientoServicio.buscarResumen(id);
-        List<BloqueLineaTiempoEquipamientoResponseDTO> bloques = controlEquipamientoServicio.listarLineaDeTiempo(id, lunes.atStartOfDay(), domingo.atTime(LocalTime.MAX));
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA);
+        Page<ActividadEquipamientoResponseDTO> actividades;
+        try {
+            actividades = controlEquipamientoServicio.listarHistorial(id, tipoFiltro,
+                    fechaDesde != null ? fechaDesde.atStartOfDay() : null,
+                    fechaHasta != null ? fechaHasta.atTime(LocalTime.MAX) : null, pageable);
+        } catch (ReglaNegocioException e) {
+            actividades = new PageImpl<>(List.of(), pageable, 0);
+            avisos.add(e.getMessage());
+        }
 
         model.addAttribute("equipo", equipo);
-        model.addAttribute("gantt", GanttEquipamientoBuilder.construir(id, equipo.getIdentificadorInterno(), bloques, lunes, ahora));
-        model.addAttribute("filasActividad", filasDeActividad(bloques));
-        model.addAttribute("periodoDesde", lunes);
-        model.addAttribute("periodoHasta", domingo);
-        // Sin enlace cuando la semana vecina se saldría del rango de fechas admitido
-        model.addAttribute("urlPeriodoAnterior", lunes.minusWeeks(1).isBefore(FECHA_MINIMA) ? null : urlCronograma(id, lunes.minusWeeks(1)));
-        model.addAttribute("urlPeriodoSiguiente", lunes.plusWeeks(1).isAfter(FECHA_MAXIMA) ? null : urlCronograma(id, lunes.plusWeeks(1)));
-        model.addAttribute("urlPeriodoHoy", urlCronograma(id, null));
+        model.addAttribute("actividades", actividades);
+        model.addAttribute("tipos", TipoActividadEquipamiento.values());
+        model.addAttribute("filtroTipo", tipoFiltro);
+        model.addAttribute("filtroFechaDesde", fechaDesde);
+        model.addAttribute("filtroFechaHasta", fechaHasta);
+        model.addAttribute("hayFiltros", tipoFiltro != null || fechaDesde != null || fechaHasta != null);
         if (!avisos.isEmpty()) {
             model.addAttribute("mensaje", MensajeConLista.deAvisos(avisos));
             model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
         }
-        return VISTA_CRONOGRAMA;
-    }
-
-    /** La tabla de actividad: una fila por bloque, con su fecha (o inicio y fin), su tipo y su detalle. */
-    private static List<FilaActividad> filasDeActividad(List<BloqueLineaTiempoEquipamientoResponseDTO> bloques) {
-        List<FilaActividad> filas = new ArrayList<>();
-        for (BloqueLineaTiempoEquipamientoResponseDTO bloque : bloques) {
-            if (bloque.getTipo() == TipoBloqueLineaTiempo.LOTE) {
-                String fin = bloque.isFinProvisorio() ? "En curso" : bloque.getFechaFin().format(FORMATO_FECHA_HORA);
-                filas.add(new FilaActividad(bloque.getFechaInicio().format(FORMATO_FECHA_HORA) + " - " + fin, "Lote",
-                        bloque.getCodigoLote() + " · " + bloque.getEtapa().getEtiqueta(),
-                        bloque.getIdLote() == null ? null : "/lotes/" + bloque.getIdLote() + "/detalle"));
-            } else {
-                filas.add(new FilaActividad(bloque.getFechaInicio().format(FORMATO_FECHA_HORA),
-                        TipoOperacionEquipamiento.valueOf(bloque.getTipo().name()).getEtiqueta(),
-                        bloque.getObservaciones() == null ? "-" : bloque.getObservaciones(),
-                        null));
-            }
-        }
-        return filas;
+        return VISTA_HISTORIAL;
     }
 
     // ==================== Panel operativo ====================
 
     /**
      * Muestra el panel operativo de un equipo: su información y, en pestañas, las limpiezas, fallas y mantenimientos.
-     * La pestaña activa viaja en {@code ?pestana=} (por defecto, la primera que el usuario puede consultar). El operario
-     * ve el formulario de registro cuando el estado del equipo lo permite y el botón de anular en la última operación; el
-     * gerente solo consulta. Si llega de un formulario inválido, muestra sus errores y lo que se había escrito.
+     * La pestaña activa viaja en {@code ?pestana=} (por defecto, la primera que el usuario puede consultar). Cada pestaña
+     * es la tabla paginada de las operaciones de su tipo (anuladas incluidas, la de fecha más reciente arriba). El operario
+     * ve el botón de alta, que lleva al formulario de registro, cuando el estado del equipo lo permite (si no, un aviso
+     * explica el motivo) y el botón de anular en la última operación; el gerente solo consulta.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR', 'FALLA_EQUIPAMIENTO_CONSULTAR', 'MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR')")
     public String mostrarPanel(@PathVariable Long id,
                                @RequestParam(required = false) String pestana,
+                               @RequestParam(defaultValue = "0") int pagina,
                                Authentication authentication,
                                Model model) {
         List<PestanaOperacion> pestanas = pestanasPermitidas(authentication);
@@ -199,14 +180,14 @@ public class ControlEquipamientoController {
         model.addAttribute("equipo", equipo);
         model.addAttribute("pestanas", pestanas);
         model.addAttribute("pestanaActiva", activa);
-        model.addAttribute("operaciones", activa.operacionesDe(operaciones));
+        List<OperacionEquipamientoResponseDTO> deLaPestana = activa.operacionesDe(operaciones);
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA);
+        int desde = (int) Math.min(pageable.getOffset(), deLaPestana.size());
+        model.addAttribute("operaciones", new PageImpl<>(deLaPestana.subList(desde, Math.min(desde + pageable.getPageSize(), deLaPestana.size())), pageable, deLaPestana.size()));
         model.addAttribute("puedeRegistrar", puedeRegistrar);
         model.addAttribute("puedeAnular", tienePermiso(authentication, activa.getPermisoAnular()));
         model.addAttribute("registroHabilitado", puedeRegistrar && motivoNoRegistrable.isEmpty());
         model.addAttribute("motivoNoRegistrable", motivoNoRegistrable.orElse(null));
-        if (!model.containsAttribute(ATRIBUTO_FORMULARIO)) {
-            model.addAttribute(ATRIBUTO_FORMULARIO, activa.nuevoFormulario());
-        }
         return VISTA_PANEL;
     }
 
@@ -268,32 +249,14 @@ public class ControlEquipamientoController {
         }
     }
 
-    /** El lunes de la semana pedida (cualquier fecha de ella); sin fecha o con una inválida, el de la semana actual. */
-    private static LocalDate resolverSemana(String semanaTexto, LocalDate hoy, List<String> avisos) {
-        String texto = vacioANulo(semanaTexto);
-        LocalDate fecha = aFecha(texto);
-        if (texto != null && fecha == null) {
-            avisos.add(AVISO_SEMANA_INVALIDA);
-        }
-        return (fecha != null ? fecha : hoy).with(DayOfWeek.MONDAY);
-    }
-
-    private static String urlCronograma(Long id, LocalDate semana) {
-        UriComponentsBuilder url = UriComponentsBuilder.fromPath(URL_CONTROL + "/" + id + "/cronograma");
-        if (semana != null) {
-            url.queryParam("semana", semana);
-        }
-        return url.build().toUriString();
-    }
-
-    private static LocalDate aFecha(String texto) {
-        if (texto == null || !FECHA_ISO.matcher(texto).matches()) {
+    private static TipoActividadEquipamiento aTipoActividad(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
             return null;
         }
         try {
-            LocalDate fecha = LocalDate.parse(texto);
-            return fecha.isBefore(FECHA_MINIMA) || fecha.isAfter(FECHA_MAXIMA) ? null : fecha;
-        } catch (DateTimeParseException e) {
+            return TipoActividadEquipamiento.valueOf(limpio.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
             return null;
         }
     }

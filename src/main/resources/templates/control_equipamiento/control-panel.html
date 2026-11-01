@@ -5,25 +5,25 @@
 <body>
 
 <!--
-    Panel operativo de un equipamiento: su información siempre visible y, en pestañas, las limpiezas, fallas y mantenimientos.
-    El operario de producción registra la operación con el formulario corto (solo si el estado operativo del equipo lo permite;
-    si no, un aviso explica el motivo) y anula la última operación registrada del equipo con el diálogo del motivo. El gerente de
-    producción solo consulta. Todas las acciones vuelven a la misma pestaña (Post-Redirect-Get).
+    Panel de un equipamiento: su información siempre visible y, en pestañas (enlaces, funcionan sin JavaScript), la tabla de sus
+    limpiezas, fallas o mantenimientos registrados, anulados incluidos y el más reciente arriba. Cada pestaña lleva en el
+    encabezado de su tarjeta el botón de alta, que abre la página del formulario de registro; el botón solo existe para el operario
+    de producción y solo si el estado operativo del equipo lo permite (si no, un aviso explica el motivo). La anulación de la
+    última operación registrada del equipo va en la columna de acciones, con el diálogo del motivo. El gerente de producción solo
+    consulta. Todas las acciones vuelven a la misma pestaña (Post-Redirect-Get).
 -->
 <div id="control-panel-content" class="space-y-6">
 
-    <!-- Encabezado -->
-    <section data-equipo-cabecera class="space-y-4">
+    <!-- Encabezado de la página -->
+    <div>
         <a th:href="@{/control-equipamiento}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i> Volver a control de equipamiento
         </a>
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex flex-wrap items-center gap-3">
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de <span th:text="${equipo.identificadorInterno}">FER-01</span></h1>
-                <span th:replace="~{equipamiento/estado :: badge(${equipo.estadoOperativo})}"></span>
-            </div>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de <span th:text="${equipo.identificadorInterno}">FER-01</span></h1>
+            <span th:replace="~{equipamiento/estado :: badge(${equipo.estadoOperativo})}"></span>
         </div>
-    </section>
+    </div>
 
     <th:block th:replace="~{control_equipamiento/equipo-informacion :: informacion(${equipo})}"></th:block>
 
@@ -39,80 +39,55 @@
         <p th:if="${puedeRegistrar and not registroHabilitado}" data-aviso-registro role="status"
            class="p-4 rounded-xl border bg-slate-100 border-slate-200 text-sm text-slate-600" th:text="${motivoNoRegistrable}">Para registrar una falla, primero registre la limpieza del equipamiento</p>
 
-        <!-- Registro de la operación -->
-        <section th:if="${registroHabilitado}" data-registrar-operacion class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700" th:text="'Registrar ' + ${pestanaActiva.articulo}">Registrar una limpieza</h2>
-            <p class="px-5 pt-4 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
-            <form th:action="@{/control-equipamiento/{id}/{pestana}(id=${equipo.id}, pestana=${pestanaActiva.clave})}" th:object="${operacionForm}"
-                  method="post" novalidate data-un-solo-envio>
-                <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar ' + ${pestanaActiva.articulo})}"></div>
-                <div class="p-5 space-y-5">
-                    <!-- fecha de la operación -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        <div>
-                            <label for="fecha" class="block text-sm font-medium text-slate-700 mb-1">Fecha y hora de la operación <span class="text-rose-600" title="Obligatorio">*</span></label>
-                            <input type="datetime-local" id="fecha" th:field="*{fecha}" autocomplete="off" placeholder="Ej: 31/10/2026 08:30"
-                                   class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                                   th:classappend="${#fields.hasErrors('fecha')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                            <p th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}" class="mt-1 text-xs text-rose-600"></p>
-                        </div>
-                    </div>
-                    <!-- observaciones -->
-                    <div class="grid grid-cols-1 gap-5">
-                        <div>
-                            <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones <span class="text-rose-600" title="Obligatorio">*</span></label>
-                            <textarea id="observaciones" th:field="*{observaciones}" rows="3" autocomplete="off" th:placeholder="${pestanaActiva.ejemploObservaciones}"
-                                      class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                                      th:classappend="${#fields.hasErrors('observaciones')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
-                            <p th:if="${#fields.hasErrors('observaciones')}" th:errors="*{observaciones}" class="mt-1 text-xs text-rose-600"></p>
-                        </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit" data-registrar-boton
-                                class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
-                                th:text="'Registrar ' + ${#strings.toLowerCase(#strings.arraySplit(pestanaActiva.articulo, ' ')[1])}">Registrar limpieza</button>
-                    </div>
-                </div>
-            </form>
-        </section>
-
         <!-- Operaciones del equipamiento de este tipo, anuladas incluidas, la de fecha más reciente arriba -->
         <section data-operaciones-registradas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700" th:text="${pestanaActiva.etiqueta} + ' registradas'">Limpiezas registradas</h2>
-            <p th:if="${#lists.isEmpty(operaciones)}" class="px-5 py-6 text-sm text-slate-400" th:text="${pestanaActiva.textoSinRegistros}">No hay limpiezas registradas</p>
-            <div th:unless="${#lists.isEmpty(operaciones)}" class="overflow-x-auto">
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-slate-700" th:text="${pestanaActiva.tituloRegistradas}">Limpiezas registradas</h2>
+                <a th:if="${registroHabilitado}" th:href="@{/control-equipamiento/{id}/{ruta}(id=${equipo.id}, ruta=${pestanaActiva.rutaFormulario})}" data-nueva-operacion
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> <th:block th:text="${pestanaActiva.textoNueva}">Nueva limpieza</th:block>
+                </a>
+            </div>
+            <p th:if="${operaciones.empty}" class="px-5 py-6 text-sm text-slate-400" th:text="${pestanaActiva.textoSinRegistros}">No hay limpiezas registradas</p>
+            <div th:unless="${operaciones.empty}" class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
-                        <th class="px-4 py-3 whitespace-nowrap">Fecha</th>
-                        <th class="px-4 py-3">Observaciones</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Fecha y hora</th>
                         <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        <th th:if="${puedeAnular}" class="col-acciones px-4 py-3 text-right whitespace-nowrap">Acciones</th>
+                        <th class="col-acciones px-4 py-3 text-right whitespace-nowrap">Acciones</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                    <tr th:each="o : ${operaciones}" th:attr="data-operacion=${o.id}" class="hover:bg-slate-50 align-top"
+                    <tr th:each="o : ${operaciones.content}" th:attr="data-operacion=${o.id}" class="hover:bg-slate-50 align-top"
                         th:classappend="${o.estado.name() == 'ANULADO'} ? 'opacity-60'">
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
-                            <a th:href="@{/control-equipamiento/{id}/operaciones/{tipo}/{idOperacion}(id=${equipo.id}, tipo=${pestanaActiva.claveOperacion}, idOperacion=${o.id})}"
-                               data-ver-operacion th:attr="aria-label='Ver el detalle de ' + ${pestanaActiva.articulo} + ' del ' + ${#temporals.format(o.fecha, 'dd/MM/yyyy HH:mm')}"
-                               class="text-amber-700 hover:underline"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${o.fecha})}"></th:block></a>
-                        </td>
-                        <td class="px-4 py-3 text-slate-700 break-words" th:text="${o.observaciones}">Limpieza con soda cáustica</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${o.fecha})}"></th:block></td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${o.estado})}"></span>
                             <th:block th:if="${o.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}"></th:block></th:block>
                         </td>
-                        <td th:if="${puedeAnular}" class="col-acciones px-4 py-3 text-right">
-                            <button type="button" th:if="${o.anulable}" data-motivo-dialogo="dialogo-anular"
-                                    th:data-motivo-url="@{/control-equipamiento/{id}/{pestana}/{idOperacion}/anular(id=${equipo.id}, pestana=${pestanaActiva.clave}, idOperacion=${o.id})}"
-                                    th:data-motivo-nombre="${equipo.identificadorInterno}"
-                                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                        <td class="col-acciones px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <th:block th:replace="~{fragments/detalle-anulacion :: observaciones(${pestanaActiva.tituloObservaciones}, ${o.observaciones}, ${o.fecha})}"></th:block>
+                                <a th:href="@{/control-equipamiento/{id}/operaciones/{tipo}/{idOperacion}(id=${equipo.id}, tipo=${pestanaActiva.claveOperacion}, idOperacion=${o.id})}"
+                                   data-ver-operacion th:aria-label="'Ver ' + ${pestanaActiva.articulo} + ' del ' + ${#temporals.format(o.fecha, 'dd/MM/yyyy HH:mm')}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg"></i>
+                                </a>
+                                <button type="button" th:if="${puedeAnular and o.anulable}" data-motivo-dialogo="dialogo-anular"
+                                        th:data-motivo-url="@{/control-equipamiento/{id}/{pestana}/{idOperacion}/anular(id=${equipo.id}, pestana=${pestanaActiva.clave}, idOperacion=${o.id})}"
+                                        th:data-motivo-nombre="${equipo.identificadorInterno}"
+                                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                            </div>
                         </td>
                     </tr>
                     </tbody>
                 </table>
             </div>
+            <div th:replace="~{fragments/paginacion :: paginacion(${operaciones}, 'operación|operaciones',
+                    ${operaciones.hasPrevious()} ? @{/control-equipamiento/{id}(id=${equipo.id}, pestana=${pestanaActiva.clave}, pagina=${operaciones.number - 1})} : null,
+                    ${operaciones.hasNext()} ? @{/control-equipamiento/{id}(id=${equipo.id}, pestana=${pestanaActiva.clave}, pagina=${operaciones.number + 1})} : null,
+                    false)}"></div>
         </section>
     </div>
 

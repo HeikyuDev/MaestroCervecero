@@ -2,9 +2,9 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <!--
-    Diálogo con el detalle de una anulación o cancelación (motivo, usuario y fecha y hora). Está una sola vez en el
+    Diálogo con el detalle de una anulación o cancelación (motivo, usuario y fecha y hora) o con un texto largo, como las observaciones de una operación (título, texto y fecha y hora). Está una sola vez en el
     layout (layout/base) y lo abre /js/modales.js desde el botón de fragments/detalle-anulacion, que le entrega los
-    datos con atributos data-detalle-*. Solo muestra información: no envía nada al servidor.
+    datos con atributos data-detalle-* (título, etiqueta del texto, etiqueta de la fecha, texto, usuario y fecha). Solo muestra información: no envía nada al servidor.
 -->
 <dialog th:fragment="dialogo" id="dialogo-detalle-anulacion" data-dialogo-detalle aria-labelledby="dialogo-detalle-anulacion-titulo"
         class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
@@ -15,7 +15,7 @@
                 <h3 id="dialogo-detalle-anulacion-titulo" data-detalle-titulo-destino class="text-lg font-semibold text-slate-900">Detalle de la anulación</h3>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div>
-                        <dt class="text-xs font-medium text-slate-500">Motivo</dt>
+                        <dt data-detalle-etiqueta-motivo-destino class="text-xs font-medium text-slate-500">Motivo</dt>
                         <dd data-detalle-motivo-destino class="text-slate-900 break-words"></dd>
                     </div>
                     <div data-detalle-fila-usuario>
@@ -23,7 +23,7 @@
                         <dd data-detalle-usuario-destino class="text-slate-900"></dd>
                     </div>
                     <div>
-                        <dt class="text-xs font-medium text-slate-500">Fecha y hora</dt>
+                        <dt data-detalle-etiqueta-fecha-destino class="text-xs font-medium text-slate-500">Fecha y hora</dt>
                         <dd data-detalle-fecha-destino class="text-slate-900"></dd>
                     </div>
                 </dl>

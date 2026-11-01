@@ -38,4 +38,23 @@
     <i class="bi bi-info-circle" aria-hidden="true"></i>
 </button>
 
+<!--
+    Botón que abre las observaciones de una operación (un texto que puede ser largo) en el mismo diálogo pequeño que el detalle
+    de una anulación: el texto nunca va dentro de la fila de una tabla. Mismo botón, mismas clases y mismo ícono; el diálogo
+    muestra el título, el texto bajo la etiqueta "Observaciones" y la fecha y hora de la operación. Si no hay texto, no se muestra
+    el botón.
+
+    Parámetros: titulo (por ejemplo 'Observaciones de la limpieza'), texto (las observaciones) y fecha (LocalDateTime de la operación).
+
+    Uso: <th:block th:replace="~{fragments/detalle-anulacion :: observaciones('Observaciones de la falla', ${o.observaciones}, ${o.fecha})}"></th:block>
+-->
+<button th:fragment="observaciones(titulo, texto, fecha)" type="button" th:if="${texto != null and !#strings.isEmpty(texto)}" data-detalle-anulacion data-detalle-sin-usuario
+        th:data-detalle-titulo="${titulo}" data-detalle-etiqueta-motivo="Observaciones" data-detalle-etiqueta-fecha="Fecha y hora de la operación"
+        th:data-detalle-motivo="${texto}"
+        th:data-detalle-fecha="${fecha != null} ? ${#temporals.format(fecha, 'dd/MM/yyyy HH:mm')}"
+        aria-label="Ver observaciones" title="Ver observaciones"
+        class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+
 </html>

@@ -7,7 +7,7 @@
 <!--
     Lista de control de equipamiento: todos los equipamientos activos (molinos, maceradores, ollas de hervor y fermentadores)
     en una sola tabla, con su estado, sus usos y su última operación. El operario de producción entra al panel operativo con
-    "Abrir"; el gerente de producción, que solo consulta, además ve el cronograma del equipo con el ojo.
+    "Abrir"; el gerente de producción, que solo consulta, además ve el historial del equipo con el ojo.
 -->
 <div id="control-lista-content" class="space-y-6">
 
@@ -83,9 +83,9 @@
                 </td>
                 <td class="col-acciones px-2 py-3">
                     <div class="flex items-center justify-center gap-1">
-                        <!-- El ojo (solo el gerente de producción) es el cronograma del equipo; "Abrir" es el panel operativo -->
-                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/control-equipamiento/{id}/cronograma(id=${e.id})}"
-                           th:aria-label="'Ver el cronograma de ' + ${e.identificadorInterno}" data-ver-cronograma
+                        <!-- El ojo (solo el gerente de producción) es el historial del equipo; "Abrir" es el panel operativo -->
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/control-equipamiento/{id}/historial(id=${e.id})}"
+                           th:aria-label="'Ver historial de ' + ${e.identificadorInterno}" data-ver-historial
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-eye text-lg"></i>
                         </a>

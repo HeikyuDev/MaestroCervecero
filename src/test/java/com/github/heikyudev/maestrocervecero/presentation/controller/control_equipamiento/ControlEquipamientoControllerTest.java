@@ -12,12 +12,12 @@ import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvic
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoBloqueLineaTiempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,7 +60,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class ControlEquipamientoControllerTest {
 
     private static final String SIN_PERMISOS = "No tiene permisos para realizar esta acción";
-    private static final LocalDate LUNES = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
     private static final LocalDateTime FIN = LocalDateTime.of(2026, 10, 20, 12, 0);
 
     @Autowired
@@ -81,13 +80,12 @@ public class ControlEquipamientoControllerTest {
                         .tipoUltimaOperacion(TipoOperacionEquipamiento.LIMPIEZA).fechaUltimaOperacion(FIN).build())));
         configurarEquipo(EstadoOperativo.EN_LIMPIEZA);
         when(servicio.buscarResumen(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el equipamiento con ID: 99"));
-        when(servicio.listarLineaDeTiempo(eq(5L), any(), any())).thenReturn(List.of(
-                BloqueLineaTiempoEquipamientoResponseDTO.builder().tipo(TipoBloqueLineaTiempo.LOTE).idReferencia(1L).idLote(12L)
-                        .codigoLote("LOT-R1-01").etapa(TipoEtapa.FERMENTACION).estadoEtapa(EstadoEtapaLote.FINALIZADA)
-                        .fechaInicio(LUNES.atStartOfDay()).fechaFin(LUNES.plusDays(2).atStartOfDay()).build(),
-                BloqueLineaTiempoEquipamientoResponseDTO.builder().tipo(TipoBloqueLineaTiempo.LIMPIEZA).idReferencia(7L)
-                        .observaciones("Limpieza con soda")
-                        .fechaInicio(LUNES.plusDays(3).atTime(8, 0)).fechaFin(LUNES.plusDays(3).atTime(8, 0)).build()));
+        when(servicio.listarHistorial(eq(5L), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                ActividadEquipamientoResponseDTO.builder().tipo(TipoActividadEquipamiento.LIMPIEZA).idReferencia(7L).observaciones("Limpieza con soda")
+                        .fechaInicio(LocalDateTime.of(2026, 10, 22, 8, 0)).estadoOperativoResultante(EstadoOperativo.DISPONIBLE).build(),
+                ActividadEquipamientoResponseDTO.builder().tipo(TipoActividadEquipamiento.LOTE).idReferencia(1L).idLote(12L).codigoLote("LOT-R1-01")
+                        .etapa(TipoEtapa.FERMENTACION).estadoEtapa(EstadoEtapaLote.EN_CURSO).fechaInicio(LocalDateTime.of(2026, 10, 20, 8, 0)).enCurso(true)
+                        .estadoOperativoResultante(EstadoOperativo.EN_USO).build())));
     }
 
     private void configurarEquipo(EstadoOperativo estado) {
@@ -111,27 +109,27 @@ public class ControlEquipamientoControllerTest {
     // ==================== Lista ====================
 
     @Test
-    @DisplayName("CP-CCE-01: el operario ve la lista con el botón Abrir y sin el ojo del cronograma")
+    @DisplayName("CP-CCE-01: el operario ve la lista con el botón Abrir y sin el ojo del historial")
     void lista_operario() throws Exception {
         String html = html(get("/control-equipamiento").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-lista");
 
         assertThat(html).contains("FER-01").contains("3 de 10").contains("data-boton-abrir").contains("Fermentador")
-                .doesNotContain("data-ver-cronograma");
+                .doesNotContain("data-ver-historial");
     }
 
     @Test
-    @DisplayName("CP-CCE-02: el gerente ve la lista con el ojo del cronograma y el botón Abrir")
+    @DisplayName("CP-CCE-02: el gerente ve la lista con el ojo del historial y el botón Abrir")
     void lista_gerente() throws Exception {
         String html = html(get("/control-equipamiento").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-lista");
 
-        assertThat(html).contains("data-ver-cronograma").contains("/control-equipamiento/5/cronograma").contains("data-boton-abrir");
+        assertThat(html).contains("data-ver-historial").contains("/control-equipamiento/5/historial").contains("data-boton-abrir");
     }
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
-    @DisplayName("CP-CCE-03: los demás roles no abren la lista, el cronograma ni el panel: redirigen con alerta y no se invoca el service")
+    @DisplayName("CP-CCE-03: los demás roles no abren la lista, el historial ni el panel: redirigen con alerta y no se invoca el service")
     void rolesNoAutorizados(Rol rol) throws Exception {
-        for (String url : List.of("/control-equipamiento", "/control-equipamiento/5", "/control-equipamiento/5/cronograma",
+        for (String url : List.of("/control-equipamiento", "/control-equipamiento/5", "/control-equipamiento/5/historial",
                 "/control-equipamiento/5/operaciones/limpieza/7")) {
             mockMvc.perform(get(url).with(como(rol))).andExpect(status().is3xxRedirection())
                     .andExpect(flash().attribute("mensaje", SIN_PERMISOS)).andExpect(flash().attribute("tipo", "danger"));
@@ -160,74 +158,146 @@ public class ControlEquipamientoControllerTest {
         assertThat(html).contains("El tipo indicado no es válido, se muestran todos").contains("El estado operativo indicado no es válido");
     }
 
-    // ==================== Cronograma ====================
+    // ==================== Historial ====================
 
     @Test
-    @DisplayName("CP-CCE-06: el cronograma del gerente pide la semana actual (de lunes a domingo), dibuja las barras con enlaces y leyenda, y la tabla de actividad coincide con el gráfico")
-    void cronograma_gerente() throws Exception {
-        String html = html(get("/control-equipamiento/5/cronograma").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
+    @DisplayName("CP-CCE-06: el historial del gerente muestra la información del equipo, los filtros y una fila por actividad con su estado resultante y los enlaces al lote y a la operación")
+    void historial_gerente() throws Exception {
+        String html = html(get("/control-equipamiento/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
 
-        ArgumentCaptor<LocalDateTime> desde = ArgumentCaptor.forClass(LocalDateTime.class);
-        ArgumentCaptor<LocalDateTime> hasta = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(servicio).listarLineaDeTiempo(eq(5L), desde.capture(), hasta.capture());
-        assertThat(desde.getValue().toLocalDate()).isEqualTo(LUNES);
-        assertThat(hasta.getValue().toLocalDate()).isEqualTo(LUNES.plusDays(6));
-        assertThat(html).contains("data-informacion-equipo").contains("LOT-R1-01 · Fermentación").contains("/lotes/12/detalle")
-                .contains("/control-equipamiento/5/operaciones/limpieza/7").contains("Etapa de lote finalizada").contains("Limpieza")
-                .contains("Inicio: ").contains("Fin: ").contains("Semana: ").contains("Cronograma de la semana");
-        String tabla = html.substring(html.indexOf("data-actividad-semana"));
-        assertThat(tabla).contains("Actividad de la semana").contains("Fecha y hora").contains("Tipo").contains("Detalle")
-                .contains("LOT-R1-01 · Fermentación").contains("Limpieza con soda").contains("href=\"/lotes/12/detalle\"");
-        assertThat(html).doesNotContain("gantt-barra--marcador").doesNotContain("bi-stars gantt-icono");
+        verify(servicio).listarHistorial(eq(5L), isNull(), isNull(), isNull(), any(Pageable.class));
+        assertThat(html).contains("Historial del equipamiento").contains("data-informacion-equipo").contains("name=\"tipo\"").contains("name=\"fechaDesde\"")
+                .contains("name=\"fechaHasta\"").contains("Ej: 01/07/2027").contains("Fecha y hora").contains("Estado resultante");
+        String tabla = html.substring(html.indexOf("data-historial"));
+        String encabezado = tabla.substring(tabla.indexOf("<thead"), tabla.indexOf("</thead>"));
+        assertThat(encabezado.split("<th ", -1)).hasSize(5);
+        assertThat(encabezado).contains("Fecha y hora").contains("Operación").contains("Estado resultante").contains(">Acciones<").doesNotContain("Detalle").doesNotContain(">Tipo<");
+        assertThat(tabla).contains("Lote · LOT-R1-01 · Fermentación").contains("href=\"/lotes/12/detalle\"").contains("20/10/2026 08:00").contains("En curso")
+                .contains("href=\"/control-equipamiento/5/operaciones/limpieza/7\"").contains("Limpieza con soda").contains("22/10/2026 08:00")
+                .contains("En uso").contains("Disponible");
+        // Las observaciones no se escriben en la fila: van en el botón i que abre el diálogo compartido
+        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-motivo=\"Limpieza con soda\"")
+                .contains("data-detalle-etiqueta-motivo=\"Observaciones\"").contains("aria-label=\"Ver observaciones\"")
+                .doesNotContain(">Limpieza con soda<");
+        // Ningún dato es un enlace: la navegación va en los botones de la columna Acciones
+        String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
+        assertThat(cuerpo).doesNotContain("text-amber-700").contains("data-ver-actividad").contains("aria-label=\"Ver el lote LOT-R1-01\"").contains("class=\"col-acciones");
+        assertThat(cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"))).contains("Ver observaciones");
     }
 
     @Test
-    @DisplayName("CP-CCE-07: el operario no abre el cronograma del equipo")
-    void cronograma_operarioRechazado() throws Exception {
-        mockMvc.perform(get("/control-equipamiento/5/cronograma").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+    @DisplayName("CP-CCE-07: el operario no abre el historial del equipo")
+    void historial_operarioRechazado() throws Exception {
+        mockMvc.perform(get("/control-equipamiento/5/historial").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("mensaje", SIN_PERMISOS));
         verifyNoInteractions(servicio);
     }
 
     @Test
-    @DisplayName("CP-CCE-08: sin actividad en la semana el cronograma muestra el mensaje de vacío, sin el diagrama ni la tabla")
-    void cronograma_sinActividad() throws Exception {
-        when(servicio.listarLineaDeTiempo(eq(5L), any(), any())).thenReturn(List.of());
+    @DisplayName("CP-CCE-08: sin actividad el historial muestra El equipamiento no tiene operaciones registradas, y con filtros, No se encontraron resultados")
+    void historial_vacio() throws Exception {
+        when(servicio.listarHistorial(eq(5L), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
 
-        String html = html(get("/control-equipamiento/5/cronograma").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
+        String sinFiltros = html(get("/control-equipamiento/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
+        String conFiltros = html(get("/control-equipamiento/5/historial").param("tipo", "FALLA").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
 
-        assertThat(html).contains("El equipamiento no tiene actividad en la semana").doesNotContain("data-gantt").doesNotContain("data-actividad-semana");
+        assertThat(sinFiltros).contains("El equipamiento no tiene operaciones registradas");
+        assertThat(conFiltros).contains("No se encontraron resultados").doesNotContain("El equipamiento no tiene operaciones registradas");
     }
 
     @Test
-    @DisplayName("CP-CCE-09: cualquier fecha pedida lleva a su semana de lunes a domingo; Anterior y Siguiente se mueven una semana y Hoy vuelve a la semana actual")
-    void cronograma_navegacion() throws Exception {
-        String html = html(get("/control-equipamiento/5/cronograma").param("semana", "2026-10-29")
-                .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
+    @DisplayName("CP-CCE-09: los filtros de tipo y de fechas se pasan al service (la fecha hasta incluye todo su día) y se conservan en el formulario y en la paginación")
+    void historial_filtros() throws Exception {
+        String html = html(get("/control-equipamiento/5/historial").param("tipo", "falla").param("fechaDesde", "2026-10-01").param("fechaHasta", "2026-10-31")
+                .param("pagina", "1").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
 
-        assertThat(html).contains("Semana: 26/10/2026 al 01/11/2026")
-                .contains("/control-equipamiento/5/cronograma?semana=2026-10-19").contains("/control-equipamiento/5/cronograma?semana=2026-11-02")
-                .doesNotContain("desde=").doesNotContain("hasta=");
+        ArgumentCaptor<LocalDateTime> desde = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<LocalDateTime> hasta = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<Pageable> pagina = ArgumentCaptor.forClass(Pageable.class);
+        verify(servicio).listarHistorial(eq(5L), eq(TipoActividadEquipamiento.FALLA), desde.capture(), hasta.capture(), pagina.capture());
+        assertThat(desde.getValue()).isEqualTo(LocalDateTime.of(2026, 10, 1, 0, 0));
+        assertThat(hasta.getValue().toLocalDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 31));
+        assertThat(hasta.getValue().getHour()).isEqualTo(23);
+        assertThat(pagina.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pagina.getValue().getPageSize()).isEqualTo(20);
+        assertThat(html).contains("value=\"2026-10-01\"").contains("value=\"2026-10-31\"");
     }
 
     @Test
-    @DisplayName("CP-CCE-10: una semana inválida se avisa y se muestra la semana actual")
-    void cronograma_semanaInvalida() throws Exception {
-        String html = html(get("/control-equipamiento/5/cronograma").param("semana", "ayer")
-                .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
+    @DisplayName("CP-CCE-10: un tipo inválido se avisa y no filtra, y un rango invertido muestra el aviso del service con la lista vacía")
+    void historial_filtrosInvalidos() throws Exception {
+        when(servicio.listarHistorial(eq(5L), any(), eq(LocalDateTime.of(2026, 10, 10, 0, 0)), any(), any()))
+                .thenThrow(new com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde", "hasta"));
 
-        assertThat(html).contains("La semana indicada no es válida, se muestra la semana actual").contains("Semana: ");
+        String tipoInvalido = html(get("/control-equipamiento/5/historial").param("tipo", "XXX").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
+        String invertido = html(get("/control-equipamiento/5/historial").param("fechaDesde", "2026-10-10").param("fechaHasta", "2026-10-01")
+                .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
+
+        assertThat(tipoInvalido).contains("El tipo indicado no es válido, se muestran todos");
+        assertThat(invertido).contains("La fecha hasta no puede ser anterior a la fecha desde").contains("No se encontraron resultados");
     }
 
     // ==================== Panel ====================
 
     @Test
-    @DisplayName("CP-CCE-11: el operario con el equipo EN_LIMPIEZA ve el formulario de registro de limpieza con fechas, observaciones y placeholder, y Anular solo en la operación anulable")
-    void panel_operarioConFormulario() throws Exception {
+    @DisplayName("CP-CCE-20: la tabla de operaciones del panel no escribe las observaciones en la fila: el botón i las abre en el diálogo compartido, con el título del tipo y la fecha de la operación")
+    void panel_observacionesEnElDialogo() throws Exception {
         String html = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
-        assertThat(html).contains("data-registrar-operacion").contains("type=\"datetime-local\"").contains("name=\"fecha\"").doesNotContain("fechaFin").doesNotContain("fechaInicio").contains("Ej: Limpieza con soda cáustica y enjuague").contains("novalidate")
-                .contains("/control-equipamiento/5/limpiezas").contains("data-pestanas-operaciones");
+        String tabla = html.substring(html.indexOf("data-operaciones-registradas"));
+        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-motivo=\"Limpieza con soda cáustica\"")
+                .contains("data-detalle-fecha=\"").contains("data-detalle-sin-usuario").contains("title=\"Ver observaciones\"")
+                .doesNotContain(">Limpieza con soda cáustica<");
+        String encabezado = tabla.substring(tabla.indexOf("<thead"), tabla.indexOf("</thead>"));
+        assertThat(encabezado).doesNotContain("Observaciones").contains("Fecha");
+        String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
+        String celdaAcciones = cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("class=\"col-acciones")));
+        assertThat(celdaAcciones).contains("Ver observaciones").contains("data-ver-operacion").contains("data-motivo-dialogo");
+        assertThat(cuerpo).doesNotContain("text-amber-700");
+        assertThat(html).contains("id=\"dialogo-detalle-anulacion\"").contains("data-detalle-etiqueta-motivo-destino");
+    }
+
+    @Test
+    @DisplayName("CP-CCE-21: la columna Acciones del panel lleva siempre el ojo y el botón i, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género")
+    void panel_columnaAcciones() throws Exception {
+        when(servicio.listarOperaciones(5L)).thenReturn(OperacionesEquipamientoResponseDTO.builder()
+                .limpiezas(List.of(operacion(6L, TipoOperacionEquipamiento.LIMPIEZA, EstadoTransaccion.REGISTRADO, false)))
+                .fallas(List.of()).mantenimientos(List.of(operacion(8L, TipoOperacionEquipamiento.MANTENIMIENTO, EstadoTransaccion.REGISTRADO, false))).build());
+
+        String sinAnulable = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+        String mantenimientos = html(get("/control-equipamiento/5").param("pestana", "mantenimientos").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+        configurarEquipo(EstadoOperativo.EN_LIMPIEZA);
+        String gerente = html(get("/control-equipamiento/5").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-panel");
+
+        assertThat(sinAnulable).contains("Limpiezas registradas").contains(">Acciones<").contains("data-ver-operacion").doesNotContain("data-motivo-url");
+        assertThat(mantenimientos).contains("Mantenimientos registrados");
+        assertThat(gerente).contains(">Acciones<").contains("data-ver-operacion").contains("Ver observaciones").doesNotContain("data-motivo-url");
+    }
+
+    @Test
+    @DisplayName("CP-CCE-22: la tabla de operaciones del panel se pagina de a 20 con el pie de paginación del sistema, que conserva la pestaña")
+    void panel_paginacion() throws Exception {
+        List<OperacionEquipamientoResponseDTO> muchas = new ArrayList<>();
+        for (long i = 1; i <= 25; i++) {
+            muchas.add(operacion(i, TipoOperacionEquipamiento.LIMPIEZA, EstadoTransaccion.REGISTRADO, false));
+        }
+        when(servicio.listarOperaciones(5L)).thenReturn(OperacionesEquipamientoResponseDTO.builder().limpiezas(muchas).fallas(List.of()).mantenimientos(List.of()).build());
+
+        String primera = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+        String segunda = html(get("/control-equipamiento/5").param("pagina", "1").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+
+        assertThat(count(primera, "data-operacion=")).isEqualTo(20);
+        assertThat(primera).contains(">25<").contains(">operaciones<").contains("Página <span>1</span> de <span>2</span>").contains("pestana=limpiezas&amp;pagina=1");
+        assertThat(count(segunda, "data-operacion=")).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("CP-CCE-11: el operario con el equipo EN_LIMPIEZA ve la tabla de limpiezas con el botón + Nueva limpieza hacia su formulario, sin formulario incrustado, y Anular solo en la operación anulable")
+    void panel_operarioConBotonNueva() throws Exception {
+        String html = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+
+        assertThat(html).contains("data-nueva-operacion").contains("Nueva limpieza").contains("href=\"/control-equipamiento/5/limpiezas/nueva\"")
+                .contains("bi-plus-lg").contains("data-pestanas-operaciones").doesNotContain("datetime-local");
         assertThat(count(html, "data-motivo-url")).isEqualTo(1);
         assertThat(html).contains("/control-equipamiento/5/limpiezas/7/anular").doesNotContain("/limpiezas/6/anular");
     }
@@ -240,7 +310,7 @@ public class ControlEquipamientoControllerTest {
         String html = html(get("/control-equipamiento/5").param("pestana", "fallas").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
         assertThat(html).contains("data-aviso-registro").contains("No se puede registrar una falla porque el equipamiento está en uso")
-                .doesNotContain("data-registrar-operacion");
+                .doesNotContain("data-nueva-operacion");
     }
 
     @Test
@@ -249,7 +319,7 @@ public class ControlEquipamientoControllerTest {
         String html = html(get("/control-equipamiento/5").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
         assertThat(html).contains("data-aviso-solo-lectura").contains("Solo puede consultar las operaciones del equipamiento")
-                .contains("Error de carga").doesNotContain("data-registrar-operacion").doesNotContain("data-motivo-url").doesNotContain("dialogo-anular");
+                .contains("Error de carga").doesNotContain(">Limpieza con soda cáustica<").doesNotContain("data-nueva-operacion").doesNotContain("data-motivo-url").doesNotContain("dialogo-anular");
     }
 
     @Test
@@ -258,7 +328,7 @@ public class ControlEquipamientoControllerTest {
         String inexistente = html(get("/control-equipamiento/5").param("pestana", "otra").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
         String mantenimientos = html(get("/control-equipamiento/5").param("pestana", "mantenimientos").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
-        assertThat(inexistente).contains("Registrar una limpieza");
+        assertThat(inexistente).contains("Nueva limpieza");
         assertThat(mantenimientos).contains("No hay mantenimientos registrados").contains("pestana=mantenimientos");
     }
 
@@ -293,28 +363,16 @@ public class ControlEquipamientoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CCE-18: Registrado por aparece solo en el detalle de la operación, no en el panel ni en el cronograma, y Responsable no aparece en ninguna")
+    @DisplayName("CP-CCE-18: Registrado por aparece solo en el detalle de la operación, no en el panel ni en el historial, y Responsable no aparece en ninguna")
     void registradoPorSoloEnElDetalle() throws Exception {
         String detalle = html(get("/control-equipamiento/5/operaciones/limpieza/7").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/operacion-detalle");
         String panel = html(get("/control-equipamiento/5").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-panel");
-        String cronograma = html(get("/control-equipamiento/5/cronograma").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
+        String historial = html(get("/control-equipamiento/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
 
         assertThat(detalle).contains("Registrado por");
         assertThat(panel).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
-        assertThat(cronograma).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
+        assertThat(historial).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
         assertThat(detalle).doesNotContain("Responsable");
-    }
-
-    @Test
-    @DisplayName("CP-CCE-19: la semana en el borde del rango de fechas no ofrece el enlace que se saldría del rango y una fecha fuera de rango se avisa como inválida")
-    void cronograma_semanaEnElBordeDelRango() throws Exception {
-        String borde = html(get("/control-equipamiento/5/cronograma").param("semana", "2200-12-31")
-                .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
-        String fuera = html(get("/control-equipamiento/5/cronograma").param("semana", "9999-12-31")
-                .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
-
-        assertThat(borde).contains("data-periodo-anterior").doesNotContain("data-periodo-siguiente");
-        assertThat(fuera).contains("La semana indicada no es válida");
     }
 
     // ==================== Apoyo ====================

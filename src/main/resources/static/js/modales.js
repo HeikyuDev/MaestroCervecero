@@ -19,7 +19,7 @@
  *   data-motivo-dialogo / data-motivo-url / data-motivo-nombre
  *                                 botón que abre un diálogo que pide un motivo (fragments/dialogo-motivo): el id
  *                                 del diálogo, a dónde se envía y de qué es la acción.
- *   data-detalle-anulacion / data-detalle-titulo / data-detalle-motivo / data-detalle-etiqueta-usuario / data-detalle-usuario / data-detalle-fecha
+ *   data-detalle-anulacion / data-detalle-titulo / data-detalle-motivo / data-detalle-etiqueta-motivo / data-detalle-etiqueta-fecha / data-detalle-etiqueta-usuario / data-detalle-usuario / data-detalle-fecha
  *                                 botón que abre el diálogo de detalle de una anulación o cancelación
  *                                 (fragments/dialogo-detalle-anulacion, incluido en el layout): el título del
  *                                 diálogo, el motivo, el usuario y la fecha y hora.
@@ -222,10 +222,16 @@
         function asignar(destino, atributo) {
             dialogo.querySelector(destino).textContent = boton.getAttribute(atributo) || '-';
         }
+        // Las etiquetas del texto y de la fecha son las de una anulación salvo que el botón traiga las suyas
+        function etiquetar(destino, atributo, porDefecto) {
+            dialogo.querySelector(destino).textContent = boton.getAttribute(atributo) || porDefecto;
+        }
         asignar('[data-detalle-titulo-destino]', 'data-detalle-titulo');
+        etiquetar('[data-detalle-etiqueta-motivo-destino]', 'data-detalle-etiqueta-motivo', 'Motivo');
         asignar('[data-detalle-motivo-destino]', 'data-detalle-motivo');
         asignar('[data-detalle-etiqueta-usuario-destino]', 'data-detalle-etiqueta-usuario');
         asignar('[data-detalle-usuario-destino]', 'data-detalle-usuario');
+        etiquetar('[data-detalle-etiqueta-fecha-destino]', 'data-detalle-etiqueta-fecha', 'Fecha y hora');
         asignar('[data-detalle-fecha-destino]', 'data-detalle-fecha');
         // Un detalle sin usuario (data-detalle-sin-usuario) omite la fila "Anulado por"
         dialogo.querySelector('[data-detalle-fila-usuario]').hidden = boton.hasAttribute('data-detalle-sin-usuario');

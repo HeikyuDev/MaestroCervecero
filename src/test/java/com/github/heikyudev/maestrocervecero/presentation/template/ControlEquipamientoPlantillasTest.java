@@ -35,7 +35,7 @@ class ControlEquipamientoPlantillasTest {
     @Test
     @DisplayName("CP-PEQ-02: el formulario de registro lleva la fecha en una fila y las observaciones en otra, con asterisco y ejemplo, y es novalidate")
     void formularioPorTema() throws IOException {
-        String html = leer("control_equipamiento/control-panel.html");
+        String html = leer("control_equipamiento/control-form.html");
         List<String> filas = filas(html);
 
         assertThat(filaCon(filas, "for=\"fecha\"")).doesNotContain("observaciones").doesNotContain("fechaFin");
@@ -47,7 +47,7 @@ class ControlEquipamientoPlantillasTest {
     @DisplayName("CP-PEQ-03: la lista de control usa el fragmento del botón Abrir sin copiar su marcado, y el ojo es solo del gerente y lleva aria-label sin tooltip")
     void listaConAbrirYOjo() throws IOException {
         String html = leer("control_equipamiento/control-lista.html");
-        Matcher ojo = Pattern.compile("<a sec:authorize=\"hasRole\\('GERENTE_DE_PRODUCCION'\\)\"[^>]*data-ver-cronograma[^>]*>", Pattern.DOTALL).matcher(html);
+        Matcher ojo = Pattern.compile("<a sec:authorize=\"hasRole\\('GERENTE_DE_PRODUCCION'\\)\"[^>]*data-ver-historial[^>]*>", Pattern.DOTALL).matcher(html);
 
         assertThat(html).contains("fragments/boton-abrir :: abrir(").doesNotContain("data-boton-abrir");
         assertThat(ojo.find()).isTrue();
@@ -99,31 +99,80 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-09: el diagrama del equipo usa barras rectangulares sin marcadores ni íconos, con leyenda de cuadrados de color, y los diagramas de lotes conservan sus clases y el ícono de la limpieza")
-    void ganttSinMarcadoresNiIconos() throws IOException {
-        String html = leer("planificacion_produccion/gantt.html");
-        String leyendaEquipo = html.substring(html.indexOf("th:if=\"${vista.leyendaEquipamiento != null}\""), html.indexOf("th:unless=\"${vista.leyendaEquipamiento != null}\""));
+    @DisplayName("CP-PEQ-11: el historial usa el patrón de las listas: filtros en una grilla con Limpiar y Buscar, tabla estándar con encabezado gris, badge de estado operativo y fragmento de paginación")
+    void historialConElPatronDeLasListas() throws IOException {
+        String html = leer("control_equipamiento/control-historial.html");
 
-        assertThat(html).doesNotContain("marcador").doesNotContain("gantt-icono").doesNotContain("b.icono");
-        assertThat(leyendaEquipo).doesNotContain("<i ").contains("vista.leyendaEquipamiento").contains("gantt-muestra gantt-color--${e.clave}");
-        assertThat(html).contains(".gantt-color--equipo-limpieza { background: #0e7490").contains(".gantt-color--equipo-falla { background: #dc2626").contains(".gantt-color--equipo-mantenimiento { background: #7c3aed")
-                .doesNotContain("alturaRem");
-        assertThat(html).contains("gantt-color--pendiente").contains("gantt-color--limpieza").contains("bi bi-stars gantt-limpieza-icono").contains("data-gantt-leyenda-limpieza-icono");
+        assertThat(html).contains("fragments/paginacion :: paginacion(").contains("equipamiento/estado :: badge(").contains("bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider")
+                .contains("divide-y divide-slate-100").contains("Limpiar").contains("Buscar").contains("novalidate").contains("name=\"fechaDesde\"").contains("name=\"fechaHasta\"")
+                .contains("El equipamiento no tiene operaciones registradas").contains("No se encontraron resultados")
+                .doesNotContain("boton-abrir");
+        assertThat(html.substring(html.indexOf("<form"), html.indexOf("</form>"))).contains("grid grid-cols-1").contains("for=\"tipo\"").contains("for=\"fechaDesde\"").contains("for=\"fechaHasta\"");
     }
 
     @Test
-    @DisplayName("CP-PEQ-10: el cronograma, el panel, el detalle de la operación y el detalle del equipamiento no llevan Abrir ni el ojo en su encabezado, no muestran Responsable y solo el detalle de la operación muestra Registrado por")
+    @DisplayName("CP-PEQ-10: el historial, el panel, el detalle de la operación y el detalle del equipamiento no llevan Abrir ni el ojo en su encabezado, no muestran Responsable y solo el detalle de la operación muestra Registrado por")
     void sinAccesosCruzadosNiPersonas() throws IOException {
-        for (String plantilla : List.of("control_equipamiento/control-cronograma.html", "control_equipamiento/control-panel.html",
+        for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html",
                 "control_equipamiento/operacion-detalle.html", "equipamiento/equipamiento-detalle.html")) {
             String html = leer(plantilla);
-            assertThat(html).as(plantilla).doesNotContain("boton-abrir").doesNotContain("data-ver-cronograma").doesNotContain("bi-eye")
+            if (!plantilla.endsWith("-historial.html") && !plantilla.endsWith("-panel.html")) {
+                assertThat(html).as(plantilla).doesNotContain("bi-eye");
+            }
+            assertThat(html).as(plantilla).doesNotContain("boton-abrir").doesNotContain("data-ver-historial")
                     .doesNotContain("Responsable").doesNotContain("usuarioAnulacion").doesNotContain("Anulado por");
             if (!plantilla.endsWith("operacion-detalle.html")) {
                 assertThat(html).as(plantilla).doesNotContain("registradoPor").doesNotContain("Registrado por");
             }
         }
         assertThat(leer("control_equipamiento/control-panel.html")).contains("botonSinUsuario");
+    }
+
+    @Test
+    @DisplayName("CP-PEQ-13: las pantallas de Control de Equipamiento repiten la estructura de las pantallas de referencia (encabezado, tabla con Acciones fija, botón + Nueva en la tarjeta, formulario con aviso de obligatorios, Cancelar y Registrar)")
+    void consistenciaConLasPantallasDeReferencia() throws IOException {
+        String panel = leer("control_equipamiento/control-panel.html");
+        assertThat(panel).contains("mt-2 flex flex-wrap items-center gap-x-3 gap-y-1").contains("data-nueva-operacion").contains("bi bi-plus-lg")
+                .contains("px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3").contains("col-acciones px-4 py-3 text-right")
+                .contains("bg-amber-500 text-white hover:bg-amber-600 shadow-sm").doesNotContain("<form").doesNotContain("datetime-local");
+        String formulario = leer("control_equipamiento/control-form.html");
+        assertThat(formulario).contains("Los campos marcados con").contains("mt-1 text-sm text-slate-500").contains("novalidate data-un-solo-envio").contains("divide-y divide-slate-100")
+                .contains("p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl").contains(">Cancelar</a>").contains("text-rose-600\" title=\"Obligatorio\"")
+                .contains("space-y-5 mt-4").contains("fragments/form-errors :: resumen(");
+        for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/operacion-detalle.html")) {
+            assertThat(leer(plantilla)).as(plantilla).contains("flex flex-wrap items-center gap-x-3 gap-y-1").contains("inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-PEQ-12: ninguna tabla de Control de Equipamiento escribe las observaciones en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo")
+    void observacionesSoloEnElDialogo() throws IOException {
+        for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html")) {
+            String html = leer(plantilla);
+            String tabla = html.substring(html.indexOf("<table"), html.indexOf("</table>"));
+            assertThat(tabla).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(").doesNotContain("th:text=\"${o.observaciones}\"").doesNotContain("th:text=\"${a.observaciones")
+                    .doesNotContain("${a.observaciones != null} ?");
+        }
+        // Sin una columna propia para el botón i: va en la celda de la fecha (panel) o de la operación (historial)
+        assertThat(leer("control_equipamiento/control-panel.html")).doesNotContain("<th class=\"px-4 py-3\">Observaciones</th>");
+        String historial = leer("control_equipamiento/control-historial.html");
+        assertThat(historial.substring(historial.indexOf("<thead"), historial.indexOf("</thead>")).split("<th ", -1)).hasSize(5);
+        // Ningún dato es un enlace de texto: la navegación va en botones de la columna Acciones, y el botón i está dentro de esa celda
+        for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html")) {
+            String html = leer(plantilla);
+            String cuerpo = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
+            assertThat(cuerpo).as(plantilla).doesNotContain("text-amber-700").contains("bi bi-eye");
+            String acciones = cuerpo.substring(cuerpo.indexOf("<td class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("<td class=\"col-acciones")));
+            assertThat(acciones).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(");
+            assertThat(cuerpo.indexOf("fragments/detalle-anulacion :: observaciones(")).as(plantilla).isGreaterThan(cuerpo.indexOf("<td class=\"col-acciones"));
+        }
+        assertThat(leer("control_equipamiento/operacion-detalle.html")).contains("break-words").contains("operacion.observaciones");
+        String fragmento = leer("fragments/detalle-anulacion.html");
+        assertThat(fragmento).contains("th:fragment=\"observaciones(titulo, texto, fecha)\"").contains("bi bi-info-circle").contains("aria-label=\"Ver observaciones\"")
+                .contains("data-detalle-etiqueta-motivo=\"Observaciones\"").contains("th:fragment=\"boton(cancelacion, motivo, usuario, fecha)\"");
+        assertThat(leer("fragments/dialogo-detalle-anulacion.html")).contains("data-detalle-etiqueta-motivo-destino").contains("data-detalle-etiqueta-fecha-destino");
+        String js = Files.readString(Path.of("").toAbsolutePath().resolve("src/main/resources/static/js/modales.js"), StandardCharsets.UTF_8);
+        assertThat(js).contains("data-detalle-etiqueta-motivo").contains("'Motivo'").contains("'Fecha y hora'");
     }
 
     private static List<String> filas(String html) {

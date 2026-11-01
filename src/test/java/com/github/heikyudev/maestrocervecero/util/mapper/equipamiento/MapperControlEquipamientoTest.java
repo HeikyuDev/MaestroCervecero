@@ -1,14 +1,17 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FallaEquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.LimpiezaEquipamientoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MantenimientoEquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.ActividadEquipamientoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoActividadEquipamiento;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,8 +25,8 @@ class MapperControlEquipamientoTest {
     private static final LocalDateTime FIN = LocalDateTime.of(2026, 10, 20, 12, 0);
 
     @Test
-    @DisplayName("CP-MCE-01: el bloque de una etapa de lote lleva el ID del lote, además del de la etapa")
-    void bloqueDeEtapa_llevaElIdDelLote() {
+    @DisplayName("CP-MCE-01: la fila de una etapa de lote lleva el ID del lote, el código, la etapa, sus fechas y el estado que deja en el equipamiento")
+    void actividadDeEtapa_llevaLosDatosDelLote() {
         // Arrange
         EtapaLoteEntity etapa = EtapaLoteEntity.builder()
                 .id(36L).etapa(TipoEtapa.MOLIENDA).estado(EstadoEtapaLote.FINALIZADA)
@@ -32,24 +35,41 @@ class MapperControlEquipamientoTest {
                 .build();
 
         // Act
-        BloqueLineaTiempoEquipamientoResponseDTO bloque = MapperControlEquipamiento.toBloqueDTO(etapa, FIN);
+        ActividadEquipamientoResponseDTO fila = MapperControlEquipamiento.toActividadDTO(etapa);
 
         // Assert
-        assertThat(bloque.getIdReferencia()).isEqualTo(36L);
-        assertThat(bloque.getIdLote()).isEqualTo(12L);
+        assertThat(fila.getTipo()).isEqualTo(TipoActividadEquipamiento.LOTE);
+        assertThat(fila.getIdReferencia()).isEqualTo(36L);
+        assertThat(fila.getIdLote()).isEqualTo(12L);
+        assertThat(fila.getCodigoLote()).isEqualTo("LOT-R7-03");
+        assertThat(fila.getFechaInicio()).isEqualTo(FIN.minusHours(3));
+        assertThat(fila.getFechaFin()).isEqualTo(FIN);
+        assertThat(fila.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
     }
 
     @Test
-    @DisplayName("CP-MCE-02: el bloque de una operación no lleva ningún ID de lote")
-    void bloqueDeOperacion_noLlevaIdDeLote() {
+    @DisplayName("CP-MCE-02: la fila de una limpieza lleva su estado resultante real y la de una falla o un mantenimiento, el que cada una deja en el equipamiento")
+    void actividadDeOperacion_llevaElEstadoResultante() {
         // Arrange
         LimpiezaEquipamientoEntity limpieza = limpieza(EstadoTransaccion.REGISTRADO);
+        limpieza.setEstadoOperativoResultante(EstadoOperativo.EN_MANTENIMIENTO);
+        FallaEquipamientoEntity falla = FallaEquipamientoEntity.builder().id(6L).fecha(FIN).observaciones("Falla").estado(EstadoTransaccion.REGISTRADO).build();
+        MantenimientoEquipamientoEntity mantenimiento = MantenimientoEquipamientoEntity.builder().id(7L).fecha(FIN).observaciones("Mantenimiento").estado(EstadoTransaccion.REGISTRADO).build();
 
         // Act
-        BloqueLineaTiempoEquipamientoResponseDTO bloque = MapperControlEquipamiento.toBloqueDTO(limpieza);
+        ActividadEquipamientoResponseDTO filaLimpieza = MapperControlEquipamiento.toActividadDTO(limpieza);
+        ActividadEquipamientoResponseDTO filaFalla = MapperControlEquipamiento.toActividadDTO(falla);
+        ActividadEquipamientoResponseDTO filaMantenimiento = MapperControlEquipamiento.toActividadDTO(mantenimiento);
 
         // Assert
-        assertThat(bloque.getIdLote()).isNull();
+        assertThat(filaLimpieza.getIdLote()).isNull();
+        assertThat(filaLimpieza.getFechaInicio()).isEqualTo(FIN.minusHours(2));
+        assertThat(filaLimpieza.getFechaFin()).isNull();
+        assertThat(filaLimpieza.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
+        assertThat(filaFalla.getTipo()).isEqualTo(TipoActividadEquipamiento.FALLA);
+        assertThat(filaFalla.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
+        assertThat(filaMantenimiento.getTipo()).isEqualTo(TipoActividadEquipamiento.MANTENIMIENTO);
+        assertThat(filaMantenimiento.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
     }
 
     @Test

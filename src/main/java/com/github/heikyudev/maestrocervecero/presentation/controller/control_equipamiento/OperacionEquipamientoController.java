@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFallaEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.ILimpiezaEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMantenimientoEquipamientoServicio;
@@ -18,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Optional;
 import java.util.Set;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.agregarMensaje;
@@ -36,7 +40,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.cont
  * <p>
  * El id del equipamiento viaja en la ruta, nunca en el formulario: el Controller lo vuelve a poner en el formulario
  * antes de llamar al service. Después de registrar o anular se vuelve a la misma pestaña del panel
- * (Post-Redirect-Get). Un formulario inválido, o un registro que el service rechaza, también vuelve a la pestaña por
+ * (Post-Redirect-Get). Un formulario inválido, o un registro que el service rechaza, vuelve al formulario de registro por
  * Post-Redirect-Get, con los errores y lo escrito en los atributos flash. La anulación la rechaza el
  * {@code ControllerAdvices}, que vuelve al origen con el motivo.
  * </p>
@@ -49,10 +53,53 @@ public class OperacionEquipamientoController {
     /** Campos del formulario de registro a los que se puede asociar un rechazo del service. */
     private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("fecha", "observaciones");
 
+    private static final String VISTA_FORMULARIO = "control_equipamiento/control-form";
+
     private final ILimpiezaEquipamientoServicio limpiezaServicio;
     private final IFallaEquipamientoServicio fallaServicio;
     private final IMantenimientoEquipamientoServicio mantenimientoServicio;
     private final IControlEquipamientoServicio controlServicio;
+
+    // ==================== Formulario de registro ====================
+
+    @GetMapping("/limpiezas/nueva")
+    @PreAuthorize("hasAuthority('LIMPIEZA_EQUIPAMIENTO_REGISTRAR')")
+    public String formularioLimpieza(@PathVariable Long idEquipamiento, Model model, RedirectAttributes redirectAttributes) {
+        return mostrarFormulario(PestanaOperacion.LIMPIEZAS, idEquipamiento, model, redirectAttributes);
+    }
+
+    @GetMapping("/fallas/nueva")
+    @PreAuthorize("hasAuthority('FALLA_EQUIPAMIENTO_REGISTRAR')")
+    public String formularioFalla(@PathVariable Long idEquipamiento, Model model, RedirectAttributes redirectAttributes) {
+        return mostrarFormulario(PestanaOperacion.FALLAS, idEquipamiento, model, redirectAttributes);
+    }
+
+    @GetMapping("/mantenimientos/nuevo")
+    @PreAuthorize("hasAuthority('MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR')")
+    public String formularioMantenimiento(@PathVariable Long idEquipamiento, Model model, RedirectAttributes redirectAttributes) {
+        return mostrarFormulario(PestanaOperacion.MANTENIMIENTOS, idEquipamiento, model, redirectAttributes);
+    }
+
+    /**
+     * Muestra el formulario de registro de la operación. Si el estado operativo del equipamiento no la permite, vuelve a la
+     * pestaña con el aviso del motivo (el service sigue siendo la fuente de verdad al registrar). Si llega de un registro
+     * rechazado, muestra los errores y lo que se había escrito.
+     */
+    private String mostrarFormulario(PestanaOperacion pestana, Long idEquipamiento, Model model, RedirectAttributes redirectAttributes) {
+        EquipamientoResumenResponseDTO equipo = controlServicio.buscarResumen(idEquipamiento);
+        Optional<String> motivo = pestana.motivoNoRegistrable(equipo.getEstadoOperativo());
+        if (motivo.isPresent()) {
+            agregarMensaje(redirectAttributes, motivo.get(), TipoAlerta.WARNING);
+            return volverALaPestana(pestana, idEquipamiento);
+        }
+        model.addAttribute("equipo", equipo);
+        model.addAttribute("pestanaActiva", pestana);
+        model.addAttribute("urlCancelar", "/control-equipamiento/" + idEquipamiento + "?pestana=" + pestana.getClave());
+        if (!model.containsAttribute(ATRIBUTO_FORMULARIO)) {
+            model.addAttribute(ATRIBUTO_FORMULARIO, pestana.nuevoFormulario());
+        }
+        return VISTA_FORMULARIO;
+    }
 
     // ==================== Registrar ====================
 
@@ -154,10 +201,10 @@ public class OperacionEquipamientoController {
                 rechazar(bindingResult, e);
             }
         }
-        // Post-Redirect-Get: el navegador no queda en la URL del POST
+        // Post-Redirect-Get: el navegador no queda en la URL del POST; vuelve al formulario con los errores y lo escrito
         redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
         redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, form);
-        return volverALaPestana(pestana, idEquipamiento);
+        return "redirect:/control-equipamiento/" + idEquipamiento + "/" + pestana.getRutaFormulario();
     }
 
     /** Asocia el rechazo al campo que indica el service, si el formulario lo tiene; si no, queda como error general. */
