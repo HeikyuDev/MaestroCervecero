@@ -280,6 +280,7 @@
                         <th class="px-4 py-3 whitespace-nowrap">Barril</th>
                         <th class="px-4 py-3 whitespace-nowrap">Cantidad (L)</th>
                         <th class="px-4 py-3 whitespace-nowrap">Estado</th>
+                        <th class="col-acciones px-4 py-3 text-right whitespace-nowrap">Acciones</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -288,7 +289,11 @@
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${e.cantidadEnvasada})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
-                            <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
+                        </td>
+                        <td class="col-acciones px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
+                            </div>
                         </td>
                     </tr>
                     </tbody>

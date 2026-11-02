@@ -327,14 +327,14 @@ class IngresoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-IIC-12: quien solo puede consultar no ve el botón Nuevo, la columna Acciones ni el diálogo de anulación")
+    @DisplayName("CP-IIC-12: quien solo puede consultar no ve el botón Nuevo, el botón Anular ni el diálogo de anulación, y la columna Acciones existe solo con la i de las anuladas")
     void lista_soloConsultaEsDeSoloLectura() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(conPermisos(Permiso.INGRESO_INSUMO_CONSULTAR)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(bloque(html, "thead"))).doesNotContain("Acciones");
+        assertThat(texto(bloque(html, "thead"))).contains("Acciones");
         assertThat(html).doesNotContain("data-nuevo-ingreso").doesNotContain("data-motivo-url").doesNotContain("id=\"dialogo-anular\"");
         assertThat(texto(html)).contains("Pilsen", "L-125");
     }

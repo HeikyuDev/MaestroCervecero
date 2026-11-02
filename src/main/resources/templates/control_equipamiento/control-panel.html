@@ -64,11 +64,11 @@
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${o.fecha})}"></th:block></td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${o.estado})}"></span>
-                            <th:block th:if="${o.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}"></th:block></th:block>
                         </td>
                         <td class="col-acciones px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-1">
                                 <th:block th:replace="~{fragments/detalle-anulacion :: observaciones(${pestanaActiva.tituloObservaciones}, ${o.observaciones}, ${o.fecha})}"></th:block>
+                                <th:block th:if="${o.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}"></th:block></th:block>
                                 <a th:href="@{/control-equipamiento/{id}/operaciones/{tipo}/{idOperacion}(id=${equipo.id}, tipo=${pestanaActiva.claveOperacion}, idOperacion=${o.id})}"
                                    data-ver-operacion th:aria-label="'Ver ' + ${pestanaActiva.articulo} + ' del ' + ${#temporals.format(o.fecha, 'dd/MM/yyyy HH:mm')}"
                                    class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">

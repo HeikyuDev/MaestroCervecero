@@ -1603,7 +1603,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-66: los envasados registrados de la etapa se ven en solo lectura, los anulados con el botón de detalle de la anulación, y sin envasados se informa")
+    @DisplayName("CP-LCT-66: los envasados registrados de la etapa se ven en solo lectura, los anulados con el botón de detalle de la anulación en la columna Acciones, y sin envasados se informa")
     void detalle_envasadosRegistradosDeLaEtapa() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
@@ -1614,8 +1614,8 @@ class LoteControllerTest {
         String registros = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-registros-etapa");
 
         // Assert
-        assertThat(celdas(registros, "B-001")).containsExactly("B-001", "100", "Registrado");
-        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20", "Anulado");
+        assertThat(celdas(registros, "B-001")).containsExactly("B-001", "100", "Registrado", "");
+        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20", "Anulado", "");
         assertThat(registros).doesNotContain("<form").doesNotContain("Barril equivocado</").doesNotContain("data-motivo-url");
         assertThat(cuenta(registros, "<button")).isEqualTo(1);
         assertThat(registros).contains("data-detalle-anulacion").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-titulo=\"Detalle de la anulación\"");

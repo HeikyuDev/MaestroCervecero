@@ -123,7 +123,7 @@
                         <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
                         <th class="px-4 py-3 whitespace-nowrap">Fecha de registro</th>
                         <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        <th th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="col-acciones px-4 py-3 text-right">Acciones</th>
+                        <th class="col-acciones px-4 py-3 text-right">Acciones</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -141,13 +141,15 @@
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaRegistro})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${c.estado})}"></span>
-                            <th:block th:if="${c.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${c.motivoAnulacion}, ${c.usuarioAnulacion}, ${c.fechaAnulacion})}"></th:block></th:block>
                         </td>
-                        <td th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="col-acciones px-4 py-3 text-right">
-                            <button type="button" th:if="${c.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
-                                    th:data-motivo-url="@{/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular(id=${lote.id}, etapa=${slugEtapa}, idConsumo=${c.id})}"
-                                    th:data-motivo-nombre="${c.loteInsumo.insumo.nombre}"
-                                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                        <td class="col-acciones px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <th:block th:if="${c.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${c.motivoAnulacion}, ${c.usuarioAnulacion}, ${c.fechaAnulacion})}"></th:block></th:block>
+                                <button type="button" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" th:if="${operable and c.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
+                                        th:data-motivo-url="@{/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular(id=${lote.id}, etapa=${slugEtapa}, idConsumo=${c.id})}"
+                                        th:data-motivo-nombre="${c.loteInsumo.insumo.nombre}"
+                                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                            </div>
                         </td>
                     </tr>
                     </tbody>
