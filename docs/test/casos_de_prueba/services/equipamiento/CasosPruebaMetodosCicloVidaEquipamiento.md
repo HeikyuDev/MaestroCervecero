@@ -53,3 +53,16 @@ La "última" operación registrada es la de mayor fecha y, ante igual fecha (pos
 |**CP-MCV-21**|Equipamiento en limpieza|Estado actual `EN_LIMPIEZA`, requerido `DISPONIBLE`, operación "una falla"|Hay una limpieza pendiente|Lanza `ReglaNegocioException` ("Para registrar una falla, primero registre la limpieza del equipamiento").|
 |**CP-MCV-22**|Equipamiento en mantenimiento|Estado actual `EN_MANTENIMIENTO`, requerido `EN_LIMPIEZA`, operación "una limpieza"|Hay un mantenimiento pendiente|Lanza `ReglaNegocioException` ("Para registrar una limpieza, primero registre el mantenimiento del equipamiento").|
 |**CP-MCV-23**|Equipamiento disponible|Estado actual `DISPONIBLE`, requerido `EN_MANTENIMIENTO`, operación "un mantenimiento"|El equipamiento no necesita la operación|Lanza `ReglaNegocioException` ("No se puede registrar un mantenimiento porque el equipamiento está disponible").|
+
+### 7. `esPosteriorAlUltimoLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinUltimaParticipacion)` y `validarPosteriorAlUltimoLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinUltimaParticipacion)`
+
+La participación en un lote es una actividad que no se anula desde este módulo, así que una operación solo puede anularse si su fecha es estrictamente posterior al fin de la última participación del equipamiento en un lote. Si el equipamiento nunca participó en uno (fecha nula), no hay restricción. `esPosteriorAlUltimoLote` expresa la regla y `validarPosteriorAlUltimoLote` la aplica lanzando la excepción.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-MCV-24**|`esPosteriorAlUltimoLote` sin participación en lotes|Fin de la última participación nulo|No hubo participación|Devuelve `true`.|
+|**CP-MCV-25**|`esPosteriorAlUltimoLote` con la operación posterior|Operación 2 horas después del fin de la participación; y operación 1 nanosegundo después|`fechaOperacion > fechaFin`|Devuelve `true` en ambos casos.|
+|**CP-MCV-26**|`esPosteriorAlUltimoLote` con fechas iguales|Operación y fin de la participación en el mismo instante|La operación debe ser estrictamente posterior|Devuelve `false`.|
+|**CP-MCV-27**|`esPosteriorAlUltimoLote` con el lote posterior a la operación|Fin de la participación 2 horas después de la operación|`fechaOperacion < fechaFin`|Devuelve `false`.|
+|**CP-MCV-28**|`validarPosteriorAlUltimoLote` acepta|Fin de la participación nulo; y operación posterior al fin de la participación|`esPosteriorAlUltimoLote` $\rightarrow$ **TRUE**|No lanza excepción.|
+|**CP-MCV-29**|`validarPosteriorAlUltimoLote` rechaza|Operación igual al fin de la participación; y operación anterior a él|`esPosteriorAlUltimoLote` $\rightarrow$ **FALSE**|Lanza `ReglaNegocioException` ("No se puede anular la operación porque el equipamiento participó en un lote posterior").|

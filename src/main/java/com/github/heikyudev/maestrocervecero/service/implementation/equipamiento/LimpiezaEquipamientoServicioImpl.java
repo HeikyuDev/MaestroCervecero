@@ -153,7 +153,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
      * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha, y a igual fecha la de mayor ID, entre sus
      * limpiezas, fallas y mantenimientos) y si el equipamiento asociado sigue exactamente en el estado operativo
      * que dejó esta limpieza puntual ({@code estadoOperativoResultante}), no en cualquiera de los dos estados
-     * posibles en general: evita revertir una limpieza vieja cuando el estado actual del equipamiento en realidad
+     * posibles en general (y solo si la limpieza es posterior al fin de la última participación del equipamiento en un lote): evita revertir una limpieza vieja cuando el estado actual del equipamiento en realidad
      * lo dejó un mantenimiento u otra limpieza posterior. Restablece al equipamiento a estado operativo
      * {@code EN_LIMPIEZA}.
      * </p>
@@ -166,7 +166,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
      * @param id El ID de la limpieza de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento participó en un lote posterior a la limpieza, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
      * @throws RecursoNoEncontradoException Si la limpieza de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
@@ -197,16 +197,21 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
                 limpiezaEquipamientoEntity.getId(),
                 operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null));
 
-        // 6. Validar que el equipamiento se encuentre exactamente en el estado operativo que dejó esta limpieza
+        // 6. Validar que la limpieza sea posterior al fin de la última participación del equipamiento en un lote
+        MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(
+                limpiezaEquipamientoEntity.getFecha(),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
+
+        // 7. Validar que el equipamiento se encuentre exactamente en el estado operativo que dejó esta limpieza
         if (equipamientoEntity.getEstadoOperativo() != limpiezaEquipamientoEntity.getEstadoOperativoResultante()) {
             throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo " + limpiezaEquipamientoEntity.getEstadoOperativoResultante().getEtiqueta());
         }
 
-        // 7. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
+        // 8. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 8. Aplicar la anulación sobre la limpieza y persistirla
+        // 9. Aplicar la anulación sobre la limpieza y persistirla
         limpiezaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         limpiezaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         limpiezaEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);

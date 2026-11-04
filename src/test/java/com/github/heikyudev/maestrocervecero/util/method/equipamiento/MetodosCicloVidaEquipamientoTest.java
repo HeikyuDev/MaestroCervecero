@@ -163,6 +163,57 @@ class MetodosCicloVidaEquipamientoTest {
                 .hasMessage("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores");
     }
 
+    // ==================== esPosteriorAlUltimoLote / validarPosteriorAlUltimoLote ====================
+
+    @Test
+    @DisplayName("CP-MCV-24: esPosteriorAlUltimoLote devuelve true cuando el equipamiento nunca participó en un lote")
+    void esPosteriorAlUltimoLote_debeDevolverTrueSinParticipacion() {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(INICIO, null)).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-25: esPosteriorAlUltimoLote devuelve true cuando la operación es estrictamente posterior al fin de la última participación")
+    void esPosteriorAlUltimoLote_debeDevolverTrueSiLaParticipacionEsAnterior() {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(FIN, INICIO)).isTrue();
+        assertThat(MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(INICIO.plusNanos(1), INICIO)).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-26: esPosteriorAlUltimoLote devuelve false cuando la operación tiene la misma fecha que el fin de la última participación")
+    void esPosteriorAlUltimoLote_debeDevolverFalseSiLaFechaEsIgual() {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(INICIO, INICIO)).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-27: esPosteriorAlUltimoLote devuelve false cuando la última participación termina después de la operación")
+    void esPosteriorAlUltimoLote_debeDevolverFalseSiLaParticipacionEsPosterior() {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(INICIO, FIN)).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-28: validarPosteriorAlUltimoLote acepta una operación sin participaciones en lotes o posterior a la última")
+    void validarPosteriorAlUltimoLote_debeAceptarSinParticipacionOOperacionPosterior() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(INICIO, null)).doesNotThrowAnyException();
+        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(FIN, INICIO)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-29: validarPosteriorAlUltimoLote rechaza con el mensaje exacto una operación igual o anterior al fin de la última participación")
+    void validarPosteriorAlUltimoLote_debeRechazarOperacionIgualOAnterior() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(INICIO, INICIO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento participó en un lote posterior");
+        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(INICIO, FIN))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento participó en un lote posterior");
+    }
+
     // ==================== resolverEquipamientoActivo ====================
 
     @Test

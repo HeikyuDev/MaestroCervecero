@@ -381,6 +381,69 @@ class ControlEquipamientoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-CE-26: listarOperaciones no marca como anulable la última operación registrada cuando el equipamiento participó en un lote posterior")
+    void listarOperaciones_noDebeMarcarAnulableSiHuboLotePosterior() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(FIN.plusDays(1)));
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-CE-27: listarOperaciones marca como anulable la última operación registrada cuando es posterior al fin de la última participación en un lote")
+    void listarOperaciones_debeMarcarAnulableSiLaOperacionEsPosteriorAlUltimoLote() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(FIN.minusDays(1)));
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-CE-28: listarOperaciones consulta una sola vez la última participación en un lote para todas las operaciones")
+    void listarOperaciones_debeConsultarLaUltimaParticipacionUnaSolaVez() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        FallaEquipamientoEntity falla = falla(10L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(1));
+        MantenimientoEquipamientoEntity mantenimiento = mantenimiento(15L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(2));
+        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(falla));
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(mantenimiento));
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isTrue();
+        verify(etapaLoteRepository, times(1)).buscarFechaUltimaParticipacionRegistrada(1L);
+    }
+
+    @Test
     @DisplayName("CP-CE-13: listarOperaciones lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void listarOperaciones_debeRechazarInexistente() {
         // === PREPARACION DE DATOS ===

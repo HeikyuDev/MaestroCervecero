@@ -135,7 +135,8 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
      * Anula una falla de equipamiento existente.
      * <p>
      * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha, y a igual fecha la de mayor ID, entre sus
-     * limpiezas, fallas y mantenimientos) y si el equipamiento asociado se encuentra en estado operativo
+     * limpiezas, fallas y mantenimientos), si la falla es posterior al fin de la última participación del equipamiento
+     * en un lote y si el equipamiento asociado se encuentra en estado operativo
      * {@code EN_MANTENIMIENTO}; el equipamiento vuelve a {@code DISPONIBLE}.
      * </p>
      * <p>
@@ -147,7 +148,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
      * @param id El ID de la falla de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La falla de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento participó en un lote posterior a la falla, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si la falla de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
@@ -178,17 +179,22 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
                 fallaEquipamientoEntity.getId(),
                 operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null));
 
-        // 6. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO, para garantizar que
+        // 6. Validar que la falla sea posterior al fin de la última participación del equipamiento en un lote
+        MetodosCicloVidaEquipamiento.validarPosteriorAlUltimoLote(
+                fallaEquipamientoEntity.getFecha(),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
+
+        // 7. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO, para garantizar que
         //    la transición de vuelta a DISPONIBLE sea coherente
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede anular una falla cuyo equipamiento asociado se encuentre en estado operativo En mantenimiento");
         }
 
-        // 7. Restablecer el estado operativo del equipamiento a DISPONIBLE y persistirlo
+        // 8. Restablecer el estado operativo del equipamiento a DISPONIBLE y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.DISPONIBLE);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 8. Aplicar la anulación sobre la falla y persistirla
+        // 9. Aplicar la anulación sobre la falla y persistirla
         fallaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         fallaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         fallaEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);

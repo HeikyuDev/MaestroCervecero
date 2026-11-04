@@ -24,7 +24,7 @@ Devuelve los datos del equipamiento activo, los parámetros propios de su tipo (
 
 ### 3. `listarOperaciones(Long idEquipamiento)`
 
-Devuelve las limpiezas, fallas y mantenimientos del equipamiento por separado, con todas las operaciones (anuladas incluidas), de la de inicio más reciente a la más antigua, con estado, inicio, fin, observaciones, responsable (usuario que la registró) y datos de anulación. El indicador `anulable` es verdadero solo en la última operación registrada del equipamiento, de cualquier tipo: la de mayor fecha y, a igual fecha (posible en datos migrados), la de mayor ID. Es la misma regla de desempate que usa la anulación y el listado de control.
+Devuelve las limpiezas, fallas y mantenimientos del equipamiento por separado, con todas las operaciones (anuladas incluidas), de la de inicio más reciente a la más antigua, con estado, inicio, fin, observaciones, responsable (usuario que la registró) y datos de anulación. El indicador `anulable` es verdadero solo en la última operación registrada del equipamiento, de cualquier tipo: la de mayor fecha y, a igual fecha (posible en datos migrados), la de mayor ID, siempre que su fecha sea estrictamente posterior al fin de la última participación del equipamiento en un lote (si nunca participó en uno, no hay restricción). Es la misma regla que usa la anulación y el listado de control, y la última participación se consulta una sola vez por llamada.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -32,6 +32,9 @@ Devuelve las limpiezas, fallas y mantenimientos del equipamiento por separado, c
 |**CP-CE-12**|Equipamiento sin operaciones|`idEquipamiento: 1L` (existe), sin operaciones|Los tres listados están vacíos|Retorna las tres listas vacías.|
 |**CP-CE-13**|Equipamiento inexistente|`idEquipamiento: 99L`|`existsById(99L)` $\rightarrow$ **FALSE**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No consulta las operaciones.|
 |**CP-CE-24**|Empate de fecha: solo la operación de mayor ID es anulable|Una limpieza (ID 30) y una falla (ID 31) registradas con la misma fecha; `buscarIdUltimaOperacionRegistrada(1L)` $\rightarrow$ **31**|Solo una operación tiene el ID de la última|La falla es anulable y la limpieza no: nunca hay más de una operación anulable.|
+|**CP-CE-26**|La última operación no es anulable si hubo un lote posterior|Una limpieza `REGISTRADO` que es la última operación; `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **fecha posterior a la de la limpieza**|`esPosteriorAlUltimoLote` $\rightarrow$ **FALSE**|La limpieza no es anulable.|
+|**CP-CE-27**|La última operación es anulable si es posterior al último lote|Una limpieza `REGISTRADO` que es la última operación; `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **fecha anterior a la de la limpieza**|`esPosteriorAlUltimoLote` $\rightarrow$ **TRUE**|La limpieza es anulable.|
+|**CP-CE-28**|La última participación se consulta una sola vez|Una limpieza, una falla y un mantenimiento; `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **Optional.empty()**|Una consulta por llamada, sin importar la cantidad de operaciones|`buscarFechaUltimaParticipacionRegistrada` se invoca exactamente una vez y la última operación es anulable.|
 
 ### 4. `listarHistorial(Long idEquipamiento, TipoActividadEquipamiento tipo, LocalDateTime desde, LocalDateTime hasta, Pageable pageable)`
 

@@ -22,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.E
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperControlEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosCicloVidaEquipamiento;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
@@ -129,7 +130,8 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
 
     /**
      * Lista las operaciones de un equipamiento agrupadas por tipo, anuladas incluidas, de la de fecha más reciente a
-     * la más antigua. Solo la última operación registrada (mayor fecha y, a igualdad, mayor ID, de cualquier tipo) se marca como anulable.
+     * la más antigua. Solo la última operación registrada (mayor fecha y, a igualdad, mayor ID, de cualquier tipo) se marca como anulable, y solo si su fecha es posterior al fin de la última participación del
+     * equipamiento en un lote (que se consulta una sola vez).
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las operaciones del equipamiento.
@@ -141,11 +143,12 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
         validarQueExisteElEquipamiento(idEquipamiento);
 
         Long idUltimaOperacion = operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null);
+        LocalDateTime fechaFinUltimaParticipacion = etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null);
 
         return OperacionesEquipamientoResponseDTO.builder()
-                .limpiezas(mapearOperaciones(limpiezaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion))
-                .fallas(mapearOperaciones(fallaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion))
-                .mantenimientos(mapearOperaciones(mantenimientoEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion))
+                .limpiezas(mapearOperaciones(limpiezaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion))
+                .fallas(mapearOperaciones(fallaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion))
+                .mantenimientos(mapearOperaciones(mantenimientoEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion))
                 .build();
     }
 
@@ -203,9 +206,10 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
         }
     }
 
-    private List<OperacionEquipamientoResponseDTO> mapearOperaciones(Collection<? extends OperacionCicloVidaEquipamiento> operaciones, Long idUltimaOperacion) {
+    private List<OperacionEquipamientoResponseDTO> mapearOperaciones(Collection<? extends OperacionCicloVidaEquipamiento> operaciones, Long idUltimaOperacion, LocalDateTime fechaFinUltimaParticipacion) {
         Function<OperacionCicloVidaEquipamiento, Boolean> esAnulable = operacion ->
-                operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion);
+                operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
+                        && MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(operacion.getFecha(), fechaFinUltimaParticipacion);
         return operaciones.stream()
                 .map(operacion -> MapperControlEquipamiento.toOperacionDTO(operacion, esAnulable.apply(operacion)))
                 .toList();

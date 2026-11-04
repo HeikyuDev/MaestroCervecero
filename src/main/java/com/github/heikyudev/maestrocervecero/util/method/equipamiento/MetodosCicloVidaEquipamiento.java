@@ -117,6 +117,32 @@ public final class MetodosCicloVidaEquipamiento {
     }
 
     /**
+     * Indica si una operación puede anularse respecto de la última participación del equipamiento en un lote: la
+     * participación en un lote no se anula desde este módulo, así que la operación debe ser estrictamente posterior
+     * al fin de esa participación. Si el equipamiento nunca participó en un lote, no hay restricción.
+     *
+     * @param fechaOperacion Fecha y hora de la operación.
+     * @param fechaFinUltimaParticipacion Fin de la última participación del equipamiento en un lote, o {@code null} si nunca participó en uno.
+     * @return {@code true} si no hubo participación o si la operación es estrictamente posterior a su fin.
+     */
+    public static boolean esPosteriorAlUltimoLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinUltimaParticipacion) {
+        return fechaFinUltimaParticipacion == null || fechaOperacion.isAfter(fechaFinUltimaParticipacion);
+    }
+
+    /**
+     * Valida que la operación a anular sea estrictamente posterior a la última participación del equipamiento en un lote.
+     *
+     * @param fechaOperacion Fecha y hora de la operación a anular.
+     * @param fechaFinUltimaParticipacion Fin de la última participación del equipamiento en un lote, o {@code null} si nunca participó en uno.
+     * @throws ReglaNegocioException Si la operación no es posterior al fin de la última participación en un lote.
+     */
+    public static void validarPosteriorAlUltimoLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinUltimaParticipacion) {
+        if (!esPosteriorAlUltimoLote(fechaOperacion, fechaFinUltimaParticipacion)) {
+            throw new ReglaNegocioException("No se puede anular la operación porque el equipamiento participó en un lote posterior");
+        }
+    }
+
+    /**
      * Resuelve el equipamiento sobre el que se opera a partir del resultado de su búsqueda con bloqueo, distinguiendo
      * un equipamiento inexistente de uno dado de baja.
      *

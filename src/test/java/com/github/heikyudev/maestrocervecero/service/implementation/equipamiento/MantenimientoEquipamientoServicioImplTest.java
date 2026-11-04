@@ -659,6 +659,120 @@ class MantenimientoEquipamientoServicioImplTest {
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-AME-14: anularMantenimientoEquipamiento lanza ReglaNegocioException sin consultar el estado operativo ni modificar nada cuando el equipamiento participó en un lote posterior a la operación")
+    void anular_debeRechazarSiElEquipamientoParticipoEnUnLotePosterior() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.of(INICIO.plusHours(3)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento participó en un lote posterior");
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-15: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el fin de la última participación en un lote coincide con la fecha de la operación")
+    void anular_debeRechazarSiElLoteTerminaEnLaMismaFechaDeLaOperacion() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.of(INICIO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento participó en un lote posterior");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-16: anularMantenimientoEquipamiento anula la operación cuando es posterior al fin de la última participación en un lote")
+    void anular_debePermitirSiLaOperacionEsPosteriorAlUltimoLote() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.of(INICIO.minusHours(1)));
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        var resultado = mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
+        verify(mantenimientoEquipamientoRepository).save(operacion);
+    }
+
+    @Test
+    @DisplayName("CP-AME-17: anularMantenimientoEquipamiento anula la operación cuando el equipamiento nunca participó en un lote")
+    void anular_debePermitirSiElEquipamientoNuncaParticipoEnUnLote() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        var resultado = mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(2L);
+        verify(mantenimientoEquipamientoRepository).save(operacion);
+    }
+
+    @Test
+    @DisplayName("CP-AME-18: anularMantenimientoEquipamiento valida en orden: bloqueo del equipamiento, última operación, participación en un lote y estado operativo")
+    void anular_debeValidarElLoteDespuesDeLaUltimaOperacionYAntesDelEstado() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(equipamientoRepository, operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(2L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdUltimaOperacionRegistrada(2L);
+        orden.verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(2L);
+        orden.verify(equipamientoRepository).save(macerador);
+    }
+
     // ==================== helpers de construcción ====================
 
     private static final LocalDateTime INICIO = LocalDateTime.of(2026, 1, 15, 10, 0);
