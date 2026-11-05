@@ -214,6 +214,36 @@ class MetodosCicloVidaEquipamientoTest {
                 .hasMessage("No se puede anular la operación porque el equipamiento participó en un lote posterior");
     }
 
+    // ==================== estaEnUso / validarNoEstaEnUso ====================
+
+    @Test
+    @DisplayName("CP-MCV-30: estaEnUso devuelve true solo para el estado operativo EN_USO")
+    void estaEnUso_debeDevolverTrueSoloParaEnUso() {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVidaEquipamiento.estaEnUso(EstadoOperativo.EN_USO)).isTrue();
+        assertThat(MetodosCicloVidaEquipamiento.estaEnUso(EstadoOperativo.DISPONIBLE)).isFalse();
+        assertThat(MetodosCicloVidaEquipamiento.estaEnUso(EstadoOperativo.EN_LIMPIEZA)).isFalse();
+        assertThat(MetodosCicloVidaEquipamiento.estaEnUso(EstadoOperativo.EN_MANTENIMIENTO)).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-MCV-31: validarNoEstaEnUso rechaza con el mensaje exacto un equipamiento en uso")
+    void validarNoEstaEnUso_debeRechazarEquipamientoEnUso() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarNoEstaEnUso(EstadoOperativo.EN_USO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento está en uso por un lote");
+    }
+
+    @Test
+    @DisplayName("CP-MCV-32: validarNoEstaEnUso acepta los otros tres estados operativos")
+    void validarNoEstaEnUso_debeAceptarLosOtrosEstados() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarNoEstaEnUso(EstadoOperativo.DISPONIBLE)).doesNotThrowAnyException();
+        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarNoEstaEnUso(EstadoOperativo.EN_LIMPIEZA)).doesNotThrowAnyException();
+        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarNoEstaEnUso(EstadoOperativo.EN_MANTENIMIENTO)).doesNotThrowAnyException();
+    }
+
     // ==================== resolverEquipamientoActivo ====================
 
     @Test

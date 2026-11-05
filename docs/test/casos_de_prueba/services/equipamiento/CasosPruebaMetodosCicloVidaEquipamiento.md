@@ -66,3 +66,13 @@ La participación en un lote es una actividad que no se anula desde este módulo
 |**CP-MCV-27**|`esPosteriorAlUltimoLote` con el lote posterior a la operación|Fin de la participación 2 horas después de la operación|`fechaOperacion < fechaFin`|Devuelve `false`.|
 |**CP-MCV-28**|`validarPosteriorAlUltimoLote` acepta|Fin de la participación nulo; y operación posterior al fin de la participación|`esPosteriorAlUltimoLote` $\rightarrow$ **TRUE**|No lanza excepción.|
 |**CP-MCV-29**|`validarPosteriorAlUltimoLote` rechaza|Operación igual al fin de la participación; y operación anterior a él|`esPosteriorAlUltimoLote` $\rightarrow$ **FALSE**|Lanza `ReglaNegocioException` ("No se puede anular la operación porque el equipamiento participó en un lote posterior").|
+
+### 8. `estaEnUso(EstadoOperativo estadoOperativo)` y `validarNoEstaEnUso(EstadoOperativo estadoOperativo)`
+
+Un equipamiento en uso por un lote no admite anular ninguna de sus operaciones, porque podría quedar con un estado operativo inconsistente. La regla tiene una única definición, `estaEnUso`, que usan la validación de las tres anulaciones y el indicador de operación anulable.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-MCV-30**|`estaEnUso` para los cuatro estados operativos|`EN_USO`, `DISPONIBLE`, `EN_LIMPIEZA` y `EN_MANTENIMIENTO`|`estadoOperativo == EN_USO`|Devuelve `true` solo para `EN_USO` y `false` para los otros tres.|
+|**CP-MCV-31**|`validarNoEstaEnUso` rechaza|Estado operativo `EN_USO`|`estaEnUso` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede anular la operación porque el equipamiento está en uso por un lote").|
+|**CP-MCV-32**|`validarNoEstaEnUso` acepta|Estados operativos `DISPONIBLE`, `EN_LIMPIEZA` y `EN_MANTENIMIENTO`|`estaEnUso` $\rightarrow$ **FALSE**|No lanza excepción en ninguno de los tres.|

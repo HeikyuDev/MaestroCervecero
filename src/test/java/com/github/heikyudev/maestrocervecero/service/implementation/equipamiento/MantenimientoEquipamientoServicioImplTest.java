@@ -773,6 +773,52 @@ class MantenimientoEquipamientoServicioImplTest {
         orden.verify(equipamientoRepository).save(macerador);
     }
 
+    @Test
+    @DisplayName("CP-AME-19: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento está en uso por un lote")
+    void anular_debeRechazarEquipamientoEnUso() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_USO);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el equipamiento está en uso por un lote");
+        InOrder orden = inOrder(operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdUltimaOperacionRegistrada(2L);
+        orden.verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(2L);
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_USO);
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-20: anularMantenimientoEquipamiento con el equipamiento en otro estado que no es el exigido rechaza por el estado operativo y no por el uso")
+    void anular_debeRechazarPorEstadoOperativoCuandoNoEstaEnUso() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_LIMPIEZA);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(2L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
     // ==================== helpers de construcción ====================
 
     private static final LocalDateTime INICIO = LocalDateTime.of(2026, 1, 15, 10, 0);

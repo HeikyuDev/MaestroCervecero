@@ -76,8 +76,7 @@ public class ControlEquipamientoControllerTest {
     void escenarioBase() {
         when(servicio.filtrarEquipamientosParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 EquipamientoControlResponseDTO.builder().id(5L).identificadorInterno("FER-01").tipo(TipoEquipamiento.FERMENTADOR)
-                        .estadoOperativo(EstadoOperativo.EN_LIMPIEZA).usosDesdeUltimoMantenimiento(3L).usosMaximosAntesMantenimiento(10)
-                        .tipoUltimaOperacion(TipoOperacionEquipamiento.LIMPIEZA).fechaUltimaOperacion(FIN).build())));
+                        .estadoOperativo(EstadoOperativo.EN_LIMPIEZA).usosDesdeUltimoMantenimiento(3L).usosMaximosAntesMantenimiento(10).build())));
         configurarEquipo(EstadoOperativo.EN_LIMPIEZA);
         when(servicio.buscarResumen(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el equipamiento con ID: 99"));
         when(servicio.listarHistorial(eq(5L), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
@@ -114,7 +113,7 @@ public class ControlEquipamientoControllerTest {
         String html = html(get("/control-equipamiento").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-lista");
 
         assertThat(html).contains("FER-01").contains("3 de 10").contains("data-boton-abrir").contains("Fermentador")
-                .doesNotContain("data-ver-historial");
+                .doesNotContain("data-ver-historial").doesNotContain("Última operación");
     }
 
     @Test

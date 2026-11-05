@@ -2,17 +2,14 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
-import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoOperacionEquipamiento;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 /**
  * DTO de respuesta con los datos de un equipamiento para la pantalla de control: su estado, cuánto se usó desde el
- * último mantenimiento y cuál fue su última operación registrada.
+ * último mantenimiento.
  */
 @Getter
 @Builder
@@ -50,14 +47,4 @@ public class EquipamientoControlResponseDTO {
      * Cantidad máxima de usos antes de requerir mantenimiento preventivo.
      */
     private Integer usosMaximosAntesMantenimiento;
-
-    /**
-     * Tipo de la última operación registrada, o {@code null} si el equipamiento no tiene ninguna.
-     */
-    private TipoOperacionEquipamiento tipoUltimaOperacion;
-
-    /**
-     * Fecha y hora de fin de la última operación registrada, o {@code null} si el equipamiento no tiene ninguna.
-     */
-    private LocalDateTime fechaUltimaOperacion;
 }

@@ -66,7 +66,7 @@ public class ControlEquipamientoController {
     // ==================== Lista ====================
 
     /**
-     * Muestra todos los equipamientos activos en una tabla, con su estado, sus usos y su última operación, en orden
+     * Muestra todos los equipamientos activos en una tabla, con su estado y sus usos, en orden
      * natural por identificador. Un tipo o un estado operativo inválido no filtra y se avisa.
      */
     @GetMapping
@@ -159,7 +159,7 @@ public class ControlEquipamientoController {
      * La pestaña activa viaja en {@code ?pestana=} (por defecto, la primera que el usuario puede consultar). Cada pestaña
      * es la tabla paginada de las operaciones de su tipo (anuladas incluidas, la de fecha más reciente arriba). El operario
      * ve el botón de alta, que lleva al formulario de registro, cuando el estado del equipo lo permite (si no, un aviso
-     * explica el motivo) y el botón de anular en la última operación; el gerente solo consulta.
+     * explica el motivo) y el botón de anular en la última operación si el equipo no está en uso por un lote; el gerente solo consulta.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR', 'FALLA_EQUIPAMIENTO_CONSULTAR', 'MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR')")

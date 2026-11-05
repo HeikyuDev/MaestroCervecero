@@ -26,7 +26,7 @@ public interface IControlEquipamientoServicio {
 
     /**
      * Obtiene una página de equipamientos activos con los datos de control: tipo, estado operativo, usos desde el
-     * último mantenimiento y máximo, y última operación registrada. Un parámetro nulo no restringe por ese criterio.
+     * último mantenimiento y máximo. Un parámetro nulo no restringe por ese criterio.
      * El orden es natural por identificador interno.
      *
      * @param identificador Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
@@ -50,7 +50,8 @@ public interface IControlEquipamientoServicio {
     /**
      * Lista las operaciones de un equipamiento agrupadas por tipo (limpiezas, fallas y mantenimientos), anuladas
      * incluidas, de la de fecha más reciente a la más antigua. Solo la última operación registrada del equipamiento
-     * (la de mayor fecha y, a igualdad, la de mayor ID; de cualquier tipo) se marca como anulable.
+     * (la de mayor fecha y, a igualdad, la de mayor ID; de cualquier tipo) se marca como anulable, y solo si el
+     * equipamiento no está en uso por un lote.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las operaciones del equipamiento.

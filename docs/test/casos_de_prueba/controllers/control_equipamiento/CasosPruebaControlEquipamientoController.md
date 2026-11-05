@@ -4,7 +4,7 @@
 
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
-| **CP-CCE-01** | Lista de control para el operario | Muestra el botón Abrir en cada fila y no muestra el ojo del historial. |
+| **CP-CCE-01** | Lista de control para el operario | Muestra el botón Abrir en cada fila, no muestra el ojo del historial y la tabla no tiene columna de última operación. |
 | **CP-CCE-02** | Lista de control para el gerente de producción | Muestra el ojo del historial y el botón Abrir en cada fila. |
 | **CP-CCE-03** | Roles sin permiso de consulta | La lista, el historial y el panel redirigen con alerta de peligro y no se invoca el service. |
 | **CP-CCE-04** | Criterios de la lista | El identificador sin espacios, el tipo y el estado operativo se pasan al service. |

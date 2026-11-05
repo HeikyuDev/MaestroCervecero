@@ -143,6 +143,29 @@ public final class MetodosCicloVidaEquipamiento {
     }
 
     /**
+     * Indica si el equipamiento está en uso por un lote. Un equipamiento en uso no admite registrar ni anular
+     * operaciones, porque podría quedar con un estado operativo inconsistente.
+     *
+     * @param estadoOperativo Estado operativo actual del equipamiento.
+     * @return {@code true} si el estado operativo es {@code EN_USO}.
+     */
+    public static boolean estaEnUso(EstadoOperativo estadoOperativo) {
+        return estadoOperativo == EstadoOperativo.EN_USO;
+    }
+
+    /**
+     * Valida que el equipamiento de la operación a anular no esté en uso por un lote.
+     *
+     * @param estadoOperativo Estado operativo actual del equipamiento.
+     * @throws ReglaNegocioException Si el equipamiento está en uso.
+     */
+    public static void validarNoEstaEnUso(EstadoOperativo estadoOperativo) {
+        if (estaEnUso(estadoOperativo)) {
+            throw new ReglaNegocioException("No se puede anular la operación porque el equipamiento está en uso por un lote");
+        }
+    }
+
+    /**
      * Resuelve el equipamiento sobre el que se opera a partir del resultado de su búsqueda con bloqueo, distinguiendo
      * un equipamiento inexistente de uno dado de baja.
      *

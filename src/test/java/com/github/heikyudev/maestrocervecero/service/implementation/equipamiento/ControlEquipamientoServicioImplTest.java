@@ -84,19 +84,16 @@ class ControlEquipamientoServicioImplTest {
     // ==================== filtrarEquipamientosParaControl ====================
 
     @Test
-    @DisplayName("CP-CE-01: filtrarEquipamientosParaControl arma los datos de control de la página con una consulta de usos y una de últimas operaciones")
+    @DisplayName("CP-CE-01: filtrarEquipamientosParaControl arma los datos de control de la página con una consulta de usos")
     void filtrar_debeArmarLosDatosDeControlConConsultasPorLista() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         MaceradorEntity macerador = macerador(2L, EstadoOperativo.EN_USO);
-        LimpiezaEquipamientoEntity ultimaDelMolino = limpieza(10L, EstadoTransaccion.REGISTRADO, molino, FIN);
         when(equipamientoRepository.filtrarEquipamientos("MOL", MolinoEntity.class, EstadoOperativo.DISPONIBLE, pageable))
                 .thenReturn(new PageImpl<>(List.of(molino, macerador)));
         when(limpiezaEquipamientoRepository.contarUsosDesdeUltimoMantenimiento(List.of(1L, 2L)))
                 .thenReturn(Collections.singletonList(new Object[]{1L, 7L}));
-        when(operacionCicloVidaEquipamientoRepository.buscarUltimasOperacionesRegistradas(List.of(1L, 2L)))
-                .thenReturn(List.of(ultimaDelMolino));
 
         // === EJECUCION ===
         Page<EquipamientoControlResponseDTO> resultado = controlEquipamientoServicio.filtrarEquipamientosParaControl("MOL", TipoEquipamiento.MOLINO, EstadoOperativo.DISPONIBLE, pageable);
@@ -110,21 +107,16 @@ class ControlEquipamientoServicioImplTest {
         assertThat(dtoMolino.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(dtoMolino.getUsosDesdeUltimoMantenimiento()).isEqualTo(7L);
         assertThat(dtoMolino.getUsosMaximosAntesMantenimiento()).isEqualTo(100);
-        assertThat(dtoMolino.getTipoUltimaOperacion()).isEqualTo(TipoOperacionEquipamiento.LIMPIEZA);
-        assertThat(dtoMolino.getFechaUltimaOperacion()).isEqualTo(FIN);
-        // El macerador no tiene usos ni operaciones registradas
+        // El macerador no tiene usos registrados
         EquipamientoControlResponseDTO dtoMacerador = resultado.getContent().get(1);
         assertThat(dtoMacerador.getTipo()).isEqualTo(TipoEquipamiento.MACERADOR);
         assertThat(dtoMacerador.getUsosDesdeUltimoMantenimiento()).isZero();
-        assertThat(dtoMacerador.getTipoUltimaOperacion()).isNull();
-        assertThat(dtoMacerador.getFechaUltimaOperacion()).isNull();
         verify(limpiezaEquipamientoRepository).contarUsosDesdeUltimoMantenimiento(List.of(1L, 2L));
-        verify(operacionCicloVidaEquipamientoRepository).buscarUltimasOperacionesRegistradas(List.of(1L, 2L));
     }
 
     @Test
-    @DisplayName("CP-CE-02: filtrarEquipamientosParaControl no consulta usos ni operaciones cuando la página está vacía")
-    void filtrar_noDebeConsultarUsosNiOperacionesConPaginaVacia() {
+    @DisplayName("CP-CE-02: filtrarEquipamientosParaControl no consulta usos cuando la página está vacía")
+    void filtrar_noDebeConsultarUsosConPaginaVacia() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         when(equipamientoRepository.filtrarEquipamientos(null, null, null, pageable)).thenReturn(new PageImpl<>(List.of()));
@@ -134,7 +126,7 @@ class ControlEquipamientoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verifyNoInteractions(limpiezaEquipamientoRepository, operacionCicloVidaEquipamientoRepository);
+        verifyNoInteractions(limpiezaEquipamientoRepository);
     }
 
     @Test
@@ -152,24 +144,6 @@ class ControlEquipamientoServicioImplTest {
         // === ASSERTS ===
         verify(equipamientoRepository).filtrarEquipamientos("MOL 01", null, null, pageable);
         verify(equipamientoRepository).filtrarEquipamientos(null, null, null, pageable);
-    }
-
-    @Test
-    @DisplayName("CP-CE-04: filtrarEquipamientosParaControl toma como última operación la de mayor ID ante un empate de fecha de fin")
-    void filtrar_debeDesempatarPorElMayorId() {
-        // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 10);
-        MolinoEntity molino = molino(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        FallaEquipamientoEntity falla = falla(20L, EstadoTransaccion.REGISTRADO, molino, FIN);
-        LimpiezaEquipamientoEntity limpieza = limpieza(10L, EstadoTransaccion.REGISTRADO, molino, FIN);
-        when(equipamientoRepository.filtrarEquipamientos(null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(molino)));
-        when(operacionCicloVidaEquipamientoRepository.buscarUltimasOperacionesRegistradas(List.of(1L))).thenReturn(List.of(falla, limpieza));
-
-        // === EJECUCION ===
-        Page<EquipamientoControlResponseDTO> resultado = controlEquipamientoServicio.filtrarEquipamientosParaControl(null, null, null, pageable);
-
-        // === ASSERTS ===
-        assertThat(resultado.getContent().get(0).getTipoUltimaOperacion()).isEqualTo(TipoOperacionEquipamiento.FALLA);
     }
 
     // ==================== buscarResumen ====================
@@ -305,7 +279,7 @@ class ControlEquipamientoServicioImplTest {
         limpiezaAnulada.setMotivoAnulacion("Carga por error");
         FallaEquipamientoEntity falla = falla(10L, EstadoTransaccion.REGISTRADO, molino, FIN);
         MantenimientoEquipamientoEntity mantenimiento = mantenimiento(15L, EstadoTransaccion.REGISTRADO, molino, FIN.plusDays(1));
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpiezaUltima, limpiezaAnulada));
         when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(falla));
@@ -344,7 +318,7 @@ class ControlEquipamientoServicioImplTest {
     @DisplayName("CP-CE-12: listarOperaciones sin operaciones registradas devuelve listas vacías y ninguna anulable")
     void listarOperaciones_debeDevolverListasVaciasSinOperaciones() {
         // === PREPARACION DE DATOS ===
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino(1L, EstadoOperativo.DISPONIBLE)));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
         when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
@@ -366,7 +340,7 @@ class ControlEquipamientoServicioImplTest {
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
         FallaEquipamientoEntity falla = falla(31L, EstadoTransaccion.REGISTRADO, molino, FIN);
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(31L));
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
         when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(falla));
@@ -386,7 +360,7 @@ class ControlEquipamientoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
         when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(FIN.plusDays(1)));
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
@@ -406,7 +380,7 @@ class ControlEquipamientoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
         when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(FIN.minusDays(1)));
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
@@ -428,7 +402,7 @@ class ControlEquipamientoServicioImplTest {
         LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
         FallaEquipamientoEntity falla = falla(10L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(1));
         MantenimientoEquipamientoEntity mantenimiento = mantenimiento(15L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(2));
-        when(equipamientoRepository.existsById(1L)).thenReturn(true);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
         when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
         when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.empty());
         when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
@@ -444,10 +418,57 @@ class ControlEquipamientoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-CE-29: listarOperaciones no marca como anulable ninguna operación cuando el equipamiento está en uso por un lote")
+    void listarOperaciones_noDebeMarcarAnulableSiElEquipamientoEstaEnUso() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.EN_USO);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        FallaEquipamientoEntity falla = falla(10L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(1));
+        MantenimientoEquipamientoEntity mantenimiento = mantenimiento(15L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(2));
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(FIN.minusDays(5)));
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(falla));
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(mantenimiento));
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isFalse();
+        assertThat(resultado.getFallas().get(0).isAnulable()).isFalse();
+        assertThat(resultado.getMantenimientos().get(0).isAnulable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-CE-30: listarOperaciones marca como anulable la última operación registrada con el equipamiento fuera de uso y lee el equipamiento una sola vez")
+    void listarOperaciones_debeMarcarAnulableConElEquipamientoFueraDeUso() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        FallaEquipamientoEntity falla = falla(10L, EstadoTransaccion.REGISTRADO, molino, FIN.minusDays(1));
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(falla));
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isTrue();
+        assertThat(resultado.getFallas().get(0).isAnulable()).isFalse();
+        verify(equipamientoRepository, times(1)).findById(1L);
+    }
+
+    @Test
     @DisplayName("CP-CE-13: listarOperaciones lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void listarOperaciones_debeRechazarInexistente() {
         // === PREPARACION DE DATOS ===
-        when(equipamientoRepository.existsById(99L)).thenReturn(false);
+        when(equipamientoRepository.findById(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> controlEquipamientoServicio.listarOperaciones(99L))

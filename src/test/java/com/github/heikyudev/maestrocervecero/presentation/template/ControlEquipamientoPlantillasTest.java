@@ -55,6 +55,18 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
+    @DisplayName("CP-PEQ-14: la lista de control tiene cinco columnas: Identificador, Tipo, Estado operativo, Usos y Acciones")
+    void listaConCincoColumnas() throws IOException {
+        String html = leer("control_equipamiento/control-lista.html");
+        String encabezado = html.substring(html.indexOf("<thead"), html.indexOf("</thead>"));
+
+        assertThat(Pattern.compile("<th[ >]").matcher(encabezado).results().count()).isEqualTo(5);
+        assertThat(encabezado).contains("Identificador").contains("Tipo").contains("Estado operativo").contains("Usos").contains("Acciones")
+                .doesNotContain("Última operación");
+        assertThat(html).contains("colspan=\"5\"").doesNotContain("data-equipo-ultima-operacion");
+    }
+
+    @Test
     @DisplayName("CP-PEQ-04: las pestañas del panel usan el fragmento de pestañas con un ícono")
     void pestanasConIcono() throws IOException {
         String html = leer("control_equipamiento/tabs.html");

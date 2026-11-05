@@ -138,7 +138,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
      * <p>
      * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha, y a igual fecha la de mayor ID, entre sus
      * limpiezas, fallas y mantenimientos), si el mantenimiento es posterior al fin de la última participación del
-     * equipamiento en un lote y si el equipamiento asociado se encuentra en estado operativo
+     * equipamiento en un lote, si el equipamiento no está en uso por un lote y si el equipamiento asociado se encuentra en estado operativo
      * {@code DISPONIBLE}; el equipamiento vuelve a {@code EN_MANTENIMIENTO}.
      * </p>
      * <p>
@@ -150,7 +150,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
      * @param id El ID del mantenimiento de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El mantenimiento de equipamiento anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento participó en un lote posterior al mantenimiento, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento participó en un lote posterior al mantenimiento, si el equipamiento está en uso por un lote, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el mantenimiento de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
@@ -186,17 +186,20 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
                 mantenimientoEquipamientoEntity.getFecha(),
                 etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
 
-        // 7. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE, para garantizar que la
+        // 7. Validar que el equipamiento no esté en uso por un lote
+        MetodosCicloVidaEquipamiento.validarNoEstaEnUso(equipamientoEntity.getEstadoOperativo());
+
+        // 8. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE, para garantizar que la
         //    transición de vuelta a EN_MANTENIMIENTO sea coherente
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
         }
 
-        // 8. Restablecer el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
+        // 9. Restablecer el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_MANTENIMIENTO);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 9. Aplicar la anulación sobre el mantenimiento y persistirlo
+        // 10. Aplicar la anulación sobre el mantenimiento y persistirlo
         mantenimientoEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         mantenimientoEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         mantenimientoEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);

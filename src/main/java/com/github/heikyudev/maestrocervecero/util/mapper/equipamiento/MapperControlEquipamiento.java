@@ -30,14 +30,13 @@ public class MapperControlEquipamiento {
     }
 
     /**
-     * Mapea un equipamiento, con sus usos y su última operación registrada, a {@link EquipamientoControlResponseDTO}.
+     * Mapea un equipamiento, con sus usos, a {@link EquipamientoControlResponseDTO}.
      *
      * @param equipamiento Equipamiento a convertir (no un proxy).
      * @param usosDesdeUltimoMantenimiento Cantidad de usos desde el último mantenimiento.
-     * @param ultimaOperacion Última operación registrada del equipamiento, o {@code null} si no tiene ninguna.
      * @return El DTO correspondiente o {@code null} si el equipamiento es nulo.
      */
-    public static EquipamientoControlResponseDTO toControlDTO(EquipamientoEntity equipamiento, long usosDesdeUltimoMantenimiento, OperacionCicloVidaEquipamiento ultimaOperacion) {
+    public static EquipamientoControlResponseDTO toControlDTO(EquipamientoEntity equipamiento, long usosDesdeUltimoMantenimiento) {
         if (equipamiento == null) {
             return null;
         }
@@ -48,8 +47,6 @@ public class MapperControlEquipamiento {
                 .estadoOperativo(equipamiento.getEstadoOperativo())
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
                 .usosMaximosAntesMantenimiento(equipamiento.getUsosMaximosAntesMantenimiento())
-                .tipoUltimaOperacion(ultimaOperacion != null ? TipoOperacionEquipamiento.deOperacion(ultimaOperacion) : null)
-                .fechaUltimaOperacion(ultimaOperacion != null ? ultimaOperacion.getFecha() : null)
                 .build();
     }
 

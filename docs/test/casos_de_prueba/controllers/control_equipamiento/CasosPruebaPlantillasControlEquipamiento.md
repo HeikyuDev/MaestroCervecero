@@ -16,3 +16,4 @@
 | **CP-PEQ-11** | Historial | Usa el patrón de las listas: filtros en una grilla con Limpiar y Buscar, tabla estándar con encabezado gris, badge de estado operativo y fragmento de paginación. |
 | **CP-PEQ-12** | Observaciones en las tablas | Ninguna tabla las escribe en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo. |
 | **CP-PEQ-13** | Consistencia con las pantallas de referencia | Repiten el encabezado, la tabla con Acciones fija, el botón "Nueva ..." en la tarjeta, el formulario con aviso de obligatorios, Cancelar y Registrar. |
+| **CP-PEQ-14** | Columnas de la lista de control | Tiene cinco columnas: Identificador, Tipo, Estado operativo, Usos y Acciones; la fila vacía abarca las cinco. |

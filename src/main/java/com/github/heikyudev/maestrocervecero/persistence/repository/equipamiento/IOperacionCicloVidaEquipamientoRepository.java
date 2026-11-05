@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,22 +53,6 @@ public interface IOperacionCicloVidaEquipamientoRepository extends JpaRepository
      */
     @Query("SELECT o.equipamiento.id FROM OperacionCicloVidaEquipamiento o WHERE o.id = :idOperacion")
     Optional<Long> buscarIdEquipamientoDeLaOperacion(@Param("idOperacion") Long idOperacion);
-
-    /**
-     * Busca, para cada equipamiento indicado, su última operación registrada (la de mayor fecha), en una sola
-     * consulta. Un equipamiento sin operaciones registradas no aparece en el resultado.
-     * <p>
-     * Ante un empate de fecha (solo posible en datos anteriores a la regla de orden estricto) pueden devolverse
-     * dos operaciones del mismo equipamiento; quien consume el resultado se queda con la de mayor ID.
-     * </p>
-     *
-     * @param idsEquipamiento Los IDs de los equipamientos.
-     * @return Las últimas operaciones registradas de esos equipamientos.
-     */
-    @Query("SELECT o FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id IN :idsEquipamiento AND o.estado = 'REGISTRADO' "
-            + "AND o.fecha = (SELECT MAX(o2.fecha) FROM OperacionCicloVidaEquipamiento o2 "
-            + "WHERE o2.equipamiento.id = o.equipamiento.id AND o2.estado = 'REGISTRADO')")
-    List<OperacionCicloVidaEquipamiento> buscarUltimasOperacionesRegistradas(@Param("idsEquipamiento") Collection<Long> idsEquipamiento);
 
     /**
      * Busca las operaciones registradas de un equipamiento cuya fecha cae dentro del período indicado, ordenadas
