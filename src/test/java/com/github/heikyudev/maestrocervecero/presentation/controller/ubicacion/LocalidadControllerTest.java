@@ -147,7 +147,7 @@ class LocalidadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-LOC-05: un gerente no tiene acceso al módulo (el listado se rechaza y no llega al service)")
     void listado_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/ubicaciones/localidades"))
@@ -160,8 +160,8 @@ class LocalidadControllerTest {
     // ==================== GET /ubicaciones/localidades/buscador ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
-    @DisplayName("CP-LOC-06: el GERENTE_COMERCIAL puede buscar la localidad de un cliente: páginas de 8 y un botón para elegir cada una")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-LOC-06: el ENCARGADO_DE_DISTRIBUCION puede buscar la localidad de un cliente: páginas de 8 y un botón para elegir cada una")
     void buscador_debeEstarDisponibleParaGerenteComercial() throws Exception {
         when(localidadServicio.filtrarLocalidades(any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(localidad(8L, "Río Cuarto", "5800")), PageRequest.of(0, 8), 1));
@@ -252,7 +252,7 @@ class LocalidadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-LOC-11: un gerente no puede abrir el formulario de alta")
     void formularioAlta_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/ubicaciones/localidades/nuevo"))
@@ -355,7 +355,7 @@ class LocalidadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-LOC-18: un gerente no puede dar de alta una localidad")
     void alta_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
@@ -473,7 +473,7 @@ class LocalidadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-LOC-25: un gerente no puede dar de baja una localidad")
     void baja_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(post("/ubicaciones/localidades/8/baja").with(csrf()))

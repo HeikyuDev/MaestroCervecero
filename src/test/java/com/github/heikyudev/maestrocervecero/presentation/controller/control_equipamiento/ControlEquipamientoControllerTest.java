@@ -125,7 +125,7 @@ public class ControlEquipamientoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-CCE-03: los demás roles no abren la lista, el historial ni el panel: redirigen con alerta y no se invoca el service")
     void rolesNoAutorizados(Rol rol) throws Exception {
         for (String url : List.of("/control-equipamiento", "/control-equipamiento/5", "/control-equipamiento/5/historial",

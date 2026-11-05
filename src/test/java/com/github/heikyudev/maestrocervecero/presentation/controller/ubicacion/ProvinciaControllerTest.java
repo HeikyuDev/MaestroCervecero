@@ -147,8 +147,8 @@ class ProvinciaControllerTest {
     // ==================== GET /ubicaciones/provincias/buscador ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
-    @DisplayName("CP-PRC-06: el GERENTE_COMERCIAL puede usar el buscador: páginas de 8 y un botón para elegir cada provincia")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-PRC-06: el ENCARGADO_DE_DISTRIBUCION puede usar el buscador: páginas de 8 y un botón para elegir cada provincia")
     void buscador_debeEstarDisponibleParaGerenteComercial() throws Exception {
         when(provinciaServicio.filtrarProvincias(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(provincia(5L, "Córdoba", 3L, "Argentina")), PageRequest.of(0, 8), 1));
@@ -240,7 +240,7 @@ class ProvinciaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-PRC-11: un gerente no puede abrir el formulario de alta")
     void formularioAlta_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/ubicaciones/provincias/nuevo"))
@@ -424,7 +424,7 @@ class ProvinciaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-PRC-22: un gerente no puede modificar una provincia")
     void modificar_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(post("/ubicaciones/provincias/5").with(csrf()).param("nombre", "Santa Fe").param("idPais", "3"))

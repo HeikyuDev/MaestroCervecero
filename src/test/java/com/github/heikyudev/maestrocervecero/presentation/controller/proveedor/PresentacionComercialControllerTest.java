@@ -237,7 +237,7 @@ class PresentacionComercialControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-PCC-09: un rol distinto de GERENTE_DE_COMPRAS no accede al listado y no llega al service")
     void caso_cp_pcc_09(String rol) throws Exception {
         // Act + Assert
@@ -651,7 +651,7 @@ class PresentacionComercialControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-PCC-34: la sidebar de los demás roles no muestra \"Gestión de Presentaciones\"")
     void caso_cp_pcc_34(String rol) throws Exception {
         // Act + Assert
@@ -662,19 +662,17 @@ class PresentacionComercialControllerTest {
     }
 
     @Test
-    @DisplayName("CP-PCC-35: la sección Administración aparece para el GERENTE_DE_PRODUCCION, el OPERARIO_DE_PRODUCCION (con sus pantallas de consulta) y el ADMINISTRADOR, y no para los demás roles")
+    @DisplayName("CP-PCC-35: la sección Administración aparece para el GERENTE_DE_PRODUCCION, el OPERARIO_DE_PRODUCCION (con sus pantallas de consulta), el ENCARGADO_DE_DISTRIBUCION (solo con Gestión de Clientes) y el ADMINISTRADOR, y no para el ENCARGADO_DE_DEPOSITO")
     void caso_cp_pcc_35() throws Exception {
         // Act + Assert
-        for (String rol : List.of("GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR")) {
+        for (String rol : List.of("GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR")) {
             mockMvc.perform(get("/home").with(user("usuario").roles(rol)))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("Administración")));
         }
-        for (String rol : List.of("ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL")) {
-            mockMvc.perform(get("/home").with(user("usuario").roles(rol)))
-                    .andExpect(status().isOk())
-                    .andExpect(content().string(not(containsString("Administración"))));
-        }
+        mockMvc.perform(get("/home").with(user("usuario").roles("ENCARGADO_DE_DEPOSITO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Administración"))));
     }
 
     // ==================== Datos de prueba ====================

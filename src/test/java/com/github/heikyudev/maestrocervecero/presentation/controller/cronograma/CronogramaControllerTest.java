@@ -2166,7 +2166,7 @@ class CronogramaControllerTest {
     // ==================== Roles ====================
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-CGC-35: los roles sin LOTE_CONSULTAR no pueden ver el cronograma: redirigen con alerta de error y no llegan a ningun service")
     void roles_sinLoteConsultarNoPuedenVerElCronograma(Rol rol) throws Exception {
         // Act + Assert
@@ -2178,7 +2178,7 @@ class CronogramaControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-CGC-109: los roles sin LOTE_CONSULTAR no pueden usar los buscadores de planificaciones ni de recetas: redirigen con alerta de error y no llegan a ningun service")
     void roles_sinLoteConsultarNoPuedenUsarLosBuscadoresDePlanificacionYReceta(Rol rol) throws Exception {
         // Act + Assert
@@ -2192,7 +2192,7 @@ class CronogramaControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-CGC-36: los roles sin LOTE_REGISTRAR (incluido el operario) no pueden subir ni bajar lotes: redirigen con alerta de error y el service no se invoca")
     void roles_sinLoteRegistrarNoPuedenMover(Rol rol) throws Exception {
         // Act + Assert
@@ -2207,7 +2207,7 @@ class CronogramaControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-CGC-96: los roles sin LOTE_CONSULTAR no pueden usar el buscador de fermentadores: redirigen con alerta de error y no llegan a ningun service")
     void roles_sinLoteConsultarNoPuedenUsarElBuscadorDeFermentadores(Rol rol) throws Exception {
         // Act + Assert

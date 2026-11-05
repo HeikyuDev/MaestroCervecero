@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#cliente-lista-content}, 'clientes')}">
+<body>
+
+<div id="cliente-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Clientes</h1>
+            <p class="text-sm text-slate-500">Clientes en orden alfabético por nombre.</p>
+        </div>
+        <a th:href="@{/clientes/nuevo}"
+           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-plus-lg"></i> Nuevo cliente
+        </a>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/clientes}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
+            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Bar El Puerto"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="direccion" class="block text-xs font-medium text-slate-500 mb-1">Dirección</label>
+            <input type="text" id="direccion" name="direccion" th:value="${filtroDireccion}" autocomplete="off" placeholder="Ej: Av. Corrientes 1234"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="md:col-span-2">
+            <div th:replace="~{fragments/ubicacion-enlazada :: ubicacion('idLocalidad', ${filtroIdLocalidad}, ${textoLocalidad}, ${idProvinciaElegida},
+                    ${textoProvincia}, ${idPaisElegido}, ${textoPais}, false, false)}"></div>
+        </div>
+        <div class="md:col-span-2 flex items-center justify-end gap-3">
+            <a th:href="@{/clientes}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-2 py-3">Nombre</th>
+                <th class="px-2 py-3">Correo electrónico</th>
+                <th class="px-2 py-3 whitespace-nowrap">Teléfono</th>
+                <th class="px-2 py-3">Ubicación</th>
+                <th class="px-2 py-3">Dirección</th>
+                <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="x : ${clientes.content}" class="hover:bg-slate-50">
+                <td class="px-2 py-3">
+                    <span class="inline-block max-w-[9rem] truncate align-bottom font-medium text-slate-900" tabindex="0" th:data-tooltip="${x.nombre}" th:text="${x.nombre}">Bar El Puerto</span>
+                </td>
+                <td class="px-2 py-3 text-slate-700">
+                    <span class="inline-block max-w-[12rem] truncate align-bottom" tabindex="0" th:data-tooltip="${x.email}" th:text="${x.email}">contacto@elpuerto.com</span>
+                </td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${x.telefono != null and !#strings.isEmpty(x.telefono)} ? ${x.telefono} : '-'">3764123456</td>
+                <td class="px-2 py-3 text-slate-700">
+                    <!-- Localidad y, debajo, su provincia y su país -->
+                    <span class="block max-w-[9rem] truncate" tabindex="0"
+                          th:with="localidad=${x.localidad != null} ? ${x.localidad.nombre} : '-'"
+                          th:data-tooltip="${localidad}" th:text="${localidad}">Posadas</span>
+                    <span class="block max-w-[9rem] truncate text-xs text-slate-500" tabindex="0" th:if="${x.localidad != null and x.localidad.provincia != null}"
+                          th:with="ubicacion=${x.localidad.provincia.nombre + (x.localidad.provincia.pais != null ? ', ' + x.localidad.provincia.pais.nombre : '')}"
+                          th:data-tooltip="${ubicacion}" th:text="${ubicacion}">Misiones, Argentina</span>
+                </td>
+                <td class="px-2 py-3 text-slate-700">
+                    <span class="inline-block max-w-[12rem] truncate align-bottom" tabindex="0" th:data-tooltip="${x.direccion}" th:text="${x.direccion}">Av. Corrientes 1234</span>
+                </td>
+                <td class="col-acciones px-2 py-3 whitespace-nowrap">
+                    <div class="flex items-center justify-end gap-1">
+                        <a th:href="@{/clientes/{id}/editar(id=${x.id})}" title="Editar cliente" aria-label="Editar cliente"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-pencil-square text-lg"></i>
+                        </a>
+                        <button type="button" title="Dar de baja cliente" aria-label="Dar de baja cliente"
+                                th:data-baja-url="@{/clientes/{id}/baja(id=${x.id})}"
+                                th:data-baja-nombre="${x.nombre}"
+                                class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <i class="bi bi-trash text-lg"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${clientes.empty}">
+                <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-shop text-3xl block mb-2"></i>
+                    No se encontraron clientes con los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${clientes}, 'cliente|clientes',
+                ${clientes.hasPrevious()} ? @{/clientes(pagina=${clientes.number - 1}, nombre=${filtroNombre}, direccion=${filtroDireccion}, idLocalidad=${filtroIdLocalidad})} : null,
+                ${clientes.hasNext()} ? @{/clientes(pagina=${clientes.number + 1}, nombre=${filtroNombre}, direccion=${filtroDireccion}, idLocalidad=${filtroIdLocalidad})} : null,
+                false)}"></div>
+    </div>
+
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja cliente', 'Si tiene un barril en su poder, el sistema no lo permitirá.')}"></div>
+    <script th:src="@{/js/ubicacion-enlazada.js}" defer></script>
+</div>
+
+</body>
+</html>

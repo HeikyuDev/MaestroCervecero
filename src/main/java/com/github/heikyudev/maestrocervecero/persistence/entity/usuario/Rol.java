@@ -124,15 +124,11 @@ public enum Rol {
             Permiso.ORDEN_COMPRA_CONSULTAR
     )),
 
-    GERENTE_COMERCIAL("Gerente Comercial", Set.of(
+    ENCARGADO_DE_DISTRIBUCION("Encargado de Distribución", Set.of(
             Permiso.CLIENTE_CREAR,
             Permiso.CLIENTE_MODIFICAR,
             Permiso.CLIENTE_ELIMINAR,
             Permiso.CLIENTE_CONSULTAR,
-            Permiso.PRESENTACION_COMERCIAL_CREAR,
-            Permiso.PRESENTACION_COMERCIAL_MODIFICAR,
-            Permiso.PRESENTACION_COMERCIAL_ELIMINAR,
-            Permiso.PRESENTACION_COMERCIAL_CONSULTAR,
             Permiso.DESPACHO_BARRIL_REGISTRAR,
             Permiso.DESPACHO_BARRIL_ANULAR,
             Permiso.DESPACHO_BARRIL_CONSULTAR,

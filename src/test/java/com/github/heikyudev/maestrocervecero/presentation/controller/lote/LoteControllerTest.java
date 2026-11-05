@@ -543,7 +543,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-18: los roles sin LOTE_CONSULTAR no pueden ver el listado: redirigen con alerta de error y no llegan a ningún service")
     void listar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -646,7 +646,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-24: los roles sin LOTE_REGISTRAR no pueden abrir el formulario de alta: redirigen con alerta de error y no llegan a ningún service")
     void nuevo_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -858,7 +858,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-35: los roles sin LOTE_REGISTRAR no pueden registrar lotes: redirigen con alerta de error y el service no se invoca")
     void registrar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1831,7 +1831,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-78: los roles sin LOTE_CONSULTAR no pueden ver el detalle: redirigen con alerta de error y no llegan a ningún service")
     void detalle_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1895,7 +1895,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-85: los roles sin LOTE_INICIAR no pueden iniciar un lote: redirigen con alerta de error y el service no se invoca")
     void iniciar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1987,7 +1987,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-93: los roles sin LOTE_ANULAR no pueden cancelar un lote: redirigen con alerta de error y el service no se invoca")
     void cancelar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -2136,7 +2136,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-107: los roles sin los permisos de finalización no pueden finalizar ninguna etapa: redirigen con alerta de error y ninguno de los seis métodos del service se invoca")
     void finalizar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -2420,7 +2420,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-121: los roles sin LOTE_REGISTRAR no pueden usar los seis buscadores del formulario: redirigen con alerta de error y no llegan a ningún service")
     void buscadoresDelFormulario_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -2593,7 +2593,7 @@ class LoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCT-128: los roles sin LOTE_CONSULTAR no pueden usar los buscadores del filtro: redirigen con alerta de error y no llegan a ningún service")
     void filtros_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert

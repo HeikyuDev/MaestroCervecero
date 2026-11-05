@@ -308,7 +308,7 @@ class OrdenCompraControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-OCC-10: un rol distinto de GERENTE_DE_COMPRAS y ENCARGADO_DE_DEPOSITO no accede al listado, al detalle ni a los buscadores y no llega a ningún service")
     void caso_cp_occ_10(String rol) throws Exception {
         // Act + Assert
@@ -1319,7 +1319,7 @@ class OrdenCompraControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-OCC-49: la sidebar de los demás roles no muestra \"Órdenes de Compra\"")
     void caso_cp_occ_49(String rol) throws Exception {
         // Act + Assert

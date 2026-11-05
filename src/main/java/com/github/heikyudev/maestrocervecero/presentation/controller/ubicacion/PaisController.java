@@ -28,7 +28,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 
 /**
  * Controller de la gestión de países. El módulo de ubicaciones es solo del ADMINISTRADOR; la única
- * excepción es el buscador de países, que también usan los gerentes comercial y de compras como
+ * excepción es el buscador de países, que también usan los encargados de distribución y de compras como
  * criterio de filtro al seleccionar una localidad.
  * <p>
  * Si el alta se abre desde el selector de otro formulario ({@link RetornoContextual}), al guardar se
@@ -68,7 +68,7 @@ public class PaisController {
      * Devuelve el contenido del modal de búsqueda de países (criterios de filtro + resultados).
      */
     @GetMapping("/buscador")
-    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'GERENTE_COMERCIAL', 'GERENTE_DE_COMPRAS')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENCARGADO_DE_DISTRIBUCION', 'GERENTE_DE_COMPRAS')")
     public String buscarPaises(@RequestParam(required = false) String nombre,
                                @RequestParam(defaultValue = "0") int pagina,
                                Model model) {

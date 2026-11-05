@@ -250,7 +250,7 @@ class AuditLogControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-AC-10: un rol distinto de ADMINISTRADOR no puede ver la bitácora (no llega al service)")
     void listado_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/auditoria"))

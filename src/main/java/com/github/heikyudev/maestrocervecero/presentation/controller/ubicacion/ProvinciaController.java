@@ -31,7 +31,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 
 /**
  * Controller de la gestión de provincias. El módulo de ubicaciones es solo del ADMINISTRADOR; la
- * única excepción es el buscador de provincias, que también usan los gerentes comercial y de
+ * única excepción es el buscador de provincias, que también usan los encargados de distribución y de
  * compras como criterio de filtro al seleccionar una localidad.
  * <p>
  * El país de una provincia se elige con un selector (modal de búsqueda). Si falta, el "+" del
@@ -70,7 +70,7 @@ public class ProvinciaController {
      * Devuelve el contenido del modal de búsqueda de provincias (criterios de filtro + resultados).
      */
     @GetMapping("/buscador")
-    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'GERENTE_COMERCIAL', 'GERENTE_DE_COMPRAS')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENCARGADO_DE_DISTRIBUCION', 'GERENTE_DE_COMPRAS')")
     public String buscarProvincias(@RequestParam(required = false) String nombre,
                                    @RequestParam(required = false) Long idPais,
                                    @RequestParam(defaultValue = "0") int pagina,

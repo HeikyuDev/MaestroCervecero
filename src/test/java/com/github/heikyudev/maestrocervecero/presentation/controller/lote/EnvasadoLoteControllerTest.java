@@ -365,7 +365,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LEN-15: los roles sin ENVASADO_CONSULTAR no abren la pantalla: redirigen con alerta de error y no se invoca ningún service")
     void pantalla_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -534,7 +534,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LEN-27: los roles sin ENVASADO_REGISTRAR no registran envasados: redirigen con alerta de error y el service no se invoca")
     void registrar_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -619,7 +619,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LEN-36: los roles sin ENVASADO_ANULAR no anulan envasados: redirigen con alerta de error y el service no se invoca")
     void anular_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -738,7 +738,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LEN-43: los roles sin ENVASADO_REGISTRAR no abren el buscador: redirigen con alerta de error y no se invoca ningún service")
     void buscador_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert

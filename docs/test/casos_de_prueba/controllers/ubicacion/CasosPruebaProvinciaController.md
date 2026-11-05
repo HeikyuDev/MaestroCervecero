@@ -4,7 +4,7 @@
 
 **Roles requeridos:**
 - Listado, alta, edición y baja: solo `ADMINISTRADOR`.
-- Buscador (`/ubicaciones/provincias/buscador`): `ADMINISTRADOR`, `GERENTE_COMERCIAL` y `GERENTE_DE_COMPRAS`. Los gerentes no acceden al módulo; solo usan el buscador como criterio de filtro al seleccionar una localidad.
+- Buscador (`/ubicaciones/provincias/buscador`): `ADMINISTRADOR`, `ENCARGADO_DE_DISTRIBUCION` y `GERENTE_DE_COMPRAS`. Los demás roles no acceden al módulo; solo usan el buscador como criterio de filtro al seleccionar una localidad.
 
 **Convenciones de los resultados:**
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
@@ -31,7 +31,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-PRC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "cor"`. El service devuelve "Córdoba" de "Argentina" (`id: 5`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-provincia :: buscador`. Cada provincia tiene un botón `data-elegir data-id="5" data-texto="Córdoba (Argentina)"`; no hay acciones de baja. Llama al service con `nombre: "cor"` y páginas de 8 elementos. |
+| **CP-PRC-06** | Buscador para el encargado de distribución | Rol `ENCARGADO_DE_DISTRIBUCION`, `nombre: "cor"`. El service devuelve "Córdoba" de "Argentina" (`id: 5`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-provincia :: buscador`. Cada provincia tiene un botón `data-elegir data-id="5" data-texto="Córdoba (Argentina)"`; no hay acciones de baja. Llama al service con `nombre: "cor"` y páginas de 8 elementos. |
 | **CP-PRC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron provincias con los criterios indicados". |
 | **CP-PRC-08** | Rol sin relación con clientes ni proveedores | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
@@ -43,7 +43,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-PRC-09** | Formulario de alta con selector de país | Rol `ADMINISTRADOR` | El rol puede crear países | Responde 200 con la vista `ubicacion/provincia-form`. Muestra "Nueva provincia", el asterisco de obligatorio, `action="/ubicaciones/provincias"`, el link "Volver a provincias", el selector de país con `data-buscador-url="/ubicaciones/paises/buscador"` y el menú de tres puntitos con la opción "Crear nuevo país" (`data-alta-url="/ubicaciones/paises/nuevo"`). No incluye el campo `retorno`. |
 | **CP-PRC-10** | Alta contextual: se conservan retorno y campo | Rol `ADMINISTRADOR`, `retorno: "/ubicaciones/localidades/nuevo"`, `campo: "idProvincia"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/ubicaciones/localidades/nuevo?desdeAlta=1`. |
-| **CP-PRC-11** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
+| **CP-PRC-11** | Rol sin permiso de alta | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 | **CP-PRC-26** | Vuelta de crear un país | `idPais: 7`, `desdeAlta: 1`. `IPaisServicio` devuelve "Chile" | El país recién creado llega en la URL | El selector queda con `idPais=7` y el texto "Chile". |
 
 ---
@@ -79,7 +79,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-PRC-20** | Modificación correcta | Rol `ADMINISTRADOR`, `id: 5`, `nombre: "Santa Fe"`, `idPais: 3` | Formulario válido | Llama a `modificarProvincia(5, ...)`. Redirige a `/ubicaciones/provincias` con la alerta "Provincia modificada correctamente" de tipo `success`. |
 | **CP-PRC-21** | Nombre duplicado | El service lanza `RecursoDuplicadoException` | El service rechaza el nombre | Vuelve al formulario de edición (`action="/ubicaciones/provincias/5"`) con el panel "No se pudo modificar la provincia" y el mensaje del service. |
-| **CP-PRC-22** | Rol sin permiso de modificación | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-PRC-22** | Rol sin permiso de modificación | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 

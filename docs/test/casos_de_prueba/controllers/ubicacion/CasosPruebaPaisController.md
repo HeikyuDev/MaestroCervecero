@@ -4,7 +4,7 @@
 
 **Roles requeridos:**
 - Listado, alta, edición y baja: solo `ADMINISTRADOR`.
-- Buscador (`/ubicaciones/paises/buscador`): `ADMINISTRADOR`, `GERENTE_COMERCIAL` y `GERENTE_DE_COMPRAS`. Los gerentes no acceden al módulo; solo usan el buscador como criterio de filtro al seleccionar una localidad.
+- Buscador (`/ubicaciones/paises/buscador`): `ADMINISTRADOR`, `ENCARGADO_DE_DISTRIBUCION` y `GERENTE_DE_COMPRAS`. Los demás roles no acceden al módulo; solo usan el buscador como criterio de filtro al seleccionar una localidad.
 
 **Convenciones de los resultados:**
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
@@ -23,7 +23,7 @@
 | **CP-PAC-02** | Paginación y orden alfabético por defecto | Rol `ADMINISTRADOR`, `GET /ubicaciones/paises` sin parámetros | Sin criterios. País es un módulo maestro | Llama al service con `nombre: null` y un `Pageable` de 20 elementos, página 0, ordenado de forma ascendente por `nombre` (sin distinguir mayúsculas) y por `id` como desempate. |
 | **CP-PAC-03** | Criterio de nombre hacia el service | Rol `ADMINISTRADOR`, `nombre: " arg "` con `pagina: 1`, y luego `nombre: "   "` | Un texto en blanco equivale a no filtrar | Llama al service con `nombre: "arg"` (sin espacios) y página 1; con el texto en blanco lo llama con `nombre: null`. |
 | **CP-PAC-04** | Listado sin resultados | Rol `ADMINISTRADOR`, el service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron países con los criterios indicados" en lugar de una tabla vacía. |
-| **CP-PAC-05** | Rol sin acceso al módulo | Rol `GERENTE_COMERCIAL` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-PAC-05** | Rol sin acceso al módulo | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-PAC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "arg"`. El service devuelve 1 país (`id: 3`, "Argentina") | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-pais :: buscador`. Cada país tiene un botón `data-elegir data-id="3" data-texto="Argentina"`; no hay acciones de baja. Llama al service con `nombre: "arg"` y páginas de 8 elementos. |
+| **CP-PAC-06** | Buscador para el encargado de distribución | Rol `ENCARGADO_DE_DISTRIBUCION`, `nombre: "arg"`. El service devuelve 1 país (`id: 3`, "Argentina") | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-pais :: buscador`. Cada país tiene un botón `data-elegir data-id="3" data-texto="Argentina"`; no hay acciones de baja. Llama al service con `nombre: "arg"` y páginas de 8 elementos. |
 | **CP-PAC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron países con los criterios indicados". |
 | **CP-PAC-08** | Rol sin relación con clientes ni proveedores | Rol `GERENTE_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
@@ -43,7 +43,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-PAC-09** | Formulario de alta | Rol `ADMINISTRADOR` | El rol está autorizado | Responde 200 con la vista `ubicacion/pais-form`. Muestra "Nuevo país", el asterisco rojo de obligatorio, `action="/ubicaciones/paises"`, el botón "Crear país" y el link "Volver a países". No incluye los campos `retorno` ni el panel de errores. |
 | **CP-PAC-10** | Alta contextual: se conservan retorno y campo | Rol `ADMINISTRADOR`, `retorno: "/ubicaciones/provincias/nuevo"`, `campo: "idPais"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver y "Cancelar" dicen "Volver al formulario anterior" y apuntan a `/ubicaciones/provincias/nuevo?desdeAlta=1`. |
-| **CP-PAC-11** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
+| **CP-PAC-11** | Rol sin permiso de alta | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 | **CP-PAC-28** | Retorno fuera del sitio | `retorno: "//sitio-malicioso.com/x"` | Solo se aceptan rutas internas | Se descarta: no hay campo `retorno`, el link de volver es "Volver a países" y no aparece el sitio externo. |
 
 ---
@@ -80,7 +80,7 @@
 | **CP-PAC-21** | Modificación correcta | Rol `ADMINISTRADOR`, `id: 3`, `nombre: "Chile"` | Formulario válido | Llama a `modificarPais(3, ...)`. Redirige a `/ubicaciones/paises` con la alerta "País modificado correctamente" de tipo `success`. |
 | **CP-PAC-22** | Nombre duplicado | El service lanza `RecursoDuplicadoException` | El service rechaza el nombre | Vuelve al formulario de edición (`action="/ubicaciones/paises/3"`) con el panel "No se pudo modificar el país" y el mensaje del service. |
 | **CP-PAC-23** | Nombre en blanco | `nombre: ""` | `@NotBlank` $\rightarrow$ **Falla** | Vuelve al formulario con "El nombre es obligatorio". No invoca al service. |
-| **CP-PAC-24** | Rol sin permiso de modificación | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-PAC-24** | Rol sin permiso de modificación | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 

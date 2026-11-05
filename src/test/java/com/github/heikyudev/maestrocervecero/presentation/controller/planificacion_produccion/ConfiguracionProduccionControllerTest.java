@@ -137,7 +137,7 @@ class ConfiguracionProduccionControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-CPC-05: cualquier rol distinto del GERENTE_DE_PRODUCCION es rechazado al abrir la pantalla y no llega al service")
     void caso_cp_cpc_05(String rol) throws Exception {
         // === EJECUCION Y VERIFICACION ===
@@ -281,7 +281,7 @@ class ConfiguracionProduccionControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-CPC-12: cualquier rol distinto del GERENTE_DE_PRODUCCION es rechazado al guardar y no llega al service")
     void caso_cp_cpc_12(String rol) throws Exception {
         // === EJECUCION Y VERIFICACION ===
@@ -332,7 +332,7 @@ class ConfiguracionProduccionControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-CPC-15: la sidebar de los demás roles no muestra ni la sección \"Configuración\" ni el enlace a la pantalla")
     void caso_cp_cpc_15(String rol) throws Exception {
         // === EJECUCION Y VERIFICACION ===

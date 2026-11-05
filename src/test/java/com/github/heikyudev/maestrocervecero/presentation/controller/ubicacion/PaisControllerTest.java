@@ -131,7 +131,7 @@ class PaisControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-PAC-05: un gerente no tiene acceso al módulo (el listado se rechaza y no llega al service)")
     void listado_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/ubicaciones/paises"))
@@ -144,8 +144,8 @@ class PaisControllerTest {
     // ==================== GET /ubicaciones/paises/buscador ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
-    @DisplayName("CP-PAC-06: el GERENTE_COMERCIAL puede usar el buscador: páginas de 8 y un botón para elegir cada país")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-PAC-06: el ENCARGADO_DE_DISTRIBUCION puede usar el buscador: páginas de 8 y un botón para elegir cada país")
     void buscador_debeEstarDisponibleParaGerenteComercial() throws Exception {
         when(paisServicio.filtrarPaises(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(pais(3L, "Argentina")), PageRequest.of(0, 8), 1));
@@ -227,7 +227,7 @@ class PaisControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-PAC-11: un gerente no puede abrir el formulario de alta")
     void formularioAlta_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/ubicaciones/paises/nuevo"))
@@ -409,7 +409,7 @@ class PaisControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-PAC-24: un gerente no puede modificar un país")
     void modificar_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(post("/ubicaciones/paises/3").with(csrf()).param("nombre", "Chile"))

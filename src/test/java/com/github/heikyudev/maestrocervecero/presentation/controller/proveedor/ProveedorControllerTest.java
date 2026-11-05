@@ -324,7 +324,7 @@ class ProveedorControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-PVC-09: un rol distinto de GERENTE_DE_COMPRAS no accede al listado ni a los buscadores y no llega a ningún service")
     void caso_cp_pvc_09(String rol) throws Exception {
         // Act + Assert
@@ -1168,7 +1168,7 @@ class ProveedorControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-PVC-39: la sidebar de los demás roles no muestra \"Gestión de Proveedores\"")
     void caso_cp_pvc_39(String rol) throws Exception {
         // Act + Assert

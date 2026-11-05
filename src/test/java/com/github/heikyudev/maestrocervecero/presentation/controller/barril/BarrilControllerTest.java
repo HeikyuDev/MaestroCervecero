@@ -389,7 +389,7 @@ class BarrilControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_COMERCIAL")
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-BCT-17: un rol distinto de GERENTE_DE_PRODUCCION no accede al buscador")
     void caso_cp_bct_17() throws Exception {
         // Act + Assert
@@ -848,7 +848,7 @@ class BarrilControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @ValueSource(strings = {"ADMINISTRADOR", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-BCT-43: la sidebar de los demás roles (el operario sí lo ve, para consultarlo) no muestra \"Gestión de Barriles\"")
     void caso_cp_bct_43(String rol) throws Exception {
         // Act + Assert

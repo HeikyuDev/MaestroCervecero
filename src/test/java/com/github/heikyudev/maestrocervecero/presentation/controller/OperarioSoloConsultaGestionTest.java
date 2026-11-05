@@ -131,7 +131,7 @@ class OperarioSoloConsultaGestionTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-OSC-04: los demás roles siguen sin acceso a las listas de gestión de equipamiento, insumos, barriles y recetas")
     void otrosRolesSinAcceso(Rol rol) throws Exception {
         for (String lista : LISTAS) {

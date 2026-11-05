@@ -21,7 +21,7 @@ class RolTest {
         assertThat(Rol.OPERARIO_DE_PRODUCCION.getEtiqueta()).isEqualTo("Operario de Producción");
         assertThat(Rol.GERENTE_DE_COMPRAS.getEtiqueta()).isEqualTo("Gerente de Compras");
         assertThat(Rol.ENCARGADO_DE_DEPOSITO.getEtiqueta()).isEqualTo("Encargado de Depósito");
-        assertThat(Rol.GERENTE_COMERCIAL.getEtiqueta()).isEqualTo("Gerente Comercial");
+        assertThat(Rol.ENCARGADO_DE_DISTRIBUCION.getEtiqueta()).isEqualTo("Encargado de Distribución");
     }
 
     @Test
@@ -98,7 +98,7 @@ class RolTest {
     @DisplayName("CP-RO-05: ningún otro rol tiene permisos sobre limpiezas, fallas o mantenimientos de equipamiento")
     void permisos_otrosRolesNoOperanElCicloDeVidaDelEquipamiento() {
         // === PREPARACION DE DATOS ===
-        java.util.List<Rol> otrosRoles = java.util.List.of(Rol.ADMINISTRADOR, Rol.GERENTE_DE_COMPRAS, Rol.ENCARGADO_DE_DEPOSITO, Rol.GERENTE_COMERCIAL);
+        java.util.List<Rol> otrosRoles = java.util.List.of(Rol.ADMINISTRADOR, Rol.GERENTE_DE_COMPRAS, Rol.ENCARGADO_DE_DEPOSITO, Rol.ENCARGADO_DE_DISTRIBUCION);
 
         // === EJECUCION Y VERIFICACION ===
         for (Rol rol : otrosRoles) {
@@ -107,5 +107,18 @@ class RolTest {
                     Permiso.FALLA_EQUIPAMIENTO_REGISTRAR, Permiso.FALLA_EQUIPAMIENTO_ANULAR, Permiso.FALLA_EQUIPAMIENTO_CONSULTAR,
                     Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR, Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR, Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR);
         }
+    }
+
+    @Test
+    @DisplayName("CP-RO-08: el Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril y ningún otro")
+    void permisos_encargadoDeDistribucionGestionaClientesYMueveBarriles() {
+        // === PREPARACION DE DATOS ===
+        // (los roles son constantes del enum, no requieren preparación)
+
+        // === EJECUCION Y VERIFICACION ===
+        assertThat(Rol.ENCARGADO_DE_DISTRIBUCION.getPermisos()).containsExactlyInAnyOrder(
+                Permiso.CLIENTE_CREAR, Permiso.CLIENTE_MODIFICAR, Permiso.CLIENTE_ELIMINAR, Permiso.CLIENTE_CONSULTAR,
+                Permiso.DESPACHO_BARRIL_REGISTRAR, Permiso.DESPACHO_BARRIL_ANULAR, Permiso.DESPACHO_BARRIL_CONSULTAR,
+                Permiso.DEVOLUCION_BARRIL_REGISTRAR, Permiso.DEVOLUCION_BARRIL_ANULAR, Permiso.DEVOLUCION_BARRIL_CONSULTAR);
     }
 }

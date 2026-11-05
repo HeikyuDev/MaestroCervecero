@@ -4,7 +4,7 @@
 
 **Roles requeridos:**
 - Listado, alta, edición y baja: solo `ADMINISTRADOR`.
-- Buscador (`/ubicaciones/localidades/buscador`): `ADMINISTRADOR`, `GERENTE_COMERCIAL` (localidad de un cliente) y `GERENTE_DE_COMPRAS` (localidad de un proveedor). Los gerentes no acceden al módulo; solo usan el buscador.
+- Buscador (`/ubicaciones/localidades/buscador`): `ADMINISTRADOR`, `ENCARGADO_DE_DISTRIBUCION` (localidad de un cliente) y `GERENTE_DE_COMPRAS` (localidad de un proveedor). Los demás roles no acceden al módulo; solo usan el buscador.
 
 **Convenciones de los resultados:**
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
@@ -23,7 +23,7 @@
 | **CP-LOC-02** | Paginación y orden alfabético por defecto | Rol `ADMINISTRADOR`, sin parámetros | Sin criterios. Localidad es un módulo maestro | Llama al service con los cuatro criterios en `null` y un `Pageable` de 20 elementos, página 0, ordenado de forma ascendente por `nombre` (sin distinguir mayúsculas) y por `id` como desempate. |
 | **CP-LOC-03** | Los cuatro criterios de filtro | Rol `ADMINISTRADOR`, `nombre: "rio"`, `codigoPostal: "5800"`, `idProvincia: 5`, `idPais: 3`. Los servicios de provincia y país devuelven "Córdoba" y "Argentina" | Provincia y país del filtro existen | Llama al service con los cuatro criterios. Los selectores muestran `idProvincia=5` con "Córdoba (Argentina)" e `idPais=3` con "Argentina". |
 | **CP-LOC-04** | Provincia o país del filtro inexistentes | `idProvincia: 99`, `idPais: 98`. Ambos servicios lanzan `RecursoNoEncontradoException` | Provincia y país ya no existen | Esos filtros se ignoran: llama al service con `idProvincia: null` e `idPais: null`. |
-| **CP-LOC-05** | Rol sin acceso al módulo | Rol `GERENTE_COMERCIAL` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-LOC-05** | Rol sin acceso al módulo | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LOC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "rio"`. El service devuelve "Río Cuarto" de "Córdoba" (`id: 8`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-localidad :: buscador`. Cada localidad tiene un botón `data-elegir data-id="8" data-texto="Río Cuarto (Córdoba)"`. Los filtros de provincia y país usan los buscadores `/ubicaciones/provincias/buscador` y `/ubicaciones/paises/buscador`, sin menú de creación ni acciones de baja. Llama al service con `nombre: "rio"` y páginas de 8 elementos. |
+| **CP-LOC-06** | Buscador para el encargado de distribución | Rol `ENCARGADO_DE_DISTRIBUCION`, `nombre: "rio"`. El service devuelve "Río Cuarto" de "Córdoba" (`id: 8`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-localidad :: buscador`. Cada localidad tiene un botón `data-elegir data-id="8" data-texto="Río Cuarto (Córdoba)"`. Los filtros de provincia y país usan los buscadores `/ubicaciones/provincias/buscador` y `/ubicaciones/paises/buscador`, sin menú de creación ni acciones de baja. Llama al service con `nombre: "rio"` y páginas de 8 elementos. |
 | **CP-LOC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron localidades con los criterios indicados". |
 | **CP-LOC-08** | Rol sin relación con clientes ni proveedores | Rol `ENCARGADO_DE_DEPOSITO` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
@@ -43,7 +43,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-LOC-09** | Formulario de alta con selector de provincia | Rol `ADMINISTRADOR` | El rol puede crear provincias | Responde 200 con la vista `ubicacion/localidad-form`. Muestra "Nueva localidad", el asterisco de obligatorio, `action="/ubicaciones/localidades"`, el link "Volver a localidades", el selector de provincia con `data-buscador-url="/ubicaciones/provincias/buscador"` y el menú de tres puntitos con la opción "Crear nueva provincia" (`data-alta-url="/ubicaciones/provincias/nuevo"`). No incluye el campo `retorno`. |
 | **CP-LOC-10** | Alta contextual: se conservan retorno y campo | Rol `ADMINISTRADOR`, `retorno: "/clientes/nuevo"`, `campo: "idLocalidad"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/clientes/nuevo?desdeAlta=1`. |
-| **CP-LOC-11** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
+| **CP-LOC-11** | Rol sin permiso de alta | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 | **CP-LOC-26** | Vuelta de crear una provincia | `idProvincia: 5`, `desdeAlta: 1`. `IProvinciaServicio` devuelve "Córdoba" de "Argentina" | La provincia recién creada llega en la URL | El selector queda con `idProvincia=5` y el texto "Córdoba (Argentina)". |
 
 ---
@@ -58,7 +58,7 @@
 | **CP-LOC-15** | Nombre duplicado en la provincia | El service lanza `RecursoDuplicadoException("Ya existe una localidad con ese nombre en la provincia")` | El service rechaza el nombre | Vuelve al formulario con el mensaje del service junto al campo y el nombre tipeado conservado. |
 | **CP-LOC-16** | Provincia elegida inexistente | `idProvincia: 99`. El service lanza `RecursoNoEncontradoException("No existe la provincia indicada")` | La provincia ya no existe | Vuelve al formulario y muestra el mensaje junto al campo provincia. |
 | **CP-LOC-17** | Alta contextual correcta | Datos válidos, `retorno: "/clientes/nuevo"`, `campo: "idLocalidad"`. El service devuelve la localidad (`id: 8`) | El alta se abrió desde otro formulario | Redirige a `/clientes/nuevo?desdeAlta=1&idLocalidad=8` con la alerta "Localidad creada correctamente". |
-| **CP-LOC-18** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-LOC-18** | Rol sin permiso de alta | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 
@@ -88,4 +88,4 @@
 | --- | --- | --- | --- | --- |
 | **CP-LOC-23** | Baja correcta | Rol `ADMINISTRADOR`, `id: 8` | La localidad no está asociada a clientes ni proveedores activos | Llama a `bajaLocalidad(8)`. Redirige a `/ubicaciones/localidades` con la alerta "Localidad dada de baja correctamente" de tipo `success`. |
 | **CP-LOC-24** | Baja rechazada por el service | El service lanza `ReglaNegocioException("La localidad está asociada a un cliente activo")`, con cabecera `Referer: /ubicaciones/localidades` | La localidad está asociada a un cliente o proveedor activo | Redirige al origen (`Referer`) con el mensaje del service y alerta de tipo `warning`. |
-| **CP-LOC-25** | Rol sin permiso de baja | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-LOC-25** | Rol sin permiso de baja | Rol `ENCARGADO_DE_DISTRIBUCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |

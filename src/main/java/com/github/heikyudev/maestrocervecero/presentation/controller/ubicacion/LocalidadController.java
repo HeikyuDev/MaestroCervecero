@@ -34,7 +34,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.ubic
 
 /**
  * Controller de la gestión de localidades. El módulo de ubicaciones es solo del ADMINISTRADOR; la
- * única excepción es el buscador de localidades, que también usan los gerentes comercial y de
+ * única excepción es el buscador de localidades, que también usan los encargados de distribución y de
  * compras para elegir la localidad de un cliente o de un proveedor.
  * <p>
  * La provincia de una localidad se elige con un selector (modal de búsqueda). Si falta, el "+" del
@@ -76,7 +76,7 @@ public class LocalidadController {
      * Devuelve el contenido del modal de búsqueda de localidades (criterios de filtro + resultados).
      */
     @GetMapping("/buscador")
-    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'GERENTE_COMERCIAL', 'GERENTE_DE_COMPRAS')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENCARGADO_DE_DISTRIBUCION', 'GERENTE_DE_COMPRAS')")
     public String buscarLocalidades(@RequestParam(required = false) String nombre,
                                     @RequestParam(required = false) String codigoPostal,
                                     @RequestParam(required = false) Long idProvincia,

@@ -478,7 +478,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-21: los roles sin CONSUMO_INSUMO_CONSULTAR no abren la pantalla: redirigen con alerta de error y no se invoca ningún service")
     void pantalla_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -645,7 +645,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-36: los roles sin CONSUMO_INSUMO_REGISTRAR no registran consumos reservados: redirigen con alerta de error y el service no se invoca")
     void reservado_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -828,7 +828,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-49: los roles sin CONSUMO_INSUMO_REGISTRAR no registran consumos directos: redirigen con alerta de error y el service no se invoca")
     void directo_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -917,7 +917,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-57: los roles sin CONSUMO_INSUMO_ANULAR no anulan consumos: redirigen con alerta de error y el service no se invoca")
     void anular_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1002,7 +1002,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-96: los roles sin CONSUMO_INSUMO_REGISTRAR no abren los buscadores de insumos: responden 403 con el motivo como texto y no se invoca ningún service")
     void buscadorDeInsumos_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1287,7 +1287,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-66: los roles sin CONSUMO_INSUMO_REGISTRAR no abren ninguno de los dos buscadores: responden 403 con el motivo como texto, sin redirigir, y no se invoca ningún service")
     void buscador_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
@@ -1486,7 +1486,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-LCO-89: los roles sin CONSUMO_INSUMO_REGISTRAR no abren las pantallas de formulario: redirigen con alerta de error y no se invoca ningún service")
     void formulario_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert

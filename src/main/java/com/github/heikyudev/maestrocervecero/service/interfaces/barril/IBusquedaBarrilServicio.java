@@ -13,7 +13,7 @@ import org.springframework.data.domain.Pageable;
  * Interfaz que define los servicios relacionados con la gestión de búsquedas de barril.
  * <p>
  * No es un CRUD: una búsqueda es un registro transaccional que solo admite su registro inicial
- * y una anulación excepcional, nunca modificación. La registra el gerente comercial a partir de
+ * y una anulación excepcional, nunca modificación. La registra el encargado de distribución a partir de
  * una solicitud de búsqueda todavía no buscada.
  * </p>
  */

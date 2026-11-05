@@ -48,7 +48,7 @@ Cualquier otro rol (o un rol con el permiso de otra acción) es rechazado: redir
 | **CP-LEN-12** | Lote cerrado | Lote `FINALIZADO` (y por separado `CANCELADO`) | Un lote cerrado se consulta sin operar | Responde 200 con el aviso de solo lectura y sin formulario ni botones "Anular". |
 | **CP-LEN-13** | Lote inexistente | `GET /lotes/99/envasados`. El service lanza `RecursoNoEncontradoException("No se encontró el lote con ID: 99")`, con `Referer: /lotes` | El recurso no existe | Redirige al origen (`/lotes`) con la alerta `danger` y el mensaje del service. |
 | **CP-LEN-14** | Datos pedidos a los services | Escenario base | La pantalla no pide más datos de los que muestra | Consulta el lote una vez, el resumen del envasado de la etapa 36 una vez, los envasados de la etapa una vez y no consulta barriles ni fermentadores uno por uno. |
-| **CP-LEN-15** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `GERENTE_COMERCIAL` y `ADMINISTRADOR` | `@PreAuthorize("hasAuthority('ENVASADO_CONSULTAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
+| **CP-LEN-15** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DISTRIBUCION` y `ADMINISTRADOR` | `@PreAuthorize("hasAuthority('ENVASADO_CONSULTAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
 | **CP-LEN-49** | Envasado que no se puede resumir | `resumirEnvasado(36)` lanza `ReglaNegocioException("La etapa Envasado no tiene un fermentador como equipamiento")` | Sin resumen no hay indicador que mostrar | Redirige a `/lotes/12` (el detalle del lote) con la alerta `warning` y el mensaje del service. No consulta los envasados. |
 
 ---
@@ -68,7 +68,7 @@ Cualquier otro rol (o un rol con el permiso de otra acción) es rechazado: redir
 | **CP-LEN-24** | Lote o etapa que no admiten el envasado | El service lanza `ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder registrar un envasado")`; y por separado `"La etapa debe estar en curso para poder registrar un envasado"` | El service es la fuente de verdad | Redirige al origen con la alerta `warning` y el mensaje del service. |
 | **CP-LEN-25** | Barril inexistente | `idBarril: 99`. El service lanza `RecursoNoEncontradoException("No se encontró el barril con ID: 99")` | El recurso no existe | Redirige al origen con la alerta `danger` y el mensaje del service. |
 | **CP-LEN-26** | Sin token CSRF | Datos válidos sin `_csrf` | Spring Security exige el token | La petición es rechazada (3xx) y no llega al service. |
-| **CP-LEN-27** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `GERENTE_COMERCIAL` y `ADMINISTRADOR`, con datos válidos y CSRF | `@PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. El service no se invoca. |
+| **CP-LEN-27** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DISTRIBUCION` y `ADMINISTRADOR`, con datos válidos y CSRF | `@PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. El service no se invoca. |
 
 ---
 
@@ -84,7 +84,7 @@ Cualquier otro rol (o un rol con el permiso de otra acción) es rechazado: redir
 | **CP-LEN-33** | Envasado inexistente | `idEnvasado: 99`. El service lanza `RecursoNoEncontradoException("No se encontró el envasado de lote con ID: 99")` | El recurso no existe | Redirige al origen con la alerta `danger` y el mensaje del service. |
 | **CP-LEN-34** | El envasado es de otro lote | `idEnvasado: 15` cuyo `etapaLote.id` es 66 (otro lote), en la ruta del lote 12 | La ruta y el envasado deben coincidir | Redirige a `/lotes/12/envasados` con la alerta `warning` "El envasado no pertenece a este lote". No invoca `anularEnvasadoLote`. |
 | **CP-LEN-35** | Sin token CSRF | `POST .../envasados/9/anular` sin `_csrf` | Spring Security exige el token | La petición es rechazada (3xx) y no llega al service. |
-| **CP-LEN-36** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `GERENTE_COMERCIAL` y `ADMINISTRADOR`, con CSRF | `@PreAuthorize("hasAuthority('ENVASADO_ANULAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. El service no se invoca. |
+| **CP-LEN-36** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DISTRIBUCION` y `ADMINISTRADOR`, con CSRF | `@PreAuthorize("hasAuthority('ENVASADO_ANULAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. El service no se invoca. |
 
 ---
 
@@ -98,7 +98,7 @@ Cualquier otro rol (o un rol con el permiso de otra acción) es rechazado: redir
 | **CP-LEN-40** | Paginación de a 8 | 10 barriles disponibles; páginas 0 y 1 | Páginas de 8 | La primera página tiene 8 filas, "Página 1 de 2" y los links `data-modal-get="true"` con `pagina=1` e `identificadorInterno`; la segunda trae las 2 restantes y el link `pagina=0`. |
 | **CP-LEN-41** | Sin resultados | El service devuelve una página vacía; y por separado `pagina: -3` | Mensaje claro; una página negativa equivale a la primera | Muestra "No se encontraron barriles disponibles con los criterios indicados"; con la página negativa responde 200 con la primera página. |
 | **CP-LEN-42** | Lote inexistente | `GET /lotes/99/envasados/buscador/barriles`. El service lanza `RecursoNoEncontradoException` | Un modal no puede redirigir a otra página | Responde 200 con el fragmento y el mensaje del service, sin criterios ni filas. |
-| **CP-LEN-43** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `GERENTE_COMERCIAL` y `ADMINISTRADOR` | `@PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
+| **CP-LEN-43** | Roles no autorizados | Roles `GERENTE_DE_PRODUCCION`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DISTRIBUCION` y `ADMINISTRADOR` | `@PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
 
 ---
 

@@ -1263,7 +1263,7 @@ class PlanificacionProduccionControllerTest {
         }
         verify(recetaServicio, times(2)).filtrarRecetas(any(), any());
 
-        for (Rol rol : List.of(Rol.OPERARIO_DE_PRODUCCION, Rol.ENCARGADO_DE_DEPOSITO, Rol.GERENTE_COMERCIAL, Rol.ADMINISTRADOR)) {
+        for (Rol rol : List.of(Rol.OPERARIO_DE_PRODUCCION, Rol.ENCARGADO_DE_DEPOSITO, Rol.ENCARGADO_DE_DISTRIBUCION, Rol.ADMINISTRADOR)) {
             mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").with(como(rol)))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(flash().attribute("tipo", "danger"));

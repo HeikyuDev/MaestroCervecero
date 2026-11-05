@@ -63,7 +63,7 @@ class EquipamientoDetalleControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-EQD-02: los demás roles no abren el detalle del equipamiento")
     void rechazados(Rol rol) throws Exception {
         mockMvc.perform(get("/equipamiento/5/detalle").with(como(rol))).andExpect(status().is3xxRedirection())

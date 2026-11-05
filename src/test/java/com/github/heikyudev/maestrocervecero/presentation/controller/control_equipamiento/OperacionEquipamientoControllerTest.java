@@ -178,7 +178,7 @@ class OperacionEquipamientoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-OPE-07: los roles sin permisos de registrar y anular (incluido el gerente de producción) son rechazados y no llegan a ningún service")
     void rolesNoAutorizados(Rol rol) throws Exception {
         for (String ruta : List.of("limpiezas", "fallas", "mantenimientos")) {
@@ -215,7 +215,7 @@ class OperacionEquipamientoControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DISTRIBUCION", "ADMINISTRADOR"})
     @DisplayName("CP-OPE-12: los roles sin permiso de registrar (incluido el gerente de producción) no acceden a los formularios de registro y no se consulta el equipamiento")
     void formularioRolesNoAutorizados(Rol rol) throws Exception {
         for (String ruta : List.of("/limpiezas/nueva", "/fallas/nueva", "/mantenimientos/nuevo")) {

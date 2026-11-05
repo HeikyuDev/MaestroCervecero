@@ -6,7 +6,7 @@ Cada rol trae su nombre legible. El nombre de la constante (`GERENTE_DE_PRODUCCI
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-RO-01** | Etiqueta legible de cada rol | Los seis roles | `getEtiqueta()` $\rightarrow$ **Texto legible** | Devuelve "Administrador", "Gerente de Producción", "Operario de Producción", "Gerente de Compras", "Encargado de Depósito" y "Gerente Comercial", cada una para su rol. |
+| **CP-RO-01** | Etiqueta legible de cada rol | Los seis roles | `getEtiqueta()` $\rightarrow$ **Texto legible** | Devuelve "Administrador", "Gerente de Producción", "Operario de Producción", "Gerente de Compras", "Encargado de Depósito" y "Encargado de Distribución", cada una para su rol. |
 | **CP-RO-02** | Todos los roles tienen etiqueta | `Rol.values()` | Etiqueta definida $\rightarrow$ **Sí** | Son 6 roles y ninguna etiqueta está en blanco ni contiene guiones bajos. |
 
 
@@ -20,4 +20,12 @@ Los permisos de limpieza, falla y mantenimiento de equipamiento (`*_EQUIPAMIENTO
 | **CP-RO-07** | El Gerente de Producción conserva la gestión | `Rol.GERENTE_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **Contiene** crear, modificar, eliminar y consultar de insumos, recetas, barriles y equipamiento | Contiene los dieciséis permisos. |
 | **CP-RO-03** | El Operario de Producción opera el ciclo de vida del equipamiento | `Rol.OPERARIO_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **Contiene** los permisos de registrar, anular y consultar de limpieza, falla y mantenimiento, y `EQUIPAMIENTO_CONSULTAR` | Contiene los diez permisos indicados. |
 | **CP-RO-04** | El Gerente de Producción solo consulta el ciclo de vida del equipamiento | `Rol.GERENTE_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **Contiene** los permisos de consultar de limpieza, falla y mantenimiento y los `EQUIPAMIENTO_*`; no contiene registrar ni anular | Contiene `LIMPIEZA_EQUIPAMIENTO_CONSULTAR`, `FALLA_EQUIPAMIENTO_CONSULTAR`, `MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR` y los cuatro `EQUIPAMIENTO_*`. No contiene ningún permiso de registrar ni de anular limpieza, falla o mantenimiento de equipamiento. |
-| **CP-RO-05** | Los demás roles no operan el ciclo de vida del equipamiento | `ADMINISTRADOR`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DEPOSITO` y `GERENTE_COMERCIAL` | `getPermisos()` $\rightarrow$ **No contiene** ningún permiso de limpieza, falla o mantenimiento de equipamiento | Ninguno de los cuatro roles contiene permisos de registrar, anular ni consultar limpieza, falla o mantenimiento de equipamiento. |
+| **CP-RO-05** | Los demás roles no operan el ciclo de vida del equipamiento | `ADMINISTRADOR`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DEPOSITO` y `ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $\rightarrow$ **No contiene** ningún permiso de limpieza, falla o mantenimiento de equipamiento | Ninguno de los cuatro roles contiene permisos de registrar, anular ni consultar limpieza, falla o mantenimiento de equipamiento. |
+
+### 3. `getPermisos()` del Encargado de Distribución
+
+El Encargado de Distribución gestiona clientes y registra los despachos y las devoluciones de barriles. No tiene permisos de presentaciones comerciales (son del Gerente de Compras).
+
+| ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
+| --- | --- | --- | --- | --- |
+| **CP-RO-08** | El Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril y ningún otro | `Rol.ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $ightarrow$ **Contiene exactamente** `CLIENTE_CREAR`, `CLIENTE_MODIFICAR`, `CLIENTE_ELIMINAR`, `CLIENTE_CONSULTAR`, `DESPACHO_BARRIL_REGISTRAR`, `DESPACHO_BARRIL_ANULAR`, `DESPACHO_BARRIL_CONSULTAR`, `DEVOLUCION_BARRIL_REGISTRAR`, `DEVOLUCION_BARRIL_ANULAR` y `DEVOLUCION_BARRIL_CONSULTAR` | El conjunto tiene esos diez permisos y ningún otro. |
