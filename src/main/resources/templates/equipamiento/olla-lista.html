@@ -9,7 +9,7 @@
     <!-- Encabezado de la página -->
     <div class="flex items-start justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Equipamiento</h1>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Equipamientos</h1>
             <p class="text-sm text-slate-500">Molinos, maceradores, ollas de hervor y fermentadores de la planta, en orden alfabético.</p>
         </div>
         <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/equipamiento/ollas-hervor/nuevo}"

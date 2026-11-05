@@ -70,7 +70,7 @@ class MolinoControllerTest {
         mockMvc.perform(get("/equipamiento/molinos"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/molino-lista"))
-                .andExpect(content().string(containsString("Gestión de Equipamiento")))
+                .andExpect(content().string(containsString("Gestión de Equipamientos")))
                 .andExpect(content().string(containsString("MOL-01")))
                 .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString(">150<")))

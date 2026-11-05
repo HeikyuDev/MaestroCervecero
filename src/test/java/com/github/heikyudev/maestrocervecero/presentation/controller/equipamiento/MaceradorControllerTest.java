@@ -70,7 +70,7 @@ class MaceradorControllerTest {
         mockMvc.perform(get("/equipamiento/maceradores"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/macerador-lista"))
-                .andExpect(content().string(containsString("Gestión de Equipamiento")))
+                .andExpect(content().string(containsString("Gestión de Equipamientos")))
                 .andExpect(content().string(containsString("MAC-01")))
                 .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString(">100<")))

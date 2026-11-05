@@ -246,8 +246,8 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Operación")))
                 .andExpect(content().string(containsString("Administración")))
                 .andExpect(content().string(not(matchesPattern("(?s).*Operación((?!Administración).)*Gestión de Recetas.*"))))
-                .andExpect(content().string(matchesPattern("(?s).*Administración.*Gestión de Insumos.*Gestión de Recetas.*Gestión de Equipamiento.*")))
-                .andExpect(content().string(containsString("Gestión de Lotes")));
+                .andExpect(content().string(matchesPattern("(?s).*Administración.*Gestión de Insumos.*Gestión de Recetas.*Gestión de Equipamientos.*")))
+                .andExpect(content().string(containsString("Control de Lotes")));
     }
 
     // ==================== GET /recetas/{id} ====================

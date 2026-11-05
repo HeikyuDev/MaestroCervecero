@@ -1,6 +1,6 @@
-# Diseño de las pantallas del módulo de Control de Equipamiento
+# Diseño de las pantallas del módulo de Control de Equipamientos
 
-Este documento define las pantallas del Controller del módulo de Control de Equipamiento: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `docs/test/casos_de_prueba/controllers/control_equipamiento/`.
+Este documento define las pantallas del Controller del módulo de Control de Equipamientos: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `docs/test/casos_de_prueba/controllers/control_equipamiento/`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -14,12 +14,12 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | Ver el detalle de un equipamiento | `EQUIPAMIENTO_CONSULTAR` | Sí | Sí |
 | Ver el formulario y registrar una limpieza, una falla o un mantenimiento | `LIMPIEZA_EQUIPAMIENTO_REGISTRAR`, `FALLA_EQUIPAMIENTO_REGISTRAR`, `MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR` | No | Sí |
 | Anular la última operación del equipo | `LIMPIEZA_EQUIPAMIENTO_ANULAR`, `FALLA_EQUIPAMIENTO_ANULAR`, `MANTENIMIENTO_EQUIPAMIENTO_ANULAR` | No | Sí |
-| Consultar las listas y detalles de Gestión de Equipamiento, de Insumos, de Barriles y de Recetas | `EQUIPAMIENTO_CONSULTAR`, `INSUMO_CONSULTAR`, `BARRIL_CONSULTAR`, `RECETA_CONSULTAR` (los controllers de gestión autorizan por rol: `hasAnyRole` de ambos) | Sí | Sí, solo consulta |
+| Consultar las listas y detalles de Gestión de Equipamientos, de Insumos, de Barriles y de Recetas | `EQUIPAMIENTO_CONSULTAR`, `INSUMO_CONSULTAR`, `BARRIL_CONSULTAR`, `RECETA_CONSULTAR` (los controllers de gestión autorizan por rol: `hasAnyRole` de ambos) | Sí | Sí, solo consulta |
 | Alta, modificación y baja en esos módulos | `*_CREAR`, `*_MODIFICAR`, `*_ELIMINAR` (`hasRole('GERENTE_DE_PRODUCCION')`) | Sí | No |
 
 - Cada método lleva `@PreAuthorize` con su permiso y cada botón se oculta con `sec:authorize`.
 - Un acceso no autorizado no devuelve un 403: el `ControllerAdvices` redirige con la alerta `danger` "No tiene permisos para realizar esta acción".
-- La opción "Control de Equipamiento" de la sección Operación del menú la ven el gerente y el operario de producción.
+- La opción "Control de Equipamientos" de la sección Operación del menú la ven el gerente y el operario de producción.
 
 ## 2. Inventario de pantallas y rutas
 
@@ -48,16 +48,16 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 
 **Detalle de una operación.** Bloque de información y los datos de la operación por tema: tipo y estado; fecha de la operación; observaciones; "Registrado por" y fecha de registro; y, si está anulada, cuándo y el motivo.
 
-**Detalle del equipamiento.** Pertenece a la Gestión de Equipamiento. Bloque de información y el botón Volver. Se llega desde el ojo de las listas de Gestión de Equipamiento y desde el identificador del equipo, que en las pantallas de lote y de planificación es un enlace ámbar para quien tiene `EQUIPAMIENTO_CONSULTAR` (el gerente y el operario de producción). Resalta la opción "Gestión de Equipamiento" del menú y "Volver a molinos / maceradores / ollas de hervor / fermentadores" lleva a la lista del tipo del equipo, para ambos roles. El operario solo consulta esas listas: no ve los botones de alta, modificar ni baja.
+**Detalle del equipamiento.** Pertenece a la Gestión de Equipamientos. Bloque de información y el botón Volver. Se llega desde el ojo de las listas de Gestión de Equipamientos y desde el identificador del equipo, que en las pantallas de lote y de planificación es un enlace ámbar para quien tiene `EQUIPAMIENTO_CONSULTAR` (el gerente y el operario de producción). Resalta la opción "Gestión de Equipamientos" del menú y "Volver a molinos / maceradores / ollas de hervor / fermentadores" lleva a la lista del tipo del equipo, para ambos roles. El operario solo consulta esas listas: no ve los botones de alta, modificar ni baja.
 
 ## 4. Recorridos
 
 | Objetivo | Rol | Recorrido | Clics |
 | --- | --- | --- | --- |
-| Registrar la limpieza de un equipo | Operario | Menú Control de Equipamiento, "Abrir" del equipo, "+ Nueva limpieza", completar el formulario, Registrar limpieza | 4 más el formulario |
+| Registrar la limpieza de un equipo | Operario | Menú Control de Equipamientos, "Abrir" del equipo, "+ Nueva limpieza", completar el formulario, Registrar limpieza | 4 más el formulario |
 | Registrar una falla | Operario | Igual, pestaña Fallas, "+ Nueva falla" (el equipo debe estar Disponible) | 5 más el formulario |
 | Anular la última operación | Operario | "Abrir", pestaña de la operación, "Anular", motivo, confirmar | 4 más el motivo |
-| Ver la actividad de un equipo | Gerente | Menú Control de Equipamiento, ojo del equipo | 2 |
+| Ver la actividad de un equipo | Gerente | Menú Control de Equipamientos, ojo del equipo | 2 |
 | Ver una operación del historial | Gerente | Ojo de la fila del historial | 1 más el recorrido anterior |
 | Ver un equipo desde un lote | Gerente u operario | Detalle o panel del lote, identificador del equipo | 1 |
 

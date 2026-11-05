@@ -71,7 +71,7 @@ import java.util.function.Function;
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
 /**
- * Controller del módulo de Gestión de Lotes: lista, registro, detalle por etapas, inicio, cancelación y finalización
+ * Controller del módulo de Control de Lotes: lista, registro, detalle por etapas, inicio, cancelación y finalización
  * de etapas, más los buscadores en modal que alimentan el formulario de registro y los filtros de la lista.
  * <p>
  * Cada método se autoriza por permiso ({@code hasAuthority}), no por rol: el gerente de producción registra y cancela

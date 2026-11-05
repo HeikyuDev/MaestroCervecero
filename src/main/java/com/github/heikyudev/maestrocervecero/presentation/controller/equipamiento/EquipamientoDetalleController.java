@@ -40,7 +40,7 @@ public class EquipamientoDetalleController {
 
     /**
      * Muestra el detalle del equipamiento. Si no existe o está dado de baja, el {@code ControllerAdvices} vuelve al
-     * origen con el motivo. El detalle pertenece a la Gestión de Equipamiento: resalta su opción del menú y "Volver"
+     * origen con el motivo. El detalle pertenece a la Gestión de Equipamientos: resalta su opción del menú y "Volver"
      * lleva a la pestaña de la lista del tipo del equipo, para el gerente y para el operario de producción (que consulta).
      */
     @GetMapping

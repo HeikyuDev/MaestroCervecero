@@ -1,6 +1,6 @@
 ## Casos de prueba de `OperarioSoloConsultaGestionTest`
 
-**Tipo de prueba:** capa web (`@WebMvcTest` con los diez controllers de gestión; services simulados que devuelven páginas vacías). El operario de producción consulta las pantallas de Gestión de Equipamiento, Gestión de Insumos (maltas, lúpulos, levaduras), Gestión de Barriles (barriles y fabricantes) y Gestión de Recetas, y no escribe.
+**Tipo de prueba:** capa web (`@WebMvcTest` con los diez controllers de gestión; services simulados que devuelven páginas vacías). El operario de producción consulta las pantallas de Gestión de Equipamientos, Gestión de Insumos (maltas, lúpulos, levaduras), Gestión de Barriles (barriles y fabricantes) y Gestión de Recetas, y no escribe.
 
 **Autorización:** los GET de lista (y el detalle de la receta, y el buscador de fabricantes que usa el filtro de barriles) llevan `@PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")`, porque esos módulos ya autorizan por rol; el detalle de equipamiento autoriza por `EQUIPAMIENTO_CONSULTAR`, que el operario tiene. Todo GET de formulario de alta o edición y todo POST (alta, modificación, baja) siguen con `hasRole('GERENTE_DE_PRODUCCION')`.
 

@@ -630,7 +630,7 @@ class PresentacionComercialControllerTest {
                 .andExpect(content().string(not(matchesPattern(ENLACE_RESALTADO))))
                 // El GERENTE_DE_COMPRAS no ve los demás maestros de Administración
                 .andExpect(content().string(not(containsString("Gestión de Insumos"))))
-                .andExpect(content().string(not(containsString("Gestión de Equipamiento"))))
+                .andExpect(content().string(not(containsString("Gestión de Equipamientos"))))
                 .andExpect(content().string(not(containsString("Gestión de Ubicaciones"))));
     }
 

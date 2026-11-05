@@ -72,12 +72,12 @@
 
             <!-- CONTROL DE EQUIPAMIENTO (Operario de Producción: registra y anula limpiezas, fallas y mantenimientos; Gerente de Producción: los consulta) -->
             <th:block sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')">
-                <a th:replace="~{fragments/sidebar ::enlace('/control-equipamiento', ${opcionActiva}, 'control-equipamiento', 'bi-wrench-adjustable', 'Control de Equipamiento')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/control-equipamiento', ${opcionActiva}, 'control-equipamiento', 'bi-wrench-adjustable', 'Control de Equipamientos')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE LOTES (Operario de Producción, Gerente de Producción: quien puede consultar lotes) -->
             <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
-                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-collection', 'Gestión de Lotes')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-collection', 'Control de Lotes')}"></a>
             </th:block>
 
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->
@@ -120,7 +120,7 @@
 
             <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción; el Operario de Producción solo consulta) -->
             <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
-                <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamientos')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE PROVEEDORES: proveedores y su catálogo de insumos (Gerente de Compras) -->

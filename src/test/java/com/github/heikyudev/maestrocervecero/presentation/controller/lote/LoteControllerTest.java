@@ -208,7 +208,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("Gestión de Lotes").contains("action=\"/lotes\"").contains("novalidate");
+        assertThat(html).contains("Control de Lotes").contains("action=\"/lotes\"").contains("novalidate");
         assertThat(texto(html)).contains("Lote", "Planificación", "Estado", "Inicio", "Fin", "Acciones");
         assertThat(celdas(html, "LOT-R7-03")).startsWith("LOT-R7-03 Pale Ale", "Plan #7 - Pale Ale Fermentador: F-01", "En ejecución Hervido", "Est. 01/07/2027 Real 01/07/2027", "Est. 05/07/2027 Real -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Nuevo lote")
@@ -512,7 +512,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-16: la sidebar del GERENTE_DE_PRODUCCION tiene Gestión de Lotes como enlace activo en Operación, antes de Planificación de Producción, y el título de la pestaña lo nombra")
+    @DisplayName("CP-LCT-16: la sidebar del GERENTE_DE_PRODUCCION tiene Control de Lotes como enlace activo en Operación, antes de Planificación de Producción, y el título de la pestaña lo nombra")
     void sidebar_elGerenteVeGestionDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
@@ -522,24 +522,24 @@ class LoteControllerTest {
         assertThat(html).contains("<title>Gestión de lotes - Maestro Cervecero</title>");
         Matcher enlace = Pattern.compile("(?s)<a href=\"/lotes\"[^>]*>(.*?)</a>").matcher(html);
         assertThat(enlace.find()).isTrue();
-        assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-collection").contains("Gestión de Lotes");
-        assertThat(html.indexOf("Gestión de Lotes")).isLessThan(html.indexOf("Planificación de Producción"));
+        assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-collection").contains("Control de Lotes");
+        assertThat(html.indexOf("Control de Lotes")).isLessThan(html.indexOf("Planificación de Producción"));
         assertThat(html).doesNotContain("Próximamente\">Control");
     }
 
     @Test
-    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Gestión de Lotes y Cronograma de Producción, no Planificación de Producción, y la sección Administración solo con las pantallas de consulta (insumos, recetas, barriles y equipamiento)")
+    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Control de Lotes y Cronograma de Producción, no Planificación de Producción, y la sección Administración solo con las pantallas de consulta (insumos, recetas, barriles y equipamiento)")
     void sidebar_elOperarioVeGestionDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("href=\"/lotes\"").contains("Gestión de Lotes").contains("Operación")
+        assertThat(html).contains("href=\"/lotes\"").contains("Control de Lotes").contains("Operación")
                 .contains("href=\"/cronograma-produccion\"").contains("Cronograma de Producción")
                 .doesNotContain("Planificación de Producción").doesNotContain("Configuración de Producción")
-                .contains("Administración").contains("Gestión de Insumos").contains("Gestión de Recetas").contains("Gestión de Barriles").contains("Gestión de Equipamiento");
-        assertThat(html.indexOf("Cronograma de Producción")).isLessThan(html.indexOf("Gestión de Lotes"));
+                .contains("Administración").contains("Gestión de Insumos").contains("Gestión de Recetas").contains("Gestión de Barriles").contains("Gestión de Equipamientos");
+        assertThat(html.indexOf("Cronograma de Producción")).isLessThan(html.indexOf("Control de Lotes"));
     }
 
     @ParameterizedTest(name = "{0}")

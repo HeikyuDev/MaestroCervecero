@@ -70,7 +70,7 @@ class FermentadorControllerTest {
         mockMvc.perform(get("/equipamiento/fermentadores"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/fermentador-lista"))
-                .andExpect(content().string(containsString("Gestión de Equipamiento")))
+                .andExpect(content().string(containsString("Gestión de Equipamientos")))
                 .andExpect(content().string(containsString("FER-01")))
                 .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString(">100<")))

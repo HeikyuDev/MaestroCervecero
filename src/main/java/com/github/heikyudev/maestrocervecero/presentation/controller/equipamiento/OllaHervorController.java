@@ -27,7 +27,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
 /**
- * Controller de la gestión de ollas de hervor, una de las pestañas de "Gestión de Equipamiento". El alta, la
+ * Controller de la gestión de ollas de hervor, una de las pestañas de "Gestión de Equipamientos". El alta, la
  * modificación y la baja son del GERENTE_DE_PRODUCCION, que define el equipamiento productivo; el
  * estado operativo no se carga a mano: lo cambian las operaciones de producción y de ciclo de vida.
  * <p>

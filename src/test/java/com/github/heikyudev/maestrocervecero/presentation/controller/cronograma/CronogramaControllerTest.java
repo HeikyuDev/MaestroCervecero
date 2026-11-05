@@ -2322,7 +2322,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CGC-83: la sidebar del OPERARIO_DE_PRODUCCION muestra Cronograma de Producción como primera opción de Operación, antes de Gestión de Lotes, y resaltado, no Planificación de Producción, y la sección Administración solo con sus pantallas de consulta")
+    @DisplayName("CP-CGC-83: la sidebar del OPERARIO_DE_PRODUCCION muestra Cronograma de Producción como primera opción de Operación, antes de Control de Lotes, y resaltado, no Planificación de Producción, y la sección Administración solo con sus pantallas de consulta")
     void operario_sidebarConElCronograma() throws Exception {
         // Arrange
         escenarioDelOperario();
@@ -2336,9 +2336,9 @@ class CronogramaControllerTest {
         Matcher enlace = Pattern.compile("(?s)<a href=\"/cronograma-produccion\"[^>]*>(.*?)</a>").matcher(html);
         assertThat(enlace.find()).isTrue();
         assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-bar-chart-steps").contains("Cronograma de Producción");
-        assertThat(html).matches("(?s).*Operación.*Cronograma de Producción.*Gestión de Lotes.*");
+        assertThat(html).matches("(?s).*Operación.*Cronograma de Producción.*Control de Lotes.*");
         assertThat(html).doesNotContain("Planificación de Producción").doesNotContain("Configuración de Producción").doesNotContain("Gestión de Proveedores")
-                .contains("Administración").contains("Gestión de Insumos").contains("Gestión de Recetas").contains("Gestión de Barriles").contains("Gestión de Equipamiento");
+                .contains("Administración").contains("Gestión de Insumos").contains("Gestión de Recetas").contains("Gestión de Barriles").contains("Gestión de Equipamientos");
     }
 
     @Test

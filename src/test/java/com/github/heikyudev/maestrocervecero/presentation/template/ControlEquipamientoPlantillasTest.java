@@ -103,7 +103,7 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-08: la barra lateral tiene Control de Equipamiento en Operación para quien consulta limpiezas")
+    @DisplayName("CP-PEQ-08: la barra lateral tiene Control de Equipamientos en Operación para quien consulta limpiezas")
     void sidebar() throws IOException {
         String html = leer("fragments/sidebar.html");
 
@@ -141,7 +141,7 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-13: las pantallas de Control de Equipamiento repiten la estructura de las pantallas de referencia (encabezado, tabla con Acciones fija, botón + Nueva en la tarjeta, formulario con aviso de obligatorios, Cancelar y Registrar)")
+    @DisplayName("CP-PEQ-13: las pantallas de Control de Equipamientos repiten la estructura de las pantallas de referencia (encabezado, tabla con Acciones fija, botón + Nueva en la tarjeta, formulario con aviso de obligatorios, Cancelar y Registrar)")
     void consistenciaConLasPantallasDeReferencia() throws IOException {
         String panel = leer("control_equipamiento/control-panel.html");
         assertThat(panel).contains("mt-2 flex flex-wrap items-center gap-x-3 gap-y-1").contains("data-nueva-operacion").contains("bi bi-plus-lg")
@@ -157,7 +157,7 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-12: ninguna tabla de Control de Equipamiento escribe las observaciones en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo")
+    @DisplayName("CP-PEQ-12: ninguna tabla de Control de Equipamientos escribe las observaciones en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo")
     void observacionesSoloEnElDialogo() throws IOException {
         for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html")) {
             String html = leer(plantilla);

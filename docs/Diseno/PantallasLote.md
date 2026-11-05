@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Lotes
 
-Este documento define las pantallas del Controller del módulo de Lotes (Gestión de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `docs/test/casos_de_prueba/controllers/lote/`; las reglas de negocio, en `docs/test/casos_de_prueba/services/lote/` y en `docs/Dominio/Escalado/`.
+Este documento define las pantallas del Controller del módulo de Lotes (Control de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `docs/test/casos_de_prueba/controllers/lote/`; las reglas de negocio, en `docs/test/casos_de_prueba/services/lote/` y en `docs/Dominio/Escalado/`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML y fragmentos HTML para los modales. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -59,7 +59,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | C | Subir o bajar un lote en la cola | `/cronograma-produccion/lotes/{id}/{subir, bajar}` | POST | `LOTE_REGISTRAR` | redirige al cronograma |
 
 - `{etapa}` toma los valores `molienda`, `maceracion`, `hervido`, `fermentacion`, `maduracion` y `envasado`. La pantalla de consumos existe para las etapas que consumen insumos (Molienda, Hervido, Fermentación y Maduración); Maceración y Envasado no consumen insumos. Una etapa sin insumos según la receta (por ejemplo, Maduración sin lúpulo de maduración) tampoco tiene pantalla de consumos: ni la pantalla, ni los formularios, ni el registro, que se rechazan con "Esta etapa no consume insumos" y vuelven al detalle del lote.
-- La sidebar (sección Operación) muestra "Cronograma de Producción" como primera opción y, a continuación, "Gestión de Lotes" (`/lotes`, ícono `bi-collection`, de línea como los demás), ambas para el gerente y el operario de producción.
+- La sidebar (sección Operación) muestra "Cronograma de Producción" como primera opción y, a continuación, "Control de Lotes" (`/lotes`, ícono `bi-collection`, de línea como los demás), ambas para el gerente y el operario de producción.
 
 ## 3. Reglas comunes de las pantallas
 
@@ -91,7 +91,7 @@ Valen para todas las pantallas, no solo para las de lotes.
 - **Fechas.** `dd/MM/yyyy` y `dd/MM/yyyy HH:mm`, y "-" cuando no hay valor. Los campos de fecha llevan un placeholder de ejemplo ("Ej: 01/07/2027").
 - **Paginación.** Pie común de las listas: "N registro(s) · Página X de Y" con "Anterior" y "Siguiente" (íconos `bi-chevron-left` y `bi-chevron-right`); la etiqueta se escribe en singular cuando hay un solo registro ("1 consumo"). El cronograma pagina de a 5 fermentadores; las demás tablas, de a 10 (los lotes, de a 20).
 - **Textos largos.** Un texto que escribe el usuario (nombre de receta, identificador, código) se acorta con puntos suspensivos dentro de un ancho máximo y se completa en un tooltip flotante; nunca ensancha la tabla.
-- **Títulos.** Los títulos de pantalla y las opciones del menú van en mayúscula inicial en cada palabra significativa ("Panel de Control", "Gestión de Lotes"); las etiquetas y los datos, en oración ("Estado del sistema").
+- **Títulos.** Los títulos de pantalla y las opciones del menú van en mayúscula inicial en cada palabra significativa ("Panel de Control", "Control de Lotes"); las etiquetas y los datos, en oración ("Estado del sistema").
 - **Obligatorios.** Todo formulario, incluidos los diálogos, lleva la nota "Los campos marcados con * son obligatorios." y el asterisco rojo.
 - **Botones.** Buscar usa `bi-search` y va acompañado del enlace "Limpiar"; la acción de abrir el registro usa el botón estándar "Abrir" y las de editar y dar de baja usan solo ícono (`bi-pencil-square`, `bi-trash`, tamaño `text-lg` con `p-2`) con `title` y `aria-label`.
 - **Mensajes.** Los motivos que acompañan a una indicación se separan con dos puntos ("... porque tiene envasados registrados: anule los envasados para poder cancelarlo"); un número fuera de rango se informa como "X debe ser mayor a 0"; el nombre obligatorio, como "El nombre es obligatorio".
@@ -99,7 +99,7 @@ Valen para todas las pantallas, no solo para las de lotes.
 ## 4. Pantalla 1: lista de lotes (`/lotes`)
 
 ```
-Gestión de Lotes                                                  [ + Nuevo lote ]*
+Control de Lotes                                                  [ + Nuevo lote ]*
 Lotes registrados, con el último registrado arriba
 
 +- Criterios ---------------------------------------------------------------------------+
@@ -436,20 +436,20 @@ Un clic es un clic de mouse o un toque. Escribir en un campo no se cuenta como c
 | Objetivo | Rol | Pasos | Clics |
 | --- | --- | --- | --- |
 | Ver el cronograma | Gerente / operario (solo lectura) | "Cronograma de Producción" | 1 |
-| Ver los lotes en ejecución | Ambos | "Gestión de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
-| Abrir un lote | Ambos | "Gestión de Lotes"; "Abrir" en la fila | 2 |
-| Filtrar los lotes de una planificación | Ambos | "Gestión de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
-| Registrar un lote desde la lista | Gerente | "Gestión de Lotes"; "Nuevo lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
+| Ver los lotes en ejecución | Ambos | "Control de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
+| Abrir un lote | Ambos | "Control de Lotes"; "Abrir" en la fila | 2 |
+| Filtrar los lotes de una planificación | Ambos | "Control de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
+| Registrar un lote desde la lista | Gerente | "Control de Lotes"; "Nuevo lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
 | Registrar un lote desde una planificación | Gerente | "Planificación de Producción"; "Ver estado actual"; "Nuevo lote" (la planificación ya está elegida); los cuatro equipos (8 clics); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 12 y 1 escritura |
-| Iniciar un lote | Operario | lista ("Gestión de Lotes") -> abrir el lote -> "Iniciar lote" -> confirmar | 4 |
-| Cancelar un lote | Gerente | "Gestión de Lotes"; abrir el lote; "Cancelar lote"; escribir el motivo; confirmar | 4 y 1 escritura |
-| Registrar un consumo reservado (primero del día) | Operario | "Gestión de Lotes"; abrir el lote (el detalle abre en la etapa actual); "Gestionar consumos"; "Nuevo consumo reservado"; elegir el insumo y el lote de insumo con los buscadores; escribir la cantidad; "Crear consumo reservado" | 9 y 1 escritura |
+| Iniciar un lote | Operario | lista ("Control de Lotes") -> abrir el lote -> "Iniciar lote" -> confirmar | 4 |
+| Cancelar un lote | Gerente | "Control de Lotes"; abrir el lote; "Cancelar lote"; escribir el motivo; confirmar | 4 y 1 escritura |
+| Registrar un consumo reservado (primero del día) | Operario | "Control de Lotes"; abrir el lote (el detalle abre en la etapa actual); "Gestionar consumos"; "Nuevo consumo reservado"; elegir el insumo y el lote de insumo con los buscadores; escribir la cantidad; "Crear consumo reservado" | 9 y 1 escritura |
 | Registrar otro consumo reservado (ya en la pestaña) | Operario | "Nuevo consumo reservado"; elegir el insumo; elegir el lote de insumo; escribir la cantidad; "Crear consumo reservado" | 6 y 1 escritura |
-| Registrar un consumo directo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; pestaña "Directos"; "Nuevo consumo directo"; elegir el insumo ("Elegir"); abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Crear consumo directo" | 10 y 1 escritura |
-| Anular un consumo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
-| Finalizar la etapa en curso | Operario | "Gestión de Lotes"; abrir el lote; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
-| Registrar el primer envasado | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar envasados"; "Nuevo envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 6 y 1 escritura |
+| Registrar un consumo directo | Operario | "Control de Lotes"; abrir el lote; "Gestionar consumos"; pestaña "Directos"; "Nuevo consumo directo"; elegir el insumo ("Elegir"); abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Crear consumo directo" | 10 y 1 escritura |
+| Anular un consumo | Operario | "Control de Lotes"; abrir el lote; "Gestionar consumos"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
+| Finalizar la etapa en curso | Operario | "Control de Lotes"; abrir el lote; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
+| Registrar el primer envasado | Operario | "Control de Lotes"; abrir el lote; "Gestionar envasados"; "Nuevo envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 6 y 1 escritura |
 | Registrar otro envasado (ya en la pantalla) | Operario | abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 3 y 1 escritura |
-| Finalizar el envasado | Operario | "Volver al lote" (o "Gestión de Lotes" y abrir el lote); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
+| Finalizar el envasado | Operario | "Volver al lote" (o "Control de Lotes" y abrir el lote); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
 | Revisar qué se consumió en una etapa pasada | Operario | abrir el lote; clic en la pestaña de la etapa; "Gestionar consumos" | 4 |
-| Revisar los envasados de un lote | Gerente | "Gestión de Lotes"; abrir el lote; pestaña "Envasado" | 3 |
+| Revisar los envasados de un lote | Gerente | "Control de Lotes"; abrir el lote; pestaña "Envasado" | 3 |

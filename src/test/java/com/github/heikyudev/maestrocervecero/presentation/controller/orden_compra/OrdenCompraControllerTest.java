@@ -1314,7 +1314,7 @@ class OrdenCompraControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*Operación.*href=\"/ordenes-compra\".*<span>Órdenes de Compra</span>.*")))
                 .andExpect(content().string(not(containsString("Planificación de Producción"))))
-                .andExpect(content().string(not(containsString("Gestión de Lotes"))))
+                .andExpect(content().string(not(containsString("Control de Lotes"))))
                 .andExpect(content().string(not(containsString("Cronograma de Producción"))));
     }
 

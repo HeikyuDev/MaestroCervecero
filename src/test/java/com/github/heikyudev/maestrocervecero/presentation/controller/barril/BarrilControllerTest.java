@@ -818,7 +818,7 @@ class BarrilControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-41: la sidebar del GERENTE_DE_PRODUCCION ofrece \"Gestión de Barriles\" en Administración, justo encima de \"Gestión de Equipamiento\"")
+    @DisplayName("CP-BCT-41: la sidebar del GERENTE_DE_PRODUCCION ofrece \"Gestión de Barriles\" en Administración, justo encima de \"Gestión de Equipamientos\"")
     void caso_cp_bct_41() throws Exception {
         // Arrange
         when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
@@ -827,7 +827,7 @@ class BarrilControllerTest {
         mockMvc.perform(get("/barriles"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*Administración.*href=\"/barriles\"[^>]*bg-amber-500/10[^>]*>\\s*<i class=\"bi text-lg bi-boxes\"></i>\\s*<span>Gestión de Barriles</span>.*")))
-                .andExpect(content().string(matchesPattern("(?s).*Gestión de Barriles((?!Gestión de )[\\s\\S])*Gestión de Equipamiento.*")));
+                .andExpect(content().string(matchesPattern("(?s).*Gestión de Barriles((?!Gestión de )[\\s\\S])*Gestión de Equipamientos.*")));
     }
 
     @Test

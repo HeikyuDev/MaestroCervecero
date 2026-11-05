@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** capa web (`@WebMvcTest`, clase `OllaHervorControllerTest`). Se ejecutan sobre Spring MVC, Spring Security (`SecurityConfig`, con CSRF y `@PreAuthorize`), el `ControllerAdvices` y las plantillas Thymeleaf reales; el `IOllaHervorServicio` está simulado (mock) y no hay base de datos. La lógica de negocio se prueba aparte, en `services/equipamiento/CasosPruebaOllaHervor.md`.
 
-**Rol requerido:** todos los métodos exigen `GERENTE_DE_PRODUCCION` (`@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")`). Ollas de hervor es una de las cuatro pestañas de "Gestión de Equipamiento" (molinos, maceradores, ollas de hervor y fermentadores), cada una con su propia URL.
+**Rol requerido:** todos los métodos exigen `GERENTE_DE_PRODUCCION` (`@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")`). Ollas de hervor es una de las cuatro pestañas de "Gestión de Equipamientos" (molinos, maceradores, ollas de hervor y fermentadores), cada una con su propia URL.
 
 **Convenciones de los resultados:**
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.

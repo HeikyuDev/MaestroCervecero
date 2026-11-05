@@ -10,8 +10,8 @@
 | **CP-PEQ-04** | Pestañas del panel | Usan el fragmento de pestañas con un ícono. |
 | **CP-PEQ-05** | Identificador del equipo | Es un enlace ámbar al detalle solo con `EQUIPAMIENTO_CONSULTAR` y texto plano sin ese permiso. |
 | **CP-PEQ-06** | Pantallas de lote y de planificación | Muestran el identificador del equipo con el fragmento de enlace. |
-| **CP-PEQ-07** | Listas de Gestión de Equipamiento | Las cuatro tienen el ojo hacia el detalle con aria-label y sin tooltip. |
-| **CP-PEQ-08** | Barra lateral | Tiene Control de Equipamiento en Operación para quien consulta limpiezas. |
+| **CP-PEQ-07** | Listas de Gestión de Equipamientos | Las cuatro tienen el ojo hacia el detalle con aria-label y sin tooltip. |
+| **CP-PEQ-08** | Barra lateral | Tiene Control de Equipamientos en Operación para quien consulta limpiezas. |
 | **CP-PEQ-10** | Accesos cruzados y personas | El historial, el panel, el detalle de la operación y el detalle del equipamiento no llevan Abrir ni el ojo en su encabezado ni "Responsable"; solo el detalle de la operación muestra "Registrado por". |
 | **CP-PEQ-11** | Historial | Usa el patrón de las listas: filtros en una grilla con Limpiar y Buscar, tabla estándar con encabezado gris, badge de estado operativo y fragmento de paginación. |
 | **CP-PEQ-12** | Observaciones en las tablas | Ninguna tabla las escribe en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo. |

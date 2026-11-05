@@ -70,7 +70,7 @@ class OllaHervorControllerTest {
         mockMvc.perform(get("/equipamiento/ollas-hervor"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/olla-lista"))
-                .andExpect(content().string(containsString("Gestión de Equipamiento")))
+                .andExpect(content().string(containsString("Gestión de Equipamientos")))
                 .andExpect(content().string(containsString("OLLA-01")))
                 .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString(">100<")))

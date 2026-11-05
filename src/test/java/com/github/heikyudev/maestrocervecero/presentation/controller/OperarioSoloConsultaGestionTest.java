@@ -53,7 +53,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * El operario de producción solo consulta las pantallas de Gestión de Equipamiento, Gestión de Insumos, Gestión de Barriles y
+ * El operario de producción solo consulta las pantallas de Gestión de Equipamientos, Gestión de Insumos, Gestión de Barriles y
  * Gestión de Recetas: ve las listas con sus filtros, pero no ve ningún control de escritura (alta, modificar, baja) y no puede
  * ejecutarlos por URL ni por POST. El gerente de producción conserva todo. Los services son mocks que devuelven páginas vacías.
  */

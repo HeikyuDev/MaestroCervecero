@@ -1,8 +1,16 @@
 # Estándares de interfaz
 
+## Nombres de las entradas del menú
+
+El prefijo de cada entrada del menú indica qué se hace en esa pantalla.
+
+- **"Gestión de ...":** pantallas de alta, modificación y baja (ABM) de un maestro. Por ejemplo, Gestión de Insumos, Gestión de Recetas, Gestión de Barriles, Gestión de Equipamientos, Gestión de Proveedores, Gestión de Presentaciones, Gestión de Ubicaciones y Gestión de Usuarios.
+- **"Control de ...":** pantallas donde se opera el día a día (registrar y anular operaciones que cambian el estado de un registro) y se consulta lo realizado. Por ejemplo, Control de Lotes y Control de Equipamientos.
+- **Otras entradas** (órdenes de compra, planificaciones, ingresos, consumos): llevan el nombre propio de la operación que se realiza en ellas.
+
 ## Botón "Abrir"
 
-Es la entrada desde la fila de una lista a la pantalla de trabajo o gestión de un registro. Hoy lo usa la lista de Gestión de Lotes; las listas de equipamiento y de barriles lo usarán para llegar a su pantalla de ciclo de vida.
+Es la entrada desde la fila de una lista a la pantalla de trabajo o gestión de un registro. Hoy lo usa la lista de Control de Lotes; las listas de equipamiento y de barriles lo usarán para llegar a su pantalla de ciclo de vida.
 
 - **Cuándo usarlo:** solo en la acción que abre la pantalla donde se trabaja con el registro. No se usa para editar (lápiz), dar de baja (papelera), anular, abrir un modal informativo ni consultar un detalle de solo lectura.
 - **Texto e ícono:** siempre "Abrir" con la flecha `bi-arrow-right`; es un botón visible con borde y fondo ámbar suave, no un ícono suelto ni un enlace de texto.
@@ -16,7 +24,7 @@ Es el estándar para abrir una vista de detalle de solo lectura: órdenes de com
 
 **Ojo y "Abrir" juntos.** Cuando un registro tiene una pantalla de detalle de solo lectura y además un panel de trabajo, el ojo "Ver" abre el detalle y "Abrir" el panel. Ejemplo, el lote: la lista de lotes ofrece al GERENTE_DE_PRODUCCION el ojo (`/lotes/{id}/detalle`, "Detalle del lote": información, etapas, costos, consumos, reservas y envasados) y a continuación "Abrir" (`/lotes/{id}`, panel de trabajo); el OPERARIO_DE_PRODUCCION ve solo "Abrir", porque el detalle y sus costos son del gerente. Ambos van centrados en la columna de acciones y el ojo lleva solo `aria-label` ("Ver LOT-R1-02"), sin tooltip. Las barras del Gantt y las colas del cronograma siguen llevando al panel de trabajo.
 
-**Equipamiento.** En la lista de Control de Equipamiento el ojo (solo el GERENTE_DE_PRODUCCION) abre el historial del equipo (`/control-equipamiento/{id}/historial`) y "Abrir" el panel operativo (`/control-equipamiento/{id}`), que el gerente ve en solo lectura. En las listas de Gestión de Equipamiento el ojo abre el detalle del equipamiento (`/equipamiento/{id}/detalle`).
+**Equipamiento.** En la lista de Control de Equipamientos el ojo (solo el GERENTE_DE_PRODUCCION) abre el historial del equipo (`/control-equipamiento/{id}/historial`) y "Abrir" el panel operativo (`/control-equipamiento/{id}`), que el gerente ve en solo lectura. En las listas de Gestión de Equipamientos el ojo abre el detalle del equipamiento (`/equipamiento/{id}/detalle`).
 
 **Identificador de equipo.** Cuando una pantalla muestra el identificador de un equipamiento (el fermentador del lote, el equipo de una etapa) lo hace con el fragmento `fragments/enlace-equipo :: enlace(id, identificador)`: un enlace ámbar al detalle del equipamiento para quien tiene `EQUIPAMIENTO_CONSULTAR` y texto plano para los demás roles.
 
@@ -28,7 +36,7 @@ Un texto que puede ser largo (el motivo de una anulación o cancelación, las ob
 
 **Botones de los filtros a la derecha.** En toda lista con tarjeta de filtros, "Limpiar" y "Buscar" van en un contenedor `flex items-center justify-end gap-3` que ocupa la fila completa de la grilla de filtros (`md:col-span-2` en una grilla de dos columnas, `lg:col-span-3` en una de tres, `col-span-full` en cualquier caso), de modo que quedan en el borde derecho de la tarjeta con cualquier cantidad de filtros. Excepciones: la lista de lotes (sus cinco filtros y los botones llenan las filas) y la barra de filtro en línea de la pantalla de consumos. Lo verifica `BotonesDeFiltrosALaDerechaTest`.
 
-**Operario de producción: solo consulta de la administración.** El OPERARIO_DE_PRODUCCION ve en la sección Administración del menú Gestión de Insumos, Gestión de Recetas, Gestión de Barriles y Gestión de Equipamiento (mismas opciones, mismo orden y mismo resaltado que el gerente de producción), con sus listas, filtros, pestañas y detalles (el ojo de equipamiento y de recetas). Nunca ve ni ejecuta altas, modificaciones ni bajas: los botones "Nuevo ...", el lápiz y el tacho se ocultan con `sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"`, igual que el `@PreAuthorize` de esos métodos, que sigue exclusivo del gerente. Si la columna Acciones queda sin ningún botón (maltas, lúpulos, levaduras, barriles y fabricantes, cuyas tablas ya muestran todos los datos), se oculta entera para el operario; si le queda el ojo, el ojo va centrado. No se crean pantallas de detalle donde la tabla ya muestra todos los datos.
+**Operario de producción: solo consulta de la administración.** El OPERARIO_DE_PRODUCCION ve en la sección Administración del menú Gestión de Insumos, Gestión de Recetas, Gestión de Barriles y Gestión de Equipamientos (mismas opciones, mismo orden y mismo resaltado que el gerente de producción), con sus listas, filtros, pestañas y detalles (el ojo de equipamiento y de recetas). Nunca ve ni ejecuta altas, modificaciones ni bajas: los botones "Nuevo ...", el lápiz y el tacho se ocultan con `sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"`, igual que el `@PreAuthorize` de esos métodos, que sigue exclusivo del gerente. Si la columna Acciones queda sin ningún botón (maltas, lúpulos, levaduras, barriles y fabricantes, cuyas tablas ya muestran todos los datos), se oculta entera para el operario; si le queda el ojo, el ojo va centrado. No se crean pantallas de detalle donde la tabla ya muestra todos los datos.
 
 **Pestaña con tabla y alta en un formulario aparte.** Cada pestaña de un panel (consumos del lote, operaciones del equipamiento) es la tabla paginada de su tipo, con el botón ámbar de alta (`bi-plus-lg`, "Nuevo consumo reservado", "Nueva limpieza") en el encabezado de la tarjeta; el botón solo existe para quien puede registrar y solo si el estado lo permite, y si no un aviso gris explica el motivo. El botón abre una página de formulario con "Cancelar" y la acción ("Registrar limpieza"); al registrar se vuelve a la pestaña con la alerta de éxito y un error vuelve al formulario con lo escrito. La columna Acciones de estas tablas va a la derecha y la de las listas centrada.
 
