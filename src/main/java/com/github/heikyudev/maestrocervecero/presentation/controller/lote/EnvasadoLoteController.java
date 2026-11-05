@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Objects;
+import java.util.Set;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
@@ -58,6 +59,11 @@ public class EnvasadoLoteController {
     private static final String VISTA_PANTALLA = "lote/envasado-lista";
     private static final String VISTA_BUSCADOR = "lote/buscador-barril :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "envasadoForm";
+
+    /**
+     * Campos del formulario de registro a los que puede referirse un rechazo del service.
+     */
+    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("idBarril", "cantidad", "fechaEnvasado");
 
     /**
      * Los barriles son maestros: el buscador los ofrece en orden alfabético ascendente por identificador interno.
@@ -103,8 +109,10 @@ public class EnvasadoLoteController {
     // ==================== Registrar ====================
 
     /**
-     * Registra un envasado en el barril elegido con el buscador y vuelve a la pantalla. Si el formulario es inválido,
-     * vuelve a la pantalla con los errores, el barril elegido y la cantidad escrita.
+     * Registra un envasado en el barril elegido con el buscador y vuelve a la pantalla. Si el formulario es inválido, o
+     * el service rechaza un campo del formulario (por ejemplo, la fecha y hora del envasado), vuelve a la pantalla con
+     * el error en su campo, el barril elegido y lo escrito. Los demás rechazos del service los muestra el
+     * {@code ControllerAdvices}.
      */
     @PostMapping
     @PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")
@@ -120,7 +128,17 @@ public class EnvasadoLoteController {
         }
 
         ContextoDeEnvasado contexto = resolverContexto(idLote);
-        envasadoLoteServicio.registrarEnvasadoLote(contexto.etapa().getId(), envasadoForm);
+        try {
+            envasadoLoteServicio.registrarEnvasadoLote(contexto.etapa().getId(), envasadoForm);
+        } catch (ReglaNegocioException e) {
+            if (e.getCampo() == null || !CAMPOS_DEL_FORMULARIO.contains(e.getCampo())) {
+                throw e;
+            }
+            bindingResult.rejectValue(e.getCampo(), "reglaNegocio", e.getMessage());
+            redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
+            redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, envasadoForm);
+            return volverALaPantalla(idLote);
+        }
         agregarMensaje(redirectAttributes, "Envasado creado correctamente", TipoAlerta.SUCCESS);
         return volverALaPantalla(idLote);
     }

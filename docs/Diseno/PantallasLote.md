@@ -211,7 +211,7 @@ c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consum
 - "Ver reservas de la etapa" abre un diálogo (ancho `max-w-4xl`, con scroll horizontal si hace falta) titulado "Reservas de la etapa" con el historial de las reservas de esa etapa, en solo lectura: insumo, lote de insumo (su identificación), reservada (la cantidad original), consumida, liberada, reducida por ajuste, pendiente y estado (etiqueta de color: Activa, Consumida o Liberada). Las activas van primero y sin reservas dice "La etapa no tiene reservas". Una reserva nunca se borra: al finalizar la etapa o cancelar el lote el saldo pendiente pasa a liberada y la reserva queda Liberada, por lo que la opción está disponible también en etapas cerradas y en lotes finalizados o cancelados, con el mismo permiso que ver el lote (`LOTE_CONSULTAR`).
 - El avance, bajo la tabla, muestra por insumo el porcentaje consumido frente al mínimo exigido ("75% de 80% requerido"). Con mínimo 0 dice "Sin consumo mínimo requerido". Solo aparece con la etapa en curso. El botón siempre está habilitado: el avance es informativo y, si no se alcanza el mínimo, el service rechaza y su mensaje se muestra en una alerta.
 - La tarjeta de insumos solo existe en las etapas que consumen insumos: en una etapa sin insumos (Maceración, Envasado, o una etapa que la receta no usa) no se muestra la tarjeta ni el botón "Gestionar consumos".
-- En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación" en la columna Acciones) y en su cabecera lleva el botón sólido ámbar "Gestionar envasados" (ícono `bi-box-seam`) con `ENVASADO_CONSULTAR`, en cualquier estado de la etapa o del lote, que lleva a la pantalla 5, donde está "Nuevo envasado".
+- En Envasado, una sección lista los envasados registrados (barril, cantidad, fecha y hora del envasado y estado; los anulados llevan el botón "Ver detalle de la anulación" en la columna Acciones) y en su cabecera lleva el botón sólido ámbar "Gestionar envasados" (ícono `bi-box-seam`) con `ENVASADO_CONSULTAR`, en cualquier estado de la etapa o del lote, que lleva a la pantalla 5, donde está "Nuevo envasado".
 - Lo consumido frente a lo requerido se muestra solo en la tabla de insumos; la guía no lo repite.
 
 ### 6.3.1 Detalle del lote (`/lotes/{id}/detalle`)
@@ -232,7 +232,7 @@ El Detalle del lote no muestra datos de la receta (OG, FG, IBU, ABV): se ven en 
 - **Etapas:** una fila por etapa con su estado, el equipo y las fechas reales de inicio y fin.
 - **Consumos:** todos los del lote por etapa (insumo, lote de insumo, cantidad con su unidad, tipo, fecha, usuario y estado; los anulados, atenuados y con el botón de detalle de la anulación en la columna Acciones). Sin consumos dice "No hay consumos registrados".
 - **Reservas:** el historial completo por etapa (reservada, consumida, liberada, reducida por ajuste, pendiente y estado). Sin reservas dice "No hay reservas registradas".
-- **Envasados:** barril, cantidad, fecha y estado, con el detalle de la anulación en la columna Acciones. Sin envasados dice "No hay envasados registrados".
+- **Envasados:** barril, cantidad, fecha y hora del envasado y estado, con el detalle de la anulación en la columna Acciones. Sin envasados dice "No hay envasados registrados".
 - **Costos:** se calculan, no se guardan. Tres tarjetas separadas, cada una con su título y su tabla del sistema: "Costos de insumos" (insumo, cantidad consumida con su unidad, costo promedio por unidad y subtotal), "Costos directos adicionales" (costo, costo por litro aplicado y subtotal; se aplican al finalizar el envasado, y mientras no existen dice "Los costos adicionales se suman al finalizar el envasado") y "Resumen del costo" (tabla Concepto e Importe: costo de insumos, costos directos adicionales, costo total en negrita, litros envasados y costo por litro envasado en negrita). Las tablas de detalle no llevan fila de total: los totales viven en el resumen. Con el lote en curso el resumen tiene solo el "Costo acumulado de insumos"; un lote cancelado muestra el costo de lo que alcanzó a consumir; sin consumos dice "No hay costos registrados".
 
 Las tablas son compactas (con scroll horizontal solo si hace falta), sin tooltips largos.
@@ -376,10 +376,11 @@ Envasados  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
 REGISTRAR ENVASADO
   Barril *  [ Seleccione barril          [=] ]     Cantidad a envasar (L) * [ Ej: 50 ]
+  Fecha y hora del envasado *  [ Ej: 31/10/2026 08:30 ]
                                                                 [ Crear envasado ]
 
 ENVASADOS REGISTRADOS
-  Barril   Cantidad (L)   Fecha de registro   Estado                         Acciones
+  Barril   Cantidad (L)   Fecha y hora        Estado                         Acciones
   B-003    20             01/07/2027 10:30    Registrado                     [ Anular ]
   B-004    30             01/07/2027 10:20    Anulado - Barril equivocado
   B-002    50             01/07/2027 10:10    Registrado                     [ Anular ]
@@ -388,7 +389,9 @@ ENVASADOS REGISTRADOS
 
 - El único tope del envasado es la capacidad útil del fermentador: se puede envasar más que el volumen objetivo, y superarlo solo muestra un aviso informativo.
 - "Seleccione barril" abre el buscador de barriles Disponibles (criterio "Identificador").
-- La pantalla no finaliza el envasado: eso se hace en el detalle del lote ("Finalizar envasado").
+- La fecha y hora del envasado es obligatoria y es la fecha de participación del barril en el lote: no puede ser futura, anterior al inicio de la etapa de Envasado ni igual o anterior a la última operación o envasado registrado del barril. Un rechazo sobre la fecha se muestra debajo del campo, con lo escrito. La columna "Fecha y hora" de la tabla muestra esa fecha.
+- Al registrar un envasado el barril queda En uso, con la cantidad envasada como contenido, y no admite otras operaciones. Anular el envasado (solo con el lote en ejecución) lo deja Disponible y vacío. Al finalizar el envasado del lote, los barriles con envasados registrados pasan a Con cerveza.
+- La pantalla no finaliza el envasado: eso se hace en el detalle del lote ("Finalizar envasado"), que además pasa los barriles envasados de En uso a Con cerveza.
 - Errores: un error de validación (`@Valid`) redirige a esta misma pantalla, que muestra los errores y lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el envasado a anular pertenezca al lote de la ruta.
 - Sin el Envasado en curso, la pantalla es de solo lectura (aviso, sin formulario ni "Anular").
 

@@ -1,11 +1,14 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.lote;
 
 import jakarta.validation.constraints.NotNull;
+import org.springframework.format.annotation.DateTimeFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 /**
  * DTO de formulario para registrar el envasado de un lote, es decir, el traspaso de cerveza
@@ -32,4 +35,11 @@ public class RegistrarEnvasadoLoteFormDTO {
      */
     @NotNull(message = "La cantidad a envasar es obligatoria")
     private Double cantidad;
+
+    /**
+     * Fecha y hora del envasado.
+     */
+    @NotNull(message = "La fecha y hora del envasado es obligatoria")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime fechaEnvasado;
 }

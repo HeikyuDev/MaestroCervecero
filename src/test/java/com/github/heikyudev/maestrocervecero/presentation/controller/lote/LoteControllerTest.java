@@ -1614,8 +1614,8 @@ class LoteControllerTest {
         String registros = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-registros-etapa");
 
         // Assert
-        assertThat(celdas(registros, "B-001")).containsExactly("B-001", "100", "Registrado", "");
-        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20", "Anulado", "");
+        assertThat(celdas(registros, "B-001")).containsExactly("B-001", "100", "01/07/2027 09:50", "Registrado", "");
+        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20", "01/07/2027 09:50", "Anulado", "");
         assertThat(registros).doesNotContain("<form").doesNotContain("Barril equivocado</").doesNotContain("data-motivo-url");
         assertThat(cuenta(registros, "<button")).isEqualTo(1);
         assertThat(registros).contains("data-detalle-anulacion").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-titulo=\"Detalle de la anulación\"");
@@ -3497,7 +3497,7 @@ class LoteControllerTest {
         assertThat(consumos).contains("data-detalle-motivo=\"Carga equivocada\"").contains("opacity-60");
         assertThat(texto(bloque(htmlReservas, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 25 g 25 g 0 g 0 g 0 g Consumida");
         String envasados = bloque(htmlEnvasados, "data-seccion-envasados");
-        assertThat(texto(envasados)).contains("Barril Cantidad (L) Fecha Estado").contains("B-001 100").contains("B-002 20");
+        assertThat(texto(envasados)).contains("Barril Cantidad (L) Fecha y hora Estado").contains("B-001 100 01/07/2027 09:50").contains("B-002 20 01/07/2027 09:50");
         assertThat(envasados).contains("data-detalle-motivo=\"Barril equivocado\"");
     }
 
@@ -3682,6 +3682,7 @@ class LoteControllerTest {
 
     private static EnvasadoLoteResponseDTO envasado(String barril, double cantidad, EstadoTransaccion estado, String motivo) {
         return EnvasadoLoteResponseDTO.builder().cantidadEnvasada(cantidad).estado(estado).motivoAnulacion(motivo)
+                .fechaEnvasado(LocalDateTime.of(2027, 7, 1, 9, 50))
                 .barril(BarrilResponseDTO.builder().identificadorInterno(barril).build()).build();
     }
 

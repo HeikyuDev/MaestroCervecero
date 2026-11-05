@@ -33,6 +33,9 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEscaladoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
@@ -116,7 +119,9 @@ import java.util.stream.Collectors;
  *     <li>cola de lotes pendientes del fermentador, por fecha de inicio estimada e ID;</li>
  *     <li>el lote (por ID);</li>
  *     <li>los equipos del lote: molino, macerador, olla de hervor y fermentador;</li>
- *     <li>los lotes de insumo, siempre por ID ascendente.</li>
+ *     <li>los lotes de insumo, siempre por ID ascendente;</li>
+ *     <li>los barriles del lote (envasado y finalización del envasado), siempre por ID ascendente: van después del lote,
+ *     como en el registro y la anulación de un envasado.</li>
  * </ol>
  * <p>
  * {@link OrdenCanonicoDeBloqueo} cubre los cuatro primeros niveles. Como la entidad se lee recién después de
@@ -159,6 +164,7 @@ public class LoteServicioImpl implements ILoteServicio {
     private final IReservaInsumoRepository reservaInsumoRepository;
     private final IConsumoInsumoServicio consumoInsumoServicio;
     private final IEnvasadoLoteRepository envasadoLoteRepository;
+    private final IBarrilRepository barrilRepository;
     private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
     private final IPlanificacionProduccionServicio planificacionProduccionServicio;
     private final EntityManager entityManager;
@@ -895,6 +901,11 @@ public class LoteServicioImpl implements ILoteServicio {
      * (solo envasados).
      * </p>
      * <p>
+     * Los barriles con envasados registrados del lote pasan de {@code EN_USO} a {@code CON_CERVEZA}: recién entonces
+     * pueden despacharse o fraccionarse. Se bloquean (una sola consulta, por ID ascendente) después del lote y del
+     * fermentador, respetando el orden canónico de bloqueo.
+     * </p>
+     * <p>
      * Registra, por cada costo directo adicional activo, un {@link DetalleCostoDirectoEntity} que
      * congela su costo por litro vigente en este momento y calcula el subtotal sobre el total
      * efectivamente envasado (no el volumen objetivo planificado) — así queda un registro
@@ -939,6 +950,15 @@ public class LoteServicioImpl implements ILoteServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
         fermentador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         fermentadorRepository.save(fermentador);
+
+        // 5b. Los barriles envasados dejan de estar En uso: bloqueados por ID ascendente, pasan a Con cerveza
+        List<BarrilEntity> barrilesEnvasados = barrilRepository.buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(id);
+        for (BarrilEntity barril : barrilesEnvasados) {
+            if (barril.getEstadoOperativo() == EstadoOperativoBarril.EN_USO) {
+                barril.setEstadoOperativo(EstadoOperativoBarril.CON_CERVEZA);
+            }
+        }
+        barrilRepository.saveAll(barrilesEnvasados);
 
         // 6. Finalizar la etapa de Envasado: es la última, no hay una siguiente a la que avanzar
         etapaEnvasado.setEstado(EstadoEtapaLote.FINALIZADA);

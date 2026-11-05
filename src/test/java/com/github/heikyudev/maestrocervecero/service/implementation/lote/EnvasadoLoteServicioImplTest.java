@@ -15,6 +15,12 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
@@ -39,6 +45,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +67,7 @@ class EnvasadoLoteServicioImplTest {
 
     private static final Integer USOS_MAXIMOS_ANTES_MANTENIMIENTO = 200;
     private static final double CAPACIDAD_UTIL_FERMENTADOR = 100.0;
+    private static final LocalDateTime FECHA_ENVASADO = LocalDateTime.of(2026, 1, 15, 10, 0);
 
     @Mock
     private IEnvasadoLoteRepository envasadoLoteRepository;
@@ -72,6 +80,24 @@ class EnvasadoLoteServicioImplTest {
 
     @Mock
     private IBarrilRepository barrilRepository;
+
+    @Mock
+    private IFallaBarrilRepository fallaBarrilRepository;
+
+    @Mock
+    private IMantenimientoBarrilRepository mantenimientoBarrilRepository;
+
+    @Mock
+    private ILimpiezaBarrilRepository limpiezaBarrilRepository;
+
+    @Mock
+    private IDespachoBarrilRepository despachoBarrilRepository;
+
+    @Mock
+    private IDevolucionBarrilRepository devolucionBarrilRepository;
+
+    @Mock
+    private IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
 
     @InjectMocks
     private EnvasadoLoteServicioImpl envasadoLoteServicio;
@@ -341,7 +367,7 @@ class EnvasadoLoteServicioImplTest {
         EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 50.0));
 
         // === ASSERTS ===
-        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_USO);
         assertThat(barril.getContenidoActual()).isEqualTo(50.0);
         verify(barrilRepository).save(barril);
         assertThat(resultado.getCantidadEnvasada()).isEqualTo(50.0);
@@ -370,13 +396,14 @@ class EnvasadoLoteServicioImplTest {
         // === ASSERTS ===
         ArgumentCaptor<BarrilEntity> barrilCaptor = ArgumentCaptor.forClass(BarrilEntity.class);
         verify(barrilRepository).save(barrilCaptor.capture());
-        assertThat(barrilCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
+        assertThat(barrilCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_USO);
         assertThat(barrilCaptor.getValue().getContenidoActual()).isEqualTo(30.0);
 
         ArgumentCaptor<EnvasadoLoteEntity> envasadoCaptor = ArgumentCaptor.forClass(EnvasadoLoteEntity.class);
         verify(envasadoLoteRepository).save(envasadoCaptor.capture());
         EnvasadoLoteEntity entidadCapturada = envasadoCaptor.getValue();
         assertThat(entidadCapturada.getCantidadEnvasada()).isEqualTo(30.0);
+        assertThat(entidadCapturada.getFechaEnvasado()).isEqualTo(FECHA_ENVASADO);
         assertThat(entidadCapturada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(entidadCapturada.getEtapaLote()).isEqualTo(etapaLote);
         assertThat(entidadCapturada.getBarril()).isEqualTo(barril);
@@ -476,6 +503,128 @@ class EnvasadoLoteServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 100 L disponibles para envasar)");
         verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-32: registrarEnvasadoLote lanza ReglaNegocioException en el campo fechaEnvasado sin consultar nada cuando la fecha y hora del envasado es nula")
+    void registrarEnvasadoLote_debeRechazarFechaNula() {
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0, null)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha y hora del envasado es obligatoria")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
+
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-33: registrarEnvasadoLote lanza ReglaNegocioException en el campo fechaEnvasado sin consultar nada cuando la fecha y hora del envasado es futura")
+    void registrarEnvasadoLote_debeRechazarFechaFutura() {
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0, LocalDateTime.now().plusDays(1))))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
+
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-34: registrarEnvasadoLote lanza ReglaNegocioException en el campo fechaEnvasado y no consulta el barril cuando la fecha es anterior al inicio de la etapa de Envasado")
+    void registrarEnvasadoLote_debeRechazarFechaAnteriorAlInicioDeLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        etapaLote.setFechaInicio(FECHA_ENVASADO.plusMinutes(1));
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        lenient().when(etapaLoteRepository.buscarIdLoteDeLaEtapa(1L)).thenReturn(Optional.of(etapaLote.getLote().getId()));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
+
+        verifyNoInteractions(barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-35: registrarEnvasadoLote persiste cuando la fecha del envasado es exactamente la del inicio de la etapa de Envasado (valor límite, permitido)")
+    void registrarEnvasadoLote_debePermitirFechaIgualAlInicioDeLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        etapaLote.setFechaInicio(FECHA_ENVASADO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaEnvasado()).isEqualTo(FECHA_ENVASADO);
+        verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-REL-36: registrarEnvasadoLote lanza ReglaNegocioException en el campo fechaEnvasado y no persiste cuando la fecha es anterior a la última operación registrada del barril")
+    void registrarEnvasadoLote_debeRechazarFechaAnteriorALaUltimaOperacionDelBarril() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(FECHA_ENVASADO.plusMinutes(1)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-37: registrarEnvasadoLote lanza ReglaNegocioException cuando la fecha es igual a la del último envasado registrado del barril (valor límite, rechazado)")
+    void registrarEnvasadoLote_debeRechazarFechaIgualALaDelUltimoEnvasadoDelBarril() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(FECHA_ENVASADO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril");
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-38: registrarEnvasadoLote persiste con la fecha informada cuando es posterior a la última actividad de las siete fuentes del barril")
+    void registrarEnvasadoLote_debePersistirConFechaPosteriorALaUltimaActividadDelBarril() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        LocalDateTime anterior = FECHA_ENVASADO.minusMinutes(1);
+        when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(1L)).thenReturn(Optional.of(anterior));
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(anterior));
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(anterior));
+        when(despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(1L)).thenReturn(Optional.of(anterior));
+        when(devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(1L)).thenReturn(Optional.of(anterior));
+        when(fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(1L)).thenReturn(Optional.of(anterior));
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(anterior));
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaEnvasado()).isEqualTo(FECHA_ENVASADO);
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_USO);
+        verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
     }
 
     @Test
@@ -801,7 +950,7 @@ class EnvasadoLoteServicioImplTest {
     @DisplayName("CP-AEL-05: anularEnvasadoLote lanza ReglaNegocioException y no persiste cuando el lote asociado no está EN_EJECUCION")
     void anularEnvasadoLote_debeRechazarLoteNoEnEjecucion() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.FINALIZADO), TipoEtapa.ENVASADO, EstadoEtapaLote.FINALIZADA);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(1L)).thenReturn(Optional.of(envasadoLote));
         lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(1L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
@@ -819,7 +968,7 @@ class EnvasadoLoteServicioImplTest {
     @DisplayName("CP-AEL-06: anularEnvasadoLote lanza RecursoNoEncontradoException y no persiste cuando el barril asociado ya no existe")
     void anularEnvasadoLote_debeRechazarBarrilInexistente() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(5L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(5L, 50.0, 30.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(1L)).thenReturn(Optional.of(envasadoLote));
         lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(1L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
@@ -834,8 +983,8 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AEL-07: anularEnvasadoLote lanza ReglaNegocioException y no persiste cuando el barril ya no está en estado operativo CON_CERVEZA")
-    void anularEnvasadoLote_debeRechazarBarrilYaNoConCerveza() {
+    @DisplayName("CP-AEL-07: anularEnvasadoLote lanza ReglaNegocioException y no persiste cuando el barril ya no está en estado operativo EN_USO")
+    void anularEnvasadoLote_debeRechazarBarrilQueYaNoEstaEnUso() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.DESPACHADO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
@@ -853,10 +1002,31 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AEL-13: anularEnvasadoLote lanza ReglaNegocioException y no persiste cuando el barril está CON_CERVEZA (el lote ya se finalizó)")
+    void anularEnvasadoLote_debeRechazarBarrilConCerveza() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
+        when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(10L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(10L, anularFormDTO("Error de carga")))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular el envasado porque el barril asociado ya no mantiene su contenido intacto");
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CP-AEL-08: anularEnvasadoLote lanza ReglaNegocioException cuando el contenido actual del barril ya no coincide con la cantidad envasada")
     void anularEnvasadoLote_debeRechazarContenidoNoCoincide() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 45.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 45.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
         lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(10L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
@@ -875,7 +1045,7 @@ class EnvasadoLoteServicioImplTest {
     void anularEnvasadoLote_debeRevertirBarrilYAnularEnvasado() {
         // === PREPARACION DE DATOS ===
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
         lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(10L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
@@ -905,7 +1075,7 @@ class EnvasadoLoteServicioImplTest {
     void anularEnvasadoLote_debeBloquearElLoteAntesDeValidarlo() {
         // === PREPARACION DE DATOS ===
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
         lenient().when(envasadoLoteRepository.buscarIdLoteDelEnvasado(10L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
@@ -930,7 +1100,7 @@ class EnvasadoLoteServicioImplTest {
     void anularEnvasadoLote_debeRechazarLoteInexistenteAlBloquear() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         etapaLote.getLote().setId(7L);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.EN_USO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.buscarIdLoteDelEnvasado(10L)).thenReturn(Optional.of(envasadoLote.getEtapaLote().getLote().getId()));
         when(loteRepository.buscarPorIdParaActualizar(7L)).thenReturn(Optional.empty());
@@ -958,6 +1128,25 @@ class EnvasadoLoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent().get(0).getFechaRegistro()).isEqualTo(java.time.LocalDateTime.of(2027, 7, 5, 14, 20));
+    }
+
+    @Test
+    @DisplayName("CP-FEL-06: filtrarEnvasadosLote informa la fecha y hora del envasado de cada envasado")
+    void filtrarEnvasadosLote_debeInformarLaFechaDelEnvasado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, crearBarrilEntity(3L, 50.0, 30.0, EstadoOperativoBarril.EN_USO), 30.0, EstadoTransaccion.REGISTRADO);
+        envasadoLote.setFechaEnvasado(LocalDateTime.of(2027, 7, 5, 9, 45));
+        envasadoLote.setCreatedDate(LocalDateTime.of(2027, 7, 5, 14, 20));
+        when(envasadoLoteRepository.filtrarEnvasadosLote(1L, null, null, pageable)).thenReturn(new PageImpl<>(List.of(envasadoLote), pageable, 1));
+
+        // === EJECUCION ===
+        Page<EnvasadoLoteResponseDTO> resultado = envasadoLoteServicio.filtrarEnvasadosLote(1L, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent().get(0).getFechaEnvasado()).isEqualTo(LocalDateTime.of(2027, 7, 5, 9, 45));
+        assertThat(resultado.getContent().get(0).getFechaRegistro()).isEqualTo(LocalDateTime.of(2027, 7, 5, 14, 20));
     }
 
     // ==================== resumirEnvasado ====================
@@ -1240,6 +1429,7 @@ class EnvasadoLoteServicioImplTest {
         return EnvasadoLoteEntity.builder()
                 .id(id)
                 .cantidadEnvasada(cantidadEnvasada)
+                .fechaEnvasado(FECHA_ENVASADO)
                 .estado(estado)
                 .etapaLote(etapaLote)
                 .barril(barril)
@@ -1247,9 +1437,14 @@ class EnvasadoLoteServicioImplTest {
     }
 
     private static RegistrarEnvasadoLoteFormDTO registrarFormDTO(Long idBarril, Double cantidad) {
+        return registrarFormDTO(idBarril, cantidad, FECHA_ENVASADO);
+    }
+
+    private static RegistrarEnvasadoLoteFormDTO registrarFormDTO(Long idBarril, Double cantidad, LocalDateTime fechaEnvasado) {
         return RegistrarEnvasadoLoteFormDTO.builder()
                 .idBarril(idBarril)
                 .cantidad(cantidad)
+                .fechaEnvasado(fechaEnvasado)
                 .build();
     }
 
@@ -1262,6 +1457,7 @@ class EnvasadoLoteServicioImplTest {
     private static void assertEnvasadoLoteDTO(EnvasadoLoteEntity entidad, EnvasadoLoteResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getCantidadEnvasada()).isEqualTo(entidad.getCantidadEnvasada());
+        assertThat(dto.getFechaEnvasado()).isEqualTo(entidad.getFechaEnvasado());
         assertThat(dto.getFechaAnulacion()).isEqualTo(entidad.getFechaAnulacion());
         assertThat(dto.getMotivoAnulacion()).isEqualTo(entidad.getMotivoAnulacion());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());

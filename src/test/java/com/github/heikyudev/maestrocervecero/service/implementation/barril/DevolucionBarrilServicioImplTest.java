@@ -366,6 +366,7 @@ class DevolucionBarrilServicioImplTest {
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_LIMPIEZA);
+        assertThat(barril.getContenidoActual()).isEqualTo(0.0);
         verify(barrilRepository).save(barril);
 
         ArgumentCaptor<DevolucionBarrilEntity> captor = ArgumentCaptor.forClass(DevolucionBarrilEntity.class);
@@ -375,8 +376,29 @@ class DevolucionBarrilServicioImplTest {
         assertThat(devolucionGuardada.getObservaciones()).isEqualTo("Barril recibido en depósito, sin daños visibles");
         assertThat(devolucionGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(devolucionGuardada.getBarril()).isSameAs(barril);
+        assertThat(devolucionGuardada.getLitrosDescartados()).isEqualTo(50.0);
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(resultado.getLitrosDescartados()).isEqualTo(50.0);
+    }
+
+    @Test
+    @DisplayName("CP-RDVB-13: registrarDevolucionBarril guarda 0 litros descartados cuando el barril volvió vacío")
+    void registrar_debeGuardarCeroLitrosDescartadosConBarrilVacio() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime fechaDevolucion = LocalDateTime.of(2026, 2, 5, 10, 0);
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
+        barril.setContenidoActual(0.0);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, fechaDevolucion, "Barril recibido vacío"));
+
+        // === ASSERTS ===
+        assertThat(barril.getContenidoActual()).isEqualTo(0.0);
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_LIMPIEZA);
+        assertThat(resultado.getLitrosDescartados()).isEqualTo(0.0);
     }
 
     @Test
@@ -547,7 +569,9 @@ class DevolucionBarrilServicioImplTest {
     void anular_debeAnularCorrectamente() {
         // === PREPARACION DE DATOS ===
         BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_LIMPIEZA);
+        barril.setContenidoActual(0.0);
         DevolucionBarrilEntity devolucion = crearDevolucionEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito", barril);
+        devolucion.setLitrosDescartados(35.0);
         AnulacionDevolucionBarrilFormDTO formDTO = anulacionFormDTO("Devolución cargada por error");
         when(devolucionBarrilRepository.findById(1L)).thenReturn(Optional.of(devolucion));
         when(devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(2L)).thenReturn(Optional.empty());
@@ -565,12 +589,32 @@ class DevolucionBarrilServicioImplTest {
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DESPACHADO);
+        assertThat(barril.getContenidoActual()).isEqualTo(35.0);
         assertThat(devolucion.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         assertThat(devolucion.getFechaAnulacion()).isNotNull();
         assertThat(devolucion.getMotivoAnulacion()).isEqualTo("Devolución cargada por error");
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         verify(barrilRepository).save(barril);
         verify(devolucionBarrilRepository).save(devolucion);
+    }
+
+    @Test
+    @DisplayName("CP-ADVB-12: anularDevolucionBarril no altera el contenido del barril cuando la devolución no descartó litros")
+    void anular_noDebeAlterarElContenidoSinLitrosDescartados() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_LIMPIEZA);
+        barril.setContenidoActual(12.0);
+        DevolucionBarrilEntity devolucion = crearDevolucionEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito", barril);
+        when(devolucionBarrilRepository.findById(1L)).thenReturn(Optional.of(devolucion));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(barril));
+        when(devolucionBarrilRepository.save(devolucion)).thenReturn(devolucion);
+
+        // === EJECUCION ===
+        devolucionBarrilServicio.anularDevolucionBarril(1L, anulacionFormDTO("Devolución cargada por error"));
+
+        // === ASSERTS ===
+        assertThat(barril.getContenidoActual()).isEqualTo(12.0);
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DESPACHADO);
     }
 
     @Test

@@ -52,6 +52,22 @@ class MapperEnvasadoLoteTest {
         assertThat(MapperEnvasadoLote.toDTO(null)).isNull();
     }
 
+    @Test
+    @DisplayName("CP-MEL-04: toDTO informa la fecha y hora del envasado y, aparte, la fecha de registro de la auditoría")
+    void toDTO_debeInformarLaFechaDelEnvasadoYLaDeRegistro() {
+        // === PREPARACION DE DATOS ===
+        EnvasadoLoteEntity envasado = envasado(EstadoTransaccion.REGISTRADO);
+        envasado.setFechaEnvasado(LocalDateTime.of(2027, 7, 1, 9, 50));
+        envasado.setCreatedDate(LocalDateTime.of(2027, 7, 1, 10, 15));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = MapperEnvasadoLote.toDTO(envasado);
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaEnvasado()).isEqualTo(LocalDateTime.of(2027, 7, 1, 9, 50));
+        assertThat(resultado.getFechaRegistro()).isEqualTo(LocalDateTime.of(2027, 7, 1, 10, 15));
+    }
+
     private static EnvasadoLoteEntity envasado(EstadoTransaccion estado) {
         EnvasadoLoteEntity envasado = new EnvasadoLoteEntity();
         envasado.setId(4L);

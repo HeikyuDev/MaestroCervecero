@@ -232,7 +232,7 @@
                 <tr>
                     <th class="px-3 py-3">Barril</th>
                     <th class="px-3 py-3 whitespace-nowrap">Cantidad (L)</th>
-                    <th class="px-3 py-3 whitespace-nowrap">Fecha</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Fecha y hora</th>
                     <th class="px-3 py-3">Estado</th>
                     <th class="col-acciones px-3 py-3 text-right whitespace-nowrap">Acciones</th>
                 </tr>
@@ -241,7 +241,7 @@
                 <tr th:each="e : ${envasados}" class="hover:bg-slate-50" th:classappend="${e.estado.name() == 'ANULADO'} ? 'opacity-60'">
                     <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificadorInterno}">BRL-01</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${e.cantidadEnvasada})}"></th:block></td>
-                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaRegistro})}"></th:block></td>
+                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaEnvasado})}"></th:block></td>
                     <td class="px-3 py-3 whitespace-nowrap">
                         <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
                     </td>

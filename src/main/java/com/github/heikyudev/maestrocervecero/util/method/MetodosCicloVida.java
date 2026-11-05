@@ -46,8 +46,22 @@ public class MetodosCicloVida {
      * @throws ReglaNegocioException Si alguna de las fechas dadas es posterior o igual a {@code fechaNuevaOperacion}.
      */
     public static void validarFechaPosteriorAUltimaOperacion(LocalDateTime fechaNuevaOperacion, String nombreEntidad, LocalDateTime... fechasOperacionesExistentes) {
+        validarFechaPosteriorAUltimaOperacion(fechaNuevaOperacion, nombreEntidad, null, fechasOperacionesExistentes);
+    }
+
+    /**
+     * Igual que {@link #validarFechaPosteriorAUltimaOperacion(LocalDateTime, String, LocalDateTime...)}, pero el
+     * rechazo indica el campo del formulario al que se refiere la fecha, para que la capa web pueda marcarlo.
+     *
+     * @param fechaNuevaOperacion Fecha de la operación que se quiere registrar.
+     * @param nombreEntidad Nombre de la entidad asociada ("barril" o "equipamiento"), usado en el mensaje de error.
+     * @param campo Nombre del campo del formulario que contiene la fecha, o {@code null}.
+     * @param fechasOperacionesExistentes Fecha de la última operación registrada de cada uno de los tipos del ciclo de vida (cualquiera puede ser {@code null} si esa entidad nunca tuvo una).
+     * @throws ReglaNegocioException Si alguna de las fechas dadas es posterior o igual a {@code fechaNuevaOperacion}.
+     */
+    public static void validarFechaPosteriorAUltimaOperacion(LocalDateTime fechaNuevaOperacion, String nombreEntidad, String campo, LocalDateTime... fechasOperacionesExistentes) {
         if (hayFechaPosteriorOIgual(fechaNuevaOperacion, fechasOperacionesExistentes)) {
-            throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la última operación registrada sobre este " + nombreEntidad);
+            throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la última operación registrada sobre este " + nombreEntidad, campo);
         }
     }
 
@@ -64,8 +78,20 @@ public class MetodosCicloVida {
      * @throws ReglaNegocioException Si la fecha es posterior a la fecha y hora actual.
      */
     public static void validarFechaNoFutura(LocalDateTime fechaNuevaOperacion) {
+        validarFechaNoFutura(fechaNuevaOperacion, null);
+    }
+
+    /**
+     * Igual que {@link #validarFechaNoFutura(LocalDateTime)}, pero el rechazo indica el campo del formulario al que se
+     * refiere la fecha, para que la capa web pueda marcarlo.
+     *
+     * @param fechaNuevaOperacion Fecha de la operación que se quiere registrar.
+     * @param campo Nombre del campo del formulario que contiene la fecha, o {@code null}.
+     * @throws ReglaNegocioException Si la fecha es posterior a la fecha y hora actual.
+     */
+    public static void validarFechaNoFutura(LocalDateTime fechaNuevaOperacion, String campo) {
         if (fechaNuevaOperacion.isAfter(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+            throw new ReglaNegocioException("La fecha de esta operación no puede ser posterior a la fecha y hora actual", campo);
         }
     }
 

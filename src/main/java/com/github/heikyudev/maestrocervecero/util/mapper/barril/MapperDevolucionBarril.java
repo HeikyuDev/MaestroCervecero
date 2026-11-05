@@ -28,6 +28,7 @@ public class MapperDevolucionBarril {
                 .estado(devolucionBarrilEntity.getEstado())
                 .fechaAnulacion(devolucionBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(devolucionBarrilEntity.getMotivoAnulacion())
+                .litrosDescartados(devolucionBarrilEntity.getLitrosDescartados())
                 .barril(MapperBarril.toDTO(devolucionBarrilEntity.getBarril()))
                 .build();
     }

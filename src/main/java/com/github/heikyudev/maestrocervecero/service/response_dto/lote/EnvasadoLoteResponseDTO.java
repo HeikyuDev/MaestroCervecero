@@ -30,6 +30,11 @@ public class EnvasadoLoteResponseDTO {
     private Double cantidadEnvasada;
 
     /**
+     * Fecha y hora del envasado: la fecha de participación del barril en el lote.
+     */
+    private LocalDateTime fechaEnvasado;
+
+    /**
      * Fecha de anulación del envasado. Nula salvo que haya sido anulado.
      */
     private LocalDateTime fechaAnulacion;

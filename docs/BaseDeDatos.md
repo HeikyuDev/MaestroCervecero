@@ -370,6 +370,18 @@ El identificador interno del lote de producción (por ejemplo `LOT-R7-03`, con e
 `lote.escalado_lote_id` (única, nula solo en los lotes registrados sin instantánea) referencia la fila de `escalado_lote`. Un lote sin
 instantánea calcula con los valores vigentes de los equipos y los insumos.
 
+### Estado En uso del barril, fecha del envasado y litros descartados
+
+`V18__estado_en_uso_barril_fecha_envasado_y_litros_descartados.sql`:
+
+| Tabla y columna | Cambio |
+|---|---|
+| `barril.estado_operativo` | La restricción `ck_barril_estado_operativo` admite `CON_CERVEZA`, `DESPACHADO`, `DISPONIBLE`, `EN_LIMPIEZA`, `EN_MANTENIMIENTO` y `EN_USO` (el barril está siendo llenado por un lote en ejecución) |
+| `envasado_lote.fecha_envasado` | `timestamp(6)` obligatoria: la fecha y hora del envasado, que es la fecha de participación del barril en el lote |
+| `devolucion_barril.litros_descartados` | `double precision` obligatoria, con valor por defecto 0: los litros que tenía el barril al volver y que se descartaron al registrar la devolución |
+
+Con los datos existentes, `fecha_envasado` toma la fecha de registro del envasado (`created_date`) y, si falta, el inicio de su etapa o la última modificación del registro; `litros_descartados` queda en 0; y los barriles `CON_CERVEZA` que conservan el contenido de un envasado registrado de un lote en ejecución, sin operaciones posteriores, pasan a `EN_USO`.
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta

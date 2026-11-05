@@ -62,6 +62,7 @@ public class BarrilEntity extends AuditableEntity<String> {
      * - DISPONIBLE: El barril está vacío y listo para ser utilizado.
      * - EN_LIMPIEZA: El barril se encuentra en proceso de limpieza.
      * - EN_MANTENIMIENTO: El barril está en proceso de mantenimiento y no puede ser utilizado hasta que se complete el mantenimiento.
+     * - EN_USO: El barril está siendo llenado por un lote en ejecución y no admite operaciones hasta que el lote se finalice.
      */
     @Column(name = "estado_operativo",nullable = false)
     @Enumerated(EnumType.STRING)

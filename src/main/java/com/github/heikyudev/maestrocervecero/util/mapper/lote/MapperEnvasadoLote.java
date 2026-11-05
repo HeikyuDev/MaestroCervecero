@@ -26,6 +26,7 @@ public class MapperEnvasadoLote {
         return EnvasadoLoteResponseDTO.builder()
                 .id(envasadoLoteEntity.getId())
                 .cantidadEnvasada(envasadoLoteEntity.getCantidadEnvasada())
+                .fechaEnvasado(envasadoLoteEntity.getFechaEnvasado())
                 .fechaRegistro(envasadoLoteEntity.getCreatedDate())
                 .fechaAnulacion(envasadoLoteEntity.getFechaAnulacion())
                 .motivoAnulacion(envasadoLoteEntity.getMotivoAnulacion())

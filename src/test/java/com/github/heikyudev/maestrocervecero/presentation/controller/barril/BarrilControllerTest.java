@@ -181,6 +181,7 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString(">Disponible<")))
                 .andExpect(content().string(containsString(">En limpieza<")))
                 .andExpect(content().string(containsString(">En mantenimiento<")))
+                .andExpect(content().string(containsString(">En uso<")))
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"CON_CERVEZA\"[^>]*selected.*")));
         mockMvc.perform(get("/barriles").param("estadoOperativo", "")).andExpect(status().isOk());
 

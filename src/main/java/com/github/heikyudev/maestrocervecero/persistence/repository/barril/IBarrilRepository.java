@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -137,4 +138,22 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM BarrilEntity b WHERE b.id = :id AND b.estado = 'ACTIVO'")
     Optional<BarrilEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
+
+    /**
+     * Busca, bloqueándolos para escritura y en una única consulta, los barriles con un envasado
+     * {@code REGISTRADO} en alguna etapa del lote indicado, ordenados por ID ascendente.
+     * <p>
+     * Se usa al finalizar el envasado del lote, para pasar sus barriles de {@code EN_USO} a
+     * {@code CON_CERVEZA}. Los barriles se bloquean siempre después del lote, y entre sí por ID ascendente,
+     * para que dos transacciones nunca se esperen mutuamente.
+     * </p>
+     *
+     * @param idLote El ID del lote.
+     * @return Los barriles activos con un envasado registrado del lote, o una lista vacía si no hay ninguno.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM BarrilEntity b WHERE b.estado = 'ACTIVO' AND b.id IN ("
+            + "SELECT e.barril.id FROM EnvasadoLoteEntity e WHERE e.etapaLote.lote.id = :idLote "
+            + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO) ORDER BY b.id")
+    List<BarrilEntity> buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(@Param("idLote") Long idLote);
 }

@@ -73,12 +73,14 @@ class FormDTOsLoteValidacionTest {
     }
 
     @Test
-    @DisplayName("CP-FDL-04: RegistrarEnvasadoLoteFormDTO sin datos informa el barril y la cantidad a envasar como obligatorios")
+    @DisplayName("CP-FDL-04: RegistrarEnvasadoLoteFormDTO sin datos informa el barril, la cantidad a envasar y la fecha y hora del envasado como obligatorios")
     void registrarEnvasadoLoteFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new RegistrarEnvasadoLoteFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La cantidad a envasar es obligatoria");
-        assertThat(validator.validate(RegistrarEnvasadoLoteFormDTO.builder().idBarril(1L).cantidad(30.0).build())).isEmpty();
+                "La cantidad a envasar es obligatoria",
+                "La fecha y hora del envasado es obligatoria");
+        assertThat(validator.validate(RegistrarEnvasadoLoteFormDTO.builder().idBarril(1L).cantidad(30.0)
+                .fechaEnvasado(java.time.LocalDateTime.of(2026, 1, 15, 10, 0)).build())).isEmpty();
     }
 
     // ==================== motivos ====================

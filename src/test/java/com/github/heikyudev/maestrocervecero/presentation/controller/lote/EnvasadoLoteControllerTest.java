@@ -83,6 +83,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, ControllerAdvices.class})
 class EnvasadoLoteControllerTest {
 
+    private static final String FECHA_ENVASADO = "2026-01-15T10:00";
     private static final String URL_PANTALLA = "/lotes/12/envasados";
     private static final String URL_BUSCADOR = URL_PANTALLA + "/buscador/barriles";
     private static final String ALERTA_EXITO = "bg-teal-50 border-teal-200 text-teal-800";
@@ -225,9 +226,12 @@ class EnvasadoLoteControllerTest {
         assertThat(registrar).contains("name=\"_csrf\"").contains("data-selector-buscar").contains("bi-list-ul")
                 .contains("data-buscador-url=\"" + URL_BUSCADOR + "\"").contains("placeholder=\"Seleccione barril\"")
                 .contains("name=\"idBarril\"").contains("name=\"cantidad\"").contains("placeholder=\"Ej: 50\"")
+                .contains("type=\"datetime-local\"").contains("name=\"fechaEnvasado\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select");
-        assertThat(texto(registrar)).contains("Barril *", "Cantidad a envasar (L) *", "Nuevo envasado", "Crear envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(3);
+        assertThat(texto(registrar)).contains("Barril *", "Cantidad a envasar (L) *", "Fecha y hora del envasado *", "Nuevo envasado", "Crear envasado");
+        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(4);
+        assertThat(registrar.indexOf("name=\"idBarril\"")).isLessThan(registrar.indexOf("name=\"cantidad\""));
+        assertThat(registrar.indexOf("name=\"cantidad\"")).isLessThan(registrar.indexOf("name=\"fechaEnvasado\""));
         assertThat(textoDelSelector(registrar, "Seleccione barril")).isEmpty();
     }
 
@@ -240,13 +244,14 @@ class EnvasadoLoteControllerTest {
 
         // Assert
         assertThat(IntStream.of(10, 9, 8, 7).map(id -> registrados.indexOf("data-envasado=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
-        assertThat(texto(registrados)).contains("Barril", "Cantidad (L)", "Fecha de registro", "Estado");
-        assertThat(celdas(anulado, "B-004")).containsExactly("B-004", "30", "01/07/2027 10:15", "Anulado", "");
+        assertThat(texto(registrados)).contains("Barril", "Cantidad (L)", "Fecha y hora", "Estado");
+        assertThat(texto(registrados)).doesNotContain("Fecha de registro");
+        assertThat(celdas(anulado, "B-004")).containsExactly("B-004", "30", "01/07/2027 09:50", "Anulado", "");
         assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url").doesNotContain("Barril equivocado</").contains("data-detalle-anulacion")
                 .contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-usuario=\"operario\"").contains("data-detalle-fecha=\"02/07/2027 09:30\"").contains("aria-label=\"Ver detalle de la anulación\"");
-        assertThat(celdas(registrados, "B-003")).containsExactly("B-003", "20", "01/07/2027 10:15", "Registrado", "Anular");
-        assertThat(celdas(registrados, "B-002")).containsExactly("B-002", "50", "01/07/2027 10:15", "Registrado", "Anular");
-        assertThat(celdas(registrados, "B-001")).containsExactly("B-001", "50", "01/07/2027 10:15", "Registrado", "Anular");
+        assertThat(celdas(registrados, "B-003")).containsExactly("B-003", "20", "01/07/2027 09:50", "Registrado", "Anular");
+        assertThat(celdas(registrados, "B-002")).containsExactly("B-002", "50", "01/07/2027 09:50", "Registrado", "Anular");
+        assertThat(celdas(registrados, "B-001")).containsExactly("B-001", "50", "01/07/2027 09:50", "Registrado", "Anular");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(envasadoLoteServicio).filtrarEnvasadosLote(eq(ETAPA_ENVASADO), isNull(), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
@@ -405,16 +410,17 @@ class EnvasadoLoteControllerTest {
         verify(envasadoLoteServicio).registrarEnvasadoLote(eq(ETAPA_ENVASADO), form.capture());
         assertThat(form.getValue().getIdBarril()).isEqualTo(3L);
         assertThat(form.getValue().getCantidad()).isEqualTo(50.0);
+        assertThat(form.getValue().getFechaEnvasado()).isEqualTo(LocalDateTime.of(2026, 1, 15, 10, 0));
     }
 
     @Test
     @DisplayName("CP-LEN-17: el formulario vacío redirige a la pantalla (Post-Redirect-Get) que se muestra completa con el resumen de errores y no invoca al service de registro")
     void registrar_formularioVacio() throws Exception {
         // Act
-        String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null));
+        String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null, null));
 
         // Assert
-        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria");
+        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria", "La fecha y hora del envasado es obligatoria");
         assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
         assertThat(texto(bloque(html, "data-indicador-envasado"))).contains("120 L de 330 L");
         verify(envasadoLoteServicio, never()).registrarEnvasadoLote(any(), any());
@@ -528,7 +534,7 @@ class EnvasadoLoteControllerTest {
     @DisplayName("CP-LEN-26: registrar sin token CSRF es rechazado (redirige) y no llega al service")
     void registrar_sinCsrf() throws Exception {
         // Act + Assert
-        mockMvc.perform(post(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idBarril", "3").param("cantidad", "50"))
+        mockMvc.perform(post(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idBarril", "3").param("cantidad", "50").param("fechaEnvasado", FECHA_ENVASADO))
                 .andExpect(status().is3xxRedirection());
         verifyNingunService();
     }
@@ -822,6 +828,44 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
+    @DisplayName("CP-LEN-52: sin fecha y hora del envasado muestra La fecha y hora del envasado es obligatoria debajo del campo, conserva el barril y la cantidad y no invoca al service de registro")
+    void registrar_sinFechaYHora() throws Exception {
+        // Act
+        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50", null)), "data-registrar-envasado");
+
+        // Assert
+        assertThat(texto(registrar)).contains("La fecha y hora del envasado es obligatoria");
+        assertThat(campo(registrar, "cantidad")).isEqualTo("50");
+        assertThat(campo(registrar, "idBarril")).isEqualTo("3");
+        verify(envasadoLoteServicio, never()).registrarEnvasadoLote(any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LEN-53: un rechazo del service sobre la fecha (campo fechaEnvasado) vuelve a la pantalla con el error debajo del campo y lo escrito, sin alerta amarilla")
+    void registrar_rechazoDelServiceEnElCampoFecha() throws Exception {
+        // Arrange
+        when(envasadoLoteServicio.registrarEnvasadoLote(any(), any()))
+                .thenThrow(new ReglaNegocioException("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote", "fechaEnvasado"));
+
+        // Act
+        MvcResult rechazado = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL_PANTALLA))
+                .andExpect(flash().attributeCount(2))
+                .andReturn();
+        String html = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(rechazado.getFlashMap()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String registrar = bloque(html, "data-registrar-envasado");
+
+        // Assert
+        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote");
+        assertThat(texto(registrar)).contains("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote");
+        assertThat(campo(registrar, "fechaEnvasado")).isEqualTo("2026-01-15T10:00:00");
+        assertThat(campo(registrar, "cantidad")).isEqualTo("50");
+        assertThat(campo(registrar, "idBarril")).isEqualTo("3");
+    }
+
+    @Test
     @DisplayName("CP-LEN-51: un valor de la URL que no se puede convertir (lote, envasado o página) en una pantalla redirige con la alerta amarilla El valor indicado no es válido y en el buscador responde 400 con el mensaje")
     void transversal_valoresInvalidosEnLaUrl() throws Exception {
         // Act + Assert: las pantallas vuelven al origen con un aviso, sin error inesperado
@@ -858,8 +902,8 @@ class EnvasadoLoteControllerTest {
 
         // Assert
         String registrar = bloque(paginas.get(0), "data-registrar-envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(3);
-        assertThat(registrar).contains("placeholder=\"Seleccione barril\"").contains("placeholder=\"Ej: 50\"");
+        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(4);
+        assertThat(registrar).contains("placeholder=\"Seleccione barril\"").contains("placeholder=\"Ej: 50\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"");
         assertThat(texto(registrar)).contains("Cantidad a envasar (L) *");
         assertThat(texto(bloque(paginas.get(0), "data-envasados-registrados"))).contains("Cantidad (L)");
         Pattern alerta = Pattern.compile("(?s)role=\"alert\"[^>]*>(.*?)</div>");
@@ -879,7 +923,7 @@ class EnvasadoLoteControllerTest {
         // Arrange
         List<EndpointDeEnvasado> endpoints = List.of(
                 new EndpointDeEnvasado("GET pantalla", Permiso.ENVASADO_CONSULTAR, () -> get(URL_PANTALLA)),
-                new EndpointDeEnvasado("POST registrar", Permiso.ENVASADO_REGISTRAR, () -> post(URL_PANTALLA).param("idBarril", "3").param("cantidad", "50")),
+                new EndpointDeEnvasado("POST registrar", Permiso.ENVASADO_REGISTRAR, () -> post(URL_PANTALLA).param("idBarril", "3").param("cantidad", "50").param("fechaEnvasado", FECHA_ENVASADO)),
                 new EndpointDeEnvasado("POST anular", Permiso.ENVASADO_ANULAR, () -> post(URL_PANTALLA + "/9/anular").param("motivo", "Error de carga")),
                 new EndpointDeEnvasado("GET buscador", Permiso.ENVASADO_REGISTRAR, () -> get(URL_BUSCADOR)));
         List<Permiso> permisosRelacionados = Arrays.stream(Permiso.values())
@@ -943,7 +987,14 @@ class EnvasadoLoteControllerTest {
     }
 
     private static MockHttpServletRequestBuilder postRegistrar(RequestPostProcessor usuario, String idBarril, String cantidad) {
+        return postRegistrar(usuario, idBarril, cantidad, FECHA_ENVASADO);
+    }
+
+    private static MockHttpServletRequestBuilder postRegistrar(RequestPostProcessor usuario, String idBarril, String cantidad, String fechaEnvasado) {
         MockHttpServletRequestBuilder peticion = post(URL_PANTALLA).with(usuario).with(csrf());
+        if (fechaEnvasado != null) {
+            peticion.param("fechaEnvasado", fechaEnvasado);
+        }
         if (idBarril != null) {
             peticion.param("idBarril", idBarril);
         }
@@ -1078,7 +1129,7 @@ class EnvasadoLoteControllerTest {
     private static EnvasadoLoteResponseDTO envasado(Long id, Long idEtapa, String barril, double cantidad, EstadoTransaccion estado, String motivo) {
         return EnvasadoLoteResponseDTO.builder().id(id).cantidadEnvasada(cantidad).estado(estado).motivoAnulacion(motivo)
                 .usuarioAnulacion(motivo != null ? "operario" : null).fechaAnulacion(motivo != null ? LocalDateTime.of(2027, 7, 2, 9, 30) : null)
-                .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(idEtapa).build())
+                .fechaEnvasado(LocalDateTime.of(2027, 7, 1, 9, 50)).fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(idEtapa).build())
                 .barril(BarrilResponseDTO.builder().id(id + 100).identificadorInterno(barril).build()).build();
     }
 

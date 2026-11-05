@@ -42,16 +42,13 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
                                                    Pageable pageable);
 
     /**
-     * Busca la fecha del último envasado registrado de un barril determinado.
-     * <p>
-     * El envasado no tiene una fecha de negocio propia distinta a cuándo se registró (no admite
-     * carga retroactiva), así que se usa {@code createdDate} como su fecha efectiva.
-     * </p>
+     * Busca la fecha del último envasado registrado de un barril determinado, es decir, la
+     * mayor {@code fechaEnvasado} entre sus envasados {@code REGISTRADO}.
      *
      * @param idBarril El ID del barril cuyo último envasado se quiere buscar.
      * @return La fecha del último envasado registrado del barril, o {@link Optional#empty()} si nunca tuvo uno.
      */
-    @Query("SELECT MAX(e.createdDate) FROM EnvasadoLoteEntity e WHERE e.barril.id = :idBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
+    @Query("SELECT MAX(e.fechaEnvasado) FROM EnvasadoLoteEntity e WHERE e.barril.id = :idBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
     Optional<LocalDateTime> buscarFechaUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
 
     /**

@@ -26,6 +26,12 @@ public class EnvasadoLoteEntity extends AuditableEntity<String> {
     @Column(name = "cantidad_envasada", nullable = false)
     private Double cantidadEnvasada;
 
+    /**
+     * Fecha y hora del envasado: la fecha de participación del barril en el lote.
+     */
+    @Column(name = "fecha_envasado", nullable = false)
+    private LocalDateTime fechaEnvasado;
+
     @Column(name = "fecha_anulacion")
     private LocalDateTime fechaAnulacion;
 

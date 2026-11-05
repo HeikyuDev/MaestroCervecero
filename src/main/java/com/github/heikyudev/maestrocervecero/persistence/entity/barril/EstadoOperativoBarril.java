@@ -29,7 +29,12 @@ public enum EstadoOperativoBarril {
     /***
      * El barril esta en proceso de mantenimiento, no puede ser utilizado hasta que se complete el mantenimiento.
      */
-    EN_MANTENIMIENTO("En mantenimiento");
+    EN_MANTENIMIENTO("En mantenimiento"),
+
+    /**
+     * El barril está siendo llenado por un lote en ejecución y no admite operaciones hasta que el lote se finalice.
+     */
+    EN_USO("En uso");
 
     /**
      * Nombre legible del estado, el que se muestra al usuario.

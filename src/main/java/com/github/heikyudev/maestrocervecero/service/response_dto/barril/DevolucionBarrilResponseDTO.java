@@ -48,6 +48,11 @@ public class DevolucionBarrilResponseDTO {
     private String motivoAnulacion;
 
     /**
+     * Litros de cerveza que tenía el barril al volver y que se descartaron al registrar la devolución.
+     */
+    private Double litrosDescartados;
+
+    /**
      * Barril sobre el que se registró la devolución.
      */
     private BarrilResponseDTO barril;

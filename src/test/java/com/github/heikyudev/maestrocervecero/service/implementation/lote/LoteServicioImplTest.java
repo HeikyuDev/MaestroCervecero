@@ -45,6 +45,9 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEscaladoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
@@ -153,6 +156,8 @@ class LoteServicioImplTest {
     private IConsumoInsumoServicio consumoInsumoServicio;
     @Mock
     private IEnvasadoLoteRepository envasadoLoteRepository;
+    @Mock
+    private IBarrilRepository barrilRepository;
     @Mock
     private IEscaladoLoteRepository escaladoLoteRepository;
     @Mock
@@ -3332,6 +3337,60 @@ class LoteServicioImplTest {
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, consumoInsumoServicio, reservaInsumoRepository);
         verify(loteRepository).save(lote);
         assertThat(lote.getDetallesCostoDirecto()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-FE-22: finalizarEnvasado pasa los barriles envasados de EN_USO a CON_CERVEZA, bloqueándolos después del lote y del fermentador")
+    void finalizarEnvasado_debePasarLosBarrilesEnUsoAConCerveza() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, true)).thenReturn(lote);
+        mockearPlanificacionDelLoteSinCierre(lote);
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(30.0);
+        BarrilEntity primero = BarrilEntity.builder().id(7L).estadoOperativo(EstadoOperativoBarril.EN_USO).contenidoActual(20.0).build();
+        BarrilEntity segundo = BarrilEntity.builder().id(9L).estadoOperativo(EstadoOperativoBarril.EN_USO).contenidoActual(10.0).build();
+        when(barrilRepository.buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(1L)).thenReturn(List.of(primero, segundo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(primero.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
+        assertThat(segundo.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
+        assertThat(primero.getContenidoActual()).isEqualTo(20.0);
+        assertThat(segundo.getContenidoActual()).isEqualTo(10.0);
+        verify(barrilRepository).saveAll(List.of(primero, segundo));
+        InOrder orden = inOrder(ordenCanonicoDeBloqueo, fermentadorRepository, barrilRepository);
+        orden.verify(ordenCanonicoDeBloqueo).bloquearLote(1L, true);
+        orden.verify(fermentadorRepository).buscarPorIdParaCambiarEstadoOperativo(4L);
+        orden.verify(barrilRepository).buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(1L);
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+    }
+
+    @Test
+    @DisplayName("CP-FE-23: finalizarEnvasado no modifica los barriles que ya no están EN_USO ni falla cuando el lote no tiene barriles envasados")
+    void finalizarEnvasado_noDebeTocarLosBarrilesQueNoEstanEnUso() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, true)).thenReturn(lote);
+        mockearPlanificacionDelLoteSinCierre(lote);
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(30.0);
+        BarrilEntity yaConCerveza = BarrilEntity.builder().id(7L).estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).contenidoActual(20.0).build();
+        when(barrilRepository.buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(1L)).thenReturn(List.of(yaConCerveza));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(yaConCerveza.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
+        assertThat(yaConCerveza.getContenidoActual()).isEqualTo(20.0);
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
     }
 
     @Test

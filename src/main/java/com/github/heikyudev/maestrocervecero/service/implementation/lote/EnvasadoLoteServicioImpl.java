@@ -14,6 +14,12 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
@@ -26,6 +32,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLo
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ResumenEnvasadoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEnvasadoLote;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
@@ -50,6 +57,14 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     private final IEtapaLoteRepository etapaLoteRepository;
     private final ILoteRepository loteRepository;
     private final IBarrilRepository barrilRepository;
+    private final IFallaBarrilRepository fallaBarrilRepository;
+    private final IMantenimientoBarrilRepository mantenimientoBarrilRepository;
+    private final ILimpiezaBarrilRepository limpiezaBarrilRepository;
+    private final IDespachoBarrilRepository despachoBarrilRepository;
+    private final IDevolucionBarrilRepository devolucionBarrilRepository;
+    private final IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
+
+    private static final String CAMPO_FECHA_ENVASADO = "fechaEnvasado";
 
     /**
      * Filtra los envasados de lote de una etapa de lote puntual.
@@ -93,6 +108,16 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * dos envasados registrados en simultáneo sobre el mismo barril no deben poder pasar ambos.
      * </p>
      * <p>
+     * El barril pasa a {@code EN_USO} con la cantidad envasada como contenido: no admite otras operaciones hasta que el
+     * lote se finalice ({@code LoteServicioImpl#finalizarEnvasado}), momento en que pasa a {@code CON_CERVEZA}. La fecha
+     * y hora del envasado es la fecha de participación del barril en el lote: no puede ser futura, anterior al inicio de
+     * la etapa de Envasado ni igual o anterior a la última operación o envasado registrado del barril.
+     * </p>
+     * <p>
+     * Orden de locks: el lote (que en el orden canónico del módulo de lotes va después de la planificación, el
+     * fermentador y la cola pendiente) y, recién después, el barril. Los barriles van siempre después del lote.
+     * </p>
+     * <p>
      * El único tope del envasado, además de la capacidad del barril, es la capacidad útil del
      * fermentador del lote: el total envasado registrado de la etapa (lo ya registrado más esta
      * cantidad) no puede superarla. Sí se puede envasar más que el volumen objetivo, porque la
@@ -104,8 +129,11 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * @return El envasado registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el barril referenciados no existen.
      * @throws ReglaNegocioException Si no se informó el barril, si la cantidad a envasar no se informó,
-     *                               no es un número mayor a 0 o supera el máximo técnico (estas
-     *                               validaciones se hacen antes de consultar nada), si el lote no se
+     *                               no es un número mayor a 0 o supera el máximo técnico, si la fecha y hora del
+     *                               envasado no se informó o es posterior a la actual (estas
+     *                               validaciones se hacen antes de consultar nada), si la fecha es anterior al
+     *                               inicio de la etapa de Envasado o no es posterior a la última operación o
+     *                               envasado registrado del barril, si el lote no se
      *                               encuentra en estado EN_EJECUCION, si la etapa no está EN_CURSO,
      *                               si el tipo de etapa no admite registrar envasados, si el barril no
      *                               se encuentra en estado operativo DISPONIBLE, si la cantidad a
@@ -123,6 +151,11 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new ReglaNegocioException("El barril es obligatorio");
         }
         double cantidad = validarCantidadAEnvasar(registrarEnvasadoLoteFormDTO.getCantidad());
+        LocalDateTime fechaEnvasado = registrarEnvasadoLoteFormDTO.getFechaEnvasado();
+        if (fechaEnvasado == null) {
+            throw new ReglaNegocioException("La fecha y hora del envasado es obligatoria", CAMPO_FECHA_ENVASADO);
+        }
+        MetodosCicloVida.validarFechaNoFutura(fechaEnvasado, CAMPO_FECHA_ENVASADO);
 
         // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
         //    se bloquea para escritura antes de validarlo: no puede intercalarse con otro envasado, con la
@@ -133,6 +166,9 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaEnvasado(etapaLote, lote);
+        if (etapaLote.getFechaInicio() != null && fechaEnvasado.isBefore(etapaLote.getFechaInicio())) {
+            throw new ReglaNegocioException("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote", CAMPO_FECHA_ENVASADO);
+        }
 
         // 3. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
         BarrilEntity barril = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
@@ -143,14 +179,27 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new ReglaNegocioException("El barril debe encontrarse en estado operativo Disponible para poder envasar en él");
         }
 
-        // 5. Validar que la cantidad a envasar no supere la capacidad del barril seleccionado
+        // 5. Validar que la fecha del envasado sea posterior a la última operación o envasado registrado del barril
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                fechaEnvasado,
+                "barril",
+                CAMPO_FECHA_ENVASADO,
+                fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
+                mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
+                limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
+                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
+                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
+                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
+                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 6. Validar que la cantidad a envasar no supere la capacidad del barril seleccionado
         double capacidadBarril = Redondeo.redondear(barril.getCapacidad());
         if (cantidad > capacidadBarril) {
             throw new ReglaNegocioException("La cantidad a envasar no puede superar la capacidad del barril seleccionado ("
                     + ValidacionesNumericas.formatearNumero(capacidadBarril) + " L)");
         }
 
-        // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no supere la
+        // 7. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no supere la
         //    capacidad útil del fermentador del lote. Es el único tope: se puede envasar más que el volumen objetivo
         double capacidadUtilFermentador = Redondeo.redondear(obtenerCapacidadUtilFermentador(etapaLote, lote));
         double totalEnvasadoPrevio = Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote));
@@ -160,14 +209,15 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
                     + ValidacionesNumericas.formatearNumero(disponibleParaEnvasar) + " L disponibles para envasar)");
         }
 
-        // 7. El barril pasa a contener la cerveza envasada
-        barril.setEstadoOperativo(EstadoOperativoBarril.CON_CERVEZA);
+        // 8. El barril pasa a contener la cerveza envasada y queda En uso hasta que el lote se finalice
+        barril.setEstadoOperativo(EstadoOperativoBarril.EN_USO);
         barril.setContenidoActual(cantidad);
         barrilRepository.save(barril);
 
-        // 8. Registrar el envasado y persistir
+        // 9. Registrar el envasado y persistir
         EnvasadoLoteEntity envasadoLote = EnvasadoLoteEntity.builder()
                 .cantidadEnvasada(cantidad)
+                .fechaEnvasado(fechaEnvasado)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .etapaLote(etapaLote)
                 .barril(barril)
@@ -178,7 +228,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
     /**
      * Anula un envasado de lote existente, revirtiendo el traspaso: el barril vuelve a estar
-     * vacío y disponible.
+     * vacío y disponible. Solo procede mientras el barril sigue {@code EN_USO}, es decir, con el lote en ejecución.
      * <p>
      * El barril se busca bloqueado para escritura ({@code buscarPorIdParaCambiarEstadoOperativo}),
      * por el mismo motivo de concurrencia que en {@code registrarEnvasadoLote}.
@@ -191,8 +241,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el envasado no
      *                               se encuentra en estado REGISTRADO, si el lote asociado no se
      *                               encuentra en estado EN_EJECUCION, o si el barril asociado ya
-     *                               no mantiene su contenido intacto (por ejemplo, porque ya fue
-     *                               despachado o limpiado por otra operación).
+     *                               no se encuentra En uso con su contenido intacto.
      */
     @Override
     @Transactional
@@ -227,7 +276,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         BarrilEntity barril = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(envasadoLote.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + envasadoLote.getBarril().getId()));
 
-        if (barril.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA
+        if (barril.getEstadoOperativo() != EstadoOperativoBarril.EN_USO
                 || !barril.getContenidoActual().equals(envasadoLote.getCantidadEnvasada())) {
             throw new ReglaNegocioException("No se puede anular el envasado porque el barril asociado ya no mantiene su contenido intacto");
         }

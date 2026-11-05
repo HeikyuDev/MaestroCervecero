@@ -87,7 +87,9 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
      * Registra una nueva devolución de barril.
      * <p>
      * Deja al barril afectado en estado operativo {@code EN_LIMPIEZA}: todo barril que vuelve de
-     * afuera pasa por limpieza, por motivos sanitarios, sin importar su contenido restante.
+     * afuera pasa por limpieza, por motivos sanitarios. Su contenido se descarta (el cliente pudo
+     * manipularlo): el barril queda con contenido 0 y los litros descartados se guardan en la
+     * devolución para poder restituirlos al anularla.
      * </p>
      * <p>
      * {@code DevolucionBarrilEntity} no tiene una relación directa con el despacho al que
@@ -147,7 +149,9 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
                 fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
-        // 7. Cambiar el estado operativo del barril a EN_LIMPIEZA y persistirlo
+        // 7. Descartar el contenido del barril y cambiar su estado operativo a EN_LIMPIEZA
+        double litrosDescartados = barrilEntity.getContenidoActual();
+        barrilEntity.setContenidoActual(0.0);
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.EN_LIMPIEZA);
         barrilRepository.save(barrilEntity);
 
@@ -155,6 +159,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         DevolucionBarrilEntity devolucionBarrilEntity = DevolucionBarrilEntity.builder()
                 .fecha(devolucionBarrilFormDTO.getFechaDevolucion())
                 .observaciones(observaciones)
+                .litrosDescartados(litrosDescartados)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .build();
@@ -165,9 +170,9 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
     /**
      * Anula una devolución de barril existente.
      * <p>
-     * Restablece al barril afectado a estado operativo {@code DESPACHADO}: solo procede si ese
-     * barril todavía se encuentra en {@code EN_LIMPIEZA}, para garantizar que la transición de
-     * vuelta sea coherente.
+     * Restablece al barril afectado a estado operativo {@code DESPACHADO} y le restituye el
+     * contenido descartado por la devolución: solo procede si ese barril todavía se encuentra en
+     * {@code EN_LIMPIEZA}, para garantizar que la transición de vuelta sea coherente.
      * </p>
      *
      * @param id El ID de la devolución de barril a anular.
@@ -219,7 +224,8 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
             throw new ReglaNegocioException("Solo se puede anular una devolución cuyo barril asociado se encuentre en estado operativo En limpieza");
         }
 
-        // 6. Restablecer el estado operativo del barril a DESPACHADO y persistirlo
+        // 6. Restablecer el estado operativo del barril a DESPACHADO, restituyendo el contenido descartado (se suman al contenido actual del barril)
+        barrilEntity.setContenidoActual(barrilEntity.getContenidoActual() + devolucionBarrilEntity.getLitrosDescartados());
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DESPACHADO);
         barrilRepository.save(barrilEntity);
 
