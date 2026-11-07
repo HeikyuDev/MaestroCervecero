@@ -7,12 +7,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOpe
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.FallaBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionFallaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.FallaBarrilFormDTO;
@@ -23,9 +19,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IFallaBar
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.FallaBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperFallaBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
-import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,11 +32,7 @@ import java.time.LocalDateTime;
 public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
 
     private final IFallaBarrilRepository fallaBarrilRepository;
-    private final IMantenimientoBarrilRepository mantenimientoBarrilRepository;
-    private final ILimpiezaBarrilRepository limpiezaBarrilRepository;
-    private final IDespachoBarrilRepository despachoBarrilRepository;
-    private final IDevolucionBarrilRepository devolucionBarrilRepository;
-    private final IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
+    private final IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IBarrilRepository barrilRepository;
 
@@ -88,10 +77,14 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
      * Deja al barril afectado en estado operativo {@code EN_MANTENIMIENTO}: mientras la falla
      * siga registrada, el barril no puede volver a asignarse a un envasado.
      * </p>
+     * <p>
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su última operación y
+     * su último envasado. Es el único lock de la operación.
+     * </p>
      *
      * @param fallaBarrilFormDTO Los datos de la falla a registrar.
      * @return La falla de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si la fecha de falla no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si la fecha de falla no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el barril no se encuentra en estado operativo {@code DISPONIBLE}, o si la fecha no es posterior a la última operación registrada ni al último envasado del barril.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -99,43 +92,32 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.FALLA_BARRIL)
     public FallaBarrilResponseDTO registrarFallaBarril(FallaBarrilFormDTO fallaBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de falla
-        if (fallaBarrilFormDTO.getFechaFalla() == null) {
-            throw new ReglaNegocioException("La fecha de falla es obligatoria");
+        if (fallaBarrilFormDTO.getFecha() == null) {
+            throw new ReglaNegocioException("La fecha de falla es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de falla no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(fallaBarrilFormDTO.getFechaFalla());
+        MetodosCicloVida.validarFechaNoFutura(fallaBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
 
-        // 3. Validar que se hayan informado las observaciones
-        String observaciones = NormalizacionTexto.nombrePropio(fallaBarrilFormDTO.getObservaciones());
-        if (observaciones == null || observaciones.isEmpty()) {
-            throw new ReglaNegocioException("Las observaciones son obligatorias");
-        }
-        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
-            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
-        }
+        // 3. Validar las observaciones
+        String observaciones = MetodosCicloVida.validarObservaciones(fallaBarrilFormDTO.getObservaciones());
 
-        // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = fallaBarrilFormDTO.getIdBarril();
-        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
         // 5. Validar que el barril se encuentre en estado operativo DISPONIBLE
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
-            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un barril en estado operativo Disponible");
+            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un barril en estado operativo Disponible", MetodosCicloVida.CAMPO_BARRIL);
         }
 
         // 6. Validar que la fecha de falla sea posterior a la última operación registrada sobre
         //    este barril, considerando también el último envasado que lo cargó
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                fallaBarrilFormDTO.getFechaFalla(),
+                fallaBarrilFormDTO.getFecha(),
                 "barril",
-                fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
-                mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
-                limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
-                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
-                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
-                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
+                MetodosCicloVida.CAMPO_FECHA,
+                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
         // 7. Cambiar el estado operativo del barril a EN_MANTENIMIENTO y persistirlo
@@ -144,7 +126,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
 
         // 8. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaBarrilEntity fallaBarrilEntity = FallaBarrilEntity.builder()
-                .fecha(fallaBarrilFormDTO.getFechaFalla())
+                .fecha(fallaBarrilFormDTO.getFecha())
                 .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -156,65 +138,69 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
     /**
      * Anula una falla de barril existente.
      * <p>
-     * Restablece al barril afectado a estado operativo {@code DISPONIBLE}: solo procede si ese
-     * barril todavía se encuentra en {@code EN_MANTENIMIENTO}, para garantizar que la transición
-     * de vuelta sea coherente.
+     * Solo procede si es la última operación registrada del barril (la de mayor fecha, y a igual fecha la de mayor ID,
+     * entre sus limpiezas, fallas, mantenimientos, fraccionamientos, despachos y devoluciones), si el barril no está en uso por un lote y
+     * si es posterior al último envasado del barril. Restablece al barril afectado a estado
+     * operativo {@code DISPONIBLE}: solo procede si ese barril todavía se encuentra en {@code EN_MANTENIMIENTO}, para
+     * garantizar que la transición de vuelta sea coherente.
+     * </p>
+     * <p>
+     * Orden de locks: se bloquea primero el barril (el ID se resuelve con una consulta escalar, sin cargar la falla) y
+     * recién después se lee la falla y se verifica que sea la última. Es el único lock de la operación.
      * </p>
      *
      * @param id El ID de la falla de barril a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La falla de barril anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el barril, o si el barril asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si la falla de barril con el ID especificado no existe, o si el barril asociado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.FALLA_BARRIL)
     public FallaBarrilResponseDTO anularFallaBarril(Long id, AnulacionFallaBarrilFormDTO anulacionFormDTO) {
-        // 1. Validar que se haya informado el motivo de anulación
-        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
-        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
-            throw new ReglaNegocioException("El motivo de anulación es obligatorio");
-        }
-        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
+        // 1. Validar el motivo de anulación
+        String motivoAnulacion = MetodosCicloVida.validarMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
 
-        // 2. Localizar la falla de barril. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Resolver el barril de la falla sin cargarla y bloquearlo para escritura. Si la falla no existe, se
+        //    dispara RecursoNoEncontradoException
+        Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la falla de barril con ID: " + id));
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+
+        // 3. Localizar la falla, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         FallaBarrilEntity fallaBarrilEntity = fallaBarrilRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la falla de barril con ID: " + id));
 
-        // 3. Validar que la falla se encuentre en estado REGISTRADO
+        // 4. Validar que la falla se encuentre en estado REGISTRADO
         if (fallaBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
             throw new ReglaNegocioException("Solo se pueden anular fallas de barril en estado Registrado");
         }
 
-        // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
-        //    contra las 3 tablas del ciclo de vida (evita anular un registro viejo cuando una
-        //    operación posterior ya dejó al barril en un estado distinto)
-        Long idBarril = fallaBarrilEntity.getBarril().getId();
-        MetodosCicloVida.validarEsOperacionMasReciente(
-                fallaBarrilEntity.getFecha(),
-                "barril",
-                fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
-                mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
-                limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
-                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
-                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
-                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null));
+        // 5. Validar que sea la última operación registrada del barril (mayor fecha y, a igualdad, mayor ID)
+        MetodosCicloVida.validarEsLaUltimaOperacion(
+                fallaBarrilEntity.getId(),
+                operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(idBarril).orElse(null));
 
-        // 5. Localizar el barril asociado, bloqueado para escritura, y validar que se encuentre
-        //    en estado operativo EN_MANTENIMIENTO, para garantizar que la transición de vuelta a
-        //    DISPONIBLE sea coherente
-        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(fallaBarrilEntity.getBarril().getId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + fallaBarrilEntity.getBarril().getId()));
+        // 6. Validar que el barril no esté en uso por un lote
+        MetodosCicloVida.validarNoEstaEnUso(barrilEntity.getEstadoOperativo());
+
+        // 7. Validar que la falla sea posterior al último envasado del barril
+        MetodosCicloVida.validarPosteriorAlUltimoEnvasado(
+                fallaBarrilEntity.getFecha(),
+                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 8. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO, para garantizar que la
+        //    transición de vuelta a DISPONIBLE sea coherente
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo En mantenimiento");
         }
 
-        // 6. Restablecer el estado operativo del barril a DISPONIBLE y persistirlo
+        // 9. Restablecer el estado operativo del barril a DISPONIBLE y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DISPONIBLE);
         barrilRepository.save(barrilEntity);
 
-        // 7. Aplicar la anulación sobre la falla y persistirla
+        // 10. Aplicar la anulación sobre la falla y persistirla
         fallaBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         fallaBarrilEntity.setFechaAnulacion(LocalDateTime.now());
         fallaBarrilEntity.setMotivoAnulacion(motivoAnulacion);

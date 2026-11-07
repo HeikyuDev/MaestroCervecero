@@ -105,9 +105,18 @@ public final class ValidacionesNumericas {
      * @throws ReglaNegocioException Si el valor tiene más decimales que el máximo.
      */
     public static void validarMaximoDecimales(Double valor, int maxDecimales, String etiqueta) {
+        validarMaximoDecimales(valor, maxDecimales, etiqueta, null);
+    }
+
+    /**
+     * Igual que {@link #validarMaximoDecimales(Double, int, String)}, indicando en la excepción el campo del formulario afectado.
+     *
+     * @param campo Nombre del campo del formulario, o {@code null}.
+     */
+    public static void validarMaximoDecimales(Double valor, int maxDecimales, String etiqueta, String campo) {
         if (esFinito(valor) && BigDecimal.valueOf(valor).stripTrailingZeros().scale() > maxDecimales) {
             throw new ReglaNegocioException(etiqueta + " no puede tener más de " + maxDecimales
-                    + (maxDecimales == 1 ? " decimal" : " decimales"));
+                    + (maxDecimales == 1 ? " decimal" : " decimales"), campo);
         }
     }
 

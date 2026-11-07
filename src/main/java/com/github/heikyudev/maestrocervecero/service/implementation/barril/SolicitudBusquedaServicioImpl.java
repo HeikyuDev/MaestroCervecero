@@ -2,9 +2,14 @@ package com.github.heikyudev.maestrocervecero.service.implementation.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.SolicitudBusquedaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -13,6 +18,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitudBusquedaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.SolicitudBusquedaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +35,8 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
 
     private final ISolicitudBusquedaRepository solicitudBusquedaRepository;
     private final IDespachoBarrilRepository despachoBarrilRepository;
+    private final IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
+    private final IBarrilRepository barrilRepository;
 
     /**
      * Filtra las solicitudes de búsqueda de barril, opcionalmente por despacho de barril, rango
@@ -69,10 +77,15 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
      * fecha de devolución estimada pactada en el despacho. Queda con {@code buscado = false} hasta
      * que efectivamente se realice la búsqueda.
      * </p>
+     * <p>
+     * Orden de locks: el ID del barril del despacho se resuelve con una consulta escalar, sin cargar el despacho, y
+     * lo primero que se bloquea (PESSIMISTIC_WRITE) es ese barril, antes de leer el despacho y validar su estado y el
+     * del barril. Es el único lock de la operación.
+     * </p>
      *
      * @param solicitudBusquedaFormDTO Los datos de la solicitud a registrar.
      * @return La solicitud de búsqueda registrada.
-     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, si es anterior a la fecha y hora actual, o si las observaciones superan los 255 caracteres.
+     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, si es anterior a la fecha y hora actual, si las observaciones superan los 255 caracteres, si el despacho no se encuentra en estado {@code REGISTRADO}, o si el barril ya no se encuentra en estado operativo {@code DESPACHADO}.
      * @throws RecursoNoEncontradoException Si el despacho de barril referenciado no existe.
      */
     @Override
@@ -98,12 +111,28 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
             throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
-        // 4. Localizar el despacho de barril. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Resolver el barril del despacho sin cargarlo y bloquearlo para escritura, con el mismo lock que usan
+        //    registrar y anular una operación del barril. Si el despacho no existe, se dispara RecursoNoEncontradoException
         Long idDespachoBarril = solicitudBusquedaFormDTO.getIdDespachoBarril();
+        Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(idDespachoBarril)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + idDespachoBarril));
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+
+        // 5. Localizar el despacho, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         DespachoBarrilEntity despachoBarrilEntity = despachoBarrilRepository.findById(idDespachoBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + idDespachoBarril));
 
-        // 5. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
+        // 6. Validar que el despacho se encuentre en estado REGISTRADO: sobre un despacho anulado no hay barril afuera
+        if (despachoBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
+            throw new ReglaNegocioException("Solo se puede registrar una solicitud de búsqueda sobre un despacho en estado Registrado");
+        }
+
+        // 7. Validar que el barril siga despachado: si ya fue devuelto no hay nada que buscar
+        if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
+            throw new ReglaNegocioException("Solo se puede registrar una solicitud de búsqueda sobre un barril despachado");
+        }
+
+        // 8. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
         SolicitudBusquedaEntity solicitudBusquedaEntity = SolicitudBusquedaEntity.builder()
                 .fechaBusqueda(solicitudBusquedaFormDTO.getFechaBusqueda())
                 .observaciones(observaciones)

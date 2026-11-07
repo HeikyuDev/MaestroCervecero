@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -232,5 +233,18 @@ class ValidacionesNumericasTest {
         assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(1.12345, 4, "El costo"))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El costo no puede tener más de 4 decimales");
+    }
+
+    @Test
+    @DisplayName("CP-VN-18: validarMaximoDecimales con campo indica ese campo en el rechazo y no lo indica sin campo")
+    void validarMaximoDecimales_debeIndicarElCampo() {
+        // Act & Assert
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad a extraer", "cantidadExtraida"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a extraer no puede tener más de 4 decimales")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("cantidadExtraida"));
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad a extraer"))
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isNull());
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(0.1234, 4, "La cantidad a extraer", "cantidadExtraida")).doesNotThrowAnyException();
     }
 }

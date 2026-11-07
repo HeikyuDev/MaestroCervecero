@@ -19,7 +19,9 @@ El rango de fecha de búsqueda es independiente por extremo (se puede acotar sol
 
 ### 3. `registrarSolicitudBusqueda(SolicitudBusquedaFormDTO solicitudBusquedaFormDTO)`
 
-La solicitud queda con `buscado = false` hasta que efectivamente se realice la búsqueda. `observaciones` es opcional (puede ser `null`).
+La solicitud queda con `buscado = false` hasta que efectivamente se realice la búsqueda. Solo se registra sobre un despacho `REGISTRADO` cuyo barril siga `DESPACHADO`. `observaciones` es opcional (puede ser `null`).
+
+Orden de validaciones y de locks: fecha de búsqueda obligatoria, fecha no anterior a la actual, observaciones; resolución del ID del barril del despacho con una consulta escalar (sin cargar el despacho); bloqueo del barril (`PESSIMISTIC_WRITE`, único lock de la operación); lectura del despacho; despacho `REGISTRADO`; barril `DESPACHADO`.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -31,3 +33,9 @@ La solicitud queda con `buscado = false` hasta que efectivamente se realice la b
 |**CP-RSB-06**|Observaciones de 256 caracteres|`idDespachoBarril: 1L`, `fechaBusqueda: ahora + 1 día`, `observaciones` de 256 caracteres|Las observaciones superan los 255 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones no pueden superar 255 caracteres"). No consulta el despacho ni persiste.|
 |**CP-RSB-07**|Normalización de las observaciones|`idDespachoBarril: 1L` (Existe), `fechaBusqueda: ahora + 1 día`, `observaciones: "   Horario   de la tarde  "`|El service recorta y colapsa los espacios antes de guardar|La solicitud se persiste con `observaciones = "Horario de la tarde"`.|
 |**CP-RSB-08**|Observaciones en blanco equivalen a no informadas|`idDespachoBarril: 1L` (Existe), `fechaBusqueda: ahora + 1 día`, `observaciones: "    "`|El texto normalizado queda vacío y se reemplaza por `null`|La solicitud se persiste con `observaciones = null`.|
+|**CP-RSB-09**|Despacho que no está en estado REGISTRADO|`idDespachoBarril: 1L` (Existe, `estado: ANULADO`), `fechaBusqueda: ahora + 1 día`|`despacho.estado != REGISTRADO` $
+ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una solicitud de búsqueda sobre un despacho en estado Registrado"). No ejecuta `save()`.|
+|**CP-RSB-10**|Barril que ya no está DESPACHADO|`idDespachoBarril: 1L` (Existe, `estado: REGISTRADO`, barril con `estadoOperativo: EN_LIMPIEZA`), `fechaBusqueda: ahora + 1 día`|`barril.estadoOperativo != DESPACHADO` $
+ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una solicitud de búsqueda sobre un barril despachado"). No ejecuta `save()`.|
+|**CP-RSB-11**|Barril del despacho no encontrado|`idDespachoBarril: 1L` (Existe, su barril es `5L`), `buscarPorIdParaCambiarEstadoOperativo(5L)` $ightarrow$ **Optional.empty()**|El barril no existe o está dado de baja|Lanza `RecursoNoEncontradoException` con campo `idBarril` ("No se encontró el barril con ID: 5"). No lee el despacho ni ejecuta `save()`.|
+|**CP-RSB-12**|Orden de llamadas: el barril se bloquea antes de leer el despacho|`idDespachoBarril: 1L` (Existe, `estado: REGISTRADO`, barril `DESPACHADO`), datos válidos|Orden de las consultas|Se invoca `buscarIdBarrilDeLaOperacion(1L)`, luego `buscarPorIdParaCambiarEstadoOperativo(1L)`, luego `findById(1L)` y finalmente `save` de la solicitud, en ese orden.|

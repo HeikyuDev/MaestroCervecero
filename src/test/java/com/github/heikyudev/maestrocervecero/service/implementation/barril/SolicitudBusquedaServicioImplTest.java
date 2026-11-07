@@ -8,7 +8,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.Solicitud
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.SolicitudBusquedaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -34,6 +37,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -46,6 +50,10 @@ class SolicitudBusquedaServicioImplTest {
     private ISolicitudBusquedaRepository solicitudBusquedaRepository;
     @Mock
     private IDespachoBarrilRepository despachoBarrilRepository;
+    @Mock
+    private IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
+    @Mock
+    private IBarrilRepository barrilRepository;
 
     @InjectMocks
     private SolicitudBusquedaServicioImpl solicitudBusquedaServicio;
@@ -206,13 +214,15 @@ class SolicitudBusquedaServicioImplTest {
     void registrar_debeRechazarDespachoInexistente() {
         // === PREPARACION DE DATOS ===
         SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(99L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
-        when(despachoBarrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el despacho de barril con ID: 99");
 
+        verifyNoInteractions(barrilRepository);
+        verify(despachoBarrilRepository, never()).findById(any());
         verify(solicitudBusquedaRepository, never()).save(any());
     }
 
@@ -223,7 +233,7 @@ class SolicitudBusquedaServicioImplTest {
         LocalDateTime fechaBusqueda = LocalDateTime.now().plusDays(1);
         SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, fechaBusqueda, "Cliente prefiere horario de la tarde");
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
-        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(despacho));
+        stubDespachoYBarrilBloqueado(despacho);
         when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> {
             SolicitudBusquedaEntity entidad = invocation.getArgument(0);
             entidad.setId(1L);
@@ -253,7 +263,7 @@ class SolicitudBusquedaServicioImplTest {
         LocalDateTime fechaBusqueda = LocalDateTime.now().plusDays(1);
         SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, fechaBusqueda, null);
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
-        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(despacho));
+        stubDespachoYBarrilBloqueado(despacho);
         when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
@@ -283,7 +293,7 @@ class SolicitudBusquedaServicioImplTest {
     void registrar_debeNormalizarLasObservaciones() {
         // === PREPARACION DE DATOS ===
         SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "   Horario   de la tarde  ");
-        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(crearDespachoEntity(1L)));
+        stubDespachoYBarrilBloqueado(crearDespachoEntity(1L));
         when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
@@ -298,7 +308,7 @@ class SolicitudBusquedaServicioImplTest {
     void registrar_debeTratarObservacionesEnBlancoComoNulas() {
         // === PREPARACION DE DATOS ===
         SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "    ");
-        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(crearDespachoEntity(1L)));
+        stubDespachoYBarrilBloqueado(crearDespachoEntity(1L));
         when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
@@ -308,7 +318,86 @@ class SolicitudBusquedaServicioImplTest {
         assertThat(resultado.getObservaciones()).isNull();
     }
 
+    @Test
+    @DisplayName("CP-RSB-09: registrarSolicitudBusqueda lanza ReglaNegocioException cuando el despacho no se encuentra en estado REGISTRADO")
+    void registrar_debeRechazarDespachoAnulado() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L);
+        despacho.setEstado(EstadoTransaccion.ANULADO);
+        stubDespachoYBarrilBloqueado(despacho);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede registrar una solicitud de búsqueda sobre un despacho en estado Registrado");
+
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RSB-10: registrarSolicitudBusqueda lanza ReglaNegocioException cuando el barril ya no se encuentra DESPACHADO")
+    void registrar_debeRechazarBarrilYaDevuelto() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L);
+        despacho.getBarril().setEstadoOperativo(EstadoOperativoBarril.EN_LIMPIEZA);
+        stubDespachoYBarrilBloqueado(despacho);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede registrar una solicitud de búsqueda sobre un barril despachado");
+
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RSB-11: registrarSolicitudBusqueda lanza RecursoNoEncontradoException con campo idBarril cuando el barril del despacho no existe o está dado de baja")
+    void registrar_debeRechazarBarrilInexistente() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(1L)).thenReturn(Optional.of(5L));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el barril con ID: 5")
+                .satisfies(e -> assertThat(((RecursoNoEncontradoException) e).getCampo()).isEqualTo("idBarril"));
+
+        verify(despachoBarrilRepository, never()).findById(any());
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RSB-12: registrarSolicitudBusqueda bloquea el barril del despacho antes de leer el despacho y de validar los estados")
+    void registrar_debeBloquearElBarrilAntesDeLeerElDespacho() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L);
+        stubDespachoYBarrilBloqueado(despacho);
+        when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(operacionCicloVidaBarrilRepository, barrilRepository, despachoBarrilRepository, solicitudBusquedaRepository);
+        orden.verify(operacionCicloVidaBarrilRepository).buscarIdBarrilDeLaOperacion(1L);
+        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
+        orden.verify(despachoBarrilRepository).findById(1L);
+        orden.verify(solicitudBusquedaRepository).save(any(SolicitudBusquedaEntity.class));
+    }
+
     // ==================== Helpers ====================
+
+    private void stubDespachoYBarrilBloqueado(DespachoBarrilEntity despacho) {
+        Long idBarril = despacho.getBarril().getId();
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(despacho.getId())).thenReturn(Optional.of(idBarril));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)).thenReturn(Optional.of(despacho.getBarril()));
+        when(despachoBarrilRepository.findById(despacho.getId())).thenReturn(Optional.of(despacho));
+    }
 
     private static SolicitudBusquedaFormDTO solicitudBusquedaFormDTO(Long idDespachoBarril, LocalDateTime fechaBusqueda, String observaciones) {
         return SolicitudBusquedaFormDTO.builder()

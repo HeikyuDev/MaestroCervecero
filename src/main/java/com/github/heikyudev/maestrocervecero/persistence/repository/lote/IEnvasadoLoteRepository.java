@@ -74,6 +74,16 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
     boolean existsByEtapaLote_Lote_IdAndEstado(Long idLote, EstadoTransaccion estado);
 
     /**
+     * Indica si un barril tiene al menos un envasado en el estado transaccional indicado. Se usa al dar de baja un
+     * barril, que no se puede dar de baja si tiene envasados {@code REGISTRADO}: los {@code ANULADO} no cuentan.
+     *
+     * @param idBarril El ID del barril.
+     * @param estado El estado transaccional a buscar.
+     * @return {@code true} si el barril tiene al menos un envasado en ese estado.
+     */
+    boolean existsByBarril_IdAndEstado(Long idBarril, EstadoTransaccion estado);
+
+    /**
      * Suma, por planificación de producción, la cantidad envasada de los envasados {@code REGISTRADO}
      * (los anulados no cuentan) de los lotes {@code FINALIZADO} de la planificación (los lotes
      * pendientes, en ejecución o cancelados no cuentan). Es una única consulta para un conjunto de

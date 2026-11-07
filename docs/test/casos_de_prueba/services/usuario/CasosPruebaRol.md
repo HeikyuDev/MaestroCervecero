@@ -24,8 +24,20 @@ Los permisos de limpieza, falla y mantenimiento de equipamiento (`*_EQUIPAMIENTO
 
 ### 3. `getPermisos()` del Encargado de Distribución
 
-El Encargado de Distribución gestiona clientes y registra los despachos y las devoluciones de barriles. No tiene permisos de presentaciones comerciales (son del Gerente de Compras).
+El Encargado de Distribución gestiona clientes, consulta los barriles y registra los despachos y las devoluciones de barriles. No tiene permisos de presentaciones comerciales (son del Gerente de Compras).
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-RO-08** | El Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril y ningún otro | `Rol.ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $ightarrow$ **Contiene exactamente** `CLIENTE_CREAR`, `CLIENTE_MODIFICAR`, `CLIENTE_ELIMINAR`, `CLIENTE_CONSULTAR`, `DESPACHO_BARRIL_REGISTRAR`, `DESPACHO_BARRIL_ANULAR`, `DESPACHO_BARRIL_CONSULTAR`, `DEVOLUCION_BARRIL_REGISTRAR`, `DEVOLUCION_BARRIL_ANULAR` y `DEVOLUCION_BARRIL_CONSULTAR` | El conjunto tiene esos diez permisos y ningún otro. |
+| **CP-RO-08** | El Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril, la consulta de barriles y ningún otro | `Rol.ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $
+ightarrow$ **Contiene exactamente** `CLIENTE_CREAR`, `CLIENTE_MODIFICAR`, `CLIENTE_ELIMINAR`, `CLIENTE_CONSULTAR`, `DESPACHO_BARRIL_REGISTRAR`, `DESPACHO_BARRIL_ANULAR`, `DESPACHO_BARRIL_CONSULTAR`, `DEVOLUCION_BARRIL_REGISTRAR`, `DEVOLUCION_BARRIL_ANULAR` y `DEVOLUCION_BARRIL_CONSULTAR` | El conjunto tiene esos once permisos y ningún otro. |
+
+### 4. `getPermisos()` del control de barriles
+
+El Operario de Producción registra, anula y consulta las limpiezas, las fallas, los fraccionamientos y los mantenimientos de barril (`LIMPIEZA_BARRIL_*`, `FALLA_BARRIL_*`, `FRACCIONAMIENTO_BARRIL_*` y `MANTENIMIENTO_BARRIL_*`) y consulta los barriles; no tiene permisos de despacho ni de devolución. El Gerente de Producción conserva la gestión de barriles (`BARRIL_*`) y solo consulta las seis operaciones (limpieza, falla, mantenimiento, fraccionamiento, despacho y devolución). El Encargado de Distribución consulta los barriles (`BARRIL_CONSULTAR`) además de sus permisos de clientes, despachos y devoluciones.
+
+| ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
+| --- | --- | --- | --- | --- |
+| **CP-RO-09** | El Gerente de Producción tiene el conjunto exacto de permisos | `Rol.GERENTE_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **Contiene exactamente** los permisos de insumos, equipamiento, consulta de limpieza, falla y mantenimiento de equipamiento, recetas, planificación de producción, lotes, `BARRIL_CREAR`, `BARRIL_MODIFICAR`, `BARRIL_ELIMINAR`, `BARRIL_CONSULTAR`, los seis `*_BARRIL_CONSULTAR` de las operaciones, costos directos adicionales, costos fijos, motivos de ajuste y ajustes de stock | El conjunto tiene esos permisos y ningún otro: del ciclo de vida del barril solo consulta, no registra ni anula. |
+| **CP-RO-10** | El Operario de Producción tiene el conjunto exacto de permisos | `Rol.OPERARIO_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **Contiene exactamente** consulta de insumos, recetas, equipamiento y barriles, permisos de lotes, consumos y envasados, registrar, anular y consultar limpieza, falla y mantenimiento de equipamiento, y registrar, anular y consultar limpieza, falla, fraccionamiento y mantenimiento de barril | El conjunto tiene esos permisos y ningún otro. |
+| **CP-RO-11** | Producción no registra ni anula despachos ni devoluciones | `Rol.OPERARIO_DE_PRODUCCION` y `Rol.GERENTE_DE_PRODUCCION` | `getPermisos()` $\rightarrow$ **No contiene** `DESPACHO_BARRIL_*` ni `DEVOLUCION_BARRIL_*` de registrar o anular (el Operario tampoco los de consultar) | Ninguno de los dos roles contiene permisos de registrar ni de anular despachos y devoluciones de barril; el Operario no contiene ninguno de los seis. |
+| **CP-RO-12** | Los demás roles no operan limpiezas, fallas, mantenimientos ni fraccionamientos de barril | `ADMINISTRADOR`, `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DEPOSITO` y `ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $\rightarrow$ **No contiene** ningún permiso de limpieza, falla, mantenimiento o fraccionamiento de barril | Ninguno de los cuatro roles contiene permisos de registrar, anular ni consultar esas cuatro operaciones. |
