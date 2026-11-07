@@ -141,14 +141,7 @@ public class MapperControlBarril {
             return null;
         }
         TipoOperacionBarril tipo = TipoOperacionBarril.deOperacion(operacion);
-        EstadoOperativoBarril resultante = switch (tipo) {
-            case LIMPIEZA -> ((LimpiezaBarrilEntity) operacion).getEstadoOperativoResultante();
-            case FALLA -> EstadoOperativoBarril.EN_MANTENIMIENTO;
-            case FRACCIONAMIENTO -> ((FraccionamientoBarrilEntity) operacion).getEstadoOperativoResultante();
-            case MANTENIMIENTO -> EstadoOperativoBarril.DISPONIBLE;
-            case DESPACHO -> EstadoOperativoBarril.DESPACHADO;
-            case DEVOLUCION -> EstadoOperativoBarril.EN_LIMPIEZA;
-        };
+        EstadoOperativoBarril resultante = estadoOperativoResultante(operacion);
         return ActividadBarrilResponseDTO.builder()
                 .tipo(TipoActividadBarril.valueOf(tipo.name()))
                 .idReferencia(operacion.getId())
@@ -156,5 +149,24 @@ public class MapperControlBarril {
                 .fecha(operacion.getFecha())
                 .estadoOperativoResultante(resultante)
                 .build();
+    }
+
+    /**
+     * El estado operativo en el que una operación deja al barril: el que registraron la limpieza y el fraccionamiento, En
+     * mantenimiento una falla, Disponible un mantenimiento, Despachado un despacho y En limpieza una devolución. Es el
+     * estado que exigen los servicios de anulación para poder deshacer la operación.
+     *
+     * @param operacion Operación del ciclo de vida del barril.
+     * @return El estado operativo resultante.
+     */
+    public static EstadoOperativoBarril estadoOperativoResultante(OperacionCicloVidaBarril operacion) {
+        return switch (TipoOperacionBarril.deOperacion(operacion)) {
+            case LIMPIEZA -> ((LimpiezaBarrilEntity) operacion).getEstadoOperativoResultante();
+            case FALLA -> EstadoOperativoBarril.EN_MANTENIMIENTO;
+            case FRACCIONAMIENTO -> ((FraccionamientoBarrilEntity) operacion).getEstadoOperativoResultante();
+            case MANTENIMIENTO -> EstadoOperativoBarril.DISPONIBLE;
+            case DESPACHO -> EstadoOperativoBarril.DESPACHADO;
+            case DEVOLUCION -> EstadoOperativoBarril.EN_LIMPIEZA;
+        };
     }
 }

@@ -123,7 +123,8 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         return operaciones.stream()
                 .map(operacion -> MapperControlBarril.toOperacionDTO(operacion,
                         !enUso && operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
-                                && MetodosCicloVida.esPosteriorAlUltimoEnvasado(operacion.getFecha(), fechaUltimoEnvasado)))
+                                && MetodosCicloVida.esPosteriorAlUltimoEnvasado(operacion.getFecha(), fechaUltimoEnvasado)
+                                && barril.getEstadoOperativo() == MapperControlBarril.estadoOperativoResultante(operacion)))
                 .toList();
     }
 

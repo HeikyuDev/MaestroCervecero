@@ -30,7 +30,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,7 +56,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.cont
  * mantenimientos, despachos y devoluciones) desde su panel. Cada método se autoriza por el permiso de su operación: las
  * cuatro primeras son del operario de producción y las dos últimas del encargado de distribución.
  * <p>
- * El id del barril viaja en la ruta ({@code idBarril}, que el binding copia al formulario), nunca en un campo del
+ * El id del barril viaja en la ruta ({@code idBarril}, que el controller fija en el formulario; un {@code @InitBinder} impide que el pedido lo enlace), nunca en un campo del
  * formulario. Después de registrar o anular se vuelve a la misma pestaña del panel (Post-Redirect-Get). Un formulario
  * inválido, o un registro que el service rechaza, vuelve al formulario de registro por Post-Redirect-Get, con los
  * errores y lo escrito en los atributos flash. La anulación la rechaza el {@code ControllerAdvices}, que vuelve al origen
@@ -76,6 +81,17 @@ public class OperacionBarrilController {
     private final IDevolucionBarrilServicio devolucionServicio;
     private final IControlBarrilServicio controlServicio;
     private final IClienteServicio clienteServicio;
+
+    /**
+     * El barril es siempre el de la ruta: el campo {@code idBarril} no se enlaza desde el pedido, así que un parámetro
+     * con ese nombre no puede inyectar otro barril. Como el campo queda sin enlazar, su {@code @NotNull} falla siempre y
+     * ese error se descarta en {@link #sinErrorDelBarril}: el controller fija el barril de la ruta antes de registrar.
+     */
+    @InitBinder(ATRIBUTO_FORMULARIO)
+    public void noEnlazarElBarril(WebDataBinder binder) {
+        binder.setDisallowedFields("idBarril");
+    }
+
 
     // ==================== Formulario de registro ====================
 
@@ -276,8 +292,9 @@ public class OperacionBarrilController {
      * Registra la operación si el formulario es válido y vuelve a la pestaña. Si el formulario es inválido, o el service
      * lo rechaza, vuelve al formulario con los errores y lo escrito.
      */
-    private String registrar(PestanaOperacionBarril pestana, Long idBarril, Object form, BindingResult bindingResult,
+    private String registrar(PestanaOperacionBarril pestana, Long idBarril, Object form, BindingResult bindingOriginal,
                              RedirectAttributes redirectAttributes, Runnable registro) {
+        BindingResult bindingResult = sinErrorDelBarril(form, bindingOriginal);
         if (!bindingResult.hasErrors()) {
             try {
                 registro.run();
@@ -291,6 +308,17 @@ public class OperacionBarrilController {
         redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
         redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, form);
         return "redirect:/control-barriles/" + idBarril + "/" + pestana.getRutaFormulario();
+    }
+
+    /** Copia los errores del formulario sin el del barril, que nunca viaja en el pedido sino en la ruta. */
+    private static BindingResult sinErrorDelBarril(Object form, BindingResult original) {
+        BindingResult resultado = new BeanPropertyBindingResult(form, ATRIBUTO_FORMULARIO);
+        for (ObjectError error : original.getAllErrors()) {
+            if (!(error instanceof FieldError campo && "idBarril".equals(campo.getField()))) {
+                resultado.addError(error);
+            }
+        }
+        return resultado;
     }
 
     /** Asocia el rechazo al campo que indica el service, si el formulario lo tiene; si no, queda como error general. */

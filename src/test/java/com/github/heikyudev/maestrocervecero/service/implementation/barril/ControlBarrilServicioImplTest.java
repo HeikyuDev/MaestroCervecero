@@ -396,4 +396,41 @@ class ControlBarrilServicioImplTest {
 
         assertThatThrownBy(() -> servicio.listarHistorial(5L, null, null, null, PageRequest.of(0, 20))).isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el barril con ID: 5");
     }
+
+    // ==================== Estado operativo del barril y anulable ====================
+
+    @Test
+    @DisplayName("CP-CBS-20: una operación no es anulable si el barril no está en el estado operativo que ella dejó, aunque sea la última")
+    void operaciones_estadoDelBarrilNoCoincide() {
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.EN_LIMPIEZA)));
+        when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(9L));
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
+
+        assertThat(servicio.listarOperaciones(1L, TipoOperacionBarril.LIMPIEZA)).extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(false);
+    }
+
+    @Test
+    @DisplayName("CP-CBS-21: cada tipo es anulable solo con el barril en su estado resultante (falla En mantenimiento, mantenimiento Disponible, despacho Despachado, devolución En limpieza, fraccionamiento el que registró) y no con otro")
+    void operaciones_estadoResultanteDeCadaTipo() {
+        when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(4L));
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
+        when(fallaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(FallaBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("F").estado(EstadoTransaccion.REGISTRADO).build()));
+        when(mantenimientoBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(MantenimientoBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("M").estado(EstadoTransaccion.REGISTRADO).build()));
+        when(despachoBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(DespachoBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("D").estado(EstadoTransaccion.REGISTRADO)
+                .fechaDevolucionEstimada(LocalDate.of(2026, 11, 30)).cliente(ClienteEntity.builder().id(3L).nombre("Bar").build()).build()));
+        when(devolucionBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(DevolucionBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("V").estado(EstadoTransaccion.REGISTRADO).build()));
+        when(fraccionamientoBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(FraccionamientoBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("X").estado(EstadoTransaccion.REGISTRADO)
+                .cantidadFraccionada(1.0).estadoOperativoResultante(EstadoOperativoBarril.EN_LIMPIEZA).build()));
+
+        Object[][] casos = {{TipoOperacionBarril.FALLA, EstadoOperativoBarril.EN_MANTENIMIENTO}, {TipoOperacionBarril.MANTENIMIENTO, EstadoOperativoBarril.DISPONIBLE},
+                {TipoOperacionBarril.DESPACHO, EstadoOperativoBarril.DESPACHADO}, {TipoOperacionBarril.DEVOLUCION, EstadoOperativoBarril.EN_LIMPIEZA},
+                {TipoOperacionBarril.FRACCIONAMIENTO, EstadoOperativoBarril.EN_LIMPIEZA}};
+        for (Object[] caso : casos) {
+            when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", (EstadoOperativoBarril) caso[1])));
+            assertThat(servicio.listarOperaciones(1L, (TipoOperacionBarril) caso[0])).as(caso[0] + " con su estado").extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(true);
+            when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
+            assertThat(servicio.listarOperaciones(1L, (TipoOperacionBarril) caso[0])).as(caso[0] + " con otro estado").extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(false);
+        }
+    }
 }

@@ -49,7 +49,7 @@ public interface IControlBarrilServicio {
     /**
      * Lista las operaciones de un tipo de un barril, anuladas incluidas, de la de fecha más reciente a la más antigua.
      * Solo la última operación registrada del barril (de cualquier tipo; mayor fecha y, a igualdad, mayor ID) se marca
-     * como anulable, y solo si el barril no está en uso por un lote y la operación es posterior a su último envasado.
+     * como anulable, y solo si el barril no está en uso por un lote, la operación es posterior a su último envasado y el barril está en el estado operativo que dejó la operación.
      *
      * @param idBarril El ID del barril.
      * @param tipo Tipo de operación a listar.

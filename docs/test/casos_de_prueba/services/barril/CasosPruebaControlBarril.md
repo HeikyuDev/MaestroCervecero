@@ -53,3 +53,12 @@ Un barril dado de baja se trata como inexistente en las tres consultas por barri
 |**CP-CBS-17**|Resumen de un barril de baja|`findById` devuelve un barril con `estado: BAJA`|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 5").|
 |**CP-CBS-18**|Operaciones de un barril de baja|Ídem, `listarOperaciones`|Lanza `RecursoNoEncontradoException` y no consulta operaciones.|
 |**CP-CBS-19**|Historial de un barril de baja|Ídem, `listarHistorial`|Lanza `RecursoNoEncontradoException` y no consulta envasados ni operaciones.|
+
+### 6. Estado operativo del barril y `anulable`
+
+Además de ser la última operación registrada, con el barril fuera de uso y posterior al último envasado, una operación es anulable solo si el estado operativo actual del barril es el que ella dejó, el mismo criterio que exigen los servicios de anulación: limpieza y fraccionamiento, el estado resultante que registraron; falla, En mantenimiento; mantenimiento, Disponible; despacho, Despachado; devolución, En limpieza (`MapperControlBarril.estadoOperativoResultante`).
+
+|**ID**|**Nombre del Caso**|**Escenario**|**Resultado Esperado**|
+|---|---|---|---|
+|**CP-CBS-20**|Estado del barril distinto del resultante|Última limpieza (resultante Disponible) con el barril En limpieza|No es anulable.|
+|**CP-CBS-21**|Estado resultante de cada tipo|Falla, mantenimiento, despacho, devolución y fraccionamiento, cada uno con el barril en su estado resultante y con Con cerveza|Anulable solo con su estado resultante.|

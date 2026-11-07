@@ -340,4 +340,20 @@ class OperacionBarrilControllerTest {
         mockMvc.perform(post(BASE + "/limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("fecha", "2026-10-20T10:00")).andExpect(status().is3xxRedirection());
         verifyNoInteractions(limpiezaServicio);
     }
+
+    @Test
+    @DisplayName("CP-OBC-17: un idBarril enviado en el pedido no modifica el barril: el service recibe siempre el de la ruta")
+    void idBarrilDelPedidoNoSeEnlaza() throws Exception {
+        mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza con soda").param("idBarril", "999"))
+                .andExpect(redirectedUrl(BASE + "?pestana=limpiezas"));
+        mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "Entrega").param("idBarril", "999").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-11-30"))
+                .andExpect(redirectedUrl(BASE + "?pestana=despachos"));
+
+        ArgumentCaptor<LimpiezaBarrilFormDTO> limpieza = ArgumentCaptor.forClass(LimpiezaBarrilFormDTO.class);
+        verify(limpiezaServicio).registrarLimpiezaBarril(limpieza.capture());
+        assertThat(limpieza.getValue().getIdBarril()).isEqualTo(5L);
+        ArgumentCaptor<DespachoBarrilFormDTO> despacho = ArgumentCaptor.forClass(DespachoBarrilFormDTO.class);
+        verify(despachoServicio).registrarDespachoBarril(despacho.capture());
+        assertThat(despacho.getValue().getIdBarril()).isEqualTo(5L);
+    }
 }

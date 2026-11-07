@@ -20,3 +20,4 @@
 | **CP-OBC-14** | Formulario de despacho | Selector de cliente con su buscador, sin alta al vuelo, y la fecha estimada en la fila de las fechas. |
 | **CP-OBC-15** | Estado no permitido por URL | Redirige a la pestaña con el aviso del service; con el barril En uso, avisa que lo ocupa un lote. |
 | **CP-OBC-16** | Sin token CSRF | Es rechazado y no llega al service. |
+| **CP-OBC-17** | `idBarril` en el pedido | Un POST con `idBarril=999` en la ruta del barril 5 | El `@InitBinder` no enlaza el campo; el controller descarta su error de validación y fija el barril de la ruta | El service recibe el barril 5 en las seis operaciones; el pedido no puede inyectar otro barril. |
