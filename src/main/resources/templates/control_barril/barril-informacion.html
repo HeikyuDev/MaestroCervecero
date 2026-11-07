@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Información de un barril, siempre igual: la usan el historial, el panel, los formularios de registro y el detalle de una
+    operación. Una fila por tema: identidad (identificador, número de serie y fabricante), medidas y estado (capacidad,
+    contenido y estado operativo) y mantenimiento (usos desde el último mantenimiento, última limpieza y último mantenimiento).
+
+    Parámetro: barril (BarrilResumenResponseDTO).
+
+    Uso: <th:block th:replace="~{control_barril/barril-informacion :: informacion(${barril})}"></th:block>
+-->
+<section th:fragment="informacion(barril)" data-informacion-barril class="bg-white border border-slate-200 rounded-xl shadow-sm">
+    <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Información del barril</h2>
+    <div class="p-4 space-y-3 text-sm">
+        <!-- identidad -->
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Identificador</dt>
+                <dd class="mt-1 font-medium text-slate-900" data-barril-identificador th:text="${barril.identificadorInterno}">BRL-01</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Número de serie</dt>
+                <dd class="mt-1 text-slate-900 break-words" th:text="${barril.numeroSerie}">SN-2024-001</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Fabricante</dt>
+                <dd class="mt-1 text-slate-900 break-words" th:text="${barril.fabricante}">Barrilitos SA</dd>
+            </div>
+        </dl>
+        <!-- medidas y estado -->
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Capacidad (L)</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${barril.capacidad})}"></th:block></dd>
+            </div>
+            <div data-barril-contenido>
+                <dt class="text-xs font-medium text-slate-500">Contenido (L)</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${barril.contenidoActual})}"></th:block></dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Estado operativo</dt>
+                <dd class="mt-1"><span th:replace="~{barril/estado :: badge(${barril.estadoOperativo})}"></span></dd>
+            </div>
+        </dl>
+        <!-- mantenimiento -->
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div data-barril-usos>
+                <dt class="text-xs font-medium text-slate-500">Usos desde el último mantenimiento</dt>
+                <dd class="mt-1 text-slate-900" th:text="|${barril.usosDesdeUltimoMantenimiento} de ${barril.usosMaximosAntesMantenimiento}|">3 de 10</dd>
+            </div>
+            <div data-barril-ultima-limpieza>
+                <dt class="text-xs font-medium text-slate-500">Última limpieza</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${barril.fechaUltimaLimpieza})}"></th:block></dd>
+            </div>
+            <div data-barril-ultimo-mantenimiento>
+                <dt class="text-xs font-medium text-slate-500">Último mantenimiento</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${barril.fechaUltimoMantenimiento})}"></th:block></dd>
+            </div>
+        </dl>
+    </div>
+</section>
+
+</html>

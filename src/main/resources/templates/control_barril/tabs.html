@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Pestañas del panel de un barril (componente fragments/pestanas): una por tipo de operación que el usuario puede
+    consultar, cada una es la misma URL con ?pestana=<clave>.
+    Parámetros: activa (la PestanaOperacionBarril activa), idBarril y pestanas (las PestanaOperacionBarril que se muestran).
+-->
+<th:block th:fragment="tabs(activa, idBarril, pestanas)">
+    <th:block th:replace="~{fragments/pestanas :: pestanas('Operaciones del barril', 'operaciones', ~{::enlaces})}">
+        <th:block th:fragment="enlaces">
+            <th:block th:each="p : ${pestanas}">
+                <a th:replace="~{fragments/pestanas :: pestana(@{/control-barriles/{id}(id=${idBarril}, pestana=${p.clave})}, ${activa == p}, ${p.clave}, ~{fragments/pestanas :: bi(${p.icono})}, ${p.etiqueta})}"></a>
+            </th:block>
+        </th:block>
+    </th:block>
+</th:block>
+
+</html>

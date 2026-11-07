@@ -62,7 +62,7 @@
             OPERACIÓN: el trabajo diario. Cada botón lo ve solo el rol que lo usa, y el título de la
             sección aparece únicamente si el usuario ve al menos uno de sus botones.
         -->
-        <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')">
+        <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO', 'ENCARGADO_DE_DISTRIBUCION')">
             <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
             <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->
@@ -73,6 +73,11 @@
             <!-- CONTROL DE EQUIPAMIENTO (Operario de Producción: registra y anula limpiezas, fallas y mantenimientos; Gerente de Producción: los consulta) -->
             <th:block sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')">
                 <a th:replace="~{fragments/sidebar ::enlace('/control-equipamiento', ${opcionActiva}, 'control-equipamiento', 'bi-wrench-adjustable', 'Control de Equipamientos')}"></a>
+            </th:block>
+
+            <!-- CONTROL DE BARRILES (Operario de Producción: limpiezas, fallas, fraccionamientos y mantenimientos; Encargado de Distribución: despachos y devoluciones; Gerente de Producción: los consulta) -->
+            <th:block sec:authorize="hasAnyAuthority('LIMPIEZA_BARRIL_CONSULTAR', 'FALLA_BARRIL_CONSULTAR', 'FRACCIONAMIENTO_BARRIL_CONSULTAR', 'MANTENIMIENTO_BARRIL_CONSULTAR', 'DESPACHO_BARRIL_CONSULTAR', 'DEVOLUCION_BARRIL_CONSULTAR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/control-barriles', ${opcionActiva}, 'control-barriles', 'bi-clipboard-check', 'Control de Barriles')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE LOTES (Operario de Producción, Gerente de Producción: quien puede consultar lotes) -->

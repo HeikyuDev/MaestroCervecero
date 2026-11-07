@@ -74,6 +74,23 @@ public interface IOperacionCicloVidaBarrilRepository extends JpaRepository<Opera
      * @param idBarril El ID del barril.
      * @return El ID de la última operación registrada, o vacío si no tiene ninguna.
      */
+    /**
+     * Trae las operaciones registradas (nunca las anuladas) de un barril cuya fecha cae en el período dado, de la más
+     * reciente a la más antigua. Un extremo nulo no acota por ese lado.
+     *
+     * @param idBarril El ID del barril.
+     * @param desde Límite inferior (inclusive) de la fecha, o {@code null}.
+     * @param hasta Límite superior (inclusive) de la fecha, o {@code null}.
+     * @return Las operaciones registradas del barril en el período.
+     */
+    @Query("SELECT o FROM OperacionCicloVidaBarril o WHERE o.barril.id = :idBarril AND o.estado = 'REGISTRADO' "
+            + "AND (CAST(:desde AS LocalDateTime) IS NULL OR o.fecha >= :desde) "
+            + "AND (CAST(:hasta AS LocalDateTime) IS NULL OR o.fecha <= :hasta) "
+            + "ORDER BY o.fecha DESC, o.id DESC")
+    List<OperacionCicloVidaBarril> buscarRegistradasEnPeriodo(@Param("idBarril") Long idBarril,
+                                                              @Param("desde") LocalDateTime desde,
+                                                              @Param("hasta") LocalDateTime hasta);
+
     default Optional<Long> buscarIdUltimaOperacionRegistrada(Long idBarril) {
         return buscarIdsOperacionesRegistradasDeLaUltimaALaPrimera(idBarril, PageRequest.of(0, 1)).stream().findFirst();
     }

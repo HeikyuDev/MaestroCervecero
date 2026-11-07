@@ -100,7 +100,7 @@ public class BarrilController {
      * que usan el selector del formulario y el filtro del listado.
      */
     @GetMapping("/buscador/fabricantes")
-    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION', 'ENCARGADO_DE_DISTRIBUCION')")
     public String buscarFabricantes(@RequestParam(required = false) String nombre,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {

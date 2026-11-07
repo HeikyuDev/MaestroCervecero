@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#control-lista-content}, 'control-barriles')}">
+<body>
+
+<!--
+    Lista de control de barriles: todos los barriles activos en una sola tabla, con su fabricante, su capacidad, su contenido,
+    su estado y sus usos. Quien opera los barriles (operario de producción y encargado de distribución) entra al panel con
+    "Abrir"; el gerente de producción, que solo consulta, además ve el historial del barril con el ojo.
+-->
+<div id="control-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de Barriles</h1>
+        <p class="text-sm text-slate-500">Barriles de la planta con su estado operativo y sus usos, en orden por identificador.</p>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/control-barriles}" method="get" novalidate
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+        <div>
+            <label for="identificador" class="block text-xs font-medium text-slate-500 mb-1">Identificador</label>
+            <input type="text" id="identificador" name="identificador" th:value="${filtroIdentificador}" autocomplete="off" placeholder="Ej: BRL-01"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Fabricante</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idFabricante', ${filtroIdFabricante}, ${filtroFabricanteTexto},
+                    @{/barriles/buscador/fabricantes}, null, null, true, false, 'Seleccione fabricante')}"></div>
+        </div>
+        <div>
+            <label for="estadoOperativo" class="block text-xs font-medium text-slate-500 mb-1">Estado operativo</label>
+            <select id="estadoOperativo" name="estadoOperativo"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Disponible</option>
+            </select>
+        </div>
+        <div class="md:col-span-2 lg:col-span-3 flex items-center justify-end gap-3">
+            <a th:href="@{/control-barriles}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-2 py-3">Identificador</th>
+                <th class="px-2 py-3">Fabricante</th>
+                <th class="px-2 py-3 whitespace-nowrap">Capacidad (L)</th>
+                <th class="px-2 py-3 whitespace-nowrap">Contenido (L)</th>
+                <th class="px-2 py-3">Estado operativo</th>
+                <th class="px-2 py-3 whitespace-nowrap">Usos</th>
+                <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="b : ${barriles.content}" class="hover:bg-slate-50 align-top">
+                <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-barril-identificador th:text="${b.identificadorInterno}">BRL-01</td>
+                <td class="px-2 py-3 text-slate-700 break-words" th:text="${b.fabricante}">Barrilitos SA</td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${b.capacidad})}"></th:block></td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${b.contenidoActual})}"></th:block></td>
+                <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{barril/estado :: badge(${b.estadoOperativo})}"></span></td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-barril-usos
+                    th:text="|${b.usosDesdeUltimoMantenimiento} de ${b.usosMaximosAntesMantenimiento}|">3 de 10</td>
+                <td class="col-acciones px-2 py-3">
+                    <div class="flex items-center justify-center gap-1">
+                        <!-- El ojo (solo el gerente de producción) es el historial del barril; "Abrir" es el panel -->
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/control-barriles/{id}/historial(id=${b.id})}"
+                           th:aria-label="'Ver historial de ' + ${b.identificadorInterno}" data-ver-historial
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
+                        <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/control-barriles/{id}(id=${b.id})}, 'Abrir ' + ${b.identificadorInterno})}"></th:block>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${barriles.empty}">
+                <td colspan="7" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-clipboard-check block text-3xl mb-2"></i>
+                    No se encontraron barriles con los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${barriles}, 'barril|barriles',
+                ${barriles.hasPrevious()} ? @{/control-barriles(pagina=${barriles.number - 1}, identificador=${filtroIdentificador}, idFabricante=${filtroIdFabricante}, estadoOperativo=${filtroEstado})} : null,
+                ${barriles.hasNext()} ? @{/control-barriles(pagina=${barriles.number + 1}, identificador=${filtroIdentificador}, idFabricante=${filtroIdFabricante}, estadoOperativo=${filtroEstado})} : null,
+                false)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

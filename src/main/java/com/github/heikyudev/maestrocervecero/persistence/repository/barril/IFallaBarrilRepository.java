@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,4 +68,14 @@ public interface IFallaBarrilRepository extends JpaRepository<FallaBarrilEntity,
      */
     @Query("SELECT MAX(f.fecha) FROM FallaBarrilEntity f WHERE f.barril.id = :idBarril AND f.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaFallaRegistrada(@Param("idBarril") Long idBarril);
+
+    /**
+     * Lista todas las fallas de un barril, anuladas incluidas, de la de fecha más reciente a la más antigua (ante
+     * igual fecha, la de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Las fallas del barril, ordenadas.
+     */
+    @Query("SELECT f FROM FallaBarrilEntity f WHERE f.barril.id = :idBarril ORDER BY f.fecha DESC, f.id DESC")
+    List<FallaBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }

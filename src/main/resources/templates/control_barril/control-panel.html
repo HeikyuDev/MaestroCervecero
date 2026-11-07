@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#control-panel-content}, 'control-barriles')}">
+<body>
+
+<!--
+    Panel de un barril: su información siempre visible y, en pestañas (enlaces, funcionan sin JavaScript), la tabla de las
+    operaciones de cada tipo que el usuario puede consultar, anuladas incluidas y la más reciente arriba. Cada pestaña lleva en
+    el encabezado de su tarjeta el botón de alta, que abre la página del formulario de registro; el botón solo existe para quien
+    tiene el permiso de registrar esa operación y solo si el estado del barril lo permite (si no, un aviso explica el motivo). La
+    anulación de la última operación registrada del barril va en la columna de acciones, con el diálogo del motivo. El gerente de
+    producción solo consulta. Todas las acciones vuelven a la misma pestaña (Post-Redirect-Get).
+-->
+<div id="control-panel-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="@{/control-barriles}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a control de barriles
+        </a>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de <span th:text="${barril.identificadorInterno}">BRL-01</span></h1>
+            <span th:replace="~{barril/estado :: badge(${barril.estadoOperativo})}"></span>
+        </div>
+    </div>
+
+    <th:block th:replace="~{control_barril/barril-informacion :: informacion(${barril})}"></th:block>
+
+    <!-- Pestañas: una por tipo de operación consultable; solo se carga lo de la pestaña activa -->
+    <div class="space-y-6">
+        <th:block th:replace="~{control_barril/tabs :: tabs(${pestanaActiva}, ${barril.id}, ${pestanas})}"></th:block>
+
+        <!-- Sin permiso de registrar: el panel es de consulta -->
+        <p th:unless="${puedeRegistrar}" data-aviso-solo-lectura
+           class="p-4 rounded-xl border bg-slate-100 border-slate-200 text-sm text-slate-600">Solo puede consultar las operaciones del barril</p>
+
+        <!-- Aviso de por qué no se puede registrar con el estado actual del barril -->
+        <p th:if="${puedeRegistrar and not registroHabilitado}" data-aviso-registro role="status"
+           class="p-4 rounded-xl border bg-slate-100 border-slate-200 text-sm text-slate-600" th:text="${motivoNoRegistrable}">Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza</p>
+
+        <!-- Operaciones del barril de este tipo, anuladas incluidas, la de fecha más reciente arriba -->
+        <section data-operaciones-registradas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-slate-700" th:text="${pestanaActiva.tituloRegistradas}">Limpiezas registradas</h2>
+                <a th:if="${registroHabilitado}" th:href="@{/control-barriles/{id}/{ruta}(id=${barril.id}, ruta=${pestanaActiva.rutaFormulario})}" data-nueva-operacion
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> <th:block th:text="${pestanaActiva.textoNueva}">Nueva limpieza</th:block>
+                </a>
+            </div>
+            <p th:if="${operaciones.empty}" class="px-5 py-6 text-sm text-slate-400" th:text="${pestanaActiva.textoSinRegistros}">No hay limpiezas registradas</p>
+            <div th:unless="${operaciones.empty}" class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Fecha y hora</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Estado</th>
+                        <th class="col-acciones px-4 py-3 text-right whitespace-nowrap">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="o : ${operaciones.content}" th:attr="data-operacion=${o.id}" class="hover:bg-slate-50 align-top"
+                        th:classappend="${o.estado.name() == 'ANULADO'} ? 'opacity-60'">
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${o.fecha})}"></th:block></td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span th:replace="~{lote/formato :: estadoTransaccion(${o.estado})}"></span>
+                        </td>
+                        <td class="col-acciones px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <th:block th:replace="~{fragments/detalle-anulacion :: observaciones(${pestanaActiva.tituloObservaciones}, ${o.observaciones}, ${o.fecha})}"></th:block>
+                                <th:block th:if="${o.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}"></th:block></th:block>
+                                <a th:href="@{/control-barriles/{id}/operaciones/{tipo}/{idOperacion}(id=${barril.id}, tipo=${pestanaActiva.claveOperacion}, idOperacion=${o.id})}"
+                                   data-ver-operacion th:aria-label="'Ver ' + ${pestanaActiva.articulo} + ' del ' + ${#temporals.format(o.fecha, 'dd/MM/yyyy HH:mm')}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg"></i>
+                                </a>
+                                <button type="button" th:if="${puedeAnular and o.anulable}" data-motivo-dialogo="dialogo-anular"
+                                        th:data-motivo-url="@{/control-barriles/{id}/{pestana}/{idOperacion}/anular(id=${barril.id}, pestana=${pestanaActiva.clave}, idOperacion=${o.id})}"
+                                        th:data-motivo-nombre="${barril.identificadorInterno}"
+                                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:replace="~{fragments/paginacion :: paginacion(${operaciones}, 'operación|operaciones',
+                    ${operaciones.hasPrevious()} ? @{/control-barriles/{id}(id=${barril.id}, pestana=${pestanaActiva.clave}, pagina=${operaciones.number - 1})} : null,
+                    ${operaciones.hasNext()} ? @{/control-barriles/{id}(id=${barril.id}, pestana=${pestanaActiva.clave}, pagina=${operaciones.number + 1})} : null,
+                    false)}"></div>
+        </section>
+    </div>
+
+    <!-- Diálogo del motivo de la anulación -->
+    <th:block th:if="${puedeAnular}">
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular ' + ${pestanaActiva.articulo},
+                'Se anula la última operación registrada del barril, el barril vuelve a su estado anterior y queda registrado el motivo.',
+                'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                ${pestanaActiva.ejemploMotivo})}"></div>
+    </th:block>
+</div>
+
+</body>
+</html>

@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -68,4 +69,14 @@ public interface IDevolucionBarrilRepository extends JpaRepository<DevolucionBar
      */
     @Query("SELECT MAX(dv.fecha) FROM DevolucionBarrilEntity dv WHERE dv.barril.id = :idBarril AND dv.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaDevolucionRegistrada(@Param("idBarril") Long idBarril);
+
+    /**
+     * Lista todas las devoluciones de un barril, anuladas incluidas, de la de fecha más reciente a la más antigua (ante
+     * igual fecha, la de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Las devoluciones del barril, ordenadas.
+     */
+    @Query("SELECT dv FROM DevolucionBarrilEntity dv WHERE dv.barril.id = :idBarril ORDER BY dv.fecha DESC, dv.id DESC")
+    List<DevolucionBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }

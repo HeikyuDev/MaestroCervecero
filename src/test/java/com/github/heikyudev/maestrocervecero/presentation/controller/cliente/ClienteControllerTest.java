@@ -852,10 +852,10 @@ class ClienteControllerTest {
 
     @Test
     @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
-    @DisplayName("CP-CLC-39: la sidebar del ENCARGADO_DE_DISTRIBUCION ofrece solo \"Gestión de Clientes\" en Administración y no la muestra resaltada en el panel de control")
+    @DisplayName("CP-CLC-39: la sidebar del ENCARGADO_DE_DISTRIBUCION ofrece \"Gestión de Clientes\" en Administración (no resaltada en el panel de control) y \"Control de Barriles\" en Operación, y ninguna otra opción")
     void caso_cp_clc_39() throws Exception {
         // Act
-        String html = mockMvc.perform(get("/home"))
+        String html = mockMvc.perform(get("/home").with(com.github.heikyudev.maestrocervecero.presentation.controller.control_barril.ControlBarrilControllerTest.como(com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol.ENCARGADO_DE_DISTRIBUCION)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*Administración.*href=\"/clientes\"[^>]*>\\s*<i class=\"bi text-lg bi-shop\"></i>\\s*<span>Gestión de Clientes</span>.*")))
                 .andExpect(content().string(not(matchesPattern(ENLACE_RESALTADO))))
@@ -865,7 +865,8 @@ class ClienteControllerTest {
         assertThat(html).doesNotContain("Gestión de Insumos").doesNotContain("Gestión de Recetas").doesNotContain("Gestión de Barriles")
                 .doesNotContain("Gestión de Equipamientos").doesNotContain("Gestión de Proveedores").doesNotContain("Gestión de Presentaciones")
                 .doesNotContain("Gestión de Ubicaciones").doesNotContain("Gestión de Usuarios")
-                .doesNotContain(">Operación<").doesNotContain(">Configuración<").doesNotContain(">Sistema<");
+                .contains(">Operación<").contains("Control de Barriles").doesNotContain("Control de Equipamientos").doesNotContain("Control de Lotes")
+                .doesNotContain(">Configuración<").doesNotContain(">Sistema<");
     }
 
     @ParameterizedTest
@@ -877,6 +878,43 @@ class ClienteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("href=\"/clientes\""))))
                 .andExpect(content().string(not(containsString("Gestión de Clientes"))));
+    }
+
+    // ==================== GET /clientes/buscador ====================
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-41: el buscador de clientes filtra por nombre, ofrece \"Elegir\" en cada cliente, no ofrece alta al vuelo y se pagina de a 8")
+    void caso_cp_clc_41() throws Exception {
+        // Arrange
+        when(clienteServicio.filtrarClientes(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(cliente(4L, "3764123456")), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador").param("nombre", " puerto "))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cliente/buscador-cliente :: buscador"))
+                .andExpect(content().string(containsString("data-modal-buscar")))
+                .andExpect(content().string(containsString("value=\" puerto \"")))
+                .andExpect(content().string(containsString("<table class=\"tabla-buscador\">")))
+                .andExpect(content().string(matchesPattern("(?s).*data-elegir[^>]*data-id=\"4\"[^>]*data-texto=\"Bar El Puerto\".*")))
+                .andExpect(content().string(not(containsString("/clientes/nuevo"))))
+                .andExpect(content().string(not(containsString("<html"))));
+
+        ArgumentCaptor<Pageable> pagina = ArgumentCaptor.forClass(Pageable.class);
+        verify(clienteServicio).filtrarClientes(eq("puerto"), isNull(), isNull(), pagina.capture());
+        assertThat(pagina.getValue().getPageSize()).isEqualTo(8);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ADMINISTRADOR"})
+    @DisplayName("CP-CLC-42: un rol distinto de ENCARGADO_DE_DISTRIBUCION no accede al buscador de clientes")
+    void caso_cp_clc_42(String rol) throws Exception {
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador").with(user("usuario").roles(rol)))
+                .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(clienteServicio);
     }
 
     // ==================== Datos de prueba ====================

@@ -389,16 +389,30 @@ class BarrilControllerTest {
         assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
     }
 
-    @Test
-    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
-    @DisplayName("CP-BCT-17: un rol distinto de GERENTE_DE_PRODUCCION no accede al buscador")
-    void caso_cp_bct_17() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ADMINISTRADOR"})
+    @DisplayName("CP-BCT-17: los roles sin barriles que consultar (gerente de compras, encargado de depósito y administrador) no acceden al buscador")
+    void caso_cp_bct_17(String rol) throws Exception {
         // Act + Assert
-        mockMvc.perform(get(BUSCADOR_FABRICANTES))
+        mockMvc.perform(get(BUSCADOR_FABRICANTES).with(user("usuario").roles(rol)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verify(fabricanteBarrilServicio, never()).filtrarFabricantesBarril(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DISTRIBUCION"})
+    @DisplayName("CP-BCT-60: el gerente y el operario de producción y el encargado de distribución acceden al buscador de fabricantes (lo usa el filtro de Control de Barriles)")
+    void caso_cp_bct_60(String rol) throws Exception {
+        // Arrange
+        when(fabricanteBarrilServicio.filtrarFabricantesBarril(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(fabricante(2L, "Tonelería del Sur")), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(BUSCADOR_FABRICANTES).with(user("usuario").roles(rol)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("barril/buscador-fabricante :: buscador"));
     }
 
     @Test

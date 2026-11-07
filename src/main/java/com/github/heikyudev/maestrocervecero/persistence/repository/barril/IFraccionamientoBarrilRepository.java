@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -68,4 +69,14 @@ public interface IFraccionamientoBarrilRepository extends JpaRepository<Fraccion
      */
     @Query("SELECT MAX(f.fecha) FROM FraccionamientoBarrilEntity f WHERE f.barril.id = :idBarril AND f.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimoFraccionamientoRegistrado(@Param("idBarril") Long idBarril);
+
+    /**
+     * Lista todos los fraccionamientos de un barril, anulados incluidos, del de fecha más reciente al más antiguo (ante
+     * igual fecha, el de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Los fraccionamientos del barril, ordenados.
+     */
+    @Query("SELECT f FROM FraccionamientoBarrilEntity f WHERE f.barril.id = :idBarril ORDER BY f.fecha DESC, f.id DESC")
+    List<FraccionamientoBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }

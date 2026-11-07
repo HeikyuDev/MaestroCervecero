@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -91,4 +92,14 @@ public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilE
             + "AND NOT EXISTS (SELECT o.id FROM DespachoBarrilEntity o "
             + "WHERE o.barril.id = d.barril.id AND o.estado = 'REGISTRADO' AND o.fecha > d.fecha)")
     boolean clienteTieneBarrilEnSuPoder(@Param("idCliente") Long idCliente);
+
+    /**
+     * Lista todos los despachos de un barril, anulados incluidos, con su cliente cargado, del de fecha más reciente
+     * al más antiguo (ante igual fecha, el de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Los despachos del barril, ordenados.
+     */
+    @Query("SELECT d FROM DespachoBarrilEntity d JOIN FETCH d.cliente WHERE d.barril.id = :idBarril ORDER BY d.fecha DESC, d.id DESC")
+    List<DespachoBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }

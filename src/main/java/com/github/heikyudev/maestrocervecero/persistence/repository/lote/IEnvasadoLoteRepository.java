@@ -84,6 +84,24 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
     boolean existsByBarril_IdAndEstado(Long idBarril, EstadoTransaccion estado);
 
     /**
+     * Trae los envasados registrados (nunca los anulados) de un barril cuya fecha de envasado cae en el período dado,
+     * con su etapa y su lote cargados, del más reciente al más antiguo. Un extremo nulo no acota por ese lado.
+     *
+     * @param idBarril El ID del barril.
+     * @param desde Límite inferior (inclusive) de la fecha de envasado, o {@code null}.
+     * @param hasta Límite superior (inclusive) de la fecha de envasado, o {@code null}.
+     * @return Los envasados registrados del barril en el período.
+     */
+    @Query("SELECT e FROM EnvasadoLoteEntity e JOIN FETCH e.etapaLote et JOIN FETCH et.lote "
+            + "WHERE e.barril.id = :idBarril AND e.estado = 'REGISTRADO' "
+            + "AND (CAST(:desde AS LocalDateTime) IS NULL OR e.fechaEnvasado >= :desde) "
+            + "AND (CAST(:hasta AS LocalDateTime) IS NULL OR e.fechaEnvasado <= :hasta) "
+            + "ORDER BY e.fechaEnvasado DESC, e.id DESC")
+    List<EnvasadoLoteEntity> buscarRegistradosDelBarrilEnPeriodo(@Param("idBarril") Long idBarril,
+                                                                 @Param("desde") LocalDateTime desde,
+                                                                 @Param("hasta") LocalDateTime hasta);
+
+    /**
      * Suma, por planificación de producción, la cantidad envasada de los envasados {@code REGISTRADO}
      * (los anulados no cuentan) de los lotes {@code FINALIZADO} de la planificación (los lotes
      * pendientes, en ejecución o cancelados no cuentan). Es una única consulta para un conjunto de

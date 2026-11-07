@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -86,4 +88,28 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
      */
     @Query("SELECT MAX(l.fecha) FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril AND l.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaLimpiezaRegistrada(@Param("idBarril") Long idBarril);
+
+    /**
+     * Cuenta, para cada barril de la lista, sus usos desde el último mantenimiento: las limpiezas registradas posteriores a
+     * su último mantenimiento registrado (todas, si nunca tuvo uno). Un barril sin usos no figura en el resultado.
+     *
+     * @param idsBarril Los IDs de los barriles.
+     * @return Filas {@code [idBarril, cantidadDeUsos]}.
+     */
+    @Query("SELECT l.barril.id, COUNT(l) FROM LimpiezaBarrilEntity l WHERE l.barril.id IN :idsBarril "
+            + "AND l.estado = 'REGISTRADO' "
+            + "AND (NOT EXISTS (SELECT 1 FROM MantenimientoBarrilEntity m WHERE m.barril.id = l.barril.id AND m.estado = 'REGISTRADO') "
+            + "OR l.fecha > (SELECT MAX(m2.fecha) FROM MantenimientoBarrilEntity m2 WHERE m2.barril.id = l.barril.id AND m2.estado = 'REGISTRADO')) "
+            + "GROUP BY l.barril.id")
+    List<Object[]> contarUsosDesdeUltimoMantenimiento(@Param("idsBarril") Collection<Long> idsBarril);
+
+    /**
+     * Lista todas las limpiezas de un barril, anuladas incluidas, de la de fecha más reciente a la más antigua (ante
+     * igual fecha, la de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Las limpiezas del barril, ordenadas.
+     */
+    @Query("SELECT l FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril ORDER BY l.fecha DESC, l.id DESC")
+    List<LimpiezaBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }

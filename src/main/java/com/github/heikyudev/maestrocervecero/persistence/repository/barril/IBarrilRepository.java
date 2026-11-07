@@ -156,4 +156,31 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
             + "SELECT e.barril.id FROM EnvasadoLoteEntity e WHERE e.etapaLote.lote.id = :idLote "
             + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO) ORDER BY b.id")
     List<BarrilEntity> buscarBarrilesEnvasadosDelLoteParaCambiarEstadoOperativo(@Param("idLote") Long idLote);
+
+    /**
+     * Filtra los barriles activos para la pantalla de control, con su fabricante cargado (la lista lo muestra y así no
+     * hay una consulta por fila), por identificador interno (coincidencia parcial, sin distinguir mayúsculas), fabricante
+     * (por su ID) y/o estado operativo (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     * <p>
+     * El orden es el natural por identificador interno de {@link #filtrarBarriles}.
+     * </p>
+     *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de barriles activos que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT b FROM BarrilEntity b JOIN FETCH b.fabricante WHERE b.estado = 'ACTIVO' "
+            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
+            + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante) ORDER BY UPPER(function('regexp_replace', b.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', ''), UPPER(b.identificadorInterno), b.id",
+            countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+                    + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
+                    + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)")
+    Page<BarrilEntity> filtrarBarrilesParaControl(@Param("identificadorInterno") String identificadorInterno,
+                                                   @Param("idFabricante") Long idFabricante,
+                                                   @Param("estadoOperativo") EstadoOperativoBarril estadoOperativo,
+                                                   Pageable pageable);
 }

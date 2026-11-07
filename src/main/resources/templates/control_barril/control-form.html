@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#control-form-content}, 'control-barriles')}">
+<body>
+
+<!--
+    Formulario de registro de una limpieza, una falla, un fraccionamiento, un mantenimiento, un despacho o una devolución de un
+    barril. Es una página aparte a la que lleva el botón de alta de la pestaña del panel. Una fila por tema: el fraccionamiento
+    pide primero la cantidad extraída y el despacho el cliente y las fechas; todos terminan con la fecha y hora de la operación
+    y las observaciones. Registrar vuelve a la pestaña con la alerta de éxito (Post-Redirect-Get); un rechazo vuelve a este
+    formulario con el error en su campo y lo escrito. El formulario no valida: lo hace el servidor.
+-->
+<div id="control-form-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a <span th:text="${#strings.toLowerCase(pestanaActiva.etiqueta)}">limpiezas</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="${pestanaActiva.tituloRegistrar}">Registrar limpieza</h1>
+        <p class="mt-1 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <th:block th:replace="~{control_barril/barril-informacion :: informacion(${barril})}"></th:block>
+
+    <form id="control-form" th:action="@{/control-barriles/{id}/{pestana}(id=${barril.id}, pestana=${pestanaActiva.clave})}" th:object="${operacionForm}"
+          method="post" novalidate data-un-solo-envio
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen(${pestanaActiva.tituloError})}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="|Datos de ${pestanaActiva.articulo}|">Datos de una limpieza</h2>
+
+            <!-- Una fila por tema -->
+            <div class="space-y-5 mt-4">
+                <!-- Fraccionamiento: cantidad extraída -->
+                <div th:if="${pestanaActiva.name() == 'FRACCIONAMIENTOS'}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <label for="cantidadExtraida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad extraída <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: numero('cantidadExtraida', *{cantidadExtraida}, 'Ej: 5', 'L', '', ${#fields.hasErrors('cantidadExtraida')})}"></div>
+                        <p th:if="${#fields.hasErrors('cantidadExtraida')}" th:errors="*{cantidadExtraida}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                </div>
+
+                <!-- Despacho: cliente -->
+                <div th:if="${pestanaActiva.name() == 'DESPACHOS'}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <span class="block text-sm font-medium text-slate-700 mb-1">Cliente <span class="text-rose-600" title="Obligatorio">*</span></span>
+                        <div th:replace="~{fragments/selector-entidad :: selector('idCliente', *{idCliente}, ${clienteSeleccionado},
+                                @{/clientes/buscador}, null, null, false, ${#fields.hasErrors('idCliente')}, 'Seleccione cliente')}"></div>
+                        <p th:if="${#fields.hasErrors('idCliente')}" th:errors="*{idCliente}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                </div>
+
+                <!-- Fecha y hora de la operación (y, en el despacho, la fecha estimada de devolución) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <label for="fecha" class="block text-sm font-medium text-slate-700 mb-1">Fecha y hora de la operación <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="datetime-local" id="fecha" th:field="*{fecha}" autofocus autocomplete="off" placeholder="Ej: 31/10/2026 08:30"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('fecha')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                    <div th:if="${pestanaActiva.name() == 'DESPACHOS'}">
+                        <label for="fechaDevolucionEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha estimada de devolución <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="date" id="fechaDevolucionEstimada" th:field="*{fechaDevolucionEstimada}" autocomplete="off" placeholder="Ej: 30/11/2026"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('fechaDevolucionEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('fechaDevolucionEstimada')}" th:errors="*{fechaDevolucionEstimada}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="grid grid-cols-1 gap-5">
+                    <div>
+                        <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <textarea id="observaciones" th:field="*{observaciones}" rows="3" autocomplete="off" th:placeholder="${pestanaActiva.ejemploObservaciones}"
+                                  class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                                  th:classappend="${#fields.hasErrors('observaciones')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
+                        <p th:if="${#fields.hasErrors('observaciones')}" th:errors="*{observaciones}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:if="${pestanaActiva.name() == 'DEVOLUCIONES'}" class="mt-1 text-xs text-slate-500">Al registrar la devolución se descarta el contenido del barril</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit" data-registrar-boton
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                    th:text="${pestanaActiva.tituloRegistrar}">Registrar limpieza</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

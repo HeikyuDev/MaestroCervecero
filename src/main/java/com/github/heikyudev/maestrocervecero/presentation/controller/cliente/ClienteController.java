@@ -47,6 +47,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 public class ClienteController {
 
     private static final String VISTA_LISTA = "cliente/cliente-lista";
+    private static final String VISTA_BUSCADOR = "cliente/buscador-cliente :: buscador";
     private static final String VISTA_FORMULARIO = "cliente/cliente-form";
     private static final String ATRIBUTO_FORMULARIO = "clienteForm";
     private static final String URL_LISTA = "/clientes";
@@ -88,6 +89,24 @@ public class ClienteController {
         model.addAttribute("filtroIdLocalidad", idLocalidadVigente);
         cargarUbicacion(model, localidadFiltrada);
         return VISTA_LISTA;
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de clientes (criterio de nombre + resultados con "Elegir"), que usa el
+     * selector de cliente del despacho de un barril. No ofrece alta al vuelo.
+     */
+    @GetMapping("/buscador")
+    @PreAuthorize("hasRole('ENCARGADO_DE_DISTRIBUCION')")
+    public String buscarClientes(@RequestParam(required = false) String nombre,
+                                 @RequestParam(defaultValue = "0") int pagina,
+                                 Model model) {
+        Page<ClienteResponseDTO> clientes = clienteServicio.filtrarClientes(
+                vacioANulo(nombre), null, null,
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+
+        model.addAttribute("clientes", clientes);
+        model.addAttribute("filtroNombre", nombre);
+        return VISTA_BUSCADOR;
     }
 
     /**

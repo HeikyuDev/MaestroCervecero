@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,4 +68,14 @@ public interface IMantenimientoBarrilRepository extends JpaRepository<Mantenimie
      */
     @Query("SELECT MAX(m.fecha) FROM MantenimientoBarrilEntity m WHERE m.barril.id = :idBarril AND m.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimoMantenimientoRegistrado(@Param("idBarril") Long idBarril);
+
+    /**
+     * Lista todos los mantenimientos de un barril, anulados incluidos, del de fecha más reciente al más antiguo (ante
+     * igual fecha, el de mayor ID).
+     *
+     * @param idBarril El ID del barril.
+     * @return Los mantenimientos del barril, ordenados.
+     */
+    @Query("SELECT m FROM MantenimientoBarrilEntity m WHERE m.barril.id = :idBarril ORDER BY m.fecha DESC, m.id DESC")
+    List<MantenimientoBarrilEntity> listarPorBarril(@Param("idBarril") Long idBarril);
 }
