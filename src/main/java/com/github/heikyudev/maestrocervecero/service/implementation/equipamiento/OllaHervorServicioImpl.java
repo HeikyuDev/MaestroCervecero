@@ -131,13 +131,14 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     /**
      * Modifica los datos de una olla de hervor existente en el sistema.
      * <p>
-     * El identificador interno no se modifica: lo asignó el sistema al dar de alta.
+     * El identificador interno no se modifica: lo asignó el sistema al dar de alta. La capacidad total tampoco se puede cambiar:
+     * si el formulario la trae, se ignora y se conserva la guardada, contra la que se valida la capacidad útil.
      * </p>
      *
      * @param id                Identificador clave primaria de la olla de hervor a modificar.
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de modificación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor modificada en la base de datos.
-     * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
+     * @throws ReglaNegocioException      Si la capacidad útil no es un número mayor a 0 o es mayor o igual a la capacidad total guardada.
      * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
@@ -151,8 +152,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
-        MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
+        // 2. Validar la capacidad útil (número mayor a 0) contra la capacidad total guardada: la total no se puede cambiar y la que llegue en el formulario se ignora
+        MetodosEquipamiento.validarCapacidadUtil(ollaHervorEntity.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
         // 3. Validar que la evaporación sea un número mayor a 0 y no supere la capacidad útil
         validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
@@ -163,8 +164,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 6. Actualizar los campos de la entidad con los valores del DTO de formulario
-        ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
+        // 6. Actualizar los campos modificables de la entidad con los valores del DTO de formulario (la capacidad total se conserva)
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
         ollaHervorEntity.setEvaporacion(ollaHervorFormDTO.getEvaporacion());
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());

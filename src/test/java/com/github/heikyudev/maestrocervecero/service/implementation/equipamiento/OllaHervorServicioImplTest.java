@@ -464,7 +464,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("modificarOllaHervor actualiza los datos y persiste cuando el ID existe, sin cambiar el identificador interno (camino feliz)")
+    @DisplayName("CP-MO-06: modificarOllaHervor actualiza los datos modificables y persiste cuando el ID existe, conserva la capacidad total guardada y no cambia el identificador interno (camino feliz)")
     void modificarOllaHervor_debeActualizarOllaHervorExistente() {
         // === PREPARACION DE DATOS ===
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-VIEJA", 90.0, 70.0, 8.0, 2.0);
@@ -477,7 +477,8 @@ class OllaHervorServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLLA-VIEJA");
-        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        // La capacidad total no se puede cambiar: se conserva la guardada (90) y se ignora la del formulario (100)
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(resultado.getEvaporacion()).isEqualTo(10.0);
         assertThat(resultado.getPerdidaPorTrub()).isEqualTo(3.0);
@@ -919,31 +920,37 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MO-11: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
-    void modificarOllaHervor_debeRechazar_capacidadTotalNaN() {
-        OllaHervorFormDTO dto = ollaHervorFormDTO(Double.NaN, 80.0, 5.0, 2.0, 500);
-        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+    @DisplayName("CP-MO-11: modificarOllaHervor ignora una capacidad total inválida (NaN) recibida en el formulario y conserva la guardada")
+    void modificarOllaHervor_debeIgnorarCapacidadTotalNaN() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser mayor a 0");
+        // === EJECUCION ===
+        var resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(Double.NaN, 80.0, 5.0, 2.0, 500));
 
-        verify(ollaHervorRepository).findById(1L);
-        verify(ollaHervorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(ollaHervorRepository).save(entidad);
     }
 
     @Test
-    @DisplayName("CP-MO-12: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
-    void modificarOllaHervor_debeRechazar_capacidadTotalSuperaElMaximo() {
-        OllaHervorFormDTO dto = ollaHervorFormDTO(100000.01, 80.0, 5.0, 2.0, 500);
-        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+    @DisplayName("CP-MO-12: modificarOllaHervor ignora una capacidad total que supera 100.000 litros recibida en el formulario y conserva la guardada")
+    void modificarOllaHervor_debeIgnorarCapacidadTotalQueSuperaElMaximo() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total no puede superar 100.000 litros");
+        // === EJECUCION ===
+        var resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(100000.01, 80.0, 5.0, 2.0, 500));
 
-        verify(ollaHervorRepository).findById(1L);
-        verify(ollaHervorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(ollaHervorRepository).save(entidad);
     }
 
     @Test
@@ -1101,5 +1108,72 @@ class OllaHervorServicioImplTest {
         assertThat(ollaHervorEntity.getIdentificadorInterno()).isEqualTo("OLL-03");
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLL-03");
         verifyNoInteractions(secuenciaIdentificadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MO-24: modificarOllaHervor ignora una capacidad total válida distinta recibida en el formulario y conserva la guardada")
+    void modificarOllaHervor_debeConservarLaCapacidadTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 90.0, 70.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(500.0, 80.0, 5.0, 2.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("CP-MO-25: modificarOllaHervor modifica sin error cuando el formulario no trae la capacidad total (nula), como en la edición")
+    void modificarOllaHervor_debeModificarSinCapacidadTotalEnElFormulario() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 90.0, 70.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(null, 85.0, 5.0, 2.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
+        verify(ollaHervorRepository).save(entidad);
+    }
+
+    @Test
+    @DisplayName("CP-MO-26: modificarOllaHervor rechaza una capacidad útil mayor o igual a la capacidad total guardada aunque el formulario traiga una total mayor")
+    void modificarOllaHervor_debeRechazarCapacidadUtilMayorALaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 90.0, 70.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(500.0, 95.0, 5.0, 2.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
+
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(entidad.getCapacidadUtil()).isEqualTo(70.0);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-27: modificarOllaHervor acepta una capacidad útil dentro de la capacidad total guardada aunque el formulario traiga una total menor")
+    void modificarOllaHervor_debeValidarLaCapacidadUtilContraLaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLL-01", 90.0, 70.0, 5.0, 2.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO(50.0, 85.0, 5.0, 2.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
     }
 }

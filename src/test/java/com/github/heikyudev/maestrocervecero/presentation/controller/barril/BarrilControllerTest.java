@@ -629,7 +629,7 @@ class BarrilControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-30: el formulario de edición muestra los datos actuales, el fabricante elegido y apunta a la modificación")
+    @DisplayName("CP-BCT-30: el formulario de edición muestra los datos actuales, la capacidad como dato de solo lectura con su unidad (sin input), el fabricante elegido y apunta a la modificación")
     void caso_cp_bct_30() throws Exception {
         // Arrange
         when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "BRL-01", 2L, "Barrilitos SA"));
@@ -642,8 +642,11 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("Editar barril")))
                 .andExpect(content().string(containsString("value=\"SN-2024-001\"")))
                 .andExpect(content().string(not(containsString("BRL-01"))))
-                .andExpect(content().string(containsString("value=\"50\"")))
-                .andExpect(content().string(not(containsString("value=\"50.0\""))))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("50 L")))
+                .andExpect(content().string(not(containsString("50.0"))))
+                .andExpect(content().string(not(containsString("id=\"capacidad\""))))
+                .andExpect(content().string(not(containsString("name=\"capacidad\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"idFabricanteBarril\"[^>]*value=\"2\".*")))
                 .andExpect(content().string(containsString("value=\"Barrilitos SA\"")))
@@ -733,13 +736,13 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-36: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_bct_36() throws Exception {
         // Arrange
-        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new ReglaNegocioException("La capacidad no puede ser menor al contenido actual del barril (30.0 L)"));
+        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0"));
 
         // Act + Assert
         mockMvc.perform(post("/barriles/4").with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
-                .andExpect(content().string(containsString("La capacidad no puede ser menor al contenido actual del barril (30.0 L)")))
+                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento deben ser mayores a 0")))
                 .andExpect(content().string(containsString("value=\"SN-2024-001\"")));
     }
 
@@ -878,6 +881,56 @@ class BarrilControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*id=\"capacidad\"[^>]*border-rose-400[^>]*value=\"\".*")));
 
         verify(barrilServicio, never()).altaBarril(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-BCT-47: el formulario de alta pide la capacidad como campo editable y no la muestra como dato de solo lectura")
+    void caso_cp_bct_47() throws Exception {
+        // Act + Assert
+        mockMvc.perform(get("/barriles/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"capacidad\"")))
+                .andExpect(content().string(containsString("Capacidad (L)")))
+                .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-BCT-48: la modificación sin capacidad en el pedido es válida y delega en el service")
+    void caso_cp_bct_48() throws Exception {
+        // Arrange
+        LinkedMultiValueMap<String, String> datos = datosValidos();
+        datos.remove("capacidad");
+
+        // Act + Assert
+        mockMvc.perform(post("/barriles/4").with(csrf()).params(datos))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/barriles"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        ArgumentCaptor<BarrilFormDTO> captor = ArgumentCaptor.forClass(BarrilFormDTO.class);
+        verify(barrilServicio).modificarBarril(eq(4L), captor.capture());
+        assertThat(captor.getValue().getCapacidad()).isNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-BCT-49: al volver con errores en la edición se muestra la capacidad guardada como dato de solo lectura, no la enviada en el pedido")
+    void caso_cp_bct_49() throws Exception {
+        // Act + Assert
+        LinkedMultiValueMap<String, String> datos = datosCon("capacidad", "999");
+        datos.set("numeroSerie", "  ");
+        mockMvc.perform(post("/barriles/4").with(csrf()).params(datos))
+                .andExpect(status().isOk())
+                .andExpect(view().name("barril/barril-form"))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("50 L")))
+                .andExpect(content().string(not(containsString("999 L"))))
+                .andExpect(content().string(not(containsString("value=\"999\""))))
+                .andExpect(content().string(not(containsString("id=\"capacidad\""))));
+
+        verify(barrilServicio, never()).modificarBarril(any(), any());
     }
 
     // ==================== Datos de prueba ====================

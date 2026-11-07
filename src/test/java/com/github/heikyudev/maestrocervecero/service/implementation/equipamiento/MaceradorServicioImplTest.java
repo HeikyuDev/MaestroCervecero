@@ -387,7 +387,7 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("modificarMacerador actualiza los datos y persiste cuando el ID existe, sin cambiar el identificador interno (camino feliz)")
+    @DisplayName("CP-MM-05: modificarMacerador actualiza los datos modificables y persiste cuando el ID existe, conserva la capacidad total guardada y no cambia el identificador interno (camino feliz)")
     void modificarMacerador_debeActualizarMaceradorExistente() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-VIEJO", 90.0, 70.0, 4.0, 60.0);
@@ -400,7 +400,8 @@ class MaceradorServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MAC-VIEJO");
-        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        // La capacidad total no se puede cambiar: se conserva la guardada (90) y se ignora la del formulario (100)
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(resultado.getEspacioMuerto()).isEqualTo(5.0);
         assertThat(resultado.getEficienciaMaceracion()).isEqualTo(85.0);
@@ -936,31 +937,37 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-09: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
-    void modificarMacerador_debeRechazar_capacidadTotalNaN() {
-        MaceradorFormDTO dto = maceradorFormDTO(Double.NaN, 80.0, 10.0, 75.0, 500);
-        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+    @DisplayName("CP-MM-09: modificarMacerador ignora una capacidad total inválida (NaN) recibida en el formulario y conserva la guardada")
+    void modificarMacerador_debeIgnorarCapacidadTotalNaN() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(maceradorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser mayor a 0");
+        // === EJECUCION ===
+        var resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO(Double.NaN, 80.0, 10.0, 75.0, 500));
 
-        verify(maceradorRepository).findById(1L);
-        verify(maceradorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(maceradorRepository).save(entidad);
     }
 
     @Test
-    @DisplayName("CP-MM-10: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
-    void modificarMacerador_debeRechazar_capacidadTotalSuperaElMaximo() {
-        MaceradorFormDTO dto = maceradorFormDTO(100000.01, 80.0, 10.0, 75.0, 500);
-        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+    @DisplayName("CP-MM-10: modificarMacerador ignora una capacidad total que supera 100.000 litros recibida en el formulario y conserva la guardada")
+    void modificarMacerador_debeIgnorarCapacidadTotalQueSuperaElMaximo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(maceradorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total no puede superar 100.000 litros");
+        // === EJECUCION ===
+        var resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO(100000.01, 80.0, 10.0, 75.0, 500));
 
-        verify(maceradorRepository).findById(1L);
-        verify(maceradorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(maceradorRepository).save(entidad);
     }
 
     @Test
@@ -1132,5 +1139,72 @@ class MaceradorServicioImplTest {
         assertThat(maceradorEntity.getIdentificadorInterno()).isEqualTo("MAC-03");
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MAC-03");
         verifyNoInteractions(secuenciaIdentificadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-23: modificarMacerador ignora una capacidad total válida distinta recibida en el formulario y conserva la guardada")
+    void modificarMacerador_debeConservarLaCapacidadTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(maceradorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO(500.0, 80.0, 10.0, 75.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("CP-MM-24: modificarMacerador modifica sin error cuando el formulario no trae la capacidad total (nula), como en la edición")
+    void modificarMacerador_debeModificarSinCapacidadTotalEnElFormulario() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(maceradorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO(null, 85.0, 10.0, 75.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
+        verify(maceradorRepository).save(entidad);
+    }
+
+    @Test
+    @DisplayName("CP-MM-25: modificarMacerador rechaza una capacidad útil mayor o igual a la capacidad total guardada aunque el formulario traiga una total mayor")
+    void modificarMacerador_debeRechazarCapacidadUtilMayorALaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO(500.0, 95.0, 10.0, 75.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
+
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(entidad.getCapacidadUtil()).isEqualTo(70.0);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-26: modificarMacerador acepta una capacidad útil dentro de la capacidad total guardada aunque el formulario traiga una total menor")
+    void modificarMacerador_debeValidarLaCapacidadUtilContraLaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 10.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(maceradorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO(50.0, 85.0, 10.0, 75.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
     }
 }

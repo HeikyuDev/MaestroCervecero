@@ -42,7 +42,7 @@ public interface IOllaHervorServicio {
     OllaHervorResponseDTO altaOllaHervor(OllaHervorFormDTO ollaHervorFormDTO);
 
     /**
-     * Modifica una olla de hervor existente.
+     * Modifica una olla de hervor existente. La capacidad total no se puede cambiar: la que llegue en el formulario se ignora y se conserva la guardada.
      *
      * @param id ID de la olla de hervor a modificar.
      * @param ollaHervorFormDTO Datos del formulario para modificar la olla de hervor.

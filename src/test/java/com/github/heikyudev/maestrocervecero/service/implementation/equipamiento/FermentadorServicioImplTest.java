@@ -441,7 +441,7 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("modificarFermentador actualiza los datos y persiste cuando el ID existe, sin cambiar el identificador interno (camino feliz)")
+    @DisplayName("CP-MF-04: modificarFermentador actualiza los datos modificables y persiste cuando el ID existe, conserva la capacidad total guardada y no cambia el identificador interno (camino feliz)")
     void modificarFermentador_debeActualizarFermentadorExistente() {
         // === PREPARACION DE DATOS ===
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-VIEJO", 90.0, 70.0);
@@ -457,12 +457,13 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).save(captor.capture());
         FermentadorEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("FERM-VIEJO");
-        assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(90.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
 
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("FERM-VIEJO");
-        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        // La capacidad total no se puede cambiar: se conserva la guardada (90) y se ignora la del formulario (100)
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         verify(fermentadorRepository).findById(1L);
         // El identificador interno lo asignó el sistema al dar de alta: modificar no lo cambia ni pide otro número
@@ -852,31 +853,37 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MF-09: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
-    void modificarFermentador_debeRechazar_capacidadTotalNaN() {
-        FermentadorFormDTO dto = fermentadorFormDTO(Double.NaN, 80.0, 500);
-        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+    @DisplayName("CP-MF-09: modificarFermentador ignora una capacidad total inválida (NaN) recibida en el formulario y conserva la guardada")
+    void modificarFermentador_debeIgnorarCapacidadTotalNaN() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser mayor a 0");
+        // === EJECUCION ===
+        var resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(Double.NaN, 80.0, 500));
 
-        verify(fermentadorRepository).findById(1L);
-        verify(fermentadorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(fermentadorRepository).save(entidad);
     }
 
     @Test
-    @DisplayName("CP-MF-10: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
-    void modificarFermentador_debeRechazar_capacidadTotalSuperaElMaximo() {
-        FermentadorFormDTO dto = fermentadorFormDTO(100000.01, 80.0, 500);
-        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+    @DisplayName("CP-MF-10: modificarFermentador ignora una capacidad total que supera 100.000 litros recibida en el formulario y conserva la guardada")
+    void modificarFermentador_debeIgnorarCapacidadTotalQueSuperaElMaximo() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
 
-        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total no puede superar 100.000 litros");
+        // === EJECUCION ===
+        var resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(100000.01, 80.0, 500));
 
-        verify(fermentadorRepository).findById(1L);
-        verify(fermentadorRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(100.0);
+        verify(fermentadorRepository).save(entidad);
     }
 
     @Test
@@ -1012,5 +1019,72 @@ class FermentadorServicioImplTest {
         assertThat(fermentadorEntity.getIdentificadorInterno()).isEqualTo("FER-03");
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("FER-03");
         verifyNoInteractions(secuenciaIdentificadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MF-21: modificarFermentador ignora una capacidad total válida distinta recibida en el formulario y conserva la guardada")
+    void modificarFermentador_debeConservarLaCapacidadTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 90.0, 70.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(500.0, 80.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("CP-MF-22: modificarFermentador modifica sin error cuando el formulario no trae la capacidad total (nula), como en la edición")
+    void modificarFermentador_debeModificarSinCapacidadTotalEnElFormulario() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 90.0, 70.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(null, 85.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
+        verify(fermentadorRepository).save(entidad);
+    }
+
+    @Test
+    @DisplayName("CP-MF-23: modificarFermentador rechaza una capacidad útil mayor o igual a la capacidad total guardada aunque el formulario traiga una total mayor")
+    void modificarFermentador_debeRechazarCapacidadUtilMayorALaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 90.0, 70.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(500.0, 95.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
+
+        assertThat(entidad.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(entidad.getCapacidadUtil()).isEqualTo(70.0);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-24: modificarFermentador acepta una capacidad útil dentro de la capacidad total guardada aunque el formulario traiga una total menor")
+    void modificarFermentador_debeValidarLaCapacidadUtilContraLaTotalGuardada() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FER-01", 90.0, 70.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        var resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO(50.0, 85.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadTotal()).isEqualTo(90.0);
+        assertThat(resultado.getCapacidadUtil()).isEqualTo(85.0);
     }
 }

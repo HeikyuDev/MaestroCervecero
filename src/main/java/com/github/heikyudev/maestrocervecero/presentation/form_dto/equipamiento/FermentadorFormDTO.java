@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento;
 
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.GrupoAlta;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,9 +23,10 @@ import lombok.Setter;
 public class FermentadorFormDTO {
 
     /**
-     * Capacidad total en litros.
+     * Capacidad total en litros. Se informa solo en el alta: en la modificación no se envía ni se aplica, porque
+     * la capacidad total no se puede cambiar (la fuente de verdad es el valor guardado).
      */
-    @NotNull(message = "La capacidad total es obligatoria")
+    @NotNull(message = "La capacidad total es obligatoria", groups = GrupoAlta.class)
     private Double capacidadTotal;
 
     /**

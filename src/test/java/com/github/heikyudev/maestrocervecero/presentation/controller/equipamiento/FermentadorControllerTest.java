@@ -309,7 +309,7 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales, y apunta a la modificación")
+    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales, la capacidad total como dato de solo lectura con su unidad (sin input) y apunta a la modificación")
     void caso_cp_fec_16() throws Exception {
         when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
 
@@ -319,7 +319,11 @@ class FermentadorControllerTest {
                 .andExpect(content().string(containsString("Editar fermentador")))
                 .andExpect(content().string(not(containsString("FER-01"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
-                .andExpect(content().string(containsString("value=\"100\"")))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("Capacidad total")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("id=\"capacidadTotal\""))))
+                .andExpect(content().string(not(containsString("name=\"capacidadTotal\""))))
                 .andExpect(content().string(containsString("value=\"80\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
@@ -439,6 +443,71 @@ class FermentadorControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*id=\"capacidadUtil\"[^>]*border-rose-400[^>]*value=\"\".*")));
 
         verify(fermentadorServicio, never()).altaFermentador(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-FEC-25: el formulario de alta pide la capacidad total como campo editable y no la muestra como dato de solo lectura")
+    void caso_cp_fec_25() throws Exception {
+        mockMvc.perform(get("/equipamiento/fermentadores/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"capacidadTotal\"")))
+                .andExpect(content().string(containsString("Capacidad total (L)")))
+                .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-FEC-26: la modificación sin capacidad total en el pedido es válida y delega en el service")
+    void caso_cp_fec_26() throws Exception {
+        mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
+                        .param("capacidadUtil", "80")
+                        .param("usosMaximosAntesMantenimiento", "50"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/fermentadores"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        ArgumentCaptor<FermentadorFormDTO> captor = ArgumentCaptor.forClass(FermentadorFormDTO.class);
+        verify(fermentadorServicio).modificarFermentador(eq(4L), captor.capture());
+        assertThat(captor.getValue().getCapacidadTotal()).isNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-FEC-27: al volver con errores en la edición se muestra la capacidad total guardada como dato de solo lectura, no la enviada en el pedido")
+    void caso_cp_fec_27() throws Exception {
+        when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
+
+        mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
+                        .param("capacidadTotal", "999")
+                        .param("capacidadUtil", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("equipamiento/fermentador-form"))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("999 L"))))
+                .andExpect(content().string(not(containsString("value=\"999\""))))
+                .andExpect(content().string(not(containsString("id=\"capacidadTotal\""))));
+
+        verify(fermentadorServicio, never()).modificarFermentador(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-FEC-28: una capacidad total manipulada en el pedido de modificación no cambia la capacidad total que se muestra al rechazar el service")
+    void caso_cp_fec_28() throws Exception {
+        when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
+        when(fermentadorServicio.modificarFermentador(eq(4L), any())).thenThrow(new ReglaNegocioException("La capacidad útil debe ser menor a la capacidad total"));
+
+        mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
+                        .param("capacidadTotal", "999")
+                        .param("capacidadUtil", "150")
+                        .param("usosMaximosAntesMantenimiento", "50"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La capacidad útil debe ser menor a la capacidad total")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("999 L"))))
+                .andExpect(content().string(not(containsString("value=\"999\""))));
     }
 
     private static FermentadorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {

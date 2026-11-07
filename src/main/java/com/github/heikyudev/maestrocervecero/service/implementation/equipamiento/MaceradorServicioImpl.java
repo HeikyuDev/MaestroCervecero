@@ -131,7 +131,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     /**
      * Actualiza la información de un macerador existente en la base de datos.
      * <p>
-     * Valida el porcentaje que la capacidad útil sea menor a la capacidad total, que la eficiencia de maceración se encuentre entre 40 y 100 inclusive,
+     * La capacidad total no se puede cambiar: si el formulario la trae, se ignora y se conserva la guardada. Valida que la capacidad útil sea menor a la capacidad total guardada, que la eficiencia de maceración se encuentre entre 40 y 100 inclusive,
      * luego localiza el macerador por su ID. El identificador interno no se modifica: lo asignó el sistema al dar de alta.
      * </p>
      *
@@ -151,8 +151,8 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
-        MetodosEquipamiento.validarCapacidadUtil(maceradorFormDTO.getCapacidadTotal(), maceradorFormDTO.getCapacidadUtil());
+        // 2. Validar la capacidad útil (número mayor a 0) contra la capacidad total guardada: la total no se puede cambiar y la que llegue en el formulario se ignora
+        MetodosEquipamiento.validarCapacidadUtil(maceradorEntity.getCapacidadTotal(), maceradorFormDTO.getCapacidadUtil());
 
         // 3. Validar el espacio muerto
         validarEspacioMuerto(maceradorFormDTO.getEspacioMuerto(), maceradorFormDTO.getCapacidadUtil());
@@ -163,8 +163,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 6. Aplico los cambios sobre la entidad administrada por persistencia.
-        maceradorEntity.setCapacidadTotal(maceradorFormDTO.getCapacidadTotal());
+        // 6. Aplico los cambios modificables sobre la entidad administrada por persistencia (la capacidad total se conserva).
         maceradorEntity.setCapacidadUtil(maceradorFormDTO.getCapacidadUtil());
         maceradorEntity.setEspacioMuerto(maceradorFormDTO.getEspacioMuerto());
         maceradorEntity.setEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());

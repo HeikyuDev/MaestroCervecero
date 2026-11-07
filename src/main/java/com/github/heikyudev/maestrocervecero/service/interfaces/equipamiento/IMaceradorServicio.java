@@ -43,7 +43,7 @@ public interface IMaceradorServicio {
     MaceradorResponseDTO altaMacerador(MaceradorFormDTO maceradorFormDTO);
 
     /**
-     * Modifica un macerador existente.
+     * Modifica un macerador existente. La capacidad total no se puede cambiar: la que llegue en el formulario se ignora y se conserva la guardada.
      *
      * @param id ID del macerador a modificar.
      * @param maceradorFormDTO Datos del macerador a modificar.

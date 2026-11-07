@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.barril;
 
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.GrupoAlta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,9 +33,10 @@ public class BarrilFormDTO {
     private String numeroSerie;
 
     /**
-     * Capacidad total del barril en litros.
+     * Capacidad total del barril en litros. Se informa solo en el alta: en la modificación no se envía ni se aplica,
+     * porque la capacidad no se puede cambiar (la fuente de verdad es el valor guardado).
      */
-    @NotNull(message = "La capacidad es obligatoria")
+    @NotNull(message = "La capacidad es obligatoria", groups = GrupoAlta.class)
     private Double capacidad;
 
     /**

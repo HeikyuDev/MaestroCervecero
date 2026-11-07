@@ -46,7 +46,7 @@ public interface IBarrilServicio {
     BarrilResponseDTO altaBarril(BarrilFormDTO barrilFormDTO);
 
     /**
-     * Modifica un barril existente. El barril queda bloqueado mientras se valida y se escribe.
+     * Modifica un barril existente. El barril queda bloqueado mientras se valida y se escribe. La capacidad no se puede cambiar: la que llegue en el formulario se ignora y se conserva la guardada.
      *
      * @param id             ID del barril a modificar.
      * @param barrilFormDTO  Datos del barril a modificar.

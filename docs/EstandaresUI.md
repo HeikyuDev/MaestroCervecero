@@ -65,6 +65,7 @@ En todos los formularios y los detalles de solo lectura los datos se agrupan por
 - Totales: los totales van en una tabla de resumen (Concepto e Importe, con el total en negrita) o en una fila de total con estilo propio (fondo blanco, borde superior marcado y negrita); nunca con el estilo del encabezado de columnas (fondo gris suave, mayúsculas y texto gris). Las tablas de detalle de costos no llevan fila de total y cada una va en su propia tarjeta con título, separadas verticalmente.
 - En una tabla el encabezado y la celda de cada columna usan el mismo relleno horizontal, para que queden en el mismo borde izquierdo.
 - Proveedor es la referencia y el resto de las pantallas siguen la misma regla (protegidas por `OrdenDeCamposTest`).
+- Dato de solo lectura dentro de un formulario de edición: un dato que se fija en el alta y no se puede cambiar (la capacidad total de un fermentador, un macerador o una olla de hervor y la capacidad de un barril) se muestra en la edición como texto, no como input: la etiqueta sin unidad ("Capacidad total"), el valor con la unidad (`receta/formato :: medida(valor, 'L')`, por ejemplo "100 L") y la ayuda "No se puede modificar.", en la misma posición de la misma fila que ocupa el input en el alta. El bloque lleva `data-capacidad-solo-lectura`, sin `id` ni `name` de input, y el valor sale del dato guardado, nunca del pedido. El alta mantiene el input editable, con el asterisco rojo y la unidad en la etiqueta.
 
 ## Scroll conservado
 

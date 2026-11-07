@@ -74,7 +74,7 @@ public interface IFermentadorServicio {
     FermentadorResponseDTO altaFermentador(FermentadorFormDTO fermentadorFormDTO);
 
     /**
-     * Modifica un fermentador existente.
+     * Modifica un fermentador existente. La capacidad total no se puede cambiar: la que llegue en el formulario se ignora y se conserva la guardada.
      *
      * @param id ID del fermentador a modificar.
      * @param fermentadorFormDTO Datos del fermentador a modificar.

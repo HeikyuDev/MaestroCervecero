@@ -327,7 +327,7 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-16: el formulario de edición muestra los datos actuales, y apunta a la modificación")
+    @DisplayName("CP-OHC-16: el formulario de edición muestra los datos actuales, la capacidad total como dato de solo lectura con su unidad (sin input) y apunta a la modificación")
     void caso_cp_ohc_16() throws Exception {
         when(ollaHervorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "OLLA-01", EstadoOperativo.DISPONIBLE));
 
@@ -337,7 +337,11 @@ class OllaHervorControllerTest {
                 .andExpect(content().string(containsString("Editar olla de hervor")))
                 .andExpect(content().string(not(containsString("OLLA-01"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
-                .andExpect(content().string(containsString("value=\"100\"")))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("Capacidad total")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("id=\"capacidadTotal\""))))
+                .andExpect(content().string(not(containsString("name=\"capacidadTotal\""))))
                 .andExpect(content().string(containsString("value=\"80\"")))
                 .andExpect(content().string(containsString("value=\"8\"")))
                 .andExpect(content().string(containsString("value=\"3\"")))                .andExpect(content().string(containsString("value=\"50\"")))
@@ -452,6 +456,75 @@ class OllaHervorControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verify(ollaHervorServicio, never()).bajaOllaHervor(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-OHC-24: el formulario de alta pide la capacidad total como campo editable y no la muestra como dato de solo lectura")
+    void caso_cp_ohc_25() throws Exception {
+        mockMvc.perform(get("/equipamiento/ollas-hervor/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"capacidadTotal\"")))
+                .andExpect(content().string(containsString("Capacidad total (L)")))
+                .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-OHC-25: la modificación sin capacidad total en el pedido es válida y delega en el service")
+    void caso_cp_ohc_26() throws Exception {
+        mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
+                        .param("capacidadUtil", "80")
+                        .param("evaporacion", "8")
+                        .param("perdidaPorTrub", "3")
+                        .param("usosMaximosAntesMantenimiento", "50"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/ollas-hervor"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        ArgumentCaptor<OllaHervorFormDTO> captor = ArgumentCaptor.forClass(OllaHervorFormDTO.class);
+        verify(ollaHervorServicio).modificarOllaHervor(eq(4L), captor.capture());
+        assertThat(captor.getValue().getCapacidadTotal()).isNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-OHC-26: al volver con errores en la edición se muestra la capacidad total guardada como dato de solo lectura, no la enviada en el pedido")
+    void caso_cp_ohc_27() throws Exception {
+        when(ollaHervorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "OLLA-01", EstadoOperativo.DISPONIBLE));
+
+        mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
+                        .param("capacidadTotal", "999")
+                        .param("capacidadUtil", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("equipamiento/olla-form"))
+                .andExpect(content().string(containsString("data-capacidad-solo-lectura")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("999 L"))))
+                .andExpect(content().string(not(containsString("value=\"999\""))))
+                .andExpect(content().string(not(containsString("id=\"capacidadTotal\""))));
+
+        verify(ollaHervorServicio, never()).modificarOllaHervor(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-OHC-27: una capacidad total manipulada en el pedido de modificación no cambia la capacidad total que se muestra al rechazar el service")
+    void caso_cp_ohc_28() throws Exception {
+        when(ollaHervorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "OLLA-01", EstadoOperativo.DISPONIBLE));
+        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("La capacidad útil debe ser menor a la capacidad total"));
+
+        mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
+                        .param("capacidadTotal", "999")
+                        .param("capacidadUtil", "150")
+                        .param("evaporacion", "8")
+                        .param("perdidaPorTrub", "3")
+                        .param("usosMaximosAntesMantenimiento", "50"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La capacidad útil debe ser menor a la capacidad total")))
+                .andExpect(content().string(containsString("100 L")))
+                .andExpect(content().string(not(containsString("999 L"))))
+                .andExpect(content().string(not(containsString("value=\"999\""))));
     }
 
     private static OllaHervorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {

@@ -433,32 +433,45 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MB-02: modificarBarril lanza ReglaNegocioException y no consulta el fabricante cuando la capacidad es nula")
-    void modificarBarril_debeRechazarCapacidadNula() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+    @DisplayName("CP-MB-02: modificarBarril modifica sin error cuando el formulario no trae la capacidad (nula), como en la edición, y conserva la guardada")
+    void modificarBarril_debeModificarSinCapacidadEnElFormulario() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricante);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", null, 1L);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricante));
+        when(barrilRepository.existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
-        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad es obligatoria");
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
-        verifyNoInteractions(fabricanteBarrilRepository);
-        verify(barrilRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(50.0);
+        verify(barrilRepository).save(barrilEntity);
     }
 
     @Test
-    @DisplayName("CP-MB-03: modificarBarril lanza ReglaNegocioException cuando la capacidad es igual a cero (valor límite)")
-    void modificarBarril_debeRechazarCapacidadIgualACero() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+    @DisplayName("CP-MB-03: modificarBarril ignora una capacidad igual a cero recibida en el formulario y conserva la guardada")
+    void modificarBarril_debeIgnorarCapacidadIgualACero() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricante);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 0.0, 1L);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricante));
+        when(barrilRepository.existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
-        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad debe ser mayor a 0");
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
-        verify(barrilRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(50.0);
+        verify(barrilRepository).save(barrilEntity);
     }
 
     @Test
@@ -494,7 +507,7 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MB-06: modificarBarril permite conservar el número de serie y el fabricante propios y persiste (camino feliz)")
+    @DisplayName("CP-MB-06: modificarBarril permite conservar el número de serie y el fabricante propios, conserva la capacidad guardada y persiste (camino feliz)")
     void modificarBarril_debePermitirConservarNumeroSerieYFabricantePropios() {
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
@@ -507,7 +520,8 @@ class BarrilServicioImplTest {
         BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
         assertThat(resultado.getNumeroSerie()).isEqualTo("BAR-01");
-        assertThat(resultado.getCapacidad()).isEqualTo(60.0);
+        // La capacidad no se puede cambiar: se conserva la guardada (50) y se ignora la del formulario (60)
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
         assertThat(resultado.getFabricante().getId()).isEqualTo(1L);
         verify(barrilRepository).save(barrilEntity);
     }
@@ -538,21 +552,28 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MB-08: modificarBarril lanza ReglaNegocioException y no persiste cuando la capacidad es menor al contenido actual del barril")
-    void modificarBarril_debeRechazarCapacidadMenorAlContenidoActual() {
+    @DisplayName("CP-MB-08: modificarBarril no compara la capacidad con el contenido actual del barril: persiste y conserva la capacidad guardada")
+    void modificarBarril_noDebeValidarLaCapacidadContraElContenidoActual() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = BarrilEntity.builder()
                 .id(1L).identificadorInterno("BRL-01").numeroSerie("BAR-01").capacidad(50.0).contenidoActual(30.0)
                 .estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
-                .estado(Estado.ACTIVO).fabricante(crearFabricanteBarrilEntity(1L)).build();
+                .estado(Estado.ACTIVO).fabricante(fabricante).build();
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 20.0, 1L);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricante));
+        when(barrilRepository.existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
-        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad no puede ser menor al contenido actual del barril (30.0 L)");
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
-        verifyNoInteractions(fabricanteBarrilRepository);
-        verify(barrilRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getContenidoActual()).isEqualTo(30.0);
+        verify(barrilRepository).save(barrilEntity);
     }
 
     @Test
@@ -572,25 +593,29 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MB-15: modificarBarril lanza ReglaNegocioException y no consulta el fabricante cuando la capacidad supera el máximo técnico")
-    void modificarBarril_debeRechazarCapacidadMayorAlMaximo() {
+    @DisplayName("CP-MB-15: modificarBarril ignora una capacidad que supera el máximo técnico recibida en el formulario y conserva la guardada")
+    void modificarBarril_debeIgnorarCapacidadMayorAlMaximo() {
         // === PREPARACION DE DATOS ===
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricante);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 1000.5, 1L);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricante));
+        when(barrilRepository.existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
-        // === EJECUCION Y ASERTOS ===
-        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad no puede superar 1.000 litros");
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
-        verifyNoInteractions(fabricanteBarrilRepository);
-        verify(barrilRepository, never()).save(any());
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(50.0);
+        verify(barrilRepository).save(barrilEntity);
     }
 
     @Test
-    @DisplayName("CP-MB-16: modificarBarril persiste el barril cuando la capacidad es igual al máximo técnico (valor límite)")
-    void modificarBarril_debePermitirCapacidadIgualAlMaximo() {
+    @DisplayName("CP-MB-16: modificarBarril ignora una capacidad válida distinta recibida en el formulario y conserva la guardada")
+    void modificarBarril_debeConservarLaCapacidadGuardadaAunqueElFormularioTraigaOtraValida() {
         // === PREPARACION DE DATOS ===
         FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricante);
@@ -603,9 +628,10 @@ class BarrilServicioImplTest {
         // === EJECUCION ===
         BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
 
-        // === ASERTOS ===
-        assertThat(resultado.getCapacidad()).isEqualTo(1000.0);
-        assertThat(barrilEntity.getCapacidad()).isEqualTo(1000.0);
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(50.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(50.0);
+        verify(barrilRepository).save(barrilEntity);
     }
 
     @Test

@@ -172,18 +172,17 @@ public class BarrilServicioImpl implements IBarrilServicio {
     /**
      * Actualiza la información de un barril existente en la base de datos.
      * <p>
-     * Localiza el barril por su ID bloqueándolo mientras se valida y se escribe (un envasado o despacho simultáneo no puede cambiarlo entre ambos pasos), normaliza el número de serie (sin espacios de más, conservando las mayúsculas), valida que sea obligatorio y no supere los 255 caracteres, que la capacidad sea mayor a 0 y no sea menor al
-     * contenido actual del barril, que los usos máximos antes de mantenimiento sean válidos, que
+     * Localiza el barril por su ID bloqueándolo mientras se valida y se escribe (un envasado o despacho simultáneo no puede cambiarlo entre ambos pasos), normaliza el número de serie (sin espacios de más, conservando las mayúsculas), valida que sea obligatorio y no supere los 255 caracteres, que los usos máximos antes de mantenimiento sean válidos, que
      * el fabricante de barril indicado exista y esté activo (el fabricante puede reasignarse al
      * modificar), y que ningún otro barril activo de ese fabricante tenga ya el número de serie
-     * indicado, permitiendo conservar el propio número de serie actual. El identificador interno no se modifica.
+     * indicado, permitiendo conservar el propio número de serie actual. El identificador interno y la capacidad no se modifican: si el formulario trae una capacidad, se ignora y se conserva la guardada.
      * </p>
      *
      * @param id Identificador clave primaria del barril a modificar.
      * @param barrilFormDTO DTO con la información actualizada.
      * @return {@link BarrilResponseDTO} representativo del barril con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza un barril activo por el ID proporcionado, o si no existe un fabricante de barril activo con el ID indicado.
-     * @throws ReglaNegocioException Si el número de serie falta o supera los 255 caracteres, si la capacidad es nula, menor o igual a 0 o supera {@link LimitesTecnicos#CAPACIDAD_BARRIL_MAXIMA_LITROS} litros, si la capacidad es menor al contenido actual del barril, o si los usos máximos antes de mantenimiento son nulos, menores o iguales a 0 o superan {@link LimitesTecnicos#USOS_MAXIMOS_MANTENIMIENTO_MAXIMO}.
+     * @throws ReglaNegocioException Si el número de serie falta o supera los 255 caracteres, o si los usos máximos antes de mantenimiento son nulos, menores o iguales a 0 o superan {@link LimitesTecnicos#USOS_MAXIMOS_MANTENIMIENTO_MAXIMO}.
      * @throws RecursoDuplicadoException Si otro barril activo del mismo fabricante ya tiene ese número de serie.
      */
     @Override
@@ -200,35 +199,25 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 3. Validar que el número de serie sea obligatorio y no supere la longitud máxima
         validarNumeroSerie(numeroSerie);
 
-        // 4. Validar que la capacidad sea mayor a 0 y no supere el máximo técnico
-        validarCapacidad(barrilFormDTO.getCapacidad());
-
-        // 5. Validar que la nueva capacidad no sea menor al contenido actual del barril: reducirla
-        //    por debajo de lo que ya tiene cargado dejaría al barril en un estado imposible
-        if (barrilFormDTO.getCapacidad() < barrilEntity.getContenidoActual()) {
-            throw new ReglaNegocioException("La capacidad no puede ser menor al contenido actual del barril (" + barrilEntity.getContenidoActual() + " L)");
-        }
-
-        // 6. Validar que los usos máximos antes de mantenimiento sean válidos
+        // 4. Validar que los usos máximos antes de mantenimiento sean válidos
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 7. Validar que el fabricante de barril indicado exista y esté activo
+        // 5. Validar que el fabricante de barril indicado exista y esté activo
         FabricanteBarrilEntity fabricanteBarrilEntity = fabricanteBarrilRepository.findById(barrilFormDTO.getIdFabricanteBarril())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fabricante de barril con ID: " + barrilFormDTO.getIdFabricanteBarril()));
 
-        // 8. Validar duplicación excluyendo el propio barril, de modo que conservar el
+        // 6. Validar duplicación excluyendo el propio barril, de modo que conservar el
         //    número de serie actual no falle contra el mismo registro
         if (barrilRepository.existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot(numeroSerie, barrilFormDTO.getIdFabricanteBarril(), id)) {
             throw numeroSerieDuplicado(numeroSerie);
         }
 
-        // 9. Aplico los cambios sobre la entidad administrada por persistencia
+        // 7. Aplico los cambios modificables sobre la entidad administrada por persistencia (la capacidad se conserva)
         barrilEntity.setNumeroSerie(numeroSerie);
-        barrilEntity.setCapacidad(barrilFormDTO.getCapacidad());
         barrilEntity.setUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
         barrilEntity.setFabricante(fabricanteBarrilEntity);
 
-        // 10. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        // 8. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //     y devuelvo el DTO correspondiente
         return MapperBarril.toDTO(GuardadoUnico.guardar(barrilRepository, barrilEntity,
                 Map.of(INDICE_NUMERO_SERIE, () -> numeroSerieDuplicado(numeroSerie))));

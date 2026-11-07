@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.GrupoAlta;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMaceradorServicio;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -76,7 +78,7 @@ public class MaceradorController {
                                         @RequestParam(required = false) String campo,
                                         Model model) {
         model.addAttribute(ATRIBUTO_FORMULARIO, new MaceradorFormDTO());
-        cargarModeloFormulario(model, null, retorno, campo);
+        cargarModeloFormulario(model, null, retorno, campo, null);
         return VISTA_FORMULARIO;
     }
 
@@ -86,7 +88,7 @@ public class MaceradorController {
      */
     @PostMapping
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String altaMacerador(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) MaceradorFormDTO maceradorForm,
+    public String altaMacerador(@Validated(GrupoAlta.class) @ModelAttribute(ATRIBUTO_FORMULARIO) MaceradorFormDTO maceradorForm,
                        BindingResult bindingResult,
                        @RequestParam(required = false) String retorno,
                        @RequestParam(required = false) String campo,
@@ -103,7 +105,7 @@ public class MaceradorController {
             }
         }
 
-        cargarModeloFormulario(model, null, retorno, campo);
+        cargarModeloFormulario(model, null, retorno, campo, null);
         return VISTA_FORMULARIO;
     }
 
@@ -116,13 +118,12 @@ public class MaceradorController {
         MaceradorResponseDTO actual = maceradorServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, MaceradorFormDTO.builder()
-                .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .espacioMuerto(actual.getEspacioMuerto())
                 .eficienciaMaceracion(actual.getEficienciaMaceracion())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
-        cargarModeloFormulario(model, id, null, null);
+        cargarModeloFormulario(model, id, null, null, actual.getCapacidadTotal());
         return VISTA_FORMULARIO;
     }
 
@@ -147,7 +148,7 @@ public class MaceradorController {
             }
         }
 
-        cargarModeloFormulario(model, id, null, null);
+        cargarModeloFormulario(model, id, null, null, maceradorServicio.buscarPorId(id).getCapacidadTotal());
         return VISTA_FORMULARIO;
     }
 
@@ -163,10 +164,12 @@ public class MaceradorController {
         return "redirect:" + URL_LISTA;
     }
 
-    private void cargarModeloFormulario(Model model, Long maceradorId, String retorno, String campo) {
+    private void cargarModeloFormulario(Model model, Long maceradorId, String retorno, String campo, Double capacidadTotalGuardada) {
         String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("maceradorId", maceradorId);
         model.addAttribute("retorno", retornoValido);
+        // La capacidad total guardada se muestra como dato de solo lectura en la edición; en el alta es null
+        model.addAttribute("capacidadTotalGuardada", capacidadTotalGuardada);
         model.addAttribute("campo", RetornoContextual.campoValido(campo));
         model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
     }

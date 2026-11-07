@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.GrupoAlta;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.BarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -20,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -117,7 +119,7 @@ public class BarrilController {
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
     public String mostrarFormularioAlta(Model model) {
         model.addAttribute(ATRIBUTO_FORMULARIO, new BarrilFormDTO());
-        cargarModeloFormulario(model, null, null);
+        cargarModeloFormulario(model, null, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -127,7 +129,7 @@ public class BarrilController {
      */
     @PostMapping
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String altaBarril(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) BarrilFormDTO barrilForm,
+    public String altaBarril(@Validated(GrupoAlta.class) @ModelAttribute(ATRIBUTO_FORMULARIO) BarrilFormDTO barrilForm,
                              BindingResult bindingResult,
                              Model model,
                              RedirectAttributes redirectAttributes) {
@@ -145,7 +147,7 @@ public class BarrilController {
             }
         }
 
-        cargarModeloFormulario(model, null, barrilForm.getIdFabricanteBarril());
+        cargarModeloFormulario(model, null, barrilForm.getIdFabricanteBarril(), null);
         return VISTA_FORMULARIO;
     }
 
@@ -160,17 +162,16 @@ public class BarrilController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, BarrilFormDTO.builder()
                 .numeroSerie(actual.getNumeroSerie())
-                .capacidad(actual.getCapacidad())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .idFabricanteBarril(idFabricante)
                 .build());
-        cargarModeloFormulario(model, id, idFabricante);
+        cargarModeloFormulario(model, id, idFabricante, actual.getCapacidad());
         return VISTA_FORMULARIO;
     }
 
     /**
      * Procesa la modificación del barril (Post-Redirect-Get). El service la rechaza si los datos incumplen una
-     * regla (por ejemplo, una capacidad menor al contenido actual); el motivo se muestra en el formulario.
+     * regla (por ejemplo, un número de serie ya usado por el fabricante); el motivo se muestra en el formulario.
      */
     @PostMapping("/{id}")
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
@@ -197,7 +198,7 @@ public class BarrilController {
             }
         }
 
-        cargarModeloFormulario(model, id, barrilForm.getIdFabricanteBarril());
+        cargarModeloFormulario(model, id, barrilForm.getIdFabricanteBarril(), barrilServicio.buscarPorId(id).getCapacidad());
         return VISTA_FORMULARIO;
     }
 
@@ -213,8 +214,10 @@ public class BarrilController {
         return "redirect:" + URL_LISTA;
     }
 
-    private void cargarModeloFormulario(Model model, Long barrilId, Long idFabricante) {
+    private void cargarModeloFormulario(Model model, Long barrilId, Long idFabricante, Double capacidadGuardada) {
         model.addAttribute("barrilId", barrilId);
+        // La capacidad guardada se muestra como dato de solo lectura en la edición; en el alta es null
+        model.addAttribute("capacidadGuardada", capacidadGuardada);
         model.addAttribute("fabricanteSeleccionado", nombreFabricante(idFabricante));
         model.addAttribute("urlCancelar", URL_LISTA);
     }

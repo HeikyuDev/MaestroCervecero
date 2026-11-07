@@ -174,12 +174,13 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     }
 
     /**
-     * Modifica un fermentador existente en el sistema.
+     * Modifica un fermentador existente en el sistema. La capacidad total no se puede cambiar: si el formulario la
+     * trae, se ignora y se conserva la guardada, contra la que se valida la capacidad útil.
      *
      * @param id                 Identificador único del fermentador a modificar.
      * @param fermentadorFormDTO DTO que contiene los nuevos datos del fermentador.
      * @return Objeto {@link FermentadorResponseDTO} con la información actualizada del fermentador.
-     * @throws ReglaNegocioException        Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
+     * @throws ReglaNegocioException        Si la capacidad útil no es un número mayor a 0 o es mayor o igual a la capacidad total guardada, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      * @throws RecursoNoEncontradoException Si no existe ningún fermentador activo con el ID especificado.
      */
     @Override
@@ -190,14 +191,13 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total.
-        MetodosEquipamiento.validarCapacidadUtil(fermentadorFormDTO.getCapacidadTotal(), fermentadorFormDTO.getCapacidadUtil());
+        // 2. Validar la capacidad útil (número mayor a 0) contra la capacidad total guardada: la total no se puede cambiar y la que llegue en el formulario se ignora.
+        MetodosEquipamiento.validarCapacidadUtil(fermentadorEntity.getCapacidadTotal(), fermentadorFormDTO.getCapacidadUtil());
 
         // 3. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 4. Actualizar los campos del fermentador con los datos del DTO de formulario.
-        fermentadorEntity.setCapacidadTotal(fermentadorFormDTO.getCapacidadTotal());
+        // 4. Actualizar los campos modificables del fermentador con los datos del DTO de formulario (la capacidad total se conserva).
         fermentadorEntity.setCapacidadUtil(fermentadorFormDTO.getCapacidadUtil());
         fermentadorEntity.setUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
