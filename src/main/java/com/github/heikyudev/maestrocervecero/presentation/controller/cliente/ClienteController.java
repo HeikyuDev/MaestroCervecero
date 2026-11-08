@@ -15,7 +15,6 @@ import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -79,9 +78,9 @@ public class ClienteController {
         LocalidadResponseDTO localidadFiltrada = buscarLocalidad(idLocalidad);
         Long idLocalidadVigente = localidadFiltrada == null ? null : idLocalidad;
 
-        Page<ClienteResponseDTO> clientes = clienteServicio.filtrarClientes(
-                vacioANulo(nombre), vacioANulo(direccion), idLocalidadVigente,
-                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_ALFABETICO));
+        Page<ClienteResponseDTO> clientes = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA, ORDEN_ALFABETICO, p -> clienteServicio.filtrarClientes(
+                        vacioANulo(nombre), vacioANulo(direccion), idLocalidadVigente, p));
 
         model.addAttribute("clientes", clientes);
         model.addAttribute("filtroNombre", nombre);
@@ -104,9 +103,9 @@ public class ClienteController {
                                  Model model) {
         LocalidadResponseDTO localidadFiltrada = buscarLocalidad(idLocalidad);
         Long idLocalidadVigente = localidadFiltrada == null ? null : idLocalidad;
-        Page<ClienteResponseDTO> clientes = clienteServicio.filtrarClientes(
-                vacioANulo(nombre), vacioANulo(direccion), idLocalidadVigente,
-                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+        Page<ClienteResponseDTO> clientes = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO, p -> clienteServicio.filtrarClientes(
+                        vacioANulo(nombre), vacioANulo(direccion), idLocalidadVigente, p));
 
         model.addAttribute("clientes", clientes);
         model.addAttribute("filtroNombre", nombre);

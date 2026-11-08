@@ -42,9 +42,9 @@ public interface IFabricanteBarrilRepository extends JpaRepository<FabricanteBar
      * @return Una página de fabricantes de barril activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT f FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
+            + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')) ESCAPE '!')",
             countQuery = "SELECT COUNT(f) FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
+                    + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')) ESCAPE '!')")
     Page<FabricanteBarrilEntity> filtrarFabricantesBarril(@Param("nombre") String nombre, Pageable pageable);
 
     /**

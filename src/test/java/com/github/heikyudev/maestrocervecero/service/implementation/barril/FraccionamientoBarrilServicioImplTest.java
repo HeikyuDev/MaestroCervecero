@@ -191,7 +191,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha es obligatoria")
+                .hasMessage("La fecha de fraccionamiento es obligatoria")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
@@ -242,7 +242,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a extraer debe ser mayor a cero")
+                .hasMessage("La cantidad a extraer debe ser mayor a 0")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("cantidadExtraida"));
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
@@ -255,7 +255,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a extraer debe ser mayor a cero")
+                .hasMessage("La cantidad a extraer debe ser mayor a 0")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("cantidadExtraida"));
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
@@ -268,7 +268,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a extraer debe ser mayor a cero");
+                .hasMessage("La cantidad a extraer debe ser mayor a 0");
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
     }
@@ -280,7 +280,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a extraer debe ser mayor a cero");
+                .hasMessage("La cantidad a extraer debe ser mayor a 0");
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
     }
@@ -638,7 +638,7 @@ class FraccionamientoBarrilServicioImplTest {
 
             assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad a extraer debe ser mayor a cero")
+                    .hasMessage("La cantidad a extraer debe ser mayor a 0")
                     .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("cantidadExtraida"));
         }
 
@@ -655,7 +655,7 @@ class FraccionamientoBarrilServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)")
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00:00)")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verify(barrilRepository, never()).save(any());
@@ -672,7 +672,7 @@ class FraccionamientoBarrilServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)");
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00:00)");
 
         verify(barrilRepository, never()).save(any());
         verify(fraccionamientoBarrilRepository, never()).save(any());

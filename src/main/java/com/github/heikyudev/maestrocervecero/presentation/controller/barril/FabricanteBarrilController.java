@@ -10,7 +10,6 @@ import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -51,8 +50,8 @@ public class FabricanteBarrilController {
     public String listarFabricantes(@RequestParam(required = false) String nombre,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
-        Page<FabricanteBarrilResponseDTO> fabricantes = fabricanteBarrilServicio.filtrarFabricantesBarril(
-                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_ALFABETICO));
+        Page<FabricanteBarrilResponseDTO> fabricantes = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA, ORDEN_ALFABETICO, p -> fabricanteBarrilServicio.filtrarFabricantesBarril(vacioANulo(nombre), p));
 
         model.addAttribute("fabricantes", fabricantes);
         model.addAttribute("filtroNombre", nombre);

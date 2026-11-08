@@ -24,6 +24,7 @@ import java.util.Optional;
 public class MetodosCicloVida {
 
     /** Formato con el que los mensajes muestran una fecha y hora. */
+    private static final DateTimeFormatter FORMATO_FECHA_HORA_SEGUNDOS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     /** Nombre del campo del formulario con el barril afectado. */
@@ -130,7 +131,7 @@ public class MetodosCicloVida {
     public static void validarPosteriorAFinalizacionDelLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinalizacionLote, String campo) {
         if (fechaFinalizacionLote != null && !fechaOperacion.isAfter(fechaFinalizacionLote)) {
             throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril ("
-                    + FORMATO_FECHA_HORA.format(fechaFinalizacionLote) + ")", campo);
+                    + FORMATO_FECHA_HORA_SEGUNDOS.format(fechaFinalizacionLote) + ")", campo);
         }
     }
 

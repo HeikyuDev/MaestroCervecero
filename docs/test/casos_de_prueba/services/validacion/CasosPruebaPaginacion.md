@@ -13,3 +13,5 @@
 | **CP-PGN-01** | Página dentro del rango | `0`, `7` y `100000` | Número válido | Devuelve el mismo número. |
 | **CP-PGN-02** | Página negativa | `-1` y `Integer.MIN_VALUE` | Número menor que cero | Devuelve `0`. |
 | **CP-PGN-03** | Página desmedida | `107000000` y `Integer.MAX_VALUE` | Número mayor que el máximo | Devuelve `100000`; con un tamaño de página de 100, el desplazamiento resultante es menor que `Integer.MAX_VALUE`. |
+| **CP-PGN-04** | Página fuera de rango | `consultar(5, 10, ...)` sobre 25 elementos (3 páginas) | La página pedida supera la última y su contenido está vacío | Repite la consulta con la página `2` conservando el tamaño y el orden; devuelve su contenido. |
+| **CP-PGN-05** | Página válida o sin resultados | `consultar(0, ...)` con un elemento y `consultar(3, ...)` sin resultados | No hay página fuera de rango que corregir | No repite la consulta (2 consultas en total). |

@@ -11,6 +11,7 @@ Devuelve los barriles activos con su fabricante (cargado junto con el barril), e
 |**CP-CBS-01**|Arma los datos con una consulta de usos|Página con dos barriles, uno con 7 usos|El primero informa 7 usos, máximo 10 y fabricante; el segundo 0 usos; `contarUsosDesdeUltimoMantenimiento` se invoca una vez.|
 |**CP-CBS-02**|Página vacía|El repositorio devuelve una página sin barriles|Retorna una página vacía y no consulta usos.|
 |**CP-CBS-03**|Normaliza el identificador|`"  brl   01  "` y `"    "`|Consulta con `"BRL 01"` y con `null`.|
+|**CP-CBS-22**|Escapa los comodines del identificador|`"_"`|Consulta con `"!_"` para compararlo de forma literal.|
 
 ### 2. `buscarResumen(idBarril)`
 

@@ -62,3 +62,10 @@ El teléfono es un dato opcional.
 | **CP-NT-19** | Espacios internos | `"Juan   Perez"` | Los espacios internos se conservan (colapsados) para que `validarUsername` los rechace | Devuelve `"juan perez"`. |
 | **CP-NT-20** | Nulo, vacío y solo espacios | `null`, `""`, `"   "` | No hay contenido que normalizar | Devuelve `null` para nulo y cadena vacía para los demás. |
 | **CP-NT-21** | Independencia del idioma del servidor | Idioma por defecto `tr-TR`, `username("ISMAEL")` y `correo("INFO@MAIL.COM")` | La conversión usa `Locale.ROOT` (en turco, `I` pasaría a `ı`) | Devuelve `"ismael"` y `"info@mail.com"`. |
+
+### `escaparComodinesLike(String)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-NT-22** | Escape de comodines | `"_"`, `"100%"`, `"A!B_C%"` | Los caracteres `%`, `_` y `!` se escapan con `!` | Devuelve `"!_"`, `"100!%"` y `"A!!B!_C!%"`. |
+| **CP-NT-23** | Texto sin comodines, vacío y nulo | `"BRL-01"`, `""`, `null` | No hay nada que escapar | Devuelve `"BRL-01"`, cadena vacía y `null`. |

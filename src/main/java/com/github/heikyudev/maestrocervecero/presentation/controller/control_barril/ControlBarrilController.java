@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -92,9 +93,10 @@ public class ControlBarrilController {
             idFabricanteFiltro = null;
         }
 
-        Page<BarrilControlResponseDTO> barriles = controlBarrilServicio.filtrarBarrilesParaControl(
-                vacioANulo(identificador), idFabricanteFiltro, estadoFiltro,
-                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_POR_IDENTIFICADOR));
+        Long idFabricanteConsulta = idFabricanteFiltro;
+        Page<BarrilControlResponseDTO> barriles = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA, ORDEN_POR_IDENTIFICADOR, p -> controlBarrilServicio.filtrarBarrilesParaControl(
+                        vacioANulo(identificador), idFabricanteConsulta, estadoFiltro, p));
 
         model.addAttribute("barriles", barriles);
         model.addAttribute("estados", EstadoOperativoBarril.values());
@@ -132,14 +134,13 @@ public class ControlBarrilController {
         }
 
         BarrilResumenResponseDTO barril = controlBarrilServicio.buscarResumen(id);
-        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA);
         Page<ActividadBarrilResponseDTO> actividades;
         try {
-            actividades = controlBarrilServicio.listarHistorial(id, tipoFiltro,
+            actividades = Paginacion.consultar(pagina, TAMANIO_PAGINA, Sort.unsorted(), p -> controlBarrilServicio.listarHistorial(id, tipoFiltro,
                     fechaDesde != null ? fechaDesde.atStartOfDay() : null,
-                    fechaHasta != null ? fechaHasta.atTime(LocalTime.MAX) : null, pageable);
+                    fechaHasta != null ? fechaHasta.atTime(LocalTime.MAX) : null, p));
         } catch (ReglaNegocioException e) {
-            actividades = new PageImpl<>(List.of(), pageable, 0);
+            actividades = new PageImpl<>(List.of(), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA), 0);
             avisos.add(e.getMessage());
         }
 
@@ -185,7 +186,8 @@ public class ControlBarrilController {
         model.addAttribute("barril", barril);
         model.addAttribute("pestanas", pestanas);
         model.addAttribute("pestanaActiva", activa);
-        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA);
+        int ultimaPagina = Math.max((deLaPestana.size() - 1) / TAMANIO_PAGINA, 0);
+        Pageable pageable = PageRequest.of(Math.min(Paginacion.numeroDePagina(pagina), ultimaPagina), TAMANIO_PAGINA);
         int desde = (int) Math.min(pageable.getOffset(), deLaPestana.size());
         model.addAttribute("operaciones", new PageImpl<>(deLaPestana.subList(desde, Math.min(desde + pageable.getPageSize(), deLaPestana.size())), pageable, deLaPestana.size()));
         model.addAttribute("puedeRegistrar", puedeRegistrar);

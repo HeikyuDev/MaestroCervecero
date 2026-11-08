@@ -121,6 +121,30 @@ public final class NormalizacionTexto {
         return recortarYMinusculas(valor);
     }
 
+    /** Carácter de escape que usan las consultas {@code LIKE} de búsqueda parcial ({@code ESCAPE '!'}). */
+    public static final char ESCAPE_LIKE = '!';
+
+    /**
+     * Escapa los comodines de {@code LIKE} ({@code %} y {@code _}) y el propio carácter de escape para que un texto de
+     * búsqueda se compare de forma literal. Las consultas que lo usan deben declarar {@code ESCAPE '!'}.
+     *
+     * @param valor Texto de búsqueda ya normalizado.
+     * @return El texto con los comodines escapados, o {@code null} si el valor es nulo.
+     */
+    public static String escaparComodinesLike(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        StringBuilder escapado = new StringBuilder(valor.length() + 4);
+        for (char c : valor.toCharArray()) {
+            if (c == ESCAPE_LIKE || c == '%' || c == '_') {
+                escapado.append(ESCAPE_LIKE);
+            }
+            escapado.append(c);
+        }
+        return escapado.toString();
+    }
+
     private static String recortarYMinusculas(String valor) {
         if (valor == null) {
             return null;

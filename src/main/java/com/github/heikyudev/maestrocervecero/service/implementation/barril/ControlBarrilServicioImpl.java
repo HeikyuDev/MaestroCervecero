@@ -78,7 +78,7 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
             identificadorNormalizado = null;
         }
 
-        Page<BarrilEntity> pagina = barrilRepository.filtrarBarrilesParaControl(identificadorNormalizado, idFabricante, estadoOperativo, pageable);
+        Page<BarrilEntity> pagina = barrilRepository.filtrarBarrilesParaControl(NormalizacionTexto.escaparComodinesLike(identificadorNormalizado), idFabricante, estadoOperativo, pageable);
         List<Long> ids = pagina.getContent().stream().map(BarrilEntity::getId).toList();
 
         Map<Long, Long> usosPorBarril = new HashMap<>();

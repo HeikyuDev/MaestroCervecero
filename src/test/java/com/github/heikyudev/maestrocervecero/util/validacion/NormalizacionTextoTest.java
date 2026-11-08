@@ -274,4 +274,20 @@ class NormalizacionTextoTest {
             Locale.setDefault(original);
         }
     }
+
+    @Test
+    @DisplayName("CP-NT-22: escaparComodinesLike antepone el escape a %, _ y al propio escape")
+    void escaparComodinesLike_debeEscaparLosComodines() {
+        assertThat(NormalizacionTexto.escaparComodinesLike("_")).isEqualTo("!_");
+        assertThat(NormalizacionTexto.escaparComodinesLike("100%")).isEqualTo("100!%");
+        assertThat(NormalizacionTexto.escaparComodinesLike("A!B_C%")).isEqualTo("A!!B!_C!%");
+    }
+
+    @Test
+    @DisplayName("CP-NT-23: escaparComodinesLike conserva el texto sin comodines y devuelve null para null")
+    void escaparComodinesLike_noDebeAlterarElTextoComun() {
+        assertThat(NormalizacionTexto.escaparComodinesLike("BRL-01")).isEqualTo("BRL-01");
+        assertThat(NormalizacionTexto.escaparComodinesLike("")).isEmpty();
+        assertThat(NormalizacionTexto.escaparComodinesLike(null)).isNull();
+    }
 }

@@ -65,7 +65,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
         if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
             nombreNormalizado = null;
         }
-        return fabricanteBarrilRepository.filtrarFabricantesBarril(nombreNormalizado, pageable)
+        return fabricanteBarrilRepository.filtrarFabricantesBarril(NormalizacionTexto.escaparComodinesLike(nombreNormalizado), pageable)
                 .map(MapperFabricanteBarril::toDTO);
     }
 

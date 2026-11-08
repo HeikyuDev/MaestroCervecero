@@ -259,9 +259,9 @@ public class EnvasadoLoteController {
         String fabricanteTexto = nombreFabricante(idFabricante);
         Long idFabricanteVigente = fabricanteTexto == null ? null : idFabricante;
 
-        Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(vacioANulo(identificadorInterno), vacioANulo(numeroSerie), capacidad,
-                EstadoOperativoBarril.DISPONIBLE, idFabricanteVigente,
-                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_BARRILES));
+        Page<BarrilResponseDTO> barriles = Paginacion.consultar(pagina, TAMANIO_PAGINA_BUSCADOR, ORDEN_BARRILES,
+                p -> barrilServicio.filtrarBarriles(vacioANulo(identificadorInterno), vacioANulo(numeroSerie), capacidad,
+                        EstadoOperativoBarril.DISPONIBLE, idFabricanteVigente, p));
 
         model.addAttribute("barriles", barriles);
         model.addAttribute("filtroIdentificador", identificadorInterno);

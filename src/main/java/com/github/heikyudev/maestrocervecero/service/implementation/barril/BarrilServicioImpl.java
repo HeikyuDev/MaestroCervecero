@@ -91,7 +91,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         if (numeroSerieNormalizado != null && numeroSerieNormalizado.isEmpty()) {
             numeroSerieNormalizado = null;
         }
-        return barrilRepository.filtrarBarriles(identificadorInternoNormalizado, numeroSerieNormalizado, capacidad, estadoOperativo, idFabricante, pageable).map(MapperBarril::toDTO);
+        return barrilRepository.filtrarBarriles(NormalizacionTexto.escaparComodinesLike(identificadorInternoNormalizado), NormalizacionTexto.escaparComodinesLike(numeroSerieNormalizado), capacidad, estadoOperativo, idFabricante, pageable).map(MapperBarril::toDTO);
     }
 
     /**

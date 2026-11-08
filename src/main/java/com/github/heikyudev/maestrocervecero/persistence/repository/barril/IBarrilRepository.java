@@ -56,14 +56,14 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      * @return Una página de barriles activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT b FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%')) ESCAPE '!') "
+            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%')) ESCAPE '!') "
             + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
             + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
             + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante) ORDER BY UPPER(function('regexp_replace', b.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', ''), UPPER(b.identificadorInterno), b.id",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%')) ESCAPE '!') "
+            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%')) ESCAPE '!') "
                     + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
                     + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
                     + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)")
@@ -172,11 +172,11 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      * @return Una página de barriles activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT b FROM BarrilEntity b JOIN FETCH b.fabricante WHERE b.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%')) ESCAPE '!') "
             + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
             + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante) ORDER BY UPPER(function('regexp_replace', b.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', ''), UPPER(b.identificadorInterno), b.id",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%')) ESCAPE '!') "
                     + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
                     + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)")
     Page<BarrilEntity> filtrarBarrilesParaControl(@Param("identificadorInterno") String identificadorInterno,

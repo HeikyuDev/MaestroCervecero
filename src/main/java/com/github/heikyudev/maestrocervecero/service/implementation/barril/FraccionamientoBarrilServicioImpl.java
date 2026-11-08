@@ -109,7 +109,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
     public FraccionamientoBarrilResponseDTO registrarFraccionamientoBarril(FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha
         if (fraccionamientoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha de fraccionamiento es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha no sea posterior a la fecha y hora actual
@@ -121,7 +121,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
         // 4. Validar que la cantidad a extraer sea mayor a cero y no tenga más decimales que los permitidos
         Double cantidadExtraida = fraccionamientoBarrilFormDTO.getCantidadExtraida();
         if (cantidadExtraida == null || !Double.isFinite(cantidadExtraida) || cantidadExtraida <= 0) {
-            throw new ReglaNegocioException("La cantidad a extraer debe ser mayor a cero", CAMPO_CANTIDAD_EXTRAIDA);
+            throw new ReglaNegocioException("La cantidad a extraer debe ser mayor a 0", CAMPO_CANTIDAD_EXTRAIDA);
         }
         ValidacionesNumericas.validarMaximoDecimales(cantidadExtraida, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad a extraer", CAMPO_CANTIDAD_EXTRAIDA);
 

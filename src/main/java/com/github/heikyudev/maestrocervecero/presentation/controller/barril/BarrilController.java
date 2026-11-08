@@ -15,7 +15,6 @@ import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -79,9 +78,9 @@ public class BarrilController {
         String fabricanteTexto = nombreFabricante(idFabricante);
         Long idFabricanteVigente = fabricanteTexto == null ? null : idFabricante;
 
-        Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(
-                vacioANulo(identificadorInterno), vacioANulo(numeroSerie), capacidad, estadoOperativo, idFabricanteVigente,
-                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_POR_IDENTIFICADOR_DE_BARRIL));
+        Page<BarrilResponseDTO> barriles = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA, ORDEN_POR_IDENTIFICADOR_DE_BARRIL, p -> barrilServicio.filtrarBarriles(
+                        vacioANulo(identificadorInterno), vacioANulo(numeroSerie), capacidad, estadoOperativo, idFabricanteVigente, p));
 
         model.addAttribute("barriles", barriles);
         model.addAttribute("estados", EstadoOperativoBarril.values());
@@ -104,8 +103,8 @@ public class BarrilController {
     public String buscarFabricantes(@RequestParam(required = false) String nombre,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
-        Page<FabricanteBarrilResponseDTO> fabricantes = fabricanteBarrilServicio.filtrarFabricantesBarril(
-                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+        Page<FabricanteBarrilResponseDTO> fabricantes = Paginacion.consultar(
+                pagina, TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO, p -> fabricanteBarrilServicio.filtrarFabricantesBarril(vacioANulo(nombre), p));
 
         model.addAttribute("fabricantes", fabricantes);
         model.addAttribute("filtroNombre", nombre);

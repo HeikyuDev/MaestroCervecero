@@ -83,7 +83,7 @@ class FormDTOsOperacionBarrilValidacionTest {
     void fraccionamientoBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new FraccionamientoBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha es obligatoria",
+                "La fecha de fraccionamiento es obligatoria",
                 "La cantidad a extraer es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(5.5).observaciones("Merma").build())).isEmpty();
@@ -93,9 +93,9 @@ class FormDTOsOperacionBarrilValidacionTest {
     @DisplayName("CP-FDB-06: FraccionamientoBarrilFormDTO rechaza una cantidad a extraer igual a cero o negativa")
     void fraccionamientoBarrilFormDTO_debeRechazarCantidadNoPositiva() {
         assertThat(mensajes(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(0.0).observaciones("Merma").build()))
-                .containsExactly("La cantidad a extraer debe ser mayor a cero");
+                .containsExactly("La cantidad a extraer debe ser mayor a 0");
         assertThat(mensajes(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(-1.0).observaciones("Merma").build()))
-                .containsExactly("La cantidad a extraer debe ser mayor a cero");
+                .containsExactly("La cantidad a extraer debe ser mayor a 0");
     }
 
     @Test

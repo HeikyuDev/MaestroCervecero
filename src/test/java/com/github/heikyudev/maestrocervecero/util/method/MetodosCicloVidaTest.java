@@ -162,7 +162,7 @@ class MetodosCicloVidaTest {
     @DisplayName("CP-MCV-11: validarPosteriorAFinalizacionDelLote rechaza una fecha anterior o igual a la finalización del lote informando el campo y la fecha formateada, y acepta una posterior o sin lote")
     void validarPosteriorAFinalizacionDelLote_debeRechazarSiLaFechaNoEsPosterior() {
         // === PREPARACION DE DATOS ===
-        String mensaje = "La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (15/01/2026 10:00)";
+        String mensaje = "La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (15/01/2026 10:00:00)";
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA, FECHA, "fecha"))

@@ -59,7 +59,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
                         <label for="fecha" class="block text-sm font-medium text-slate-700 mb-1">Fecha y hora de la operación <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="datetime-local" id="fecha" th:field="*{fecha}" autofocus autocomplete="off" placeholder="Ej: 31/10/2026 08:30"
+                        <input type="datetime-local" id="fecha" th:field="*{fecha}" autocomplete="off" placeholder="Ej: 31/10/2026 08:30"
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('fecha')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}" class="mt-1 text-xs text-rose-600"></p>

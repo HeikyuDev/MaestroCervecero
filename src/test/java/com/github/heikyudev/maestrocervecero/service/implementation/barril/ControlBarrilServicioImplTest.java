@@ -146,6 +146,19 @@ class ControlBarrilServicioImplTest {
         verify(barrilRepository).filtrarBarrilesParaControl(isNull(), isNull(), isNull(), any());
     }
 
+    @Test
+    @DisplayName("CP-CBS-22: los comodines del identificador buscado se escapan para compararse de forma literal")
+    void filtrar_escapaLosComodinesDelIdentificador() {
+        // Arrange
+        when(barrilRepository.filtrarBarrilesParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act
+        servicio.filtrarBarrilesParaControl("_", null, null, PageRequest.of(0, 20));
+
+        // Assert
+        verify(barrilRepository).filtrarBarrilesParaControl(eq("!_"), isNull(), isNull(), any());
+    }
+
     // ==================== buscarResumen ====================
 
     @Test
