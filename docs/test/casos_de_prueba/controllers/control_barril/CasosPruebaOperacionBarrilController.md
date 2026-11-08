@@ -17,7 +17,8 @@
 | **CP-OBC-11** | Cruce operario y encargado | El operario no registra ni anula despachos ni devoluciones y el encargado no registra ni anula las otras cuatro. |
 | **CP-OBC-12** | Formulario de limpieza | Título, bloque de información, fecha y observaciones en filas propias, Cancelar hacia la pestaña, novalidate. |
 | **CP-OBC-13** | Formulario de fraccionamiento y de devolución | El fraccionamiento pide la cantidad con sufijo L antes de la fecha; la devolución avisa que se descarta el contenido. |
-| **CP-OBC-14** | Formulario de despacho | Selector de cliente con su buscador, sin alta al vuelo, y la fecha estimada en la fila de las fechas. |
+| **CP-OBC-14** | Formulario de despacho | Selector de cliente con su buscador y la opción "Crear nuevo cliente" en el menú de tres puntitos (alta contextual hacia `/clientes/nuevo`), y la fecha estimada en la fila de las fechas. |
 | **CP-OBC-15** | Estado no permitido por URL | Redirige a la pestaña con el aviso del service; con el barril En uso, avisa que lo ocupa un lote. |
 | **CP-OBC-16** | Sin token CSRF | Es rechazado y no llega al service. |
 | **CP-OBC-17** | `idBarril` en el pedido | Un POST con `idBarril=999` en la ruta del barril 5 | El `@InitBinder` no enlaza el campo; el controller descarta su error de validación y fija el barril de la ruta | El service recibe el barril 5 en las seis operaciones; el pedido no puede inyectar otro barril. |
+| **CP-OBC-18** | Volver de crear un cliente | `GET /despachos/nuevo?idCliente=3&desdeAlta=1` trae elegido al cliente creado (campo oculto `idCliente` y su nombre en el selector). |

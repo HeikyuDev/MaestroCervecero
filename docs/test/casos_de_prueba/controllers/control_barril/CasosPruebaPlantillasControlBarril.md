@@ -5,7 +5,7 @@
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
 | **CP-PCB-01** | Bloque de información | Separa en filas la identidad, las medidas con el estado y el mantenimiento. |
-| **CP-PCB-02** | Formulario por tema | Cantidad, cliente, fechas y observaciones cada uno en su fila, con asterisco y ejemplo; novalidate; la ayuda de la devolución usa el estilo de las ayudas. |
+| **CP-PCB-02** | Formulario por tema | Cantidad, cliente (con el menú de alta contextual de cliente), fechas y observaciones cada uno en su fila, con asterisco y ejemplo; novalidate; la ayuda de la devolución usa el estilo de las ayudas. |
 | **CP-PCB-03** | Lista con Abrir y ojo | Usa el fragmento del botón Abrir, el ojo es solo del gerente con aria-label sin tooltip y ningún dato de la fila es un enlace. |
 | **CP-PCB-04** | Lista de siete columnas | Identificador, Fabricante, Capacidad, Contenido, Estado, Usos y Acciones; Limpiar y Buscar a la derecha; fabricante como selector de entidad. |
 | **CP-PCB-05** | Pestañas con ícono | Usan el fragmento de pestañas con el ícono de cada tipo. |

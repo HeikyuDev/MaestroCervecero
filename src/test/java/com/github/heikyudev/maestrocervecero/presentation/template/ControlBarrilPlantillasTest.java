@@ -45,7 +45,7 @@ class ControlBarrilPlantillasTest {
         assertThat(filaCon(filas, "for=\"fecha\"")).contains("for=\"fechaDevolucionEstimada\"").doesNotContain("observaciones").doesNotContain("idCliente");
         assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("for=\"fecha\"").contains("th:placeholder");
         assertThat(html).contains("novalidate").contains("datetime-local").contains("text-rose-600").contains("fragments/campo-unidad :: numero(")
-                .contains("fragments/selector-entidad :: selector('idCliente'").contains("mt-1 text-xs text-slate-500\">Al registrar la devolución se descarta el contenido del barril");
+                .contains("fragments/selector-entidad :: selector('idCliente'").contains("@{/clientes/nuevo}").contains("'Crear nuevo cliente'").contains("mt-1 text-xs text-slate-500\">Al registrar la devolución se descarta el contenido del barril");
     }
 
     @Test

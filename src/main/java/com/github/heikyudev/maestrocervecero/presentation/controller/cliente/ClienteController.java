@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.cliente;
 
+import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.cliente.ClienteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -38,6 +39,10 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * modificación es una única página. La localidad se elige con tres selectores de entidad enlazados País, Provincia y
  * Localidad con sus buscadores (sin alta al vuelo: solo el administrador da de alta ubicaciones); solo viaja el id de la
  * localidad.
+ * </p>
+ * <p>
+ * Si el alta se abre desde el selector de otro formulario ({@link RetornoContextual}), al guardar se vuelve a ese
+ * formulario con el cliente creado elegido.
  * </p>
  */
 @Controller
@@ -92,7 +97,7 @@ public class ClienteController {
 
     /**
      * Devuelve el contenido del modal de búsqueda de clientes (criterios de nombre, dirección y localidad + resultados con "Elegir"), que usa el
-     * selector de cliente del despacho de un barril. No ofrece alta al vuelo.
+     * selector de cliente del despacho de un barril.
      */
     @GetMapping("/buscador")
     @PreAuthorize("hasRole('ENCARGADO_DE_DISTRIBUCION')")
@@ -120,10 +125,12 @@ public class ClienteController {
      */
     @GetMapping("/nuevo")
     @PreAuthorize("hasRole('ENCARGADO_DE_DISTRIBUCION')")
-    public String mostrarFormularioAlta(Model model) {
+    public String mostrarFormularioAlta(@RequestParam(required = false) String retorno,
+                                        @RequestParam(required = false) String campo,
+                                        Model model) {
         ClienteFormDTO clienteForm = new ClienteFormDTO();
         model.addAttribute(ATRIBUTO_FORMULARIO, clienteForm);
-        cargarModeloFormulario(model, null, clienteForm);
+        cargarModeloFormulario(model, null, clienteForm, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
@@ -135,6 +142,8 @@ public class ClienteController {
     @PreAuthorize("hasRole('ENCARGADO_DE_DISTRIBUCION')")
     public String altaCliente(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) ClienteFormDTO clienteForm,
                               BindingResult bindingResult,
+                              @RequestParam(required = false) String retorno,
+                              @RequestParam(required = false) String campo,
                               Model model,
                               RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
@@ -142,9 +151,10 @@ public class ClienteController {
                 rechazarLocalidadFaltante(bindingResult);
             } else {
                 try {
-                    clienteServicio.altaCliente(clienteForm);
+                    ClienteResponseDTO cliente = clienteServicio.altaCliente(clienteForm);
                     agregarMensaje(redirectAttributes, "Cliente creado correctamente", TipoAlerta.SUCCESS);
-                    return "redirect:" + URL_LISTA;
+                    String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, cliente.getId());
+                    return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
                 } catch (RecursoDuplicadoException e) {
                     rechazarDuplicado(bindingResult, e);
                 } catch (RecursoNoEncontradoException e) {
@@ -155,7 +165,7 @@ public class ClienteController {
             }
         }
 
-        cargarModeloFormulario(model, null, clienteForm);
+        cargarModeloFormulario(model, null, clienteForm, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
@@ -168,7 +178,7 @@ public class ClienteController {
     public String mostrarFormularioEdicion(@PathVariable Long id, Model model) {
         ClienteFormDTO clienteForm = aFormulario(clienteServicio.buscarPorId(id));
         model.addAttribute(ATRIBUTO_FORMULARIO, clienteForm);
-        cargarModeloFormulario(model, id, clienteForm);
+        cargarModeloFormulario(model, id, clienteForm, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -205,7 +215,7 @@ public class ClienteController {
             }
         }
 
-        cargarModeloFormulario(model, id, clienteForm);
+        cargarModeloFormulario(model, id, clienteForm, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -254,11 +264,15 @@ public class ClienteController {
 
     /**
      * Carga lo que la vista necesita además del formulario: el id del cliente (null en el alta) y la ubicación de la
-     * localidad elegida (país, provincia y localidad).
+     * localidad elegida (país, provincia y localidad). En el alta contextual, también el formulario de origen al que se
+     * vuelve ({@code retorno} y {@code campo}), que son nulos si no hay un retorno válido.
      */
-    private void cargarModeloFormulario(Model model, Long clienteId, ClienteFormDTO clienteForm) {
+    private void cargarModeloFormulario(Model model, Long clienteId, ClienteFormDTO clienteForm, String retorno, String campo) {
+        String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("clienteId", clienteId);
-        model.addAttribute("urlCancelar", URL_LISTA);
+        model.addAttribute("retorno", retornoValido);
+        model.addAttribute("campo", RetornoContextual.campoValido(campo));
+        model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
         cargarUbicacion(model, buscarLocalidad(clienteForm.getIdLocalidad()));
     }
 

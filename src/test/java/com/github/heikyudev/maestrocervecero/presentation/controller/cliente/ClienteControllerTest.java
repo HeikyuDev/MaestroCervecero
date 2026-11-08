@@ -428,11 +428,81 @@ class ClienteControllerTest {
 
     @Test
     @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-44: abierto desde otro formulario (retorno y campo) el alta conserva ambos en campos ocultos y Cancelar vuelve a ese formulario")
+    void caso_cp_clc_44() throws Exception {
+        // Arrange + Act + Assert
+        mockMvc.perform(get(URL + "/nuevo").param("retorno", "/control-barriles/5/despachos/nuevo").param("campo", "idCliente"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/control-barriles/5/despachos/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idCliente\"")))
+                .andExpect(content().string(containsString("Volver al formulario anterior")))
+                .andExpect(content().string(containsString("Al guardar vuelve al formulario que estaba completando.")))
+                .andExpect(content().string(containsString("href=\"/control-barriles/5/despachos/nuevo?desdeAlta=1\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-45: un retorno que apunta fuera del sitio se descarta en el alta y el alta redirige al listado")
+    void caso_cp_clc_45() throws Exception {
+        // Arrange
+        when(clienteServicio.altaCliente(any())).thenReturn(cliente(9L, "3764123456"));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/nuevo").param("retorno", "//sitio-malicioso.com/x").param("campo", "idCliente"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("name=\"retorno\""))))
+                .andExpect(content().string(not(containsString("sitio-malicioso"))))
+                .andExpect(content().string(containsString("Volver a clientes")));
+        mockMvc.perform(post(URL).with(csrf()).params(datosValidos()).param("retorno", "https://sitio-malicioso.com").param("campo", "idCliente"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL));
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-46: el alta contextual vuelve al formulario de origen con el cliente creado en el campo indicado")
+    void caso_cp_clc_46() throws Exception {
+        // Arrange
+        when(clienteServicio.altaCliente(any())).thenReturn(cliente(9L, "3764123456"));
+
+        // Act + Assert
+        mockMvc.perform(post(URL).with(csrf()).params(datosValidos())
+                        .param("retorno", "/control-barriles/5/despachos/nuevo").param("campo", "idCliente"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/control-barriles/5/despachos/nuevo?desdeAlta=1&idCliente=9"))
+                .andExpect(flash().attribute("mensaje", "Cliente creado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-47: el alta contextual con errores vuelve a mostrar el formulario con los mismos mensajes del alta normal, conservando retorno y campo")
+    void caso_cp_clc_47() throws Exception {
+        // Arrange
+        LinkedMultiValueMap<String, String> datos = datosValidos();
+        datos.set("email", "contacto@elpuerto");
+
+        // Act + Assert
+        mockMvc.perform(post(URL).with(csrf()).params(datos)
+                        .param("retorno", "/control-barriles/5/despachos/nuevo").param("campo", "idCliente"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA_FORMULARIO))
+                .andExpect(content().string(containsString("No se pudo crear el cliente")))
+                .andExpect(content().string(containsString("El correo electrónico no tiene un formato válido")))
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/control-barriles/5/despachos/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idCliente\"")));
+
+        verify(clienteServicio, never()).altaCliente(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
     @DisplayName("CP-CLC-16: el teléfono es opcional: un alta sin teléfono delega en el service")
     void caso_cp_clc_16() throws Exception {
         // Arrange
         LinkedMultiValueMap<String, String> datos = datosValidos();
         datos.set("telefono", "");
+        when(clienteServicio.altaCliente(any())).thenReturn(cliente(4L, ""));
 
         // Act + Assert
         mockMvc.perform(post(URL).with(csrf()).params(datos))

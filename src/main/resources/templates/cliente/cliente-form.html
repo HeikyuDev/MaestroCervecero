@@ -11,16 +11,20 @@
     <div>
         <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i>
-            <span>Volver a clientes</span>
+            <span th:text="${retorno != null} ? 'Volver al formulario anterior' : 'Volver a clientes'">Volver a clientes</span>
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
             th:text="${editando} ? 'Editar cliente' : 'Nuevo cliente'">Nuevo cliente</h1>
-        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
+            <span th:if="${retorno != null}">Al guardar vuelve al formulario que estaba completando.</span></p>
     </div>
 
     <form id="cliente-form" th:action="${editando} ? @{/clientes/{id}(id=${clienteId})} : @{/clientes}"
           th:object="${clienteForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
+        <input type="hidden" name="campo" th:if="${retorno != null and campo != null}" th:value="${campo}">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
         <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar el cliente' : 'No se pudo crear el cliente')}"></div>

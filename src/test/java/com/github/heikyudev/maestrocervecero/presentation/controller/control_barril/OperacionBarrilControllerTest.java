@@ -311,14 +311,30 @@ class OperacionBarrilControllerTest {
     }
 
     @Test
-    @DisplayName("CP-OBC-14: el formulario de despacho lleva el selector de cliente con su buscador, sin alta al vuelo, y la fecha estimada de devolución en la fila de las fechas")
+    @DisplayName("CP-OBC-14: el formulario de despacho lleva el selector de cliente con su buscador y la opción Crear nuevo cliente en el menú de tres puntitos, y la fecha estimada de devolución en la fila de las fechas")
     void formularioDespacho() throws Exception {
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
         String html = mockMvc.perform(get(BASE + "/despachos/nuevo").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(html).contains("Registrar despacho").contains("name=\"idCliente\"").contains("data-buscador-url=\"/clientes/buscador\"").contains("Seleccione cliente")
-                .contains("name=\"fechaDevolucionEstimada\"").contains("Fecha estimada de devolución").doesNotContain("data-selector-menu");
+                .contains("name=\"fechaDevolucionEstimada\"").contains("Fecha estimada de devolución")
+                .contains("data-alta-url=\"/clientes/nuevo\"").contains("data-selector-menu").contains("Crear nuevo cliente");
+    }
+
+    @Test
+    @DisplayName("CP-OBC-18: al volver de crear un cliente, el formulario de despacho trae elegido al cliente creado y no lo pisa un formulario rechazado")
+    void formularioDespachoConClienteCreado() throws Exception {
+        // Arrange
+        configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
+
+        // Act
+        String html = mockMvc.perform(get(BASE + "/despachos/nuevo").param("idCliente", "3").param("desdeAlta", "1").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("name=\"idCliente\" value=\"3\"").contains("value=\"Bar El Puerto\"");
+        verify(clienteServicio).buscarPorId(3L);
     }
 
     @Test

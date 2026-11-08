@@ -121,7 +121,11 @@ public class OperacionBarrilController {
 
     @GetMapping("/despachos/nuevo")
     @PreAuthorize("hasAuthority('DESPACHO_BARRIL_REGISTRAR')")
-    public String formularioDespacho(@PathVariable Long idBarril, Model model, RedirectAttributes redirectAttributes) {
+    public String formularioDespacho(@PathVariable Long idBarril, @RequestParam(required = false) Long idCliente,
+                                     Model model, RedirectAttributes redirectAttributes) {
+        if (idCliente != null && !model.containsAttribute(ATRIBUTO_FORMULARIO)) {
+            model.addAttribute(ATRIBUTO_FORMULARIO, DespachoBarrilFormDTO.builder().idCliente(idCliente).build());
+        }
         return mostrarFormulario(PestanaOperacionBarril.DESPACHOS, idBarril, model, redirectAttributes);
     }
 

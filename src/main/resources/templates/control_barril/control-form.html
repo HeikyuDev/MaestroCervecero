@@ -45,12 +45,14 @@
                     </div>
                 </div>
 
-                <!-- Despacho: cliente -->
+                <!-- Despacho: cliente. La opción "Crear nuevo cliente" del menú solo se ofrece a quien puede crearlo -->
                 <div th:if="${pestanaActiva.name() == 'DESPACHOS'}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
                         <span class="block text-sm font-medium text-slate-700 mb-1">Cliente <span class="text-rose-600" title="Obligatorio">*</span></span>
                         <div th:replace="~{fragments/selector-entidad :: selector('idCliente', *{idCliente}, ${clienteSeleccionado},
-                                @{/clientes/buscador}, null, null, false, ${#fields.hasErrors('idCliente')}, 'Seleccione cliente')}"></div>
+                                @{/clientes/buscador},
+                                ${#authorization.expression('hasRole(''ENCARGADO_DE_DISTRIBUCION'')')} ? @{/clientes/nuevo} : null,
+                                'Crear nuevo cliente', false, ${#fields.hasErrors('idCliente')}, 'Seleccione cliente')}"></div>
                         <p th:if="${#fields.hasErrors('idCliente')}" th:errors="*{idCliente}" class="mt-1 text-xs text-rose-600"></p>
                     </div>
                 </div>
