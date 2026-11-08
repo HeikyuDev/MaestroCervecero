@@ -577,6 +577,7 @@ class FraccionamientoBarrilServicioImplTest {
         orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
         orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
         orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
+        orden.verify(envasadoLoteRepository).buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L);
     }
 
     @Test
@@ -642,6 +643,73 @@ class FraccionamientoBarrilServicioImplTest {
         }
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RFRB-30: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha es anterior a la finalización del lote del último envasado")
+    void registrar_debeRechazarFechaAnteriorALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 8, 0), 5.0, "Merma");
+        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
+
+        verify(barrilRepository, never()).save(any());
+        verify(fraccionamientoBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RFRB-31: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la finalización del lote del último envasado")
+    void registrar_debeRechazarFechaIgualALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)");
+
+        verify(barrilRepository, never()).save(any());
+        verify(fraccionamientoBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RFRB-32: registrarFraccionamientoBarril registra el fraccionamiento cuando la fecha es posterior a la finalización del lote del último envasado")
+    void registrar_debeRegistrarSiLaFechaEsPosteriorALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 1), 5.0, "Merma");
+        BarrilEntity barril = stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+        when(fraccionamientoBarrilRepository.save(any(FraccionamientoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
+
+        // === ASSERTS ===
+        assertThat(barril.getContenidoActual()).isEqualTo(15.0);
+        verify(fraccionamientoBarrilRepository).save(any(FraccionamientoBarrilEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RFRB-33: registrarFraccionamientoBarril no restringe la fecha cuando el lote del último envasado no tiene fecha de finalización")
+    void registrar_noDebeRestringirSiElLoteNoTieneFechaDeFinalizacion() {
+        // === PREPARACION DE DATOS ===
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
+        when(fraccionamientoBarrilRepository.save(any(FraccionamientoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
+
+        // === ASSERTS ===
+        assertThat(barril.getContenidoActual()).isEqualTo(15.0);
+        verify(fraccionamientoBarrilRepository).save(any(FraccionamientoBarrilEntity.class));
     }
 
     // ==================== anularFraccionamientoBarril ====================
@@ -1026,6 +1094,13 @@ class FraccionamientoBarrilServicioImplTest {
     }
 
     // ==================== helpers de construcción ====================
+
+    private BarrilEntity stubRegistroConLoteFinalizado(LocalDateTime fechaFinalizacionLote) {
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fechaFinalizacionLote));
+        return barril;
+    }
 
     private void stubRegistroPermitido(BarrilEntity barril) {
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(barril.getId())).thenReturn(Optional.of(barril));

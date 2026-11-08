@@ -88,7 +88,9 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
      * ser posterior a la fecha de la última operación registrada sobre ese barril, contando tanto
      * sus operaciones del ciclo de vida (falla, mantenimiento, limpieza, fraccionamiento, despacho, devolución)
      * como el último envasado de lote que lo llenó: no tiene sentido despachar un barril con una
-     * fecha anterior a la del envasado que lo cargó, ni a cualquier otra operación posterior.
+     * fecha anterior a la del envasado que lo cargó, ni a cualquier otra operación posterior. Además
+     * debe ser posterior a la finalización del lote de ese último envasado, porque el barril queda
+     * {@code CON_CERVEZA} recién al finalizar el lote.
      * </p>
      * <p>
      * Orden de locks: el cliente se lee sin bloqueo; lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes
@@ -97,7 +99,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
      *
      * @param despachoBarrilFormDTO Los datos del despacho a registrar.
      * @return El despacho de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de despacho, la fecha estimada de devolución o las observaciones no fueron informadas, si la fecha de despacho es posterior a la fecha y hora actual, si las observaciones superan el máximo, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, si la fecha estimada de devolución es anterior a la fecha de despacho, o si la fecha de despacho no es posterior a la última operación registrada ni al último envasado del barril.
+     * @throws ReglaNegocioException Si la fecha de despacho, la fecha estimada de devolución o las observaciones no fueron informadas, si la fecha de despacho es posterior a la fecha y hora actual, si las observaciones superan el máximo, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, si la fecha estimada de devolución es anterior a la fecha de despacho, o si la fecha de despacho no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
      * @throws RecursoNoEncontradoException Si el barril o el cliente referenciados no existen.
      */
     @Override
@@ -146,6 +148,12 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
                 MetodosCicloVida.CAMPO_FECHA,
                 operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 10. Validar que la fecha sea posterior a la finalización del lote que dejó la cerveza en el barril
+        MetodosCicloVida.validarPosteriorAFinalizacionDelLote(
+                despachoBarrilFormDTO.getFecha(),
+                envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(idBarril).orElse(null),
+                MetodosCicloVida.CAMPO_FECHA);
 
         // 10. Cambiar el estado operativo del barril a DESPACHADO y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DESPACHADO);

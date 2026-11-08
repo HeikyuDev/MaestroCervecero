@@ -157,4 +157,22 @@ class MetodosCicloVidaTest {
                 .hasMessage("No se encontró el barril con ID: 99")
                 .satisfies(e -> assertThat(((RecursoNoEncontradoException) e).getCampo()).isEqualTo("idBarril"));
     }
+
+    @Test
+    @DisplayName("CP-MCV-11: validarPosteriorAFinalizacionDelLote rechaza una fecha anterior o igual a la finalización del lote informando el campo y la fecha formateada, y acepta una posterior o sin lote")
+    void validarPosteriorAFinalizacionDelLote_debeRechazarSiLaFechaNoEsPosterior() {
+        // === PREPARACION DE DATOS ===
+        String mensaje = "La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (15/01/2026 10:00)";
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA, FECHA, "fecha"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje)
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
+        assertThatThrownBy(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA.minusMinutes(1), FECHA, "fecha"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+        assertThatCode(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA.plusMinutes(1), FECHA, "fecha")).doesNotThrowAnyException();
+        assertThatCode(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA, null, "fecha")).doesNotThrowAnyException();
+    }
 }

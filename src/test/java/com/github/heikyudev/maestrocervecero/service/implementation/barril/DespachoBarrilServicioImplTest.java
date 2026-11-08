@@ -471,6 +471,77 @@ class DespachoBarrilServicioImplTest {
         orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
         orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
         orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
+        orden.verify(envasadoLoteRepository).buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L);
+    }
+
+    @Test
+    @DisplayName("CP-RDB-16: registrarDespachoBarril lanza ReglaNegocioException con campo fecha cuando la fecha es anterior a la finalización del lote del último envasado")
+    void registrar_debeRechazarFechaAnteriorALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.of(2026, 1, 20, 8, 0), LocalDate.of(2026, 2, 1), "Retiro programado");
+        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> despachoBarrilServicio.registrarDespachoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
+
+        verify(barrilRepository, never()).save(any());
+        verify(despachoBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RDB-17: registrarDespachoBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la finalización del lote del último envasado")
+    void registrar_debeRechazarFechaIgualALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.of(2026, 1, 20, 9, 0), LocalDate.of(2026, 2, 1), "Retiro programado");
+        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> despachoBarrilServicio.registrarDespachoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00)");
+
+        verify(barrilRepository, never()).save(any());
+        verify(despachoBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RDB-18: registrarDespachoBarril registra el despacho cuando la fecha es posterior a la finalización del lote del último envasado")
+    void registrar_debeRegistrarSiLaFechaEsPosteriorALaFinalizacionDelLote() {
+        // === PREPARACION DE DATOS ===
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.of(2026, 1, 20, 9, 1), LocalDate.of(2026, 2, 1), "Retiro programado");
+        BarrilEntity barril = stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(despachoBarrilRepository.save(any(DespachoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        DespachoBarrilResponseDTO resultado = despachoBarrilServicio.registrarDespachoBarril(formDTO);
+
+        // === ASSERTS ===
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DESPACHADO);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-RDB-19: registrarDespachoBarril no restringe la fecha cuando el lote del último envasado no tiene fecha de finalización")
+    void registrar_noDebeRestringirSiElLoteNoTieneFechaDeFinalizacion() {
+        // === PREPARACION DE DATOS ===
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.of(2026, 1, 20, 9, 0), LocalDate.of(2026, 2, 1), "Retiro programado");
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA);
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(crearClienteEntity(1L)));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(despachoBarrilRepository.save(any(DespachoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        despachoBarrilServicio.registrarDespachoBarril(formDTO);
+
+        // === ASSERTS ===
+        assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DESPACHADO);
+        verify(despachoBarrilRepository).save(any(DespachoBarrilEntity.class));
     }
 
     // ==================== anularDespachoBarril ====================
@@ -792,6 +863,14 @@ class DespachoBarrilServicioImplTest {
     }
 
     // ==================== helpers de construcción ====================
+
+    private BarrilEntity stubRegistroConLoteFinalizado(LocalDateTime fechaFinalizacionLote) {
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA);
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(crearClienteEntity(1L)));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fechaFinalizacionLote));
+        return barril;
+    }
 
     private void stubBarrilBloqueadoYDespacho(BarrilEntity barril, DespachoBarrilEntity despacho) {
         when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(despacho.getId())).thenReturn(Optional.of(barril.getId()));

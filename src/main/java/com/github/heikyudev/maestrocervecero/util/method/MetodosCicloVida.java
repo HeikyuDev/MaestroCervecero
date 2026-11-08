@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
@@ -21,6 +22,9 @@ import java.util.Optional;
  * </p>
  */
 public class MetodosCicloVida {
+
+    /** Formato con el que los mensajes muestran una fecha y hora. */
+    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     /** Nombre del campo del formulario con el barril afectado. */
     public static final String CAMPO_BARRIL = "idBarril";
@@ -109,6 +113,24 @@ public class MetodosCicloVida {
     public static void validarPosteriorAlUltimoEnvasado(LocalDateTime fechaOperacion, LocalDateTime fechaUltimoEnvasado) {
         if (!esPosteriorAlUltimoEnvasado(fechaOperacion, fechaUltimoEnvasado)) {
             throw new ReglaNegocioException("No se puede anular la operación porque el barril tuvo un envasado posterior");
+        }
+    }
+
+    /**
+     * Valida que la fecha de una operación a registrar sea estrictamente posterior a la finalización del lote cuyo
+     * envasado dejó la cerveza en el barril: hasta que el lote finaliza el barril está en uso, así que no puede
+     * despacharse ni fraccionarse antes. Si el barril nunca fue envasado o el lote no tiene fecha de finalización,
+     * no hay restricción.
+     *
+     * @param fechaOperacion Fecha y hora de la operación que se quiere registrar.
+     * @param fechaFinalizacionLote Fecha y hora de finalización del lote del último envasado registrado del barril, o {@code null} si no existe.
+     * @param campo Nombre del campo del formulario que contiene la fecha, o {@code null}.
+     * @throws ReglaNegocioException Si la fecha no es posterior a la finalización del lote.
+     */
+    public static void validarPosteriorAFinalizacionDelLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinalizacionLote, String campo) {
+        if (fechaFinalizacionLote != null && !fechaOperacion.isAfter(fechaFinalizacionLote)) {
+            throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril ("
+                    + FORMATO_FECHA_HORA.format(fechaFinalizacionLote) + ")", campo);
         }
     }
 

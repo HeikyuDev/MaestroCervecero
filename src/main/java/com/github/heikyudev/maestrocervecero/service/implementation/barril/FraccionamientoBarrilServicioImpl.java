@@ -90,13 +90,17 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
      * este fraccionamiento puntual dejó.
      * </p>
      * <p>
+     * La fecha debe ser posterior a la última operación registrada, al último envasado del barril y a la finalización
+     * del lote de ese envasado, porque el barril queda {@code CON_CERVEZA} recién al finalizar el lote.
+     * </p>
+     * <p>
      * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su contenido, su última
      * operación y su último envasado. Es el único lock de la operación.
      * </p>
      *
      * @param fraccionamientoBarrilFormDTO Los datos del fraccionamiento a registrar.
      * @return El fraccionamiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a cero, tiene más de cuatro decimales o supera el contenido actual del barril, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha no es posterior a la última operación registrada ni al último envasado del barril.
+     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a cero, tiene más de cuatro decimales o supera el contenido actual del barril, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -145,6 +149,12 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
                 MetodosCicloVida.CAMPO_FECHA,
                 operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 9. Validar que la fecha sea posterior a la finalización del lote que dejó la cerveza en el barril
+        MetodosCicloVida.validarPosteriorAFinalizacionDelLote(
+                fraccionamientoBarrilFormDTO.getFecha(),
+                envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(idBarril).orElse(null),
+                MetodosCicloVida.CAMPO_FECHA);
 
         // 9. Decidir el estado operativo resultante según si el barril quedó completamente vacío tras el redondeo
         EstadoOperativoBarril estadoOperativoResultante = contenidoRestante == 0
