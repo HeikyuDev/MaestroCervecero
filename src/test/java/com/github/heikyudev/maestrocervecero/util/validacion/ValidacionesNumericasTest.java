@@ -239,12 +239,12 @@ class ValidacionesNumericasTest {
     @DisplayName("CP-VN-18: validarMaximoDecimales con campo indica ese campo en el rechazo y no lo indica sin campo")
     void validarMaximoDecimales_debeIndicarElCampo() {
         // Act & Assert
-        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad a extraer", "cantidadExtraida"))
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad extraída", "cantidadExtraida"))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a extraer no puede tener más de 4 decimales")
+                .hasMessage("La cantidad extraída no puede tener más de 4 decimales")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("cantidadExtraida"));
-        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad a extraer"))
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.12345, 4, "La cantidad extraída"))
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isNull());
-        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(0.1234, 4, "La cantidad a extraer", "cantidadExtraida")).doesNotThrowAnyException();
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(0.1234, 4, "La cantidad extraída", "cantidadExtraida")).doesNotThrowAnyException();
     }
 }

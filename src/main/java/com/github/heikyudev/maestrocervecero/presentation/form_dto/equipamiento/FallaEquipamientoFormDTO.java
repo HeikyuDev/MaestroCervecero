@@ -35,7 +35,7 @@ public class FallaEquipamientoFormDTO {
     /**
      * Fecha y hora en la que se realizó la operación.
      */
-    @NotNull(message = "La fecha de la operación es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 
@@ -43,6 +43,6 @@ public class FallaEquipamientoFormDTO {
      * Observaciones sobre la falla.
      */
     @NotBlank(message = "Las observaciones son obligatorias")
-    @Size(max = LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, message = "El texto de las observaciones no puede superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres")
+    @Size(max = LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, message = "Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres")
     private String observaciones;
 }

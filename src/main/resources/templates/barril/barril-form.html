@@ -19,7 +19,7 @@
     </div>
 
     <form th:action="${editando} ? @{/barriles/{id}(id=${barrilId})} : @{/barriles}"
-          th:object="${barrilForm}" method="post" novalidate
+          th:object="${barrilForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
@@ -37,7 +37,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('numeroSerie')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('numeroSerie')}" th:errors="*{numeroSerie}" class="mt-1 text-xs text-rose-600"></p>
-                        <p th:unless="${#fields.hasErrors('numeroSerie')}" class="mt-1 text-xs text-slate-400">Único entre los barriles del mismo fabricante.</p>
+                        <p th:unless="${#fields.hasErrors('numeroSerie')}" class="mt-1 text-xs text-slate-400">Único entre los barriles del mismo fabricante, sin distinguir mayúsculas. Hasta 255 caracteres.</p>
                     </div>
                     <div>
                         <span class="block text-sm font-medium text-slate-700 mb-1">Fabricante <span class="text-rose-600" title="Obligatorio">*</span></span>
@@ -54,10 +54,8 @@
                         <p class="mt-1 text-xs text-slate-400">No se puede modificar.</p>
                     </div>
                     <div th:unless="${editando}">
-                        <label for="capacidad" class="block text-sm font-medium text-slate-700 mb-1">Capacidad (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="capacidad" th:field="*{capacidad}" min="0" step="any" autocomplete="off" placeholder="Ej: 50"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('capacidad')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="capacidad" class="block text-sm font-medium text-slate-700 mb-1">Capacidad <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('capacidad', null, 'Ej: 50', 'L', ${#fields.hasErrors('capacidad')}, '0', 'any', false)}"></div>
                         <p th:if="${#fields.hasErrors('capacidad')}" th:errors="*{capacidad}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('capacidad')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y hasta 1.000.</p>
                     </div>

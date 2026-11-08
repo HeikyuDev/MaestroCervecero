@@ -30,6 +30,6 @@ public class MolinoFormDTO {
     /**
      * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
      */
-    @NotNull(message = "Los usos máximos antes de mantenimiento son obligatorios")
+    @NotNull(message = "Los usos antes de mantenimiento son obligatorios")
     private Integer usosMaximosAntesMantenimiento;
 }

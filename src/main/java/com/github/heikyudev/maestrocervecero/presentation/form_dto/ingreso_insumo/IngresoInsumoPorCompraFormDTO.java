@@ -54,7 +54,7 @@ public class IngresoInsumoPorCompraFormDTO {
      * unidad de medida del insumo con el contenido de la presentación.
      */
     @NotNull(message = "La cantidad de unidades recibidas es obligatoria")
-    @Positive(message = "La cantidad de unidades recibidas debe ser mayor a cero")
+    @Positive(message = "La cantidad de unidades recibidas debe ser mayor a 0")
     private Integer cantidadPresentaciones;
 
     /**

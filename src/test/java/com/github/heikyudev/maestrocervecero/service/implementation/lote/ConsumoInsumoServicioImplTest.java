@@ -438,7 +438,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida es obligatoria");
+                .hasMessage("La cantidad es obligatoria");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -451,7 +451,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a 0");
+                .hasMessage("La cantidad debe ser mayor a 0");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -464,7 +464,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a 0");
+                .hasMessage("La cantidad debe ser mayor a 0");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -485,7 +485,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo (6 kg)");
+                .hasMessage("La cantidad no puede superar la cantidad reservada del lote de insumo (6 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(consumoInsumoRepository);
     }
@@ -589,7 +589,7 @@ class ConsumoInsumoServicioImplTest {
         for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, noFinita)))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad consumida debe ser mayor a 0");
+                    .hasMessage("La cantidad debe ser mayor a 0");
         }
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
@@ -600,7 +600,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 1_000_000.5)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar 1.000.000 kg o g, según el insumo");
+                .hasMessage("La cantidad no puede superar 1.000.000 kg o g, según el insumo");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -610,7 +610,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.00001)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a 0");
+                .hasMessage("La cantidad debe ser mayor a 0");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -656,7 +656,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.5)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo (0,3 kg)");
+                .hasMessage("La cantidad no puede superar la cantidad reservada del lote de insumo (0,3 kg)");
         verify(loteInsumoRepository, never()).save(any());
     }
 
@@ -945,7 +945,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida es obligatoria");
+                .hasMessage("La cantidad es obligatoria");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -958,7 +958,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a 0");
+                .hasMessage("La cantidad debe ser mayor a 0");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -971,7 +971,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a 0");
+                .hasMessage("La cantidad debe ser mayor a 0");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -990,7 +990,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo (10 kg)");
+                .hasMessage("La cantidad no puede superar la cantidad disponible del lote de insumo (10 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(consumoInsumoRepository);
     }
@@ -1067,7 +1067,7 @@ class ConsumoInsumoServicioImplTest {
         for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, noFinita)))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad consumida debe ser mayor a 0");
+                    .hasMessage("La cantidad debe ser mayor a 0");
         }
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
@@ -1078,7 +1078,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 1_000_000.5)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar 1.000.000 kg o g, según el insumo");
+                .hasMessage("La cantidad no puede superar 1.000.000 kg o g, según el insumo");
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -1121,7 +1121,7 @@ class ConsumoInsumoServicioImplTest {
         assertThat(0.7 - 0.4).isNotEqualTo(0.3);
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 0.5)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo (0,3 kg)");
+                .hasMessage("La cantidad no puede superar la cantidad disponible del lote de insumo (0,3 kg)");
         verify(loteInsumoRepository, never()).save(any());
     }
 

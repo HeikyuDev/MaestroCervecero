@@ -100,7 +100,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
      *
      * @param fraccionamientoBarrilFormDTO Los datos del fraccionamiento a registrar.
      * @return El fraccionamiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a cero, tiene más de cuatro decimales o supera el contenido actual del barril, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
+     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a 0, tiene más de cuatro decimales o supera el contenido actual del barril, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -109,7 +109,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
     public FraccionamientoBarrilResponseDTO registrarFraccionamientoBarril(FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha
         if (fraccionamientoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de fraccionamiento es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha no sea posterior a la fecha y hora actual
@@ -118,12 +118,12 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
         // 3. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(fraccionamientoBarrilFormDTO.getObservaciones());
 
-        // 4. Validar que la cantidad a extraer sea mayor a cero y no tenga más decimales que los permitidos
+        // 4. Validar que la cantidad a extraer sea mayor a 0 y no tenga más decimales que los permitidos
         Double cantidadExtraida = fraccionamientoBarrilFormDTO.getCantidadExtraida();
         if (cantidadExtraida == null || !Double.isFinite(cantidadExtraida) || cantidadExtraida <= 0) {
-            throw new ReglaNegocioException("La cantidad a extraer debe ser mayor a 0", CAMPO_CANTIDAD_EXTRAIDA);
+            throw new ReglaNegocioException("La cantidad extraída debe ser mayor a 0", CAMPO_CANTIDAD_EXTRAIDA);
         }
-        ValidacionesNumericas.validarMaximoDecimales(cantidadExtraida, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad a extraer", CAMPO_CANTIDAD_EXTRAIDA);
+        ValidacionesNumericas.validarMaximoDecimales(cantidadExtraida, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad extraída", CAMPO_CANTIDAD_EXTRAIDA);
 
         // 5. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = fraccionamientoBarrilFormDTO.getIdBarril();
@@ -138,7 +138,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
         //    redondea a la escala de las cantidades, de modo que un residuo de punto flotante no cuente como contenido
         double contenidoRestante = Redondeo.redondear(barrilEntity.getContenidoActual() - cantidadExtraida);
         if (contenidoRestante < 0) {
-            throw new ReglaNegocioException("La cantidad a extraer no puede superar el contenido actual del barril", CAMPO_CANTIDAD_EXTRAIDA);
+            throw new ReglaNegocioException("La cantidad extraída no puede superar el contenido actual del barril", CAMPO_CANTIDAD_EXTRAIDA);
         }
 
         // 8. Validar que la fecha sea posterior a la última operación registrada sobre este

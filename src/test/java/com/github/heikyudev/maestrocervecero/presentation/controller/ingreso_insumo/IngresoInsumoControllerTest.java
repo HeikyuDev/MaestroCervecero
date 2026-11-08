@@ -599,7 +599,7 @@ class IngresoInsumoControllerTest {
     @DisplayName("CP-IIC-31: tras un rechazo, el formulario conserva la orden y el ítem elegidos, muestra lo pendiente y la unidad")
     void registrarPorCompra_rechazoConservaLaOrdenYElItem() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a 0"));
 
         // Act
         String html = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("idOrdenCompra", "7"))
@@ -619,7 +619,7 @@ class IngresoInsumoControllerTest {
     @DisplayName("CP-IIC-32: un rechazo con una orden que ya no existe vuelve al formulario con los selectores vacíos, sin error")
     void registrarPorCompra_rechazoConOrdenInexistente() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a 0"));
         when(ordenCompraServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la orden de compra con ID: 99"));
 
         // Act
@@ -685,7 +685,7 @@ class IngresoInsumoControllerTest {
                 DetalleCompraResponseDTO.builder().id(110L).cantidad(1).cantidadPendiente(10.0).build(),
                 DetalleCompraResponseDTO.builder().id(111L).cantidad(1).build())).build());
         when(ordenCompraServicio.buscarPorId(12L)).thenReturn(OrdenCompraResponseDTO.builder().id(12L).estado(EstadoSolicitud.PENDIENTE).build());
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero", "cantidadPresentaciones"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a 0", "cantidadPresentaciones"));
 
         // Act
         String formulario = mockMvc.perform(post(URL + "/compra").with(como(Rol.ENCARGADO_DE_DEPOSITO)).with(csrf()).param("idOrdenCompra", "11").param("idDetalleCompra", "110")
@@ -697,7 +697,7 @@ class IngresoInsumoControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(formulario)).contains("La cantidad de unidades recibidas debe ser mayor a cero");
+        assertThat(texto(formulario)).contains("La cantidad de unidades recibidas debe ser mayor a 0");
         assertThat(textoDelSelector(formulario, "Seleccione ítem de la orden")).isEmpty();
         assertThat(items + sinDetalles).doesNotContain("data-elegir");
         assertThat(texto(items)).contains("La orden no tiene ítems pendientes de recibir");
@@ -708,16 +708,16 @@ class IngresoInsumoControllerTest {
     void registrar_elCampoLoIndicaElService() throws Exception {
         // Arrange
         when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any()))
-                .thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero"))
-                .thenThrow(new ReglaNegocioException("El costo unitario debe ser mayor a cero", "costoUnitario"));
+                .thenThrow(new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a 0"))
+                .thenThrow(new ReglaNegocioException("El precio unitario debe ser mayor a 0", "costoUnitario"));
 
         // Act
         String sinCampo = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String campoAjeno = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(cuenta(texto(sinCampo), "La cantidad de unidades recibidas debe ser mayor a cero")).isEqualTo(1);
-        assertThat(cuenta(texto(campoAjeno), "El costo unitario debe ser mayor a cero")).isEqualTo(1);
+        assertThat(cuenta(texto(sinCampo), "La cantidad de unidades recibidas debe ser mayor a 0")).isEqualTo(1);
+        assertThat(cuenta(texto(campoAjeno), "El precio unitario debe ser mayor a 0")).isEqualTo(1);
         assertThat(sinCampo + campoAjeno).doesNotContain("border-rose-400");
     }
 
@@ -736,12 +736,12 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/directo\"");
         assertThat(texto(formulario)).contains("Insumo *", "Identificación del lote del proveedor *", "Fecha de vencimiento *", "Fecha de ingreso *",
-                "Cantidad recibida *", "Precio unitario ($) *", "Precio de cada unidad del insumo que ingresa", "Registrar ingreso");
+                "Cantidad recibida *", "Precio unitario *", "Precio de cada unidad del insumo que ingresa", "Registrar ingreso");
         assertThat(texto(formulario)).doesNotContain("Ver lotes existentes");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
         assertThat(cuenta(formulario, "data-unidad-sufijo")).isEqualTo(2);
         assertThat(formulario).contains(">-<");
-        assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"").contains("placeholder=\"Ej: 12.50\"");
+        assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"").contains("placeholder=\"Ej: 12,50\"");
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
         assertThat(textoDelSelector(formulario, "Seleccione insumo")).isEmpty();
         assertThat(formulario).doesNotContain("data-lote-existente");
@@ -775,7 +775,7 @@ class IngresoInsumoControllerTest {
     @DisplayName("CP-IIC-36: una regla del costo rechazada por el service vuelve al formulario directo con el mensaje en el campo del costo y en el resumen, y con lo cargado conservado")
     void registrarDirecto_reglaDelCostoVuelveAlFormulario() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoDirecto(any())).thenThrow(new ReglaNegocioException("El costo unitario debe ser mayor a cero", "costoUnitario"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoDirecto(any())).thenThrow(new ReglaNegocioException("El precio unitario debe ser mayor a 0", "costoUnitario"));
 
         // Act
         String html = mockMvc.perform(postDirecto(como(Rol.ENCARGADO_DE_DEPOSITO)))
@@ -784,7 +784,7 @@ class IngresoInsumoControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(cuenta(texto(html), "El costo unitario debe ser mayor a cero")).isEqualTo(2);
+        assertThat(cuenta(texto(html), "El precio unitario debe ser mayor a 0")).isEqualTo(2);
         assertThat(etiquetaDelCampo(html, "costoUnitario")).contains("border-rose-400");
         assertThat(etiquetaDelCampo(html, "cantidadRecibida")).doesNotContain("border-rose-400");
         assertThat(campo(html, "costoUnitario")).isEqualTo("12.5");
@@ -814,7 +814,7 @@ class IngresoInsumoControllerTest {
 
         // Assert
         assertThat(texto(html)).contains("El insumo es obligatorio", "La identificación del lote del proveedor es obligatoria", "La cantidad recibida es obligatoria",
-                "El costo unitario es obligatorio", "La fecha de vencimiento es obligatoria", "La fecha de ingreso es obligatoria");
+                "El precio unitario es obligatorio", "La fecha de vencimiento es obligatoria", "La fecha de ingreso es obligatoria");
         verify(ingresoInsumoServicio, never()).registrarIngresoInsumoDirecto(any());
     }
 
@@ -834,7 +834,7 @@ class IngresoInsumoControllerTest {
     @DisplayName("CP-IIC-40: tras un rechazo, el formulario directo conserva el insumo elegido, su tipo, su unidad")
     void registrarDirecto_rechazoConservaElInsumo() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoDirecto(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoDirecto(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a 0"));
 
         // Act
         String html = mockMvc.perform(postDirecto(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -843,9 +843,9 @@ class IngresoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Pilsen");
         assertThat(campo(html, "idInsumo")).isEqualTo("10");
         assertThat(texto(bloque(html, "data-insumo-elegido"))).isEqualTo("Tipo: Malta");
-        assertThat(texto(html)).contains("Cantidad recibida *", "Precio unitario ($) *");
+        assertThat(texto(html)).contains("Cantidad recibida *", "Precio unitario *");
         assertThat(cuenta(html, "data-unidad-sufijo")).isEqualTo(2);
-        assertThat(html).contains(">kg<").contains(">/ kg<");
+        assertThat(html).contains(">kg<").contains(">$ / kg<");
     }
 
     // ==================== POST /ingresos-insumo/{id}/anular ====================

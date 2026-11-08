@@ -90,12 +90,12 @@ public final class CantidadesDetalleCompra {
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
      * @param cantidadEnUnidadDelInsumo Cantidad de insumo, en la unidad de medida base del insumo.
      * @return Cantidad equivalente en unidades.
-     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a cero.
+     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a 0.
      */
     public static double convertirAPresentaciones(DetalleCompraEntity detalleCompraEntity, double cantidadEnUnidadDelInsumo) {
         double cantidadPorPresentacion = calcularCantidadPorPresentacion(detalleCompraEntity);
         if (!(cantidadPorPresentacion > 0)) {
-            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a cero");
+            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a 0");
         }
         return Redondeo.redondear(cantidadEnUnidadDelInsumo / cantidadPorPresentacion);
     }
@@ -123,12 +123,12 @@ public final class CantidadesDetalleCompra {
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
      * @return Costo por unidad de medida del insumo, con 4 decimales.
-     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a cero.
+     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a 0.
      */
     public static BigDecimal calcularCostoPorUnidadDelInsumo(DetalleCompraEntity detalleCompraEntity) {
         double cantidadPorPresentacion = calcularCantidadPorPresentacion(detalleCompraEntity);
         if (!(cantidadPorPresentacion > 0)) {
-            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a cero");
+            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a 0");
         }
         return detalleCompraEntity.getCostoUnitario()
                 .divide(BigDecimal.valueOf(cantidadPorPresentacion), 4, RoundingMode.HALF_UP);

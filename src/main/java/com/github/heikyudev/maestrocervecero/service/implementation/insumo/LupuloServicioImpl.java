@@ -201,7 +201,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param id Identificador clave primaria del lúpulo a dar de baja.
      * @return {@link LupuloResponseDTO} con los datos del lúpulo ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el lúpulo con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a 0).
      */
     @Override
     @Transactional
@@ -233,7 +233,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
             throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque se encuentra asociado al catálogo de al menos un proveedor activo");
         }
 
-        // 6. Validar que el lúpulo no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        // 6. Validar que el lúpulo no tenga stock (al menos un lote de insumo con cantidad actual mayor a 0)
         if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
             throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque tiene stock");
         }

@@ -76,7 +76,7 @@
                                 </a>
                                 <button type="button" th:if="${puedeAnular and o.anulable}" data-motivo-dialogo="dialogo-anular"
                                         th:data-motivo-url="@{/control-equipamiento/{id}/{pestana}/{idOperacion}/anular(id=${equipo.id}, pestana=${pestanaActiva.clave}, idOperacion=${o.id})}"
-                                        th:data-motivo-nombre="|${equipo.identificadorInterno}:|"
+                                        th:data-motivo-nombre="${equipo.identificadorInterno}"
                                         class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
                             </div>
                         </td>

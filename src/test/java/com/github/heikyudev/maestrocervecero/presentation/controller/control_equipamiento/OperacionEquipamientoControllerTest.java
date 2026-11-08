@@ -123,7 +123,7 @@ class OperacionEquipamientoControllerTest {
 
         String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(resultado.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha de la operación es obligatoria").contains("Las observaciones son obligatorias");
+        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha y hora de la operación es obligatoria").contains("Las observaciones son obligatorias");
     }
 
     @Test

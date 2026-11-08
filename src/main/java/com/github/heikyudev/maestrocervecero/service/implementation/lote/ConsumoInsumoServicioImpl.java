@@ -158,7 +158,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         // 6. Validar que la cantidad consumida no supere la cantidad reservada
         double cantidadReservada = Redondeo.redondear(reserva.getCantidadPendiente());
         if (cantidadConsumida > cantidadReservada) {
-            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad reservada del lote de insumo ("
+            throw new ReglaNegocioException("La cantidad no puede superar la cantidad reservada del lote de insumo ("
                     + describirCantidad(cantidadReservada, loteInsumo) + ")");
         }
 
@@ -239,7 +239,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         // 5. Validar que la cantidad consumida no supere la cantidad disponible del lote de insumo
         double cantidadDisponible = loteInsumo.getCantidadDisponible();
         if (cantidadConsumida > cantidadDisponible) {
-            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad disponible del lote de insumo ("
+            throw new ReglaNegocioException("La cantidad no puede superar la cantidad disponible del lote de insumo ("
                     + describirCantidad(cantidadDisponible, loteInsumo) + ")");
         }
 
@@ -652,19 +652,19 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * ({@link LimitesTecnicos#ESCALA_CANTIDADES} decimales): debe informarse, ser un número finito
      * mayor a 0 (una vez redondeada) y no superar el máximo técnico. No consulta nada.
      *
-     * @return La cantidad consumida redondeada.
+     * @return La cantidad redondeada.
      * @throws ReglaNegocioException Si la cantidad es nula, no es un número mayor a 0 o supera el máximo técnico.
      */
     private double validarCantidadConsumida(Double cantidadConsumida) {
         if (cantidadConsumida == null) {
-            throw new ReglaNegocioException("La cantidad consumida es obligatoria");
+            throw new ReglaNegocioException("La cantidad es obligatoria");
         }
         double cantidadRedondeada = Redondeo.redondear(cantidadConsumida);
         if (cantidadRedondeada <= 0) {
-            throw new ReglaNegocioException("La cantidad consumida debe ser mayor a 0");
+            throw new ReglaNegocioException("La cantidad debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(cantidadRedondeada, LimitesTecnicos.CANTIDAD_CONSUMIDA_MAXIMA,
-                "La cantidad consumida", "kg o g, según el insumo");
+                "La cantidad", "kg o g, según el insumo");
         return cantidadRedondeada;
     }
 

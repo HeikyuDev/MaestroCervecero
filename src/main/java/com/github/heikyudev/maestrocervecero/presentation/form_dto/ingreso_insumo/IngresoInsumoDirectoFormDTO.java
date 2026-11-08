@@ -57,7 +57,7 @@ public class IngresoInsumoDirectoFormDTO {
     /**
      * Costo unitario al que se recibió el insumo.
      */
-    @NotNull(message = "El costo unitario es obligatorio")
+    @NotNull(message = "El precio unitario es obligatorio")
     private BigDecimal costoUnitario;
 
     /**

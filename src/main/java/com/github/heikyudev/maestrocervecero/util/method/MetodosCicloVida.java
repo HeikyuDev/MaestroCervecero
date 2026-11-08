@@ -130,7 +130,7 @@ public class MetodosCicloVida {
      */
     public static void validarPosteriorAFinalizacionDelLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinalizacionLote, String campo) {
         if (fechaFinalizacionLote != null && !fechaOperacion.isAfter(fechaFinalizacionLote)) {
-            throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril ("
+            throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la finalización del lote que envasó este barril ("
                     + FORMATO_FECHA_HORA_SEGUNDOS.format(fechaFinalizacionLote) + ")", campo);
         }
     }
@@ -204,7 +204,7 @@ public class MetodosCicloVida {
      */
     public static void validarFechaPosteriorAUltimaOperacion(LocalDateTime fechaNuevaOperacion, String nombreEntidad, String campo, LocalDateTime... fechasOperacionesExistentes) {
         if (hayFechaPosteriorOIgual(fechaNuevaOperacion, fechasOperacionesExistentes)) {
-            throw new ReglaNegocioException("La fecha de esta operación debe ser posterior a la última operación registrada sobre este " + nombreEntidad, campo);
+            throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la última operación registrada sobre este " + nombreEntidad, campo);
         }
     }
 
@@ -234,7 +234,7 @@ public class MetodosCicloVida {
      */
     public static void validarFechaNoFutura(LocalDateTime fechaNuevaOperacion, String campo) {
         if (fechaNuevaOperacion.isAfter(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de esta operación no puede ser posterior a la fecha y hora actual", campo);
+            throw new ReglaNegocioException("La fecha de la operación no puede ser posterior a la fecha y hora actual", campo);
         }
     }
 

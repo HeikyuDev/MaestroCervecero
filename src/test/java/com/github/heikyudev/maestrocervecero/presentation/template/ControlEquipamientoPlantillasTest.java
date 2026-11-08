@@ -148,7 +148,7 @@ class ControlEquipamientoPlantillasTest {
                 .contains("px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3").contains("col-acciones px-4 py-3 text-right")
                 .contains("bg-amber-500 text-white hover:bg-amber-600 shadow-sm").doesNotContain("<form").doesNotContain("datetime-local");
         String formulario = leer("control_equipamiento/control-form.html");
-        assertThat(formulario).contains("Los campos marcados con").contains("mt-1 text-sm text-slate-500").contains("novalidate data-un-solo-envio").contains("divide-y divide-slate-100")
+        assertThat(formulario).contains("Los campos marcados con").contains("text-sm text-slate-500").contains("novalidate data-un-solo-envio").contains("divide-y divide-slate-100")
                 .contains("p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl").contains(">Cancelar</a>").contains("text-rose-600\" title=\"Obligatorio\"")
                 .contains("space-y-5 mt-4").contains("fragments/form-errors :: resumen(");
         for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/operacion-detalle.html")) {

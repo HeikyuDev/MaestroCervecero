@@ -19,7 +19,7 @@
     </div>
 
     <form th:action="${editando} ? @{/presentaciones-comerciales/{id}(id=${presentacionId})} : @{/presentaciones-comerciales}"
-          th:object="${presentacionForm}" method="post" novalidate
+          th:object="${presentacionForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->

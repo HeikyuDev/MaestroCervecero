@@ -524,7 +524,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote es obligatorio");
+                .hasMessage("El volumen objetivo es obligatorio");
         verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
@@ -537,7 +537,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+                .hasMessage("El volumen objetivo debe ser mayor a 0");
         verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
@@ -551,7 +551,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote (25 L) supera la capacidad útil del fermentador seleccionado (20 L)");
+                .hasMessage("El volumen objetivo (25 L) supera la capacidad útil del fermentador seleccionado (20 L)");
     }
 
     @Test
@@ -627,11 +627,11 @@ class LoteServicioImplTest {
         for (double noFinito : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(noFinito).build()))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+                    .hasMessage("El volumen objetivo debe ser mayor a 0");
         }
         assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(-5.0).build()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+                .hasMessage("El volumen objetivo debe ser mayor a 0");
         verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
@@ -658,7 +658,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(0.00001).build()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+                .hasMessage("El volumen objetivo debe ser mayor a 0");
         verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
@@ -688,7 +688,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(21.264000000000003).build()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo del lote (21,26 L) supera la capacidad útil del fermentador seleccionado (20 L)");
+                .hasMessage("El volumen objetivo (21,26 L) supera la capacidad útil del fermentador seleccionado (20 L)");
     }
 
     @Test

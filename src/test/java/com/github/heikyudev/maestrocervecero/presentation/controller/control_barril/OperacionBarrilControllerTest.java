@@ -164,14 +164,14 @@ class OperacionBarrilControllerTest {
 
         String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(resultado.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha de limpieza es obligatoria").contains("Las observaciones son obligatorias");
+        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha y hora de la operación es obligatoria").contains("Las observaciones son obligatorias");
     }
 
     @Test
     @DisplayName("CP-OBC-05: un rechazo del service sobre un campo se muestra en ese campo, y uno general (estado del barril) en el resumen")
     void registrarRechazadoPorElService() throws Exception {
         when(fraccionamientoServicio.registrarFraccionamientoBarril(any()))
-                .thenThrow(new ReglaNegocioException("La cantidad a extraer no puede superar el contenido actual del barril", "cantidadExtraida"));
+                .thenThrow(new ReglaNegocioException("La cantidad extraída no puede superar el contenido actual del barril", "cantidadExtraida"));
         MvcResult campo = mockMvc.perform(registro("fraccionamientos", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T12:00", "Muestra").param("cantidadExtraida", "99"))
                 .andExpect(redirectedUrl(BASE + "/fraccionamientos/nuevo")).andReturn();
         when(limpiezaServicio.registrarLimpiezaBarril(any()))
@@ -185,7 +185,7 @@ class OperacionBarrilControllerTest {
         configurarBarril(EstadoOperativoBarril.EN_LIMPIEZA);
         String htmlGeneral = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(general.getFlashMap()))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(htmlCampo).contains("La cantidad a extraer no puede superar el contenido actual del barril").contains("value=\"99\"");
+        assertThat(htmlCampo).contains("La cantidad extraída no puede superar el contenido actual del barril").contains("value=\"99\"");
         assertThat(htmlGeneral).contains("Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza");
     }
 
@@ -194,13 +194,13 @@ class OperacionBarrilControllerTest {
     void despachoRechazadoConservaElCliente() throws Exception {
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
         when(despachoServicio.registrarDespachoBarril(any()))
-                .thenThrow(new ReglaNegocioException("La fecha estimada de devolución debe ser posterior o igual a la fecha de despacho", "fechaDevolucionEstimada"));
+                .thenThrow(new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha de la operación", "fechaDevolucionEstimada"));
         MvcResult resultado = mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "Entrega").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-10-01"))
                 .andExpect(redirectedUrl(BASE + "/despachos/nuevo")).andReturn();
 
         String html = mockMvc.perform(get(BASE + "/despachos/nuevo").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).flashAttrs(resultado.getFlashMap()))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("La fecha estimada de devolución debe ser posterior o igual a la fecha de despacho").contains("value=\"Bar El Puerto\"")
+        assertThat(html).contains("La fecha estimada de devolución no puede ser anterior a la fecha de la operación").contains("value=\"Bar El Puerto\"")
                 .contains("value=\"3\"").contains("value=\"2026-10-01\"");
     }
 
@@ -305,7 +305,7 @@ class OperacionBarrilControllerTest {
         String devolucion = mockMvc.perform(get(BASE + "/devoluciones/nueva").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(fraccionamiento).contains("Registrar fraccionamiento").contains("Cantidad extraída").contains("name=\"cantidadExtraida\"").contains("Ej: 5").contains("data-unidad-sufijo");
+        assertThat(fraccionamiento).contains("Registrar fraccionamiento").contains("Cantidad extraída").contains("name=\"cantidadExtraida\"").contains("Ej: 5").contains(">L</span>");
         assertThat(fraccionamiento.indexOf("Cantidad extraída")).isLessThan(fraccionamiento.indexOf("Fecha y hora de la operación"));
         assertThat(devolucion).contains("Registrar devolución").contains("Al registrar la devolución se descarta el contenido del barril").doesNotContain("cantidadExtraida");
     }

@@ -428,7 +428,7 @@ public class OrdenCompraController {
 
     /**
      * Una fila entra en el total solo si cumple las mismas reglas que el service: cantidad de 1 a
-     * {@code CANTIDAD_COMPRA_MAXIMA} y costo unitario mayor a cero, de hasta {@code COSTO_UNITARIO_COMPRA_MAXIMO} y de hasta
+     * {@code CANTIDAD_COMPRA_MAXIMA} y costo unitario mayor a 0, de hasta {@code COSTO_UNITARIO_COMPRA_MAXIMO} y de hasta
      * {@code ESCALA_COSTO_UNITARIO} decimales. Las demás, que el service rechaza, se ignoran (el total solo se muestra).
      */
     private static boolean tieneCantidadYCostoValidos(DetalleCompraFormDTO detalle) {

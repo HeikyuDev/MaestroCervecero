@@ -148,7 +148,7 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      * </p>
      *
      * @param idInsumo El ID del insumo.
-     * @return Los lotes de insumo de ese insumo con cantidad disponible mayor a cero.
+     * @return Los lotes de insumo de ese insumo con cantidad disponible mayor a 0.
      */
     @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo AND (li.cantidadActual - li.cantidadReservada) > 0 ORDER BY li.fechaVencimiento ASC")
     List<LoteInsumoEntity> filtrarLotesInsumoDisponibles(@Param("idInsumo") Long idInsumo);

@@ -43,13 +43,13 @@ public class MetodosEquipamiento {
      */
     public static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
         if (usosMaximosAntesMantenimiento == null) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios");
+            throw new ReglaNegocioException("Los usos antes de mantenimiento son obligatorios");
         }
         if (usosMaximosAntesMantenimiento <= 0) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+            throw new ReglaNegocioException("Los usos antes de mantenimiento deben ser mayores a 0");
         }
         if (usosMaximosAntesMantenimiento > LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento no pueden superar "
+            throw new ReglaNegocioException("Los usos antes de mantenimiento no pueden superar "
                     + ValidacionesNumericas.formatearNumero(LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO) + " usos");
         }
     }

@@ -19,7 +19,7 @@
     </div>
 
     <form th:action="${editando} ? @{/barriles/fabricantes/{id}(id=${fabricanteId})} : @{/barriles/fabricantes}"
-          th:object="${fabricanteForm}" method="post" novalidate
+          th:object="${fabricanteForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
@@ -35,7 +35,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre los fabricantes de barril, sin distinguir mayúsculas.</p>
+                    <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre los fabricantes de barril, sin distinguir mayúsculas. Hasta 100 caracteres.</p>
                 </div>
             </div>
         </section>

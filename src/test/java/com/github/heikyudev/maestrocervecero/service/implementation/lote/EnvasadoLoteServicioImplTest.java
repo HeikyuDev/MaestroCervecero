@@ -521,7 +521,7 @@ class EnvasadoLoteServicioImplTest {
     void registrarEnvasadoLote_debeRechazarFechaFutura() {
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0, LocalDateTime.now().plusDays(1))))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual")
+                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
 
         verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
@@ -576,7 +576,7 @@ class EnvasadoLoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril")
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
 
         verify(barrilRepository, never()).save(any());
@@ -595,7 +595,7 @@ class EnvasadoLoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril");
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
 
         verify(barrilRepository, never()).save(any());
         verify(envasadoLoteRepository, never()).save(any());

@@ -92,7 +92,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
-        // 3. Validar el costo por litro: informado, mayor a cero, con tope máximo y con a lo sumo 4 decimales
+        // 3. Validar el costo por litro: informado, mayor a 0, con tope máximo y con a lo sumo 4 decimales
         validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
         // 4. Validar que no exista otro costo directo adicional activo con el mismo nombre (case-insensitive)
@@ -134,7 +134,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
-        // 3. Validar el costo por litro: informado, mayor a cero, con tope máximo y con a lo sumo 4 decimales
+        // 3. Validar el costo por litro: informado, mayor a 0, con tope máximo y con a lo sumo 4 decimales
         validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
         // 4. Localizar el costo directo adicional existente. Si no existe, se dispara RecursoNoEncontradoException
@@ -185,7 +185,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
     }
 
     /**
-     * Valida el costo por litro: informado, mayor a cero, que no supere
+     * Valida el costo por litro: informado, mayor a 0, que no supere
      * {@link LimitesTecnicos#COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO} y con no más de
      * {@link LimitesTecnicos#ESCALA_COSTO_UNITARIO} decimales.
      *
@@ -197,7 +197,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
             throw new ReglaNegocioException("El costo por litro es obligatorio", "costoPorLitro");
         }
         if (costoPorLitro.signum() <= 0) {
-            throw new ReglaNegocioException("El costo por litro debe ser mayor a cero", "costoPorLitro");
+            throw new ReglaNegocioException("El costo por litro debe ser mayor a 0", "costoPorLitro");
         }
         if (costoPorLitro.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO)) > 0) {
             throw new ReglaNegocioException("El costo por litro no puede superar "

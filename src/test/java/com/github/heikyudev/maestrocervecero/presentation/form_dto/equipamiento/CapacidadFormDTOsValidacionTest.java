@@ -87,8 +87,8 @@ class CapacidadFormDTOsValidacionTest {
         assertThat(mensajes(validator.validate(sinCapacidad, GrupoAlta.class))).containsExactly("La capacidad es obligatoria");
         assertThat(mensajes(validator.validate(vacio))).containsExactlyInAnyOrder(
                 "El número de serie es obligatorio",
-                "Los usos máximos antes de mantenimiento son obligatorios",
-                "El fabricante de barril es obligatorio");
+                "Los usos antes de mantenimiento son obligatorios",
+                "El fabricante es obligatorio");
     }
 
     private static List<String> mensajes(Set<? extends ConstraintViolation<?>> violaciones) {

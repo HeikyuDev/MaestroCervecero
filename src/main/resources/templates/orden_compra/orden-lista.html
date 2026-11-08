@@ -124,11 +124,11 @@
 
     <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar orden de compra',
-                'Se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado. El motivo admite hasta 255 caracteres.',
+                'Se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado.',
                 'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
                 'El proveedor no puede entregar el resto de los ítems')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular orden de compra',
-                'Se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados. El motivo admite hasta 255 caracteres.',
+                'Se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados.',
                 'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                 'La orden se cargó con un proveedor equivocado')}"></div>
     </th:block>

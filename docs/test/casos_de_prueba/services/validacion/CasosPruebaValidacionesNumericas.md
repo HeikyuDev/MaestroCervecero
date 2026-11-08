@@ -26,8 +26,8 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-VN-10** | Entero mayor a cero inválido | `validarEnteroMayorACeroConMaximo` con `null`, `0` y `-1` | El valor es nulo, cero o negativo | Lanza `ReglaNegocioException`: "La duración debe ser mayor a 0". |
-| **CP-VN-11** | Entero mayor a cero con máximo | `1`, `10080` y `10081` (máximo 10.080) | El valor no supera el máximo | `1` y `10080` no lanzan; `10081` lanza "La duración no puede superar 10.080 minutos". |
+| **CP-VN-10** | Entero mayor a 0 inválido | `validarEnteroMayorACeroConMaximo` con `null`, `0` y `-1` | El valor es nulo, cero o negativo | Lanza `ReglaNegocioException`: "La duración debe ser mayor a 0". |
+| **CP-VN-11** | Entero mayor a 0 con máximo | `1`, `10080` y `10081` (máximo 10.080) | El valor no supera el máximo | `1` y `10080` no lanzan; `10081` lanza "La duración no puede superar 10.080 minutos". |
 | **CP-VN-12** | Entero mayor o igual a cero inválido | `validarEnteroMayorOIgualACeroConMaximo` con `null` y `-1` | El valor es nulo o negativo | Lanza `ReglaNegocioException`: "El amargor debe ser mayor o igual a 0". |
 | **CP-VN-13** | Entero mayor o igual a cero con máximo | `0`, `500` y `501` (máximo 500); `100001` (máximo 100.000) | El valor no supera el máximo | `0` y `500` no lanzan; `501` lanza "El amargor no puede superar 500 IBU"; `100001` lanza "Los usos no puede superar 100.000 usos". |
 
@@ -41,4 +41,4 @@
 | **CP-VN-15** | Longitud superior al máximo | 101 caracteres (máximo 100) | La longitud supera el máximo en un carácter | Lanza `ReglaNegocioException`: "El nombre no puede superar 100 caracteres". |
 | **CP-VN-16** | Decimales dentro del máximo | `validarMaximoDecimales` con `null`, NaN, infinitos, 35.0, 35.5, 35.50 y 0.1 (máximo 1) | El valor no tiene más decimales que el máximo, ignorando ceros finales (nulo, NaN e infinitos no se evalúan) | No lanza excepción. |
 | **CP-VN-17** | Decimales por encima del máximo | `validarMaximoDecimales` con 35.55 y 0.25 (máximo 1) y con 1.12345 (máximo 4) | El valor tiene más decimales que el máximo | Lanza `ReglaNegocioException`: "El IBU objetivo no puede tener más de 1 decimal" y "El costo no puede tener más de 4 decimales". |
-| **CP-VN-18** | Decimales por encima del máximo con campo | `validarMaximoDecimales` con 0.12345 (máximo 4) y `campo: "cantidadExtraida"`, el mismo valor sin campo y 0.1234 con campo | El valor tiene más decimales que el máximo | Lanza `ReglaNegocioException` ("La cantidad a extraer no puede tener más de 4 decimales") con `campo = "cantidadExtraida"`, o con `campo = null` si no se informa. Con 0.1234 no lanza nada. |
+| **CP-VN-18** | Decimales por encima del máximo con campo | `validarMaximoDecimales` con 0.12345 (máximo 4) y `campo: "cantidadExtraida"`, el mismo valor sin campo y 0.1234 con campo | El valor tiene más decimales que el máximo | Lanza `ReglaNegocioException` ("La cantidad extraída no puede tener más de 4 decimales") con `campo = "cantidadExtraida"`, o con `campo = null` si no se informa. Con 0.1234 no lanza nada. |

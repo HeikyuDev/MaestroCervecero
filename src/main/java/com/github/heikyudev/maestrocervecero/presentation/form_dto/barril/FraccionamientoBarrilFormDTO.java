@@ -36,15 +36,15 @@ public class FraccionamientoBarrilFormDTO {
     /**
      * Fecha y hora en la que se realizó el fraccionamiento.
      */
-    @NotNull(message = "La fecha de fraccionamiento es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 
     /**
      * Cantidad de litros extraídos del barril.
      */
-    @NotNull(message = "La cantidad a extraer es obligatoria")
-    @Positive(message = "La cantidad a extraer debe ser mayor a 0")
+    @NotNull(message = "La cantidad extraída es obligatoria")
+    @Positive(message = "La cantidad extraída debe ser mayor a 0")
     private Double cantidadExtraida;
 
     /**

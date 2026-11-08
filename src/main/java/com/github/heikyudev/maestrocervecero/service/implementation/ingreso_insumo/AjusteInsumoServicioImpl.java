@@ -103,10 +103,10 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         LoteInsumoEntity loteInsumoEntity = loteInsumoRepository.buscarPorIdParaAjustar(ajusteInsumoFormDTO.getIdLoteInsumo())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + ajusteInsumoFormDTO.getIdLoteInsumo()));
 
-        // 3. Validar que la cantidad sea mayor a cero
+        // 3. Validar que la cantidad sea mayor a 0
         Double cantidad = ajusteInsumoFormDTO.getCantidad();
         if (cantidad == null || cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad debe ser mayor a cero");
+            throw new ReglaNegocioException("La cantidad debe ser mayor a 0");
         }
 
         // 4. Validar que se haya informado la observación

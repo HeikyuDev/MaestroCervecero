@@ -20,7 +20,7 @@
     </div>
 
     <form th:action="${editando} ? @{/insumos/levaduras/{id}(id=${levaduraId})} : @{/insumos/levaduras}"
-          th:object="${levaduraForm}" method="post" novalidate
+          th:object="${levaduraForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
@@ -42,6 +42,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre las levaduras, sin distinguir mayúsculas. Hasta 100 caracteres.</p>
                     </div>
                     <div>
                         <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">Tipo <span class="text-rose-600" title="Obligatorio">*</span></label>
@@ -60,10 +61,8 @@
                             El usuario ingresa las células en MILLONES (20000 son 20.000.000.000). El formulario las
                             convierte con celulasEnMillones; el sistema guarda y valida el valor en células.
                         -->
-                        <label for="celulasEnMillones" class="block text-sm font-medium text-slate-700 mb-1">Células viables (millones/g) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="celulasEnMillones" th:field="*{celulasEnMillones}" min="6000" max="20000" step="1" autocomplete="off" placeholder="Ej: 20000"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="celulasEnMillones" class="block text-sm font-medium text-slate-700 mb-1">Células viables <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: medida('celulasEnMillones', 'celulasEnMillones', ${levaduraForm.celulasEnMillones}, 'Ej: 20000', 'millones/g', ${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}, '6000', '20000', '1', false)}"></div>
                         <p th:if="${#fields.hasErrors('celulasEnMillones')}" th:errors="*{celulasEnMillones}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:if="${#fields.hasErrors('cantidadCelulasPorGramo')}" th:errors="*{cantidadCelulasPorGramo}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}" class="mt-1 text-xs text-slate-400">Ingrese el valor en millones: 20000 equivale a 20.000.000.000 células por gramo. Un número entre 6000 y 20000.</p>

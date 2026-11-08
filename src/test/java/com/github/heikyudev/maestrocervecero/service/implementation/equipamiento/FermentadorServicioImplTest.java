@@ -391,7 +391,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+                .hasMessage("Los usos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fermentadorRepository);
     }
@@ -403,7 +403,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fermentadorRepository);
     }
@@ -479,7 +479,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verify(fermentadorRepository).findById(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -824,7 +824,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fermentadorRepository);
     }
@@ -836,7 +836,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(fermentadorRepository);
     }
@@ -908,7 +908,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(fermentadorRepository).findById(1L);
         verify(fermentadorRepository, never()).save(any());

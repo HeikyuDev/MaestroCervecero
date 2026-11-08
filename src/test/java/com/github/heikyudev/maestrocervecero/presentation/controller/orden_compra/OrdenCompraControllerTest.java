@@ -522,8 +522,8 @@ class OrdenCompraControllerTest {
         String html = mockMvc.perform(post(URL).with(csrf()).params(datos))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA_FORMULARIO))
-                .andExpect(content().string(containsString("La cantidad de cada ítem debe ser mayor a cero")))
-                .andExpect(content().string(containsString("El costo unitario de cada ítem debe ser mayor a cero")))
+                .andExpect(content().string(containsString("La cantidad de cada ítem debe ser mayor a 0")))
+                .andExpect(content().string(containsString("El costo unitario de cada ítem debe ser mayor a 0")))
                 .andExpect(content().string(containsString("El costo unitario de cada ítem no puede tener más de 4 decimales")))
                 .andExpect(content().string(containsString("El ítem del catálogo de cada ítem de la orden de compra es obligatorio")))
                 .andReturn().getResponse().getContentAsString();

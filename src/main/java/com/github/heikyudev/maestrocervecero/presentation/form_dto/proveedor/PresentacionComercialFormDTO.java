@@ -31,7 +31,7 @@ public class PresentacionComercialFormDTO {
     private String nombre;
 
     /**
-     * Cantidad expresada en la unidad de medida indicada. Debe ser mayor a cero.
+     * Cantidad expresada en la unidad de medida indicada. Debe ser mayor a 0.
      * Ejemplo: 25.0.
      */
     @NotNull(message = "La cantidad es obligatoria")

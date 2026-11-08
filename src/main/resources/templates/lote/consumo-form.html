@@ -28,7 +28,7 @@
                 &middot; Etapa <strong class="text-slate-900" th:text="${tipoEtapa.etiqueta}">Molienda</strong>
             </p>
         </div>
-        <p class="mt-1 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
     </div>
 
     <form id="consumo-form" th:action="@{${urlAccion}}" th:object="${consumoForm}" method="post" novalidate data-un-solo-envio data-formulario-consumo
@@ -69,7 +69,7 @@
                     <div>
                         <label for="cantidadConsumida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad <span class="text-rose-600" title="Obligatorio">*</span></label>
                         <div th:replace="~{fragments/campo-unidad :: numero('cantidadConsumida', ${cantidadEscrita}, 'Ej: 10',
-                                ${loteElegido != null} ? ${loteElegido.insumo.unidadDeMedida.simbolo} : ${unidadInsumoElegido}, '', ${#fields.hasErrors('cantidadConsumida')})}"></div>
+                                ${loteElegido != null} ? ${loteElegido.insumo.unidadDeMedida.simbolo} : ${unidadInsumoElegido}, '', ${#fields.hasErrors('cantidadConsumida')}, true)}"></div>
                         <p th:if="${#fields.hasErrors('cantidadConsumida')}" th:errors="*{cantidadConsumida}" class="mt-1 text-xs text-rose-600"></p>
                     </div>
                 </div>

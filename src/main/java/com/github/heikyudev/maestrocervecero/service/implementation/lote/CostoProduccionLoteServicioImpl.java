@@ -61,7 +61,7 @@ public class CostoProduccionLoteServicioImpl implements ICostoProduccionLoteServ
         BigDecimal totalAdicionales = adicionales.stream().map(CostoAdicionalLoteResponseDTO::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(ESCALA, RoundingMode.HALF_UP);
 
-        // 3. Total y costo por litro: solo con el envasado finalizado y litros envasados mayores a cero
+        // 3. Total y costo por litro: solo con el envasado finalizado y litros envasados mayores a 0
         Optional<EtapaLoteEntity> envasado = etapaLoteRepository.buscarEtapaDeEnvasadoDelLote(idLote);
         boolean envasadoFinalizado = envasado.map(e -> e.getEstado() == EstadoEtapaLote.FINALIZADA).orElse(false);
         Double litros = envasado.filter(e -> envasadoFinalizado).map(e -> Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(e.getId()))).orElse(null);

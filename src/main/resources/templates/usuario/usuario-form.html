@@ -9,7 +9,7 @@
 
     <!-- Encabezado de la página -->
     <div>
-        <a th:href="@{/usuarios}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i> Volver a usuarios
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
@@ -19,7 +19,7 @@
     </div>
 
     <form th:action="${editando} ? @{/usuarios/{id}(id=${usuarioId})} : @{/usuarios}"
-          th:object="${usuarioForm}" method="post" novalidate
+          th:object="${usuarioForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
@@ -38,6 +38,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Hasta 100 caracteres.</p>
                     </div>
                     <div>
                         <label for="apellido" class="block text-sm font-medium text-slate-700 mb-1">Apellido/s <span class="text-rose-600" title="Obligatorio">*</span></label>
@@ -45,6 +46,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('apellido')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('apellido')}" th:errors="*{apellido}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('apellido')}" class="mt-1 text-xs text-slate-400">Hasta 100 caracteres.</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -62,7 +64,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('correo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('correo')}" th:errors="*{correo}" class="mt-1 text-xs text-rose-600"></p>
-                        <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas.</p>
+                        <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas. Hasta 255 caracteres.</p>
                     </div>
                 </div>
             </div>
@@ -81,7 +83,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm lowercase focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('username')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('username')}" th:errors="*{username}" class="mt-1 text-xs text-rose-600"></p>
-                        <p th:unless="${#fields.hasErrors('username')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo.</p>
+                        <p th:unless="${#fields.hasErrors('username')}" class="mt-1 text-xs text-slate-400">Único entre los usuarios, sin distinguir mayúsculas. Hasta 50 caracteres. Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo.</p>
                     </div>
                     <div>
                         <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Contraseña <span th:unless="${editando}" class="text-rose-600" title="Obligatorio">*</span></label>
@@ -120,7 +122,7 @@
 
         <!-- ACCIONES -->
         <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
-            <a th:href="@{/usuarios}"
+            <a th:href="${urlCancelar}"
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
             <button type="submit"
                     class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"

@@ -36,7 +36,7 @@ class FormDTOsLoteValidacionTest {
     @DisplayName("CP-FDL-01: LoteFormDTO sin datos informa los 6 campos obligatorios con los mismos textos que el Service")
     void loteFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new LoteFormDTO())).containsExactlyInAnyOrder(
-                "El volumen objetivo del lote es obligatorio",
+                "El volumen objetivo es obligatorio",
                 "La planificación de producción es obligatoria",
                 "El fermentador es obligatorio",
                 "El molino es obligatorio",
@@ -68,7 +68,7 @@ class FormDTOsLoteValidacionTest {
         assertThat(mensajes(new ConsumoInsumoFormDTO())).containsExactlyInAnyOrder(
                 "El insumo es obligatorio",
                 "El lote de insumo es obligatorio",
-                "La cantidad consumida es obligatoria");
+                "La cantidad es obligatoria");
         assertThat(validator.validate(ConsumoInsumoFormDTO.builder().idInsumo(1L).idLoteInsumo(1L).cantidadConsumida(2.5).build())).isEmpty();
     }
 

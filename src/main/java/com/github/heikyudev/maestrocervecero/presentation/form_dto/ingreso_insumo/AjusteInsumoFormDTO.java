@@ -27,7 +27,7 @@ public class AjusteInsumoFormDTO {
     private Long idMotivoAjuste;
 
     /**
-     * Cantidad afectada por el ajuste. Debe ser mayor a cero.
+     * Cantidad afectada por el ajuste. Debe ser mayor a 0.
      */
     private Double cantidad;
 

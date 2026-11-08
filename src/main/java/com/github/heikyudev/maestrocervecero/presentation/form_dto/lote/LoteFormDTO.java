@@ -25,7 +25,7 @@ public class LoteFormDTO {
     /**
      * Volumen objetivo del lote, en litros.
      */
-    @NotNull(message = "El volumen objetivo del lote es obligatorio")
+    @NotNull(message = "El volumen objetivo es obligatorio")
     private Double volumenObjetivo;
 
     /**

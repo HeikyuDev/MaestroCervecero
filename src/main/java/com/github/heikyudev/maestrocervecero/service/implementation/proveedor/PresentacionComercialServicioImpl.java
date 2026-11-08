@@ -88,7 +88,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      * <p>
      * Normaliza el nombre (sin espacios en los extremos ni repetidos) y, antes de consultar la base de datos, valida que la
      * unidad de medida sea obligatoria, que el nombre sea obligatorio y no supere los 100 caracteres, y que la cantidad sea un
-     * número finito mayor a cero cuyo equivalente no supere los 10.000 kilogramos. Luego valida que el nombre no esté duplicado
+     * número finito mayor a 0 cuyo equivalente no supere los 10.000 kilogramos. Luego valida que el nombre no esté duplicado
      * (case-insensitive) entre las presentaciones comerciales activas. Registra el evento en
      * la auditoría.
      * </p>
@@ -112,7 +112,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
         // 3. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
-        // 4. Validar la regla de negocio de la cantidad (mayor a cero y sin superar el tope en su equivalente en kilogramos)
+        // 4. Validar la regla de negocio de la cantidad (mayor a 0 y sin superar el tope en su equivalente en kilogramos)
         validarCantidad(presentacionComercialFormDTO.getCantidad(), presentacionComercialFormDTO.getUnidadDeMedida());
 
         // 5. Validar si el nombre ya está registrado en otra presentación comercial (case-insensitive)
@@ -138,7 +138,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      * Actualiza la información de una presentación comercial existente en la base de datos.
      * <p>
      * Normaliza el nombre y, antes de consultar la base de datos, valida la unidad de medida (obligatoria), el nombre
-     * (obligatorio y de longitud máxima) y la cantidad (número finito mayor a cero cuyo equivalente no supere los
+     * (obligatorio y de longitud máxima) y la cantidad (número finito mayor a 0 cuyo equivalente no supere los
      * 10.000 kilogramos). Luego localiza la presentación comercial por su ID bloqueándola para escritura, impide cambiar
      * la cantidad o la unidad de medida si la presentación está en el catálogo de un proveedor activo o en una orden de
      * compra pendiente (cambiar solo el nombre siempre se permite) y verifica que el nuevo nombre no colisione con el de
@@ -257,7 +257,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     }
 
     /**
-     * Valida la regla de negocio de la cantidad de la presentación comercial: debe ser un número finito mayor a cero
+     * Valida la regla de negocio de la cantidad de la presentación comercial: debe ser un número finito mayor a 0
      * y su equivalente en kilogramos no puede superar {@link LimitesTecnicos#CANTIDAD_PRESENTACION_COMERCIAL_MAXIMA_KG}.
      * La comparación con el tope se hace en gramos, la unidad base de {@link UnidadDeMedida}.
      *
@@ -267,7 +267,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      */
     private static void validarCantidad(Double cantidad, UnidadDeMedida unidadDeMedida) {
         if (cantidad == null || !Double.isFinite(cantidad) || cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad debe ser mayor a cero");
+            throw new ReglaNegocioException("La cantidad debe ser mayor a 0");
         }
         double maximoEnGramos = UnidadDeMedida.KILOGRAMO.aGramos(LimitesTecnicos.CANTIDAD_PRESENTACION_COMERCIAL_MAXIMA_KG);
         if (unidadDeMedida.aGramos(cantidad) > maximoEnGramos) {

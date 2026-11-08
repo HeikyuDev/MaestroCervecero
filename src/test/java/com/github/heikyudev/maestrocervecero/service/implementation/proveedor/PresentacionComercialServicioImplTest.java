@@ -172,7 +172,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(presentacionComercialRepository);
@@ -185,7 +185,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -197,7 +197,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -261,7 +261,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verify(presentacionComercialRepository, never()).existsByNombreIgnoreCase(any());
         verifyNoInteractions(presentacionComercialRepository);
@@ -344,7 +344,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -356,7 +356,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -368,7 +368,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -758,7 +758,7 @@ class PresentacionComercialServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -772,7 +772,7 @@ class PresentacionComercialServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository);
     }
@@ -862,7 +862,7 @@ class PresentacionComercialServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(presentacionComercialRepository, catalogoProveedorRepository, ordenCompraRepository);
     }

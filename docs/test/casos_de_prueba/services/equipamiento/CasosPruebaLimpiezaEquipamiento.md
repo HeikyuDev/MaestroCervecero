@@ -25,11 +25,11 @@ Orden de locks: lo primero que se bloquea (`PESSIMISTIC_WRITE`, `buscarPorIdPara
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-RLE-01**|Fecha nula|`fecha: null`, observaciones válidas|`fecha == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de la operación es obligatoria", campo `fecha`). No consulta ningún repositorio.|
+|**CP-RLE-01**|Fecha nula|`fecha: null`, observaciones válidas|`fecha == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha y hora de la operación es obligatoria", campo `fecha`). No consulta ningún repositorio.|
 |**CP-RLE-04**|Fecha posterior a la fecha y hora actual|`fecha: ahora + 1 día`|`fecha.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de la operación no puede ser posterior a la fecha y hora actual", campo `fecha`). No consulta ningún repositorio.|
 |**CP-RLE-05**|Observaciones nulas|`observaciones: null`|`observaciones == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias", campo `observaciones`). No consulta ningún repositorio.|
 |**CP-RLE-06**|Observaciones en blanco|`observaciones: "   "`|`observaciones.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias"). No consulta ningún repositorio.|
-|**CP-RLE-07**|Observaciones de 256 caracteres|`observaciones: "a" x 256 caracteres`|`observaciones.length() > 255` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El texto de las observaciones no puede superar 255 caracteres", campo `observaciones`). No consulta ningún repositorio.|
+|**CP-RLE-07**|Observaciones de 256 caracteres|`observaciones: "a" x 256 caracteres`|`observaciones.length() > 255` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones no pueden superar 255 caracteres", campo `observaciones`). No consulta ningún repositorio.|
 |**CP-RLE-08**|Equipamiento no encontrado|`idEquipamiento: 99L` (No existe)|`buscarPorIdParaOperacionCicloVida(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No ejecuta `save()`.|
 |**CP-RLE-09**|Equipamiento dado de baja|`idEquipamiento: 1L` (Existe con `estado: BAJA`)|`estado == BAJA` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El equipamiento está dado de baja"). No ejecuta `save()`.|
 |**CP-RLE-10**|Equipamiento en uso|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_USO`)|`estadoOperativo == EN_USO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede registrar una limpieza porque el equipamiento está en uso"). No ejecuta `save()`.|

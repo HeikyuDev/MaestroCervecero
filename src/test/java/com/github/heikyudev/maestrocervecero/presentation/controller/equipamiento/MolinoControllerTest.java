@@ -221,7 +221,7 @@ class MolinoControllerTest {
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("No se pudo crear el molino")))
                 .andExpect(content().string(containsString("El rendimiento de molienda es obligatorio")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento son obligatorios")));
 
         verify(molinoServicio, never()).altaMolino(any());
     }

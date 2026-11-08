@@ -289,7 +289,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de cada ítem debe ser mayor a cero");
+                .hasMessage("La cantidad de cada ítem debe ser mayor a 0");
 
         verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
     }
@@ -303,7 +303,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de cada ítem debe ser mayor a cero");
+                .hasMessage("La cantidad de cada ítem debe ser mayor a 0");
 
         verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
     }
@@ -317,7 +317,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario de cada ítem debe ser mayor a cero");
+                .hasMessage("El costo unitario de cada ítem debe ser mayor a 0");
 
         verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
     }
@@ -331,7 +331,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario de cada ítem debe ser mayor a cero");
+                .hasMessage("El costo unitario de cada ítem debe ser mayor a 0");
 
         verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
     }

@@ -41,7 +41,7 @@ class FormDTOsOperacionBarrilValidacionTest {
     void limpiezaBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new LimpiezaBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha de limpieza es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(LimpiezaBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).observaciones("Limpieza CIP").build())).isEmpty();
     }
@@ -51,7 +51,7 @@ class FormDTOsOperacionBarrilValidacionTest {
     void fallaBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new FallaBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha de falla es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(FallaBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).observaciones("Pérdida en la válvula").build())).isEmpty();
     }
@@ -61,7 +61,7 @@ class FormDTOsOperacionBarrilValidacionTest {
     void mantenimientoBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new MantenimientoBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha de mantenimiento es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(MantenimientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).observaciones("Cambio de válvula").build())).isEmpty();
     }
@@ -71,7 +71,7 @@ class FormDTOsOperacionBarrilValidacionTest {
     void devolucionBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new DevolucionBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha de devolución es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(DevolucionBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).observaciones("Devuelto vacío").build())).isEmpty();
     }
@@ -83,8 +83,8 @@ class FormDTOsOperacionBarrilValidacionTest {
     void fraccionamientoBarrilFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new FraccionamientoBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
-                "La fecha de fraccionamiento es obligatoria",
-                "La cantidad a extraer es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
+                "La cantidad extraída es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(5.5).observaciones("Merma").build())).isEmpty();
     }
@@ -93,9 +93,9 @@ class FormDTOsOperacionBarrilValidacionTest {
     @DisplayName("CP-FDB-06: FraccionamientoBarrilFormDTO rechaza una cantidad a extraer igual a cero o negativa")
     void fraccionamientoBarrilFormDTO_debeRechazarCantidadNoPositiva() {
         assertThat(mensajes(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(0.0).observaciones("Merma").build()))
-                .containsExactly("La cantidad a extraer debe ser mayor a 0");
+                .containsExactly("La cantidad extraída debe ser mayor a 0");
         assertThat(mensajes(FraccionamientoBarrilFormDTO.builder().idBarril(1L).fecha(FECHA).cantidadExtraida(-1.0).observaciones("Merma").build()))
-                .containsExactly("La cantidad a extraer debe ser mayor a 0");
+                .containsExactly("La cantidad extraída debe ser mayor a 0");
     }
 
     @Test
@@ -104,7 +104,7 @@ class FormDTOsOperacionBarrilValidacionTest {
         assertThat(mensajes(new DespachoBarrilFormDTO())).containsExactlyInAnyOrder(
                 "El barril es obligatorio",
                 "El cliente es obligatorio",
-                "La fecha de despacho es obligatoria",
+                "La fecha y hora de la operación es obligatoria",
                 "La fecha estimada de devolución es obligatoria",
                 "Las observaciones son obligatorias");
         assertThat(validator.validate(DespachoBarrilFormDTO.builder().idBarril(1L).idCliente(2L).fecha(FECHA)

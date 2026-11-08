@@ -50,7 +50,7 @@ public interface IFraccionamientoBarrilServicio {
      *
      * @param fraccionamientoBarrilFormDTO Los datos del fraccionamiento a registrar.
      * @return El fraccionamiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la cantidad a extraer no es mayor a cero o supera el contenido actual del barril, si la fecha no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
+     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la cantidad a extraer no es mayor a 0 o supera el contenido actual del barril, si la fecha no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     FraccionamientoBarrilResponseDTO registrarFraccionamientoBarril(FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO);

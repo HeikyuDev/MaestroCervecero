@@ -20,7 +20,7 @@
     </div>
 
     <form th:action="${editando} ? @{/equipamiento/maceradores/{id}(id=${maceradorId})} : @{/equipamiento/maceradores}"
-          th:object="${maceradorForm}" method="post" novalidate
+          th:object="${maceradorForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
@@ -42,36 +42,28 @@
                         <p class="mt-1 text-xs text-slate-400">No se puede modificar.</p>
                     </div>
                     <div th:unless="${editando}">
-                        <label for="capacidadTotal" class="block text-sm font-medium text-slate-700 mb-1">Capacidad total (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="capacidadTotal" th:field="*{capacidadTotal}" min="0" step="any" autofocus autocomplete="off" placeholder="Ej: 100"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('capacidadTotal')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="capacidadTotal" class="block text-sm font-medium text-slate-700 mb-1">Capacidad total <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('capacidadTotal', null, 'Ej: 100', 'L', ${#fields.hasErrors('capacidadTotal')}, '0', 'any', true)}"></div>
                         <p th:if="${#fields.hasErrors('capacidadTotal')}" th:errors="*{capacidadTotal}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('capacidadTotal')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0.</p>
                     </div>
                     <div>
-                        <label for="capacidadUtil" class="block text-sm font-medium text-slate-700 mb-1">Capacidad útil (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="capacidadUtil" th:field="*{capacidadUtil}" min="0" step="any" th:autofocus="${editando}" autocomplete="off" placeholder="Ej: 80"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('capacidadUtil')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="capacidadUtil" class="block text-sm font-medium text-slate-700 mb-1">Capacidad útil <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('capacidadUtil', null, 'Ej: 80', 'L', ${#fields.hasErrors('capacidadUtil')}, '0', 'any', editando)}"></div>
                         <p th:if="${#fields.hasErrors('capacidadUtil')}" th:errors="*{capacidadUtil}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('capacidadUtil')}" class="mt-1 text-xs text-slate-400">Debe ser menor a la capacidad total.</p>
                     </div>
                     <div>
-                        <label for="espacioMuerto" class="block text-sm font-medium text-slate-700 mb-1">Espacio muerto (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="espacioMuerto" th:field="*{espacioMuerto}" min="0" step="any" autocomplete="off" placeholder="Ej: 2"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('espacioMuerto')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="espacioMuerto" class="block text-sm font-medium text-slate-700 mb-1">Espacio muerto <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('espacioMuerto', null, 'Ej: 2', 'L', ${#fields.hasErrors('espacioMuerto')}, '0', 'any', false)}"></div>
                         <p th:if="${#fields.hasErrors('espacioMuerto')}" th:errors="*{espacioMuerto}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('espacioMuerto')}" class="mt-1 text-xs text-slate-400">Volumen que queda sin aprovechar en el fondo.</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
-                        <label for="eficienciaMaceracion" class="block text-sm font-medium text-slate-700 mb-1">Eficiencia de maceración (%) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="eficienciaMaceracion" th:field="*{eficienciaMaceracion}" min="40" max="100" step="any" autocomplete="off" placeholder="Ej: 75"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('eficienciaMaceracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="eficienciaMaceracion" class="block text-sm font-medium text-slate-700 mb-1">Eficiencia de maceración <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('eficienciaMaceracion', null, 'Ej: 75', '%', ${#fields.hasErrors('eficienciaMaceracion')}, '40', 'any', false)}"></div>
                         <p th:if="${#fields.hasErrors('eficienciaMaceracion')}" th:errors="*{eficienciaMaceracion}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('eficienciaMaceracion')}" class="mt-1 text-xs text-slate-400">Un número entre 40 y 100.</p>
                     </div>

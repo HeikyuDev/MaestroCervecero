@@ -24,7 +24,7 @@ class MetodosCicloVidaTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(FECHA, "barril", FECHA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril")
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isNull());
         assertThatThrownBy(() -> MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(FECHA, "barril", FECHA.plusMinutes(1)))
                 .isInstanceOf(ReglaNegocioException.class);
@@ -47,7 +47,7 @@ class MetodosCicloVidaTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> MetodosCicloVida.validarFechaNoFutura(LocalDateTime.now().plusDays(1), "fechaEnvasado"))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual")
+                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fechaEnvasado"));
         assertThatThrownBy(() -> MetodosCicloVida.validarFechaNoFutura(LocalDateTime.now().plusDays(1)))
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isNull());
@@ -162,7 +162,7 @@ class MetodosCicloVidaTest {
     @DisplayName("CP-MCV-11: validarPosteriorAFinalizacionDelLote rechaza una fecha anterior o igual a la finalización del lote informando el campo y la fecha formateada, y acepta una posterior o sin lote")
     void validarPosteriorAFinalizacionDelLote_debeRechazarSiLaFechaNoEsPosterior() {
         // === PREPARACION DE DATOS ===
-        String mensaje = "La fecha de esta operación debe ser posterior a la finalización del lote que envasó este barril (15/01/2026 10:00:00)";
+        String mensaje = "La fecha de la operación debe ser posterior a la finalización del lote que envasó este barril (15/01/2026 10:00:00)";
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> MetodosCicloVida.validarPosteriorAFinalizacionDelLote(FECHA, FECHA, "fecha"))

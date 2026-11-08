@@ -347,7 +347,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+                .hasMessage("Los usos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -361,7 +361,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -409,7 +409,7 @@ class BarrilServicioImplTest {
         // === EJECUCION Y ASERTOS ===
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -586,7 +586,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+                .hasMessage("Los usos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());
@@ -646,7 +646,7 @@ class BarrilServicioImplTest {
         // === EJECUCION Y ASERTOS ===
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());

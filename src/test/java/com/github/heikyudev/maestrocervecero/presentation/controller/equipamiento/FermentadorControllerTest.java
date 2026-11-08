@@ -226,7 +226,7 @@ class FermentadorControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear el fermentador")))
                 .andExpect(content().string(containsString("La capacidad total es obligatoria")))
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento son obligatorios")));
 
         verify(fermentadorServicio, never()).altaFermentador(any());
     }
@@ -440,7 +440,7 @@ class FermentadorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("value=\"12.5\"")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"capacidadUtil\"[^>]*border-rose-400[^>]*value=\"\".*")));
+                .andExpect(content().string(matchesPattern("(?s).*<input(?=[^>]*id=\"capacidadUtil\")(?=[^>]*border-rose-400)(?=[^>]*value=\"\")[^>]*>.*")));
 
         verify(fermentadorServicio, never()).altaFermentador(any());
     }
@@ -452,7 +452,8 @@ class FermentadorControllerTest {
         mockMvc.perform(get("/equipamiento/fermentadores/nuevo"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"capacidadTotal\"")))
-                .andExpect(content().string(containsString("Capacidad total (L)")))
+                .andExpect(content().string(containsString("Capacidad total <span")))
+                .andExpect(content().string(containsString(">L</span>")))
                 .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
     }
 

@@ -100,7 +100,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
     public LimpiezaBarrilResponseDTO registrarLimpiezaBarril(LimpiezaBarrilFormDTO limpiezaBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de limpieza
         if (limpiezaBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de limpieza es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de limpieza no sea posterior a la fecha y hora actual

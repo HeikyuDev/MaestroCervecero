@@ -60,7 +60,7 @@ public class CostoProduccionLoteResponseDTO {
     private Double litrosEnvasados;
 
     /**
-     * Costo total (insumos más adicionales); solo con el envasado finalizado y litros envasados mayores a cero, si no es {@code null}.
+     * Costo total (insumos más adicionales); solo con el envasado finalizado y litros envasados mayores a 0, si no es {@code null}.
      */
     private BigDecimal costoTotal;
 

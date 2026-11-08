@@ -466,7 +466,7 @@ public class IngresoInsumoController {
     }
 
     /**
-     * Los ítems de la orden con cantidad pendiente mayor a cero, en orden alfabético por insumo y presentación, con sus
+     * Los ítems de la orden con cantidad pendiente mayor a 0, en orden alfabético por insumo y presentación, con sus
      * cantidades en unidades.
      */
     private static List<FilaDeItem> itemsPendientes(OrdenCompraResponseDTO orden) {

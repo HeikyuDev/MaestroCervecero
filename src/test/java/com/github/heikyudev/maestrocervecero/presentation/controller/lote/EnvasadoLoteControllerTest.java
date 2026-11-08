@@ -238,7 +238,7 @@ class EnvasadoLoteControllerTest {
                 .contains("name=\"idBarril\"").contains("name=\"cantidad\"").contains("placeholder=\"Ej: 50\"")
                 .contains("type=\"datetime-local\"").contains("name=\"fechaEnvasado\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select");
-        assertThat(texto(contenido(html))).contains("Nuevo envasado", "Lote LOT-R7-03", "Barril *", "Cantidad a envasar (L) *", "Fecha y hora del envasado *", "Cancelar", "Crear envasado");
+        assertThat(texto(contenido(html))).contains("Nuevo envasado", "Lote LOT-R7-03", "Barril *", "Cantidad a envasar *", "Fecha y hora del envasado *", "Cancelar", "Crear envasado");
         assertThat(enlaceDe(html, "Volver a envasados")).isEqualTo(URL_PANTALLA);
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA);
         assertThat(cuenta(contenido(html), "text-rose-600")).isEqualTo(4);
@@ -649,14 +649,14 @@ class EnvasadoLoteControllerTest {
     // ==================== GET /lotes/{idLote}/envasados/buscador/barriles ====================
 
     @Test
-    @DisplayName("CP-LEN-37: el buscador devuelve un fragmento con el criterio Identificador interno, las columnas y por fila el botón Elegir con el id, el texto, el fabricante y la capacidad")
+    @DisplayName("CP-LEN-37: el buscador devuelve un fragmento con el criterio Identificador, las columnas y por fila el botón Elegir con el id, el texto, el fabricante y la capacidad")
     void buscador_fragmento() throws Exception {
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
         assertThat(html).doesNotContain("<html");
-        assertThat(texto(html)).contains("Buscar barril", "Identificador interno", "Número de serie", "SN-B-001", "Capacidad (L)", "Fabricante", "Estado", "Disponible", "Barrilitos SA", "Elegir");
+        assertThat(texto(html)).contains("Buscar barril", "Identificador", "Número de serie", "SN-B-001", "Capacidad (L)", "Fabricante", "Estado", "Disponible", "Barrilitos SA", "Elegir");
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_BUSCADOR + "\"").contains("method=\"get\"");
@@ -924,7 +924,7 @@ class EnvasadoLoteControllerTest {
         String registrar = bloque(formulario, "data-formulario-envasado");
         assertThat(cuenta(contenido(formulario), "text-rose-600")).isEqualTo(4);
         assertThat(registrar).contains("placeholder=\"Seleccione barril\"").contains("placeholder=\"Ej: 50\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"");
-        assertThat(texto(registrar)).contains("Cantidad a envasar (L) *");
+        assertThat(texto(registrar)).contains("Cantidad a envasar *");
         assertThat(texto(bloque(paginas.get(0), "data-envasados-registrados"))).contains("Cantidad (L)");
         Pattern alerta = Pattern.compile("(?s)role=\"alert\"[^>]*>(.*?)</div>");
         Pattern emoji = Pattern.compile("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}]");

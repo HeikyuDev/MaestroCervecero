@@ -618,9 +618,9 @@ class UsuarioControllerTest {
     void formulario_debeMostrarLasAyudasDeLosCampos() throws Exception {
         mockMvc.perform(get("/usuarios/nuevo"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo")))
+                .andExpect(content().string(containsString("Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo.")))
                 .andExpect(content().string(containsString("Solo dígitos")))
-                .andExpect(content().string(containsString("Se guarda en minúsculas.</p>")));
+                .andExpect(content().string(containsString("Se guarda en minúsculas. Hasta 255 caracteres.</p>")));
     }
 
     @Test

@@ -24,7 +24,7 @@
                 &middot; Etapa <strong class="text-slate-900">Envasado</strong>
             </p>
         </div>
-        <p class="mt-1 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
     </div>
 
     <form id="envasado-form" th:action="@{${urlAccion}}" th:object="${envasadoForm}" method="post" novalidate data-un-solo-envio data-formulario-envasado
@@ -51,11 +51,8 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
-                        <label for="cantidad-envasado" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a envasar (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="cantidad-envasado" name="cantidad" step="any" autocomplete="off" placeholder="Ej: 50"
-                               th:value="${formularioConError == true} ? ${cantidadEscrita}"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${formularioConError == true and #fields.hasErrors('cantidad')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="cantidad-envasado" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a envasar <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: medida('cantidad', 'cantidad-envasado', ${formularioConError == true} ? ${cantidadEscrita}, 'Ej: 50', 'L', ${formularioConError == true and #fields.hasErrors('cantidad')}, null, null, 'any', true)}"></div>
                         <p th:if="${formularioConError == true and #fields.hasErrors('cantidad')}" th:errors="*{cantidad}" class="mt-1 text-xs text-rose-600"></p>
                     </div>
                     <div>

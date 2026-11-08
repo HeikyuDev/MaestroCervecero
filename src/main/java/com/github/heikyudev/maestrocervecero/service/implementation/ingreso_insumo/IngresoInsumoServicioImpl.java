@@ -389,7 +389,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Valida la cantidad de unidades recibidas de un ingreso por compra: informada y mayor a cero. El máximo lo
+     * Valida la cantidad de unidades recibidas de un ingreso por compra: informada y mayor a 0. El máximo lo
      * fija lo que resta recibir del ítem.
      *
      * @param cantidadPresentaciones Cantidad de unidades a validar.
@@ -400,13 +400,13 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("La cantidad de unidades recibidas es obligatoria", "cantidadPresentaciones");
         }
         if (cantidadPresentaciones <= 0) {
-            throw new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero", "cantidadPresentaciones");
+            throw new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a 0", "cantidadPresentaciones");
         }
     }
 
     /**
      * Valida la cantidad recibida de un ingreso, expresada en la unidad de medida del insumo: informada, un número
-     * finito mayor a cero, que no supere {@link LimitesTecnicos#CANTIDAD_INGRESO_MAXIMA} y con no más de
+     * finito mayor a 0, que no supere {@link LimitesTecnicos#CANTIDAD_INGRESO_MAXIMA} y con no más de
      * {@link LimitesTecnicos#ESCALA_CANTIDADES} decimales.
      *
      * @param cantidadRecibida Cantidad recibida a validar.
@@ -417,7 +417,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("La cantidad recibida es obligatoria", "cantidadRecibida");
         }
         if (!Double.isFinite(cantidadRecibida) || cantidadRecibida <= 0) {
-            throw new ReglaNegocioException("La cantidad recibida debe ser mayor a cero", "cantidadRecibida");
+            throw new ReglaNegocioException("La cantidad recibida debe ser mayor a 0", "cantidadRecibida");
         }
         if (cantidadRecibida > LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA) {
             throw new ReglaNegocioException("La cantidad recibida no puede superar "
@@ -427,7 +427,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Valida el costo unitario de un ingreso directo: informado, mayor a cero, que no supere
+     * Valida el costo unitario de un ingreso directo: informado, mayor a 0, que no supere
      * {@link LimitesTecnicos#COSTO_UNITARIO_COMPRA_MAXIMO} y con no más de {@link LimitesTecnicos#ESCALA_COSTO_UNITARIO} decimales.
      *
      * @param costoUnitario Costo unitario a validar.
@@ -435,17 +435,17 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private static void validarCostoUnitario(BigDecimal costoUnitario) {
         if (costoUnitario == null) {
-            throw new ReglaNegocioException("El costo unitario es obligatorio", "costoUnitario");
+            throw new ReglaNegocioException("El precio unitario es obligatorio", "costoUnitario");
         }
         if (costoUnitario.signum() <= 0) {
-            throw new ReglaNegocioException("El costo unitario debe ser mayor a cero", "costoUnitario");
+            throw new ReglaNegocioException("El precio unitario debe ser mayor a 0", "costoUnitario");
         }
         if (costoUnitario.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO)) > 0) {
-            throw new ReglaNegocioException("El costo unitario no puede superar "
+            throw new ReglaNegocioException("El precio unitario no puede superar "
                     + ValidacionesNumericas.formatearNumero(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO), "costoUnitario");
         }
         if (costoUnitario.stripTrailingZeros().scale() > LimitesTecnicos.ESCALA_COSTO_UNITARIO) {
-            throw new ReglaNegocioException("El costo unitario no puede tener más de "
+            throw new ReglaNegocioException("El precio unitario no puede tener más de "
                     + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales", "costoUnitario");
         }
     }

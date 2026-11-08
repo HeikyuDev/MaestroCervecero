@@ -16,7 +16,7 @@
     </div>
 
     <form id="planificacion-form" th:action="@{/planificaciones-produccion}"
-          th:object="${planificacionForm}" method="post" novalidate
+          th:object="${planificacionForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
@@ -38,12 +38,8 @@
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <div>
-                        <label for="cantidadAProducir" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a producir (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="cantidadAProducir" name="cantidadAProducir"
-                               th:value="${planificacionForm.cantidadAProducir != null ? (planificacionForm.cantidadAProducir == planificacionForm.cantidadAProducir.intValue() ? planificacionForm.cantidadAProducir.intValue() : planificacionForm.cantidadAProducir) : null}"
-                               min="0" step="any" autocomplete="off" placeholder="Ej: 600"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('cantidadAProducir')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="cantidadAProducir" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a producir <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: medida('cantidadAProducir', 'cantidadAProducir', ${planificacionForm.cantidadAProducir != null ? (planificacionForm.cantidadAProducir == planificacionForm.cantidadAProducir.intValue() ? planificacionForm.cantidadAProducir.intValue() : planificacionForm.cantidadAProducir) : null}, 'Ej: 600', 'L', ${#fields.hasErrors('cantidadAProducir')}, '0', null, 'any', true)}"></div>
                         <p th:if="${#fields.hasErrors('cantidadAProducir')}" th:errors="*{cantidadAProducir}" class="mt-1 text-xs text-rose-600"></p>
                     </div>
                 </div>

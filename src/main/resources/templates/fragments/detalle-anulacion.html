@@ -23,6 +23,24 @@
 </button>
 
 <!--
+    Botón que abre el detalle de la finalización de una orden de compra (motivo, usuario y fecha y hora) en el mismo diálogo.
+    Se muestra siempre, también cuando la finalización fue automática (sin motivo): el título pasa a "Finalizada automáticamente".
+
+    Parámetros: motivo (puede ser null), usuario y fecha (LocalDateTime).
+
+    Uso: <th:block th:replace="~{fragments/detalle-anulacion :: finalizacion(${orden.motivoFinalizacion}, ${orden.usuarioFinalizacion}, ${orden.fechaFinalizacion})}"></th:block>
+-->
+<button th:fragment="finalizacion(motivo, usuario, fecha)" type="button" data-detalle-anulacion data-detalle-finalizacion
+        data-detalle-etiqueta-usuario="Finalizada por"
+        th:data-detalle-titulo="${motivo != null} ? 'Detalle de la finalización' : 'Finalizada automáticamente'"
+        th:data-detalle-motivo="${motivo}" th:data-detalle-usuario="${usuario}"
+        th:data-detalle-fecha="${fecha != null} ? ${#temporals.format(fecha, 'dd/MM/yyyy HH:mm')}"
+        aria-label="Ver detalle de la finalización" title="Ver detalle de la finalización"
+        class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+
+<!--
     Igual que "boton" pero sin el usuario: el diálogo muestra solo el motivo y la fecha y hora. Lo usa el control de equipamiento,
     que no muestra personas.
 

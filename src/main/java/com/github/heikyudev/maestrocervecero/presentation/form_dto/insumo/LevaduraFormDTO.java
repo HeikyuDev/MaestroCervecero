@@ -39,7 +39,7 @@ public class LevaduraFormDTO {
      * el sistema y como la usa el escalado de levadura. Regla de negocio: entre 6.000.000.000 y
      * 20.000.000.000 inclusive.
      */
-    @NotNull(message = "La cantidad de células viables por gramo es obligatoria")
+    @NotNull(message = "Las células viables son obligatorias")
     private Double cantidadCelulasPorGramo;
 
     /**

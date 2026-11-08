@@ -20,7 +20,7 @@
             <i class="bi bi-arrow-left"></i> Volver a ingresos
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nuevo ingreso por compra</h1>
-        <p class="mt-1 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
     </div>
 
     <form id="ingreso-form" th:action="@{${urlAccion}}" th:object="${ingresoForm}" method="post" novalidate data-un-solo-envio data-formulario-ingreso
@@ -37,7 +37,7 @@
                     <span class="block text-sm font-medium text-slate-700 mb-1">Orden de compra <span class="text-rose-600" title="Obligatorio">*</span></span>
                     <div th:replace="~{fragments/selector-entidad :: selector('idOrdenCompra', ${idOrdenElegida}, ${ordenElegidaTexto},
                             ${urlBuscadorOrdenes}, null, null, false, false, 'Seleccione orden de compra')}"></div>
-                    <p class="mt-1 text-xs text-slate-500">Solo se ofrecen órdenes pendientes.</p>
+                    <p class="mt-1 text-xs text-slate-400">Solo se ofrecen órdenes pendientes.</p>
                 </div>
 
                 <div>
@@ -92,7 +92,7 @@
             </div>
         </section>
 
-        <div class="p-6 flex flex-wrap items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
             <a th:href="${urlCancelar}"
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
             <button type="submit"

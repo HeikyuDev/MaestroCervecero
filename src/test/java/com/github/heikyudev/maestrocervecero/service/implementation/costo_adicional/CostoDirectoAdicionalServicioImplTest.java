@@ -206,7 +206,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro debe ser mayor a 0");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
@@ -218,7 +218,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro debe ser mayor a 0");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
@@ -230,7 +230,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro debe ser mayor a 0");
 
         verify(costoDirectoAdicionalRepository, never()).existsByNombreIgnoreCase(any());
         verify(costoDirectoAdicionalRepository, never()).save(any());
@@ -359,7 +359,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro debe ser mayor a 0");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
@@ -371,7 +371,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro debe ser mayor a 0");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }

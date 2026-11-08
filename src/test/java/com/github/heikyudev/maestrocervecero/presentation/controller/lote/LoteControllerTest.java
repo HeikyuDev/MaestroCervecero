@@ -566,7 +566,7 @@ class LoteControllerTest {
         assertThat(html).contains("Nuevo lote").contains("Crear lote").contains("action=\"/lotes\"").contains("method=\"post\"").contains("novalidate")
                 .contains("name=\"_csrf\"").contains("href=\"/lotes\"");
         assertThat(texto(html)).contains("Planificación", "Equipamiento", "Producción", "Planificación de producción", "Molino", "Macerador",
-                "Olla de hervor", "Fermentador", "Volumen objetivo (L)");
+                "Olla de hervor", "Fermentador", "Volumen objetivo");
         assertThat(html).contains("placeholder=\"Seleccione planificación\"").contains("placeholder=\"Seleccione molino\"")
                 .contains("placeholder=\"Seleccione macerador\"").contains("placeholder=\"Seleccione olla de hervor\"")
                 .contains("placeholder=\"Seleccione fermentador\"").contains("placeholder=\"Ej: 300\"");
@@ -686,7 +686,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("No se pudo crear el lote", "El volumen objetivo del lote es obligatorio",
+        assertThat(texto(html)).contains("No se pudo crear el lote", "El volumen objetivo es obligatorio",
                 "La planificación de producción es obligatoria", "El fermentador es obligatorio", "El molino es obligatorio",
                 "El macerador es obligatorio", "La olla de hervor es obligatoria");
         verifyNoInteractions(loteServicio);
@@ -775,7 +775,7 @@ class LoteControllerTest {
     void registrar_volumenQueSuperaLaCapacidad() throws Exception {
         // Arrange
         stubEntidadesDelFormulario();
-        when(loteServicio.registrarLote(any())).thenThrow(new ReglaNegocioException("El volumen objetivo del lote (500 L) supera la capacidad útil del fermentador (330 L)"));
+        when(loteServicio.registrarLote(any())).thenThrow(new ReglaNegocioException("El volumen objetivo (500 L) supera la capacidad útil del fermentador (330 L)"));
         org.springframework.util.MultiValueMap<String, String> parametros = formularioValido();
         parametros.set("volumenObjetivo", "500");
 
@@ -784,7 +784,7 @@ class LoteControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("El volumen objetivo del lote (500 L) supera la capacidad útil del fermentador (330 L)");
+        assertThat(texto(html)).contains("El volumen objetivo (500 L) supera la capacidad útil del fermentador (330 L)");
         assertThat(html).contains("value=\"500\"");
         assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-01");
     }
@@ -795,7 +795,7 @@ class LoteControllerTest {
     void registrar_volumenNoValidoLoRechazaElService(String volumen) throws Exception {
         // Arrange
         stubEntidadesDelFormulario();
-        when(loteServicio.registrarLote(any())).thenThrow(new ReglaNegocioException("El volumen objetivo del lote debe ser mayor a 0"));
+        when(loteServicio.registrarLote(any())).thenThrow(new ReglaNegocioException("El volumen objetivo debe ser mayor a 0"));
         org.springframework.util.MultiValueMap<String, String> parametros = formularioValido();
         parametros.set("volumenObjetivo", volumen);
 
@@ -807,7 +807,7 @@ class LoteControllerTest {
         ArgumentCaptor<LoteFormDTO> formulario = ArgumentCaptor.forClass(LoteFormDTO.class);
         verify(loteServicio).registrarLote(formulario.capture());
         assertThat(formulario.getValue().getVolumenObjetivo()).isEqualTo(Double.valueOf(volumen));
-        assertThat(texto(html)).contains("El volumen objetivo del lote debe ser mayor a 0");
+        assertThat(texto(html)).contains("El volumen objetivo debe ser mayor a 0");
         assertThat(textoDelSelector(html, "Seleccione molino")).isEqualTo("M-01");
     }
 

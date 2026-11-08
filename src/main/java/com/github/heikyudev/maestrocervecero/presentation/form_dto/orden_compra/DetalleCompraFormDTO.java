@@ -32,8 +32,8 @@ public class DetalleCompraFormDTO {
      * Cantidad de unidades del ítem del catálogo solicitadas.
      * El tope de la anotación repite LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA (una anotación exige un literal).
      */
-    @NotNull(message = "La cantidad de cada ítem debe ser mayor a cero")
-    @Positive(message = "La cantidad de cada ítem debe ser mayor a cero")
+    @NotNull(message = "La cantidad de cada ítem debe ser mayor a 0")
+    @Positive(message = "La cantidad de cada ítem debe ser mayor a 0")
     @Max(value = 1_000_000, message = "La cantidad de cada ítem no puede superar 1.000.000")
     private Integer cantidad;
 
@@ -48,8 +48,8 @@ public class DetalleCompraFormDTO {
      * LimitesTecnicos.ESCALA_COSTO_UNITARIO (una anotación exige un literal).
      * </p>
      */
-    @NotNull(message = "El costo unitario de cada ítem debe ser mayor a cero")
-    @DecimalMin(value = "0", inclusive = false, message = "El costo unitario de cada ítem debe ser mayor a cero")
+    @NotNull(message = "El costo unitario de cada ítem debe ser mayor a 0")
+    @DecimalMin(value = "0", inclusive = false, message = "El costo unitario de cada ítem debe ser mayor a 0")
     @DecimalMax(value = "1000000000", message = "El costo unitario de cada ítem no puede superar 1.000.000.000")
     @Digits(integer = 15, fraction = 4, message = "El costo unitario de cada ítem no puede tener más de 4 decimales")
     private BigDecimal costoUnitario;

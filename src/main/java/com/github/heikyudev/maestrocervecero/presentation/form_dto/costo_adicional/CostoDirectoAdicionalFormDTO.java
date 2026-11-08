@@ -28,7 +28,7 @@ public class CostoDirectoAdicionalFormDTO {
     private String nombre;
 
     /**
-     * Costo por litro producido. Debe ser mayor a cero.
+     * Costo por litro producido. Debe ser mayor a 0.
      */
     @NotNull(message = "El costo por litro es obligatorio")
     private BigDecimal costoPorLitro;

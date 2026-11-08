@@ -93,7 +93,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
     public FallaBarrilResponseDTO registrarFallaBarril(FallaBarrilFormDTO fallaBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de falla
         if (fallaBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de falla es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de falla no sea posterior a la fecha y hora actual

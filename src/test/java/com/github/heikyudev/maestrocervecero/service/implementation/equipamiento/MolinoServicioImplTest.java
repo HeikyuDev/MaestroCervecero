@@ -286,7 +286,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+                .hasMessage("Los usos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(molinoRepository);
     }
@@ -298,7 +298,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
     }
@@ -330,7 +330,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verify(molinoRepository).findById(1L);
         verify(molinoRepository, never()).save(any());
@@ -657,7 +657,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
     }
@@ -669,7 +669,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(molinoRepository);
     }
@@ -721,7 +721,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(molinoRepository).findById(1L);
         verify(molinoRepository, never()).save(any());

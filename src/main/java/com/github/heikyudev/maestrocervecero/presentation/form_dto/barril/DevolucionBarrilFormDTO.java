@@ -35,7 +35,7 @@ public class DevolucionBarrilFormDTO {
     /**
      * Fecha y hora en la que se recibió la devolución.
      */
-    @NotNull(message = "La fecha de devolución es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 

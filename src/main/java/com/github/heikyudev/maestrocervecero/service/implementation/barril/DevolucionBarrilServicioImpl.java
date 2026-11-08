@@ -103,7 +103,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
     public DevolucionBarrilResponseDTO registrarDevolucionBarril(DevolucionBarrilFormDTO devolucionBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de devolución
         if (devolucionBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de devolución es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de devolución no sea posterior a la fecha y hora actual

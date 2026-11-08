@@ -1448,13 +1448,13 @@ public class LoteServicioImpl implements ILoteServicio {
      */
     private double validarVolumenObjetivoInformado(Double volumenObjetivo) {
         if (volumenObjetivo == null) {
-            throw new ReglaNegocioException("El volumen objetivo del lote es obligatorio");
+            throw new ReglaNegocioException("El volumen objetivo es obligatorio");
         }
         double volumenRedondeado = Redondeo.redondear(volumenObjetivo);
         if (volumenRedondeado <= 0) {
-            throw new ReglaNegocioException("El volumen objetivo del lote debe ser mayor a 0");
+            throw new ReglaNegocioException("El volumen objetivo debe ser mayor a 0");
         }
-        ValidacionesNumericas.validarMayorACero(volumenRedondeado, "El volumen objetivo del lote");
+        ValidacionesNumericas.validarMayorACero(volumenRedondeado, "El volumen objetivo");
         return volumenRedondeado;
     }
 
@@ -1464,7 +1464,7 @@ public class LoteServicioImpl implements ILoteServicio {
      */
     private void validarVolumenObjetivoContraFermentador(double volumenObjetivo, FermentadorEntity fermentador) {
         if (volumenObjetivo > Redondeo.redondear(fermentador.getCapacidadUtil())) {
-            throw new ReglaNegocioException("El volumen objetivo del lote (" + ValidacionesNumericas.formatearNumero(volumenObjetivo)
+            throw new ReglaNegocioException("El volumen objetivo (" + ValidacionesNumericas.formatearNumero(volumenObjetivo)
                     + " L) supera la capacidad útil del fermentador seleccionado ("
                     + ValidacionesNumericas.formatearNumero(fermentador.getCapacidadUtil()) + " L)");
         }

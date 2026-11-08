@@ -39,6 +39,6 @@ public class ConsumoInsumoFormDTO {
     /**
      * Cantidad efectivamente consumida del insumo.
      */
-    @NotNull(message = "La cantidad consumida es obligatoria")
+    @NotNull(message = "La cantidad es obligatoria")
     private Double cantidadConsumida;
 }

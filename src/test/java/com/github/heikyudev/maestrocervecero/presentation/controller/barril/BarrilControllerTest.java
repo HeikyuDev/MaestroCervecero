@@ -447,10 +447,11 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString(">Número de serie ")))
                 .andExpect(content().string(not(containsString("Se asigna al guardar"))))
-                .andExpect(content().string(containsString("Único entre los barriles del mismo fabricante.")))
+                .andExpect(content().string(containsString("Único entre los barriles del mismo fabricante, sin distinguir mayúsculas. Hasta 255 caracteres.")))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: SN-2024-001\"")))
-                .andExpect(content().string(containsString("Capacidad (L)")))
+                .andExpect(content().string(containsString("Capacidad <span")))
+                .andExpect(content().string(containsString(">L</span>")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
                 .andExpect(content().string(containsString("Un número mayor a 0 y hasta 1.000.</p>")))
                 .andExpect(content().string(containsString("Usos antes de mantenimiento")))
@@ -528,8 +529,8 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear el barril")))
                 .andExpect(content().string(containsString("El número de serie es obligatorio")))
                 .andExpect(content().string(containsString("La capacidad es obligatoria")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")))
-                .andExpect(content().string(containsString("El fabricante de barril es obligatorio")));
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento son obligatorios")))
+                .andExpect(content().string(containsString("El fabricante es obligatorio")));
 
         verify(barrilServicio, never()).altaBarril(any());
     }
@@ -750,13 +751,13 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-36: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_bct_36() throws Exception {
         // Arrange
-        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0"));
+        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new ReglaNegocioException("Los usos antes de mantenimiento deben ser mayores a 0"));
 
         // Act + Assert
         mockMvc.perform(post("/barriles/4").with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento deben ser mayores a 0")))
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento deben ser mayores a 0")))
                 .andExpect(content().string(containsString("value=\"SN-2024-001\"")));
     }
 
@@ -892,7 +893,7 @@ class BarrilControllerTest {
 
         mockMvc.perform(post("/barriles").with(csrf()).params(datosCon("capacidad", "abc")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*id=\"capacidad\"[^>]*border-rose-400[^>]*value=\"\".*")));
+                .andExpect(content().string(matchesPattern("(?s).*<input(?=[^>]*id=\"capacidad\")(?=[^>]*border-rose-400)(?=[^>]*value=\"\")[^>]*>.*")));
 
         verify(barrilServicio, never()).altaBarril(any());
     }
@@ -905,7 +906,8 @@ class BarrilControllerTest {
         mockMvc.perform(get("/barriles/nuevo"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"capacidad\"")))
-                .andExpect(content().string(containsString("Capacidad (L)")))
+                .andExpect(content().string(containsString("Capacidad <span")))
+                .andExpect(content().string(containsString(">L</span>")))
                 .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
     }
 

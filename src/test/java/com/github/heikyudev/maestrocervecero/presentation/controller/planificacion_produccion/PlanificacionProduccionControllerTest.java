@@ -387,7 +387,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("action=\"/planificaciones-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString("Datos de la planificación")))
-                .andExpect(content().string(containsString("Cantidad a producir (L)")))
+                .andExpect(content().string(containsString("Cantidad a producir <span")))
                 .andExpect(content().string(containsString("Fecha de inicio estimada")))
                 .andExpect(content().string(containsString("Fecha de finalización estimada")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione receta\"")))

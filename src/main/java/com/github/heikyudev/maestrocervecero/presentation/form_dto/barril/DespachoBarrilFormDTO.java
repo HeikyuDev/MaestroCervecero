@@ -42,7 +42,7 @@ public class DespachoBarrilFormDTO {
     /**
      * Fecha y hora en la que se despacha el barril.
      */
-    @NotNull(message = "La fecha de despacho es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 

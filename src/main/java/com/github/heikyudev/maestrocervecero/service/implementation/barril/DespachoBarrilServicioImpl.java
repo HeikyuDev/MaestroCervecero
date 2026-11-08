@@ -108,7 +108,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
     public DespachoBarrilResponseDTO registrarDespachoBarril(DespachoBarrilFormDTO despachoBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de despacho
         if (despachoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de despacho es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de despacho no sea posterior a la fecha y hora actual
@@ -137,7 +137,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
 
         // 8. Validar que la fecha estimada de devolución sea posterior o igual a la fecha de despacho
         if (despachoBarrilFormDTO.getFechaDevolucionEstimada().isBefore(despachoBarrilFormDTO.getFecha().toLocalDate())) {
-            throw new ReglaNegocioException("La fecha estimada de devolución debe ser posterior o igual a la fecha de despacho", CAMPO_FECHA_DEVOLUCION_ESTIMADA);
+            throw new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha de la operación", CAMPO_FECHA_DEVOLUCION_ESTIMADA);
         }
 
         // 9. Validar que la fecha de despacho sea posterior a la última operación registrada sobre

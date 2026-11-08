@@ -206,7 +206,7 @@ class AjusteInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(ajusteInsumoRepository);
     }
@@ -220,7 +220,7 @@ class AjusteInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(ajusteInsumoRepository);
     }
@@ -234,7 +234,7 @@ class AjusteInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad debe ser mayor a cero");
+                .hasMessage("La cantidad debe ser mayor a 0");
 
         verifyNoInteractions(ajusteInsumoRepository);
     }

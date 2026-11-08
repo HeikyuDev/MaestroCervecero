@@ -21,7 +21,7 @@
     /** Muestra {unidad} en el sufijo de la cantidad ([data-unidad-sufijo]); sin unidad queda "-". */
     function fijarUnidad(formulario, unidad) {
         formulario.querySelectorAll('[data-unidad-sufijo]').forEach(function (sufijo) {
-            sufijo.textContent = unidad ? (sufijo.getAttribute('data-prefijo') || '') + unidad : '-';
+            sufijo.textContent = unidad ? (sufijo.getAttribute('data-prefijo') || '') + unidad : (sufijo.getAttribute('data-vacio') || '-');
         });
     }
 

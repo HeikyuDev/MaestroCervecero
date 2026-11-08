@@ -207,7 +207,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a dar de baja.
      * @return {@link LevaduraResponseDTO} con los datos de la levadura ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la levadura con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a 0).
      */
     @Override
     @Transactional
@@ -239,7 +239,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
             throw new ReglaNegocioException("No se puede dar de baja la levadura porque se encuentra asociada al catálogo de al menos un proveedor activo");
         }
 
-        // 6. Validar que la levadura no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        // 6. Validar que la levadura no tenga stock (al menos un lote de insumo con cantidad actual mayor a 0)
         if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
             throw new ReglaNegocioException("No se puede dar de baja la levadura porque tiene stock");
         }
@@ -279,7 +279,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      */
     private static void validarCantidadCelulasPorGramo(Double cantidadCelulasPorGramo) {
         if (cantidadCelulasPorGramo == null) {
-            throw new ReglaNegocioException("La cantidad de células viables por gramo es obligatoria");
+            throw new ReglaNegocioException("Las células viables son obligatorias");
         }
         if (cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
                 || cantidadCelulasPorGramo > CELULAS_VIABLES_MAXIMO) {

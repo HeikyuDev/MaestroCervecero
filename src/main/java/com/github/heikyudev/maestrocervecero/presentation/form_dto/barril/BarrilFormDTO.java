@@ -42,12 +42,12 @@ public class BarrilFormDTO {
     /**
      * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
      */
-    @NotNull(message = "Los usos máximos antes de mantenimiento son obligatorios")
+    @NotNull(message = "Los usos antes de mantenimiento son obligatorios")
     private Integer usosMaximosAntesMantenimiento;
 
     /**
      * ID del fabricante de barril al que pertenece este barril.
      */
-    @NotNull(message = "El fabricante de barril es obligatorio")
+    @NotNull(message = "El fabricante es obligatorio")
     private Long idFabricanteBarril;
 }

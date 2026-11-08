@@ -80,16 +80,9 @@
                         <th:block th:if="${orden.estado.name() == 'ANULADA'}">
                             <th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${orden.motivoAnulacion}, ${orden.usuarioAnulacion}, ${orden.fechaAnulacion})}"></th:block>
                         </th:block>
-                        <button th:if="${orden.estado.name() == 'FINALIZADA'}" type="button" data-detalle-anulacion data-detalle-finalizacion
-                                data-detalle-etiqueta-usuario="Finalizada por"
-                                th:data-detalle-titulo="${orden.motivoFinalizacion != null} ? 'Detalle de la finalización' : 'Finalizada automáticamente'"
-                                th:data-detalle-motivo="${orden.motivoFinalizacion}"
-                                th:data-detalle-usuario="${orden.usuarioFinalizacion}"
-                                th:data-detalle-fecha="${orden.fechaFinalizacion != null} ? ${#temporals.format(orden.fechaFinalizacion, 'dd/MM/yyyy HH:mm')}"
-                                aria-label="Ver detalle de la finalización" title="Ver detalle de la finalización"
-                                class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
-                            <i class="bi bi-info-circle" aria-hidden="true"></i>
-                        </button>
+                        <th:block th:if="${orden.estado.name() == 'FINALIZADA'}">
+                            <th:block th:replace="~{fragments/detalle-anulacion :: finalizacion(${orden.motivoFinalizacion}, ${orden.usuarioFinalizacion}, ${orden.fechaFinalizacion})}"></th:block>
+                        </th:block>
                     </dd>
                 </div>
             </dl>
@@ -175,11 +168,11 @@
     <!-- Diálogos de cierre: piden el motivo y envían la acción -->
     <th:block th:if="${orden.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar orden de compra',
-                'se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado. El motivo admite hasta 255 caracteres.',
+                'Se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado.',
                 'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
                 'El proveedor no puede entregar el resto de los ítems')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular orden de compra',
-                'se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados. El motivo admite hasta 255 caracteres.',
+                'Se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados.',
                 'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                 'La orden se cargó con un proveedor equivocado')}"></div>
     </th:block>

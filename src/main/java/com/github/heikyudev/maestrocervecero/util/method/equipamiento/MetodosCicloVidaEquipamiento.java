@@ -48,7 +48,9 @@ public final class MetodosCicloVidaEquipamiento {
         if (normalizadas == null || normalizadas.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias", CAMPO_OBSERVACIONES);
         }
-        ValidacionesNumericas.validarLongitudMaxima(normalizadas, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El texto de las observaciones", CAMPO_OBSERVACIONES);
+        if (normalizadas.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres", CAMPO_OBSERVACIONES);
+        }
         return normalizadas;
     }
 
@@ -77,7 +79,7 @@ public final class MetodosCicloVidaEquipamiento {
      */
     public static void validarFecha(LocalDateTime fecha) {
         if (fecha == null) {
-            throw new ReglaNegocioException("La fecha de la operación es obligatoria", CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", CAMPO_FECHA);
         }
         if (fecha.isAfter(LocalDateTime.now())) {
             throw new ReglaNegocioException("La fecha de la operación no puede ser posterior a la fecha y hora actual", CAMPO_FECHA);

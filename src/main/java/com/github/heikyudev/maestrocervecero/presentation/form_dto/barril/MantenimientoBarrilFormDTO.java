@@ -35,7 +35,7 @@ public class MantenimientoBarrilFormDTO {
     /**
      * Fecha y hora en la que se realizó el mantenimiento.
      */
-    @NotNull(message = "La fecha de mantenimiento es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 

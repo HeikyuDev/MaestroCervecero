@@ -202,7 +202,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @param id Identificador clave primaria de la malta a dar de baja.
      * @return {@link MaltaResponseDTO} con los datos de la malta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la malta con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a 0).
      */
     @Override
     @Transactional
@@ -234,7 +234,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
             throw new ReglaNegocioException("No se puede dar de baja la malta porque se encuentra asociada al catálogo de al menos un proveedor activo");
         }
 
-        // 6. Validar que la malta no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        // 6. Validar que la malta no tenga stock (al menos un lote de insumo con cantidad actual mayor a 0)
         if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
             throw new ReglaNegocioException("No se puede dar de baja la malta porque tiene stock");
         }

@@ -20,7 +20,7 @@
     </div>
 
     <form th:action="${editando} ? @{/insumos/maltas/{id}(id=${maltaId})} : @{/insumos/maltas}"
-          th:object="${maltaForm}" method="post" novalidate
+          th:object="${maltaForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
@@ -42,6 +42,7 @@
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre las maltas, sin distinguir mayúsculas. Hasta 100 caracteres.</p>
                     </div>
                     <div>
                         <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">Tipo <span class="text-rose-600" title="Obligatorio">*</span></label>
@@ -56,10 +57,8 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
-                        <label for="potencialExtracto" class="block text-sm font-medium text-slate-700 mb-1">Extracto potencial (%) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="number" id="potencialExtracto" th:field="*{potencialExtracto}" min="1" max="90" step="1" autocomplete="off" placeholder="Ej: 80"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('potencialExtracto')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <label for="potencialExtracto" class="block text-sm font-medium text-slate-700 mb-1">Extracto potencial <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: fijo('potencialExtracto', null, 'Ej: 80', '%', ${#fields.hasErrors('potencialExtracto')}, '1', '1', false)}"></div>
                         <p th:if="${#fields.hasErrors('potencialExtracto')}" th:errors="*{potencialExtracto}" class="mt-1 text-xs text-rose-600"></p>
                         <p th:unless="${#fields.hasErrors('potencialExtracto')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y hasta 90.</p>
                     </div>

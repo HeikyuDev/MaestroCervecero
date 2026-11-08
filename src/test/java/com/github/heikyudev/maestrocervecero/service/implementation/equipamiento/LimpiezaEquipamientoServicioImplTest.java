@@ -199,7 +199,7 @@ class LimpiezaEquipamientoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación es obligatoria")
+                .hasMessage("La fecha y hora de la operación es obligatoria")
                 .extracting("campo").isEqualTo("fecha");
         verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
@@ -255,7 +255,7 @@ class LimpiezaEquipamientoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El texto de las observaciones no puede superar 255 caracteres")
+                .hasMessage("Las observaciones no pueden superar 255 caracteres")
                 .extracting("campo").isEqualTo("observaciones");
         verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }

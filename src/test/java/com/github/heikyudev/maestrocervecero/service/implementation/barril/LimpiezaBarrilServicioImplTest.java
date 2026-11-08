@@ -196,7 +196,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de limpieza es obligatoria")
+                .hasMessage("La fecha y hora de la operación es obligatoria")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
@@ -365,7 +365,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril")
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verify(barrilRepository, never()).save(any());
@@ -383,7 +383,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril")
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verify(barrilRepository, never()).save(any());
@@ -402,7 +402,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril");
+                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
 
         verify(limpiezaBarrilRepository, never()).save(any());
     }
@@ -414,7 +414,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual")
+                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
                 .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
 
         verifyNoInteractions(barrilRepository, limpiezaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);

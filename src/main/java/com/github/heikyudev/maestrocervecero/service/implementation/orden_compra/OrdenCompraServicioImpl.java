@@ -107,7 +107,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      * <p>
      * La fecha de entrega estimada no puede ser anterior a la fecha actual ni superar un año desde ella, y la
      * orden tiene entre 1 y {@link LimitesTecnicos#ORDEN_COMPRA_MAXIMO_ITEMS} ítems. Cada ítem solicita hasta
-     * {@link LimitesTecnicos#CANTIDAD_COMPRA_MAXIMA} unidades, con un costo unitario mayor a cero, de hasta
+     * {@link LimitesTecnicos#CANTIDAD_COMPRA_MAXIMA} unidades, con un costo unitario mayor a 0, de hasta
      * {@link LimitesTecnicos#ESCALA_COSTO_UNITARIO} decimales y que no supere {@link LimitesTecnicos#COSTO_UNITARIO_COMPRA_MAXIMO}.
      * Se bloquean las filas de la planificación de producción y del proveedor hasta el fin de la transacción: la
      * baja del proveedor y el registro de la orden no se cruzan.
@@ -308,7 +308,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
 
     /**
      * Valida la regla de negocio de cantidad y costo unitario de un ítem del detalle de compra: ambos deben ser
-     * mayores a cero y no superar su máximo, y el costo unitario no puede tener más decimales que la columna de la
+     * mayores a 0 y no superar su máximo, y el costo unitario no puede tener más decimales que la columna de la
      * base de datos.
      *
      * @param detalleCompraFormDTO Ítem a validar.
@@ -317,7 +317,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     private void validarCantidadYCosto(DetalleCompraFormDTO detalleCompraFormDTO) {
         Integer cantidad = detalleCompraFormDTO.getCantidad();
         if (cantidad == null || cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad de cada ítem debe ser mayor a cero");
+            throw new ReglaNegocioException("La cantidad de cada ítem debe ser mayor a 0");
         }
         if (cantidad > LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA) {
             throw new ReglaNegocioException("La cantidad de cada ítem no puede superar "
@@ -325,7 +325,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
         BigDecimal costoUnitario = detalleCompraFormDTO.getCostoUnitario();
         if (costoUnitario == null || costoUnitario.signum() <= 0) {
-            throw new ReglaNegocioException("El costo unitario de cada ítem debe ser mayor a cero");
+            throw new ReglaNegocioException("El costo unitario de cada ítem debe ser mayor a 0");
         }
         if (costoUnitario.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO)) > 0) {
             throw new ReglaNegocioException("El costo unitario de cada ítem no puede superar "

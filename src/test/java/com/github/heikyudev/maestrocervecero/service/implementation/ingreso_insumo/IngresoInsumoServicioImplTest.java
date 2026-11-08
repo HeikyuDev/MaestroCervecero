@@ -273,7 +273,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de unidades recibidas debe ser mayor a cero");
+                .hasMessage("La cantidad de unidades recibidas debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1042,7 +1042,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de unidades recibidas debe ser mayor a cero");
+                .hasMessage("La cantidad de unidades recibidas debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1323,7 +1323,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad recibida debe ser mayor a cero");
+                .hasMessage("La cantidad recibida debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1335,7 +1335,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario es obligatorio");
+                .hasMessage("El precio unitario es obligatorio");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1347,7 +1347,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario debe ser mayor a cero");
+                .hasMessage("El precio unitario debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1692,7 +1692,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad recibida debe ser mayor a cero");
+                .hasMessage("La cantidad recibida debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1706,7 +1706,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad recibida debe ser mayor a cero");
+                .hasMessage("La cantidad recibida debe ser mayor a 0");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1782,7 +1782,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario no puede superar 1.000.000.000");
+                .hasMessage("El precio unitario no puede superar 1.000.000.000");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1813,7 +1813,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario no puede tener más de 4 decimales");
+                .hasMessage("El precio unitario no puede tener más de 4 decimales");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1872,7 +1872,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario es obligatorio");
+                .hasMessage("El precio unitario es obligatorio");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }

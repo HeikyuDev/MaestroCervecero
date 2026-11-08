@@ -8,7 +8,7 @@ Ambos textos son obligatorios, se normalizan (sin espacios en los extremos ni re
 |---|---|---|---|---|
 |**CP-MCV-01**|Observaciones normalizadas|`"  Ruido   anormal  "`|El texto se normaliza|Devuelve `"Ruido anormal"`.|
 |**CP-MCV-02**|Observaciones nulas, vacías o en blanco|`null`, `""` y `"   "`|`observaciones` sin contenido $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias", campo `observaciones`).|
-|**CP-MCV-03**|Observaciones en el límite de 255 caracteres|255 y 256 caracteres|`length() > 255`|Con 255 no lanza excepción. Con 256 lanza `ReglaNegocioException` ("El texto de las observaciones no puede superar 255 caracteres", campo `observaciones`).|
+|**CP-MCV-03**|Observaciones en el límite de 255 caracteres|255 y 256 caracteres|`length() > 255`|Con 255 no lanza excepción. Con 256 lanza `ReglaNegocioException` ("Las observaciones no pueden superar 255 caracteres", campo `observaciones`).|
 |**CP-MCV-04**|Motivo de anulación nulo, vacío o en blanco|`null`, `""` y `"   "`|`motivoAnulacion` sin contenido $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio", campo `motivoAnulacion`).|
 |**CP-MCV-05**|Motivo de anulación en el límite de 255 caracteres y normalización|`"  Carga   por error "`, 255 y 256 caracteres|`length() > 255`|Devuelve `"Carga por error"`. Con 255 no lanza excepción. Con 256 lanza `ReglaNegocioException` ("El motivo de anulación no puede superar 255 caracteres", campo `motivoAnulacion`).|
 
@@ -17,7 +17,7 @@ Ambos textos son obligatorios, se normalizan (sin espacios en los extremos ni re
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-MCV-06**|Fecha pasada o igual al momento actual _(Borde)_|Una fecha pasada y la fecha y hora actual menos 1 segundo|La fecha no es nula ni futura|No lanza excepción.|
-|**CP-MCV-07**|Fecha nula|`fecha: null`|`fecha == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de la operación es obligatoria", campo `fecha`).|
+|**CP-MCV-07**|Fecha nula|`fecha: null`|`fecha == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha y hora de la operación es obligatoria", campo `fecha`).|
 
 ### 3. `validarFechaPosteriorALaActividadAnterior(LocalDateTime fecha, LocalDateTime... actividadesAnteriores)`
 

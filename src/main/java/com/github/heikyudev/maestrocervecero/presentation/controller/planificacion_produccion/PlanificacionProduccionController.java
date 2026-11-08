@@ -318,7 +318,7 @@ public class PlanificacionProduccionController {
 
     /**
      * Calcula lo que el encabezado del estado actual muestra del avance: litros faltantes o excedidos
-     * (solo uno de los dos es mayor a cero), el porcentaje producido y el de la barra (tope 100).
+     * (solo uno de los dos es mayor a 0), el porcentaje producido y el de la barra (tope 100).
      */
     private static void cargarAvanceProduccion(Model model, PlanificacionProduccionResponseDTO planificacion) {
         double solicitado = planificacion.getCantidadAProducir() != null ? planificacion.getCantidadAProducir() : 0.0;

@@ -94,7 +94,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
     public MantenimientoBarrilResponseDTO registrarMantenimientoBarril(MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO) {
         // 1. Validar que se haya informado la fecha de mantenimiento
         if (mantenimientoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha de mantenimiento es obligatoria", MetodosCicloVida.CAMPO_FECHA);
+            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
         }
 
         // 2. Validar que la fecha de mantenimiento no sea posterior a la fecha y hora actual

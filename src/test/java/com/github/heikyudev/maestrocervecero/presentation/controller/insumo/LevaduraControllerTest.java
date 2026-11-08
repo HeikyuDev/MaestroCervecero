@@ -160,7 +160,8 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("action=\"/insumos/levaduras\"")))
                 .andExpect(content().string(containsString("value=\"HIBRIDA\"")))
                 .andExpect(content().string(containsString("la define el sistema")))
-                .andExpect(content().string(containsString("Células viables (millones/g)")))
+                .andExpect(content().string(containsString("Células viables <span")))
+                .andExpect(content().string(containsString(">millones/g</span>")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 20000\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Safale US-05\"")))
                 .andExpect(content().string(containsString("20000 equivale a 20.000.000.000")))
@@ -224,7 +225,7 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear la levadura")))
                 .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El tipo de levadura es obligatorio")))
-                .andExpect(content().string(containsString("La cantidad de células viables por gramo es obligatoria")));
+                .andExpect(content().string(containsString("Las células viables son obligatorias")));
 
         verify(levaduraServicio, never()).altaLevadura(any());
     }

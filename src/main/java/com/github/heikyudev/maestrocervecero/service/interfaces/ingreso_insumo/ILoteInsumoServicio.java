@@ -23,7 +23,7 @@ public interface ILoteInsumoServicio {
      *
      * @param idInsumo El ID del insumo, elegido por el usuario entre los devueltos por
      *                 {@code filtrarInsumosRequeridos}.
-     * @return Los lotes de insumo de ese insumo con cantidad disponible mayor a cero, en formato DTO.
+     * @return Los lotes de insumo de ese insumo con cantidad disponible mayor a 0, en formato DTO.
      */
     List<LoteInsumoResponseDTO> filtrarLotesInsumoDisponibles(Long idInsumo);
 

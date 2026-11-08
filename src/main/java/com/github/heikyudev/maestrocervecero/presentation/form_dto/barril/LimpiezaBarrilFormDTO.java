@@ -35,7 +35,7 @@ public class LimpiezaBarrilFormDTO {
     /**
      * Fecha y hora en la que se realizó la limpieza.
      */
-    @NotNull(message = "La fecha de limpieza es obligatoria")
+    @NotNull(message = "La fecha y hora de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime fecha;
 

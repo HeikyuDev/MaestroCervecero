@@ -214,6 +214,7 @@ public class UsuarioController {
     private void cargarModeloFormulario(Model model, Long usuarioId, boolean cuentaPropia) {
         model.addAttribute("roles", Rol.values());
         model.addAttribute("usuarioId", usuarioId);
+        model.addAttribute("urlCancelar", "/usuarios");
         model.addAttribute("esCuentaPropia", cuentaPropia);
         model.addAttribute("reglasPassword", MetodosPassword.MENSAJE_INVALIDA);
     }

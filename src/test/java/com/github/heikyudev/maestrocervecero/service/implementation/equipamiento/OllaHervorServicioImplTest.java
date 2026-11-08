@@ -387,7 +387,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+                .hasMessage("Los usos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -399,7 +399,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -498,7 +498,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -843,7 +843,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
+                .hasMessage("Los usos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -855,7 +855,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -989,7 +989,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+                .hasMessage("Los usos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(ollaHervorRepository).findById(1L);
         verify(ollaHervorRepository, never()).save(any());

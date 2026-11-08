@@ -529,7 +529,7 @@ class ConsumoInsumoControllerTest {
         String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", null), "reservado");
 
         // Assert
-        assertThat(texto(html)).contains("Nuevo consumo reservado", "No se pudo crear el consumo", "La cantidad consumida es obligatoria");
+        assertThat(texto(html)).contains("Nuevo consumo reservado", "No se pudo crear el consumo", "La cantidad es obligatoria");
         assertThat(html).contains("data-formulario-consumo").contains("data-selector-buscar");
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoReservado(any(), any());
     }
@@ -571,7 +571,7 @@ class ConsumoInsumoControllerTest {
         assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("5");
         assertThat(html).contains("data-buscador-url=\"" + URL_PANTALLA + "/reservado/buscador/lotes-insumo?idInsumo=31\"");
-        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad *");
+        assertThat(texto(html)).contains("La cantidad es obligatoria", "Cantidad *");
         assertThat(elementoConAtributo(html, "span", "data-unidad-sufijo")).contains(">g<");
         assertThat(Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html).results().findFirst().orElseThrow().group()).doesNotContain("hidden");
         assertThat(texto(elementoConAtributo(html, "p", "data-lote-elegido"))).contains("Vencimiento: 12/03/2028");
@@ -584,11 +584,11 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-28: una cantidad no válida para el negocio llega al service con el valor recibido y su rechazo vuelve al origen con la alerta amarilla")
     void reservado_cantidadNoValidaParaElService(String cantidad) throws Exception {
         // Arrange
-        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
+        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
 
         // Act + Assert
         assertRechazoDelService(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", cantidad).header("Referer", URL_PANTALLA)),
-                "La cantidad consumida debe ser mayor a 0", "warning");
+                "La cantidad debe ser mayor a 0", "warning");
         ArgumentCaptor<ConsumoInsumoFormDTO> form = ArgumentCaptor.forClass(ConsumoInsumoFormDTO.class);
         verify(consumoInsumoServicio).registrarConsumoInsumoReservado(eq(ETAPA_HERVIDO), form.capture());
         assertThat(form.getValue().getCantidadConsumida()).isEqualTo(Double.valueOf(cantidad));
@@ -596,7 +596,7 @@ class ConsumoInsumoControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
-            "La cantidad consumida no puede superar la cantidad reservada del lote de insumo (10 g)",
+            "La cantidad no puede superar la cantidad reservada del lote de insumo (10 g)",
             "No existe una reserva de este lote de insumo para esta etapa: utilice el registro de consumo directo",
             "El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo",
             "La etapa debe estar en curso para poder registrar consumos de insumo",
@@ -706,7 +706,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-40: un stock insuficiente lo rechaza el service y vuelve al origen con la alerta amarilla")
     void directo_stockInsuficiente() throws Exception {
         // Arrange
-        String mensaje = "La cantidad consumida no puede superar la cantidad disponible del lote de insumo (3 g)";
+        String mensaje = "La cantidad no puede superar la cantidad disponible del lote de insumo (3 g)";
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
@@ -737,7 +737,7 @@ class ConsumoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Cascade");
         assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("8");
-        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad *");
+        assertThat(texto(html)).contains("La cantidad es obligatoria", "Cantidad *");
         assertThat(elementoConAtributo(html, "span", "data-unidad-sufijo")).contains(">g<");
         Matcher elegido = Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html);
         assertThat(elegido.find()).isTrue();
@@ -761,10 +761,10 @@ class ConsumoInsumoControllerTest {
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoDirecto(any(), any());
 
         // Act + Assert: el valor es una regla del service
-        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
+        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
         for (String cantidad : List.of("0", "-5", "NaN", "Infinity")) {
             assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", cantidad).header("Referer", URL_PANTALLA)),
-                    "La cantidad consumida debe ser mayor a 0", "warning");
+                    "La cantidad debe ser mayor a 0", "warning");
         }
         verify(consumoInsumoServicio, times(4)).registrarConsumoInsumoDirecto(eq(ETAPA_HERVIDO), any());
     }
@@ -1635,8 +1635,8 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-74: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en una pantalla con GET (el formulario), sin 405 ni bucle")
     void transversal_errorDeValidacionYLuegoRechazoDelService(String formulario) throws Exception {
         // Arrange
-        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
-        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
+        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
+        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
         String idLoteInsumo = formulario.equals("reservado") ? "5" : "8";
         String urlFormulario = URL_PANTALLA + "/" + formulario + "/nuevo";
 
@@ -1660,7 +1660,7 @@ class ConsumoInsumoControllerTest {
         // Assert: las dos veces vuelve al formulario (que tiene GET) y el rechazo se muestra como alerta
         assertThat(ubicacion).isEqualTo(urlFormulario);
         assertThat(destino).isEqualTo(urlFormulario);
-        assertThat(texto(html)).contains("La cantidad consumida debe ser mayor a 0");
+        assertThat(texto(html)).contains("La cantidad debe ser mayor a 0");
     }
 
     @ParameterizedTest(name = "{0}")

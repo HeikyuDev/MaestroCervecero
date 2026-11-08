@@ -236,7 +236,7 @@ class MaceradorControllerTest {
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
                 .andExpect(content().string(containsString("El espacio muerto es obligatorio")))
                 .andExpect(content().string(containsString("La eficiencia de maceración es obligatoria")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento son obligatorios")));
 
         verify(maceradorServicio, never()).altaMacerador(any());
     }
@@ -465,7 +465,8 @@ class MaceradorControllerTest {
         mockMvc.perform(get("/equipamiento/maceradores/nuevo"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"capacidadTotal\"")))
-                .andExpect(content().string(containsString("Capacidad total (L)")))
+                .andExpect(content().string(containsString("Capacidad total <span")))
+                .andExpect(content().string(containsString(">L</span>")))
                 .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
     }
 

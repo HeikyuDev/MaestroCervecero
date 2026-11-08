@@ -236,7 +236,7 @@ class OllaHervorControllerTest {
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
                 .andExpect(content().string(containsString("La evaporación es obligatoria")))
                 .andExpect(content().string(containsString("La pérdida por trub es obligatoria")))
-                .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
+                .andExpect(content().string(containsString("Los usos antes de mantenimiento son obligatorios")));
 
         verify(ollaHervorServicio, never()).altaOllaHervor(any());
     }
@@ -465,7 +465,8 @@ class OllaHervorControllerTest {
         mockMvc.perform(get("/equipamiento/ollas-hervor/nuevo"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"capacidadTotal\"")))
-                .andExpect(content().string(containsString("Capacidad total (L)")))
+                .andExpect(content().string(containsString("Capacidad total <span")))
+                .andExpect(content().string(containsString(">L</span>")))
                 .andExpect(content().string(not(containsString("data-capacidad-solo-lectura"))));
     }
 

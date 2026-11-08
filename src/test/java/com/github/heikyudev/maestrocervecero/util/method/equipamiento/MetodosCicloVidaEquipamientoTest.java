@@ -52,7 +52,7 @@ class MetodosCicloVidaEquipamientoTest {
         assertThatCode(() -> MetodosCicloVidaEquipamiento.validarObservaciones("a".repeat(255))).doesNotThrowAnyException();
         assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarObservaciones("a".repeat(256)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El texto de las observaciones no puede superar 255 caracteres")
+                .hasMessage("Las observaciones no pueden superar 255 caracteres")
                 .extracting("campo").isEqualTo("observaciones");
     }
 
@@ -98,7 +98,7 @@ class MetodosCicloVidaEquipamientoTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarFecha(null))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación es obligatoria")
+                .hasMessage("La fecha y hora de la operación es obligatoria")
                 .extracting("campo").isEqualTo("fecha");
     }
 
