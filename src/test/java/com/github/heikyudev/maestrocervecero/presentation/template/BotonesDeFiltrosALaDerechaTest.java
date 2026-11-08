@@ -22,13 +22,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * pantalla, ocupa la fila completa en ese tamaño (col-span-N con las N columnas de la grilla, o col-span-full). Así los botones
  * quedan en el borde derecho de la tarjeta con cualquier cantidad de filtros y no en la primera columna de la última fila.
  *
- * Excepciones: lote-lista (cinco filtros más los botones llenan las filas, los botones caen en la última celda) y consumo-lista
- * (barra de filtro en línea dentro del encabezado de la tarjeta, con el botón de alta a la derecha).
+ * Excepciones: lote-lista (cinco filtros más los botones llenan las filas, los botones caen en la última celda), consumo-lista y
+ * envasado-lista (barra de filtro en línea dentro del encabezado de la tarjeta, con el botón de alta a la derecha).
  */
 class BotonesDeFiltrosALaDerechaTest {
 
     private static final Path TEMPLATES = Path.of("src/main/resources/templates");
-    private static final Set<String> EXCEPCIONES = Set.of("lote/lote-lista.html", "lote/consumo-lista.html");
+    private static final Set<String> EXCEPCIONES = Set.of("lote/lote-lista.html", "lote/consumo-lista.html", "lote/envasado-lista.html");
     private static final Pattern GRILLA = Pattern.compile("(?:(\\w+):)?grid-cols-(\\d+)");
 
     @Test

@@ -32,7 +32,17 @@
             <input type="text" id="buscador-cuit" name="cuit" th:value="${filtroCuit}" autocomplete="off" placeholder="Ej: 30-71234567-8"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
-        <div class="sm:col-span-2 flex justify-end">
+        <div>
+            <label for="buscador-nombre-comercial" class="block text-xs font-medium text-slate-500 mb-1">Nombre comercial</label>
+            <input type="text" id="buscador-nombre-comercial" name="nombreComercial" th:value="${filtroNombreComercial}" autocomplete="off" placeholder="Ej: Malterías del Sur"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Localidad</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idLocalidad', ${filtroIdLocalidad}, ${filtroLocalidadTexto},
+                    @{/ubicaciones/localidades/buscador}, null, null, true, false, 'Seleccione localidad')}"></div>
+        </div>
+        <div class="sm:col-span-2 flex items-center justify-end gap-3">
             <button type="submit"
                     class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                 <i class="bi bi-search"></i> Buscar
@@ -41,33 +51,39 @@
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="tabla-buscador">
+        <div class="contenedor-buscador">
+<table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3 whitespace-nowrap">Razón social</th>
-                <th class="px-4 py-3 whitespace-nowrap">CUIT</th>
-                <th class="px-4 py-3 text-right"></th>
+                <th class="px-3 py-3 whitespace-nowrap">Razón social</th>
+                <th class="px-3 py-3 whitespace-nowrap">Nombre comercial</th>
+                <th class="px-3 py-3 whitespace-nowrap">CUIT</th>
+                <th class="px-3 py-3 whitespace-nowrap">Localidad</th>
+                <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="p : ${proveedores.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${p.version.razonSocial}">Malterías del Sur S.A.</td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(p.version.cuit)}">30-71234567-8</td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-3 font-medium text-slate-900" th:text="${p.version.razonSocial}">Malterías del Sur S.A.</td>
+                <td class="px-3 py-3 text-slate-700" th:text="${p.version.nombreComercial != null} ? ${p.version.nombreComercial} : '-'">Malterías del Sur</td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(p.version.cuit)}">30-71234567-8</td>
+                <td class="px-3 py-3 text-slate-700" th:text="${p.version.localidad != null} ? ${p.version.localidad.nombre} : '-'">Río Cuarto</td>
+                <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${p.id}"
                             th:data-texto="${textosPorId.get(p.id)}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
             <tr th:if="${proveedores.empty}">
-                <td colspan="3" class="px-4 py-8 text-center text-slate-400">No se encontraron proveedores con los criterios indicados</td>
+                <td colspan="5" class="px-3 py-8 text-center text-slate-400">No se encontraron proveedores con los criterios indicados</td>
             </tr>
             </tbody>
         </table>
+</div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${proveedores}, 'proveedor|proveedores',
-                ${proveedores.hasPrevious()} ? @{/ordenes-compra/buscador/proveedores(pagina=${proveedores.number - 1}, razonSocial=${filtroRazonSocial}, cuit=${filtroCuit})} : null,
-                ${proveedores.hasNext()} ? @{/ordenes-compra/buscador/proveedores(pagina=${proveedores.number + 1}, razonSocial=${filtroRazonSocial}, cuit=${filtroCuit})} : null,
+                ${proveedores.hasPrevious()} ? @{/ordenes-compra/buscador/proveedores(pagina=${proveedores.number - 1}, razonSocial=${filtroRazonSocial}, nombreComercial=${filtroNombreComercial}, cuit=${filtroCuit}, idLocalidad=${filtroIdLocalidad})} : null,
+                ${proveedores.hasNext()} ? @{/ordenes-compra/buscador/proveedores(pagina=${proveedores.number + 1}, razonSocial=${filtroRazonSocial}, nombreComercial=${filtroNombreComercial}, cuit=${filtroCuit}, idLocalidad=${filtroIdLocalidad})} : null,
                 true)}"></div>
     </div>
 </div>

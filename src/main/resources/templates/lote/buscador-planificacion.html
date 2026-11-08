@@ -24,13 +24,18 @@
     </div>
 
     <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
-          class="p-6 grid grid-cols-1 gap-4 items-end">
+          class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
                     @{${urlBuscadorRecetas}}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
-        <div class="flex justify-end">
+        <div>
+            <label for="buscador-fecha-inicio" class="block text-xs font-medium text-slate-500 mb-1">Fecha de inicio estimada</label>
+            <input type="date" id="buscador-fecha-inicio" name="fechaInicio" th:value="${filtroFechaInicio}" autocomplete="off" placeholder="Ej: 01/07/2027"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="sm:col-span-2 flex items-center justify-end gap-3">
             <button type="submit"
                     class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                 <i class="bi bi-search"></i> Buscar
@@ -39,7 +44,8 @@
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="tabla-buscador">
+        <div class="contenedor-buscador">
+<table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
                 <th class="px-3 py-3 whitespace-nowrap">Planificación</th>
@@ -47,7 +53,7 @@
                 <th class="px-3 py-3 whitespace-nowrap">Cantidad (L)</th>
                 <th class="px-3 py-3 whitespace-nowrap">Inicio estimado</th>
                 <th class="px-3 py-3 whitespace-nowrap">Estado</th>
-                <th class="px-3 py-3 text-right"></th>
+                <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -57,20 +63,21 @@
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${p.cantidadAProducir})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
                 <td class="px-3 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${p.estado})}"></span></td>
-                <td class="px-3 py-3 text-right">
+                <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${p.id}" th:data-texto="${p.etiqueta}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
             <tr th:if="${planificaciones.empty}">
-                <td colspan="6" class="px-4 py-8 text-center text-slate-400">No se encontraron planificaciones con los criterios indicados</td>
+                <td colspan="6" class="px-3 py-8 text-center text-slate-400">No se encontraron planificaciones con los criterios indicados</td>
             </tr>
             </tbody>
         </table>
+</div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificación|planificaciones',
-                ${planificaciones.hasPrevious()} ? @{${urlBuscador}(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta})} : null,
-                ${planificaciones.hasNext()} ? @{${urlBuscador}(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta})} : null,
+                ${planificaciones.hasPrevious()} ? @{${urlBuscador}(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta}, fechaInicio=${filtroFechaInicio})} : null,
+                ${planificaciones.hasNext()} ? @{${urlBuscador}(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta}, fechaInicio=${filtroFechaInicio})} : null,
                 true)}"></div>
     </div>
 </div>

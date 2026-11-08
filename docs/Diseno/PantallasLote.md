@@ -49,8 +49,9 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | 4 | Crear consumo directo (envío) | `/lotes/{id}/etapas/{etapa}/consumos/directo` | POST | `CONSUMO_INSUMO_REGISTRAR` | redirige a la pestaña "Directos" |
 | 4 | Anular consumo | `/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular` | POST | `CONSUMO_INSUMO_ANULAR` | redirige a la pestaña del tipo del consumo |
 | 5 | Envasados del lote | `/lotes/{id}/envasados` | GET | `ENVASADO_CONSULTAR` | `lote/envasado-lista` |
-| 5 | Crear envasado (envío) | `/lotes/{id}/envasados` | POST | `ENVASADO_REGISTRAR` | redirige a la misma pantalla |
-| 5 | Anular envasado | `/lotes/{id}/envasados/{idEnvasado}/anular` | POST | `ENVASADO_ANULAR` | redirige a la misma pantalla |
+| 5 | Formulario de un envasado nuevo | `/lotes/{id}/envasados/nuevo` | GET | `ENVASADO_REGISTRAR` | `lote/envasado-form` |
+| 5 | Crear envasado (envío) | `/lotes/{id}/envasados` | POST | `ENVASADO_REGISTRAR` | redirige a la lista de envasados |
+| 5 | Anular envasado | `/lotes/{id}/envasados/{idEnvasado}/anular` | POST | `ENVASADO_ANULAR` | redirige a la lista de envasados |
 | M1 | Buscadores del formulario de registro (fragmentos) | `/lotes/buscador/{planificaciones, recetas, molinos, maceradores, ollas, fermentadores}` | GET | `LOTE_REGISTRAR` | `lote/buscador-*` |
 | M2 | Buscadores de los filtros de la lista (fragmentos) | `/lotes/filtros/{planificaciones, recetas, fermentadores}` | GET | `LOTE_CONSULTAR` | `lote/filtro-*` |
 | M3 | Buscadores de las pantallas de operación (fragmentos) | `/lotes/{id}/etapas/{etapa}/consumos/{reservado, directo}/buscador/insumos`, `/lotes/{id}/etapas/{etapa}/consumos/{reservado, directo}/buscador/lotes-insumo`, `/lotes/{id}/envasados/buscador/barriles` | GET | `CONSUMO_INSUMO_REGISTRAR` y `ENVASADO_REGISTRAR` | `lote/buscador-*` |
@@ -363,7 +364,7 @@ Los campos marcados con * son obligatorios.
 
 ## 8. Pantalla 5: envasados del lote (`/lotes/{id}/envasados`)
 
-Página aparte. Todas sus acciones vuelven a ella.
+Página aparte con la misma estructura que la de consumos: el resumen arriba, la lista de lo registrado debajo y un botón que lleva al formulario de alta. La lista no contiene el formulario.
 
 ```
 < Volver al lote
@@ -371,29 +372,44 @@ Envasados  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
 [ Envasado creado correctamente ]                                                 (verde)
 
+RESUMEN                                                       Volumen objetivo: 300 L
 120 L de 330 L (capacidad útil del fermentador F-01)
-[#######-------------]    Volumen objetivo: 300 L    Quedan 210 L
+[#######-------------]
+Quedan 210 L
 
-REGISTRAR ENVASADO
-  Barril *  [ Seleccione barril          [=] ]     Cantidad a envasar (L) * [ Ej: 50 ]
-  Fecha y hora del envasado *  [ Ej: 31/10/2026 08:30 ]
-                                                                [ Crear envasado ]
-
-ENVASADOS REGISTRADOS
-  Barril   Cantidad (L)   Fecha y hora        Estado                         Acciones
-  B-003    20             01/07/2027 10:30    Registrado                     [ Anular ]
-  B-004    30             01/07/2027 10:20    Anulado - Barril equivocado
-  B-002    50             01/07/2027 10:10    Registrado                     [ Anular ]
-  B-001    50             01/07/2027 10:00    Registrado                     [ Anular ]
+Estado [ Todos v ]  Limpiar  [ Buscar ]                              [ + Nuevo envasado ]
+  Barril   Cantidad (L)   Fecha y hora        Estado        Acciones
+  B-003    20             01/07/2027 10:30    Registrado    [ Anular ]
+  B-004    30             01/07/2027 10:20    Anulado       (i)
+  B-002    50             01/07/2027 10:10    Registrado    [ Anular ]
+  B-001    50             01/07/2027 10:00    Registrado    [ Anular ]
 ```
 
 - El único tope del envasado es la capacidad útil del fermentador: se puede envasar más que el volumen objetivo, y superarlo solo muestra un aviso informativo.
-- "Seleccione barril" abre el buscador de barriles Disponibles (criterio "Identificador").
+- El filtro de estado (Registrado o Anulado) está en el encabezado de la tarjeta de la lista; sin él se muestran todos los estados. Los envasados se pagan de a 20, con el último registrado arriba.
+- Un envasado anulado se muestra atenuado y su botón "i" abre el diálogo con el motivo, el usuario y la fecha de la anulación. "Anular" abre el diálogo del motivo.
+- "+ Nuevo envasado" (solo con el permiso de registrar, el lote en ejecución y el Envasado en curso) abre la pantalla de formulario `/lotes/{id}/envasados/nuevo`.
+
+### Formulario de un envasado nuevo (`/lotes/{id}/envasados/nuevo`)
+
+```
+< Volver a envasados
+Nuevo envasado  ·  Lote PALE_ALE-R7-3  ·  Etapa Envasado
+Los campos marcados con * son obligatorios.
+
+DATOS DEL ENVASADO
+  Barril *  [ Seleccione barril          [=] ]
+  Cantidad a envasar (L) * [ Ej: 50 ]     Fecha y hora del envasado *  [ Ej: 31/10/2026 08:30 ]
+                                                          [ Cancelar ]  [ Crear envasado ]
+```
+
+- "Seleccione barril" abre el buscador de barriles Disponibles. Sus criterios son los de Gestión de Barriles: identificador interno, número de serie, capacidad y fabricante (este último con su propio selector); el estado no es un criterio porque siempre es Disponible. Al elegir un barril se muestran su fabricante y su capacidad.
 - La fecha y hora del envasado es obligatoria y es la fecha de participación del barril en el lote: no puede ser futura, anterior al inicio de la etapa de Envasado ni igual o anterior a la última operación o envasado registrado del barril. Un rechazo sobre la fecha se muestra debajo del campo, con lo escrito. La columna "Fecha y hora" de la tabla muestra esa fecha.
 - Al registrar un envasado el barril queda En uso, con la cantidad envasada como contenido, y no admite otras operaciones. Anular el envasado (solo con el lote en ejecución) lo deja Disponible y vacío. Al finalizar el envasado del lote, los barriles con envasados registrados pasan a Con cerveza.
+- Al guardar se vuelve a la lista con la alerta de éxito. "Cancelar" y "Volver a envasados" vuelven a la lista sin registrar.
 - La pantalla no finaliza el envasado: eso se hace en el detalle del lote ("Finalizar envasado"), que además pasa los barriles envasados de En uso a Con cerveza.
-- Errores: un error de validación (`@Valid`) redirige a esta misma pantalla, que muestra los errores y lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el envasado a anular pertenezca al lote de la ruta.
-- Sin el Envasado en curso, la pantalla es de solo lectura (aviso, sin formulario ni "Anular").
+- Errores: un error de validación (`@Valid`) o un rechazo del service sobre un campo del formulario redirige al formulario, que muestra el resumen de errores y lo escrito; los demás rechazos del service redirigen al origen con su mensaje. El Controller verifica que el envasado a anular pertenezca al lote de la ruta.
+- Sin el Envasado en curso, la lista es de solo lectura (aviso, sin "+ Nuevo envasado" ni "Anular") y el formulario no se abre: se vuelve a la lista con el aviso "Solo se pueden registrar envasados con el lote en ejecución y la etapa en curso".
 
 ## 9. Cronograma de producción para el operario (`/cronograma-produccion`)
 

@@ -3,11 +3,17 @@
 @tailwind utilities;
 
 /*
- * Tabla de resultados de todo buscador modal (archivos buscador-*.html de templates).
+ * Tabla de resultados de todo buscador modal (archivos buscador-*.html de templates), dentro de un
+ * .contenedor-buscador con desplazamiento horizontal: si la tabla es más ancha que el modal, se desplaza el
+ * contenedor y la columna de acción (.col-acciones, con el botón "Elegir") queda fija contra el borde derecho.
  * Un texto largo sin espacios se parte en cualquier punto en lugar de ensanchar la fila, y el botón
  * "Elegir" nunca se achica ni se parte, de modo que siempre queda a la vista dentro del modal.
  */
 @layer components {
+  .contenedor-buscador {
+    @apply overflow-x-auto;
+  }
+
   .tabla-buscador {
     @apply w-full text-sm text-left;
     overflow-wrap: anywhere;

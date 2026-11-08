@@ -53,6 +53,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,6 +62,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -464,10 +466,11 @@ public class LoteController {
     @GetMapping("/buscador/planificaciones")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String buscarPlanificaciones(@RequestParam(required = false) Long idReceta,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
         cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarPorId), idReceta,
-                EstadoSolicitud.PENDIENTE, pagina, "/lotes/buscador/planificaciones", URL_BUSCADOR_RECETAS,
+                fechaInicio, EstadoSolicitud.PENDIENTE, pagina, "/lotes/buscador/planificaciones", URL_BUSCADOR_RECETAS,
                 "Filtre y elija la planificación pendiente del lote.");
         return VISTA_BUSCADOR_PLANIFICACION;
     }
@@ -562,10 +565,11 @@ public class LoteController {
     @GetMapping("/filtros/planificaciones")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String filtrarPlanificaciones(@RequestParam(required = false) Long idReceta,
+                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                          @RequestParam(defaultValue = "0") int pagina,
                                          Model model) {
         cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId),
-                idReceta, null, pagina, "/lotes/filtros/planificaciones", URL_FILTRO_RECETAS,
+                idReceta, fechaInicio, null, pagina, "/lotes/filtros/planificaciones", URL_FILTRO_RECETAS,
                 "Filtre y elija la planificación de los lotes.");
         return VISTA_FILTRO_PLANIFICACION;
     }
@@ -784,12 +788,13 @@ public class LoteController {
      * cualquiera) de la receta elegida, de a 8 y con la última registrada arriba, y el selector de receta con la URL de
      * su propio buscador. Si la receta no se resolvió, se busca sin filtrar por receta y el selector queda en blanco.
      */
-    private void cargarBuscadorDePlanificaciones(Model model, RecetaResponseDTO receta, Long idReceta, EstadoSolicitud estado, int pagina,
+    private void cargarBuscadorDePlanificaciones(Model model, RecetaResponseDTO receta, Long idReceta, LocalDate fechaInicio, EstadoSolicitud estado, int pagina,
                                                  String urlBuscador, String urlBuscadorRecetas, String subtitulo) {
         Long idRecetaFiltro = receta != null ? idReceta : null;
         model.addAttribute("planificaciones", planificacionServicio.filtrarPlanificacionesProduccion(
-                idRecetaFiltro, estado, null, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
+                idRecetaFiltro, estado, fechaInicio, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroFechaInicio", fechaInicio);
         model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
         model.addAttribute("urlBuscador", urlBuscador);
         model.addAttribute("urlBuscadorRecetas", urlBuscadorRecetas);

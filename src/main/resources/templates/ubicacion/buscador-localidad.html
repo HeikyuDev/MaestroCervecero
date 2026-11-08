@@ -41,7 +41,7 @@
             <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${filtroIdPais}, ${filtroPaisTexto},
                     @{/ubicaciones/paises/buscador}, null, null, true, false, 'Seleccione país')}"></div>
         </div>
-        <div class="sm:col-span-2 flex justify-end">
+        <div class="sm:col-span-2 flex items-center justify-end gap-3">
             <button type="submit"
                     class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                 <i class="bi bi-search"></i> Buscar
@@ -50,23 +50,24 @@
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="tabla-buscador">
+        <div class="contenedor-buscador">
+<table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3">Código postal</th>
-                <th class="px-4 py-3">Provincia</th>
-                <th class="px-4 py-3">País</th>
-                <th class="px-4 py-3 text-right"></th>
+                <th class="px-3 py-3">Nombre</th>
+                <th class="px-3 py-3">Código postal</th>
+                <th class="px-3 py-3">Provincia</th>
+                <th class="px-3 py-3">País</th>
+                <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="l : ${localidades.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">Río Cuarto</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${l.codigoPostal}">5800</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.nombre}">Córdoba</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-3 font-medium text-slate-900" th:text="${l.nombre}">Río Cuarto</td>
+                <td class="px-3 py-3 text-slate-700" th:text="${l.codigoPostal}">5800</td>
+                <td class="px-3 py-3 text-slate-700" th:text="${l.provincia.nombre}">Córdoba</td>
+                <td class="px-3 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
+                <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.nombre + ' (' + l.provincia.nombre + ')'}"
                             th:data-nombre="${l.nombre}" th:data-id-provincia="${l.provincia.id}" th:data-texto-provincia="${l.provincia.nombre}"
                             th:data-id-pais="${l.provincia.pais.id}" th:data-texto-pais="${l.provincia.pais.nombre}"
@@ -74,10 +75,11 @@
                 </td>
             </tr>
             <tr th:if="${localidades.empty}">
-                <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron localidades con los criterios indicados</td>
+                <td colspan="5" class="px-3 py-8 text-center text-slate-400">No se encontraron localidades con los criterios indicados</td>
             </tr>
             </tbody>
         </table>
+</div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${localidades}, 'localidad|localidades',
                 ${localidades.hasPrevious()} ? @{/ubicaciones/localidades/buscador(pagina=${localidades.number - 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,

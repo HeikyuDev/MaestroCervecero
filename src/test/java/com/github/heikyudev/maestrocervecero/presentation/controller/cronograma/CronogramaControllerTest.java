@@ -1679,6 +1679,24 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-112: el buscador de planificaciones filtra también por fecha de inicio (el criterio de Gestión de Planificaciones), conserva la fecha escrita y los links de paginación la conservan")
+    void buscador_filtraPorFechaDeInicio() throws Exception {
+        // Arrange
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(1, 8), 20));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").param("fechaInicio", "2027-07-01").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("type=\"date\"").contains("name=\"fechaInicio\"").contains("value=\"2027-07-01\"")
+                .contains("pagina=0&amp;idReceta=&amp;fechaInicio=2027-07-01");
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), eq(LocalDate.of(2027, 7, 1)), any());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-30: el buscador devuelve un fragmento (sin layout) con el criterio de receta como selector de entidad, las planificaciones y el boton Elegir con su id y texto")
     void buscador_debeDevolverElFragmentoConLasPlanificaciones() throws Exception {
         // Arrange

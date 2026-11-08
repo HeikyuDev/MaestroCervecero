@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IBarrilServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IFabricanteBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResponseDTO;
@@ -85,6 +86,7 @@ class EnvasadoLoteControllerTest {
 
     private static final String FECHA_ENVASADO = "2026-01-15T10:00";
     private static final String URL_PANTALLA = "/lotes/12/envasados";
+    private static final String URL_NUEVO = URL_PANTALLA + "/nuevo";
     private static final String URL_BUSCADOR = URL_PANTALLA + "/buscador/barriles";
     private static final String ALERTA_EXITO = "bg-teal-50 border-teal-200 text-teal-800";
     private static final String SIN_PERMISOS = "No tiene permisos para realizar esta acción";
@@ -101,6 +103,9 @@ class EnvasadoLoteControllerTest {
 
     @MockitoBean
     private IBarrilServicio barrilServicio;
+
+    @MockitoBean
+    private IFabricanteBarrilServicio fabricanteBarrilServicio;
 
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
@@ -127,12 +132,14 @@ class EnvasadoLoteControllerTest {
         when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 barril(3L, "B-001", 50, "Barrilitos SA"), barril(4L, "B-002", 30, null))));
         when(barrilServicio.buscarPorId(3L)).thenReturn(barril(3L, "B-001", 50, "Barrilitos SA"));
+        when(fabricanteBarrilServicio.buscarPorId(1L)).thenReturn(FabricanteBarrilResponseDTO.builder().id(1L).nombre("Barrilitos SA").build());
+        when(fabricanteBarrilServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el fabricante de barril con ID: 99"));
     }
 
     // ==================== GET /lotes/{idLote}/envasados ====================
 
     @Test
-    @DisplayName("CP-LEN-01: la pantalla de envasados es una página con el título, el link Volver al lote, el código, el estado de la etapa, el indicador, el formulario de registro y la tabla, sin diálogo modal para registrar")
+    @DisplayName("CP-LEN-01: la pantalla de envasados es una página con el título, el link Volver al lote, el código, el estado de la etapa, el resumen, la lista de envasados y el botón Nuevo envasado, sin formulario de registro")
     void pantalla_debeMostrarLosBloques() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -143,7 +150,9 @@ class EnvasadoLoteControllerTest {
         // Assert
         assertThat(texto(html)).contains("Envasados", "LOT-R7-03", "En curso");
         assertThat(enlaceDe(html, "Volver al lote")).isEqualTo("/lotes/12?etapa=envasado");
-        assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
+        assertThat(html).contains("data-indicador-envasado").contains("data-envasados-registrados").contains("data-nuevo-envasado")
+                .doesNotContain("data-formulario-envasado").doesNotContain("name=\"cantidad\"").doesNotContain("data-selector");
+        assertThat(enlaceDe(html, "Nuevo envasado")).isEqualTo(URL_NUEVO);
         assertThat(cuenta(html, "<dialog")).isEqualTo(2);
         assertThat(html).contains("id=\"dialogo-anular\"").contains("id=\"dialogo-detalle-anulacion\"");
     }
@@ -180,7 +189,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-04: superar el volumen objetivo agrega un aviso informativo (no de error) y el formulario sigue visible")
+    @DisplayName("CP-LEN-04: superar el volumen objetivo agrega un aviso informativo (no de error) y el botón Nuevo envasado sigue visible")
     void pantalla_superoElVolumenObjetivo() throws Exception {
         // Arrange
         when(envasadoLoteServicio.resumirEnvasado(ETAPA_ENVASADO)).thenReturn(resumen(310, 330, 20, 10));
@@ -194,11 +203,11 @@ class EnvasadoLoteControllerTest {
         assertThat(texto(indicador)).contains("310 L de 330 L", "Quedan 20 L");
         assertThat(texto(aviso)).isEqualTo("El total envasado supera el volumen objetivo del lote (300 L)");
         assertThat(aviso).contains("bg-sky-50").doesNotContain("rose");
-        assertThat(html).contains("data-registrar-envasado");
+        assertThat(html).contains("data-nuevo-envasado");
     }
 
     @Test
-    @DisplayName("CP-LEN-05: con la capacidad útil alcanzada el indicador dice Quedan 0 L con el aviso correspondiente y el formulario sigue visible")
+    @DisplayName("CP-LEN-05: con la capacidad útil alcanzada el indicador dice Quedan 0 L con el aviso correspondiente y el botón Nuevo envasado sigue visible")
     void pantalla_capacidadUtilAlcanzada() throws Exception {
         // Arrange
         when(envasadoLoteServicio.resumirEnvasado(ETAPA_ENVASADO)).thenReturn(resumen(330, 330, 0, 30));
@@ -210,29 +219,34 @@ class EnvasadoLoteControllerTest {
         // Assert
         assertThat(texto(indicador)).contains("330 L de 330 L", "Quedan 0 L", "Se alcanzó la capacidad útil del fermentador");
         assertThat(indicador).contains("aria-valuenow=\"100\"");
-        assertThat(html).contains("data-registrar-envasado");
+        assertThat(html).contains("data-nuevo-envasado");
     }
 
     @Test
-    @DisplayName("CP-LEN-06: el formulario de registro es un POST con CSRF y novalidate, con el selector de barril (modal, sin alta ni quitar), la cantidad con placeholder, los asteriscos rojos y el botón Crear envasado")
-    void pantalla_formularioDeRegistro() throws Exception {
+    @DisplayName("CP-LEN-06: el formulario de un envasado nuevo es una página aparte con un POST con CSRF y novalidate, el selector de barril (modal, sin alta ni quitar), la cantidad con placeholder, los asteriscos rojos, Cancelar y el botón Crear envasado")
+    void formulario_estructura() throws Exception {
         // Act
-        String registrar = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-registrar-envasado");
+        String html = formulario(Rol.OPERARIO_DE_PRODUCCION);
+        String registrar = bloque(html, "data-formulario-envasado");
 
         // Assert
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(registrar);
         assertThat(formulario.find()).isTrue();
-        assertThat(formulario.group()).contains("method=\"post\"").contains("action=\"/lotes/12/envasados\"").contains("novalidate");
+        assertThat(formulario.group()).contains("method=\"post\"").contains("action=\"/lotes/12/envasados\"").contains("novalidate").contains("data-un-solo-envio");
         assertThat(registrar).contains("name=\"_csrf\"").contains("data-selector-buscar").contains("bi-list-ul")
                 .contains("data-buscador-url=\"" + URL_BUSCADOR + "\"").contains("placeholder=\"Seleccione barril\"")
                 .contains("name=\"idBarril\"").contains("name=\"cantidad\"").contains("placeholder=\"Ej: 50\"")
                 .contains("type=\"datetime-local\"").contains("name=\"fechaEnvasado\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select");
-        assertThat(texto(registrar)).contains("Barril *", "Cantidad a envasar (L) *", "Fecha y hora del envasado *", "Nuevo envasado", "Crear envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(4);
+        assertThat(texto(contenido(html))).contains("Nuevo envasado", "Lote LOT-R7-03", "Barril *", "Cantidad a envasar (L) *", "Fecha y hora del envasado *", "Cancelar", "Crear envasado");
+        assertThat(enlaceDe(html, "Volver a envasados")).isEqualTo(URL_PANTALLA);
+        assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA);
+        assertThat(cuenta(contenido(html), "text-rose-600")).isEqualTo(4);
         assertThat(registrar.indexOf("name=\"idBarril\"")).isLessThan(registrar.indexOf("name=\"cantidad\""));
         assertThat(registrar.indexOf("name=\"cantidad\"")).isLessThan(registrar.indexOf("name=\"fechaEnvasado\""));
         assertThat(textoDelSelector(registrar, "Seleccione barril")).isEmpty();
+        assertThat(html).doesNotContain("data-indicador-envasado").doesNotContain("data-envasados-registrados");
+        verifyNoInteractions(barrilServicio, envasadoLoteServicio);
     }
 
     @Test
@@ -246,6 +260,7 @@ class EnvasadoLoteControllerTest {
         assertThat(IntStream.of(10, 9, 8, 7).map(id -> registrados.indexOf("data-envasado=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
         assertThat(texto(registrados)).contains("Barril", "Cantidad (L)", "Fecha y hora", "Estado");
         assertThat(texto(registrados)).doesNotContain("Fecha de registro");
+        assertThat(registrados).contains("data-filtro-envasados").contains("name=\"estado\"").contains("Limpiar").contains("Buscar");
         assertThat(celdas(anulado, "B-004")).containsExactly("B-004", "30", "01/07/2027 09:50", "Anulado", "");
         assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url").doesNotContain("Barril equivocado</").contains("data-detalle-anulacion")
                 .contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-usuario=\"operario\"").contains("data-detalle-fecha=\"02/07/2027 09:30\"").contains("aria-label=\"Ver detalle de la anulación\"");
@@ -309,7 +324,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-11: con el Envasado fuera de curso la pantalla es de solo lectura: aviso, indicador y tabla, sin formulario, selector ni botones Anular")
+    @DisplayName("CP-LEN-11: con el Envasado fuera de curso la pantalla es de solo lectura: aviso, indicador y tabla, sin botón Nuevo envasado ni botones Anular")
     void pantalla_etapaQueNoEstaEnCurso() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, etapasEnCurso(TipoEtapa.HERVIDO)));
@@ -326,7 +341,7 @@ class EnvasadoLoteControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = EstadoLote.class, names = {"FINALIZADO", "CANCELADO"})
-    @DisplayName("CP-LEN-12: un lote cerrado se consulta sin operar: aviso de solo lectura y sin formulario ni botones Anular")
+    @DisplayName("CP-LEN-12: un lote cerrado se consulta sin operar: aviso de solo lectura y sin botón Nuevo envasado ni botones Anular")
     void pantalla_loteCerrado(EstadoLote estado) throws Exception {
         // Arrange
         stubDetalle(detalle(estado, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
@@ -414,15 +429,14 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-17: el formulario vacío redirige a la pantalla (Post-Redirect-Get) que se muestra completa con el resumen de errores y no invoca al service de registro")
+    @DisplayName("CP-LEN-17: el formulario vacío redirige al formulario (Post-Redirect-Get) que se muestra completo con el resumen de errores y no invoca al service de registro")
     void registrar_formularioVacio() throws Exception {
         // Act
         String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null, null));
 
         // Assert
-        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria", "La fecha y hora del envasado es obligatoria");
-        assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
-        assertThat(texto(bloque(html, "data-indicador-envasado"))).contains("120 L de 330 L");
+        assertThat(texto(bloque(html, "data-formulario-envasado"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria", "La fecha y hora del envasado es obligatoria");
+        assertThat(html).contains("data-formulario-envasado").doesNotContain("data-indicador-envasado").doesNotContain("data-envasados-registrados");
         verify(envasadoLoteServicio, never()).registrarEnvasadoLote(any(), any());
         verifyNoInteractions(barrilServicio);
     }
@@ -432,10 +446,9 @@ class EnvasadoLoteControllerTest {
     void registrar_cantidadNoNumerica() throws Exception {
         // Act
         String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc"));
-        String registrar = bloque(html, "data-registrar-envasado");
+        String registrar = bloque(html, "data-formulario-envasado");
 
         // Assert
-        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("Ingrese un número válido");
         assertThat(texto(registrar)).contains("Ingrese un número válido");
         assertThat(campo(registrar, "cantidad")).isEqualTo("abc");
         assertThat(campo(registrar, "idBarril")).isEqualTo("3");
@@ -448,7 +461,7 @@ class EnvasadoLoteControllerTest {
     @DisplayName("CP-LEN-19: sin barril muestra El barril es obligatorio debajo del selector y conserva la cantidad")
     void registrar_sinBarril() throws Exception {
         // Act
-        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, "50")), "data-registrar-envasado");
+        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, "50")), "data-formulario-envasado");
 
         // Assert
         assertThat(texto(registrar)).contains("El barril es obligatorio");
@@ -700,11 +713,11 @@ class EnvasadoLoteControllerTest {
         // Assert
         assertThat(cuenta(primera, "data-elegir")).isEqualTo(8);
         assertThat(texto(primera)).contains("10 barriles", "Página 1 de 2");
-        assertThat(enlaceDe(primera, "Siguiente")).isEqualTo(URL_BUSCADOR + "?pagina=1&identificadorInterno=B-0");
+        assertThat(enlaceDe(primera, "Siguiente")).isEqualTo(URL_BUSCADOR + "?pagina=1&identificadorInterno=B-0&numeroSerie=&capacidad=&idFabricante=");
         assertThat(primera).contains("data-modal-get=\"true\"");
         assertThat(cuenta(segunda, "data-elegir")).isEqualTo(2);
         assertThat(texto(segunda)).contains("Página 2 de 2");
-        assertThat(enlaceDe(segunda, "Anterior")).isEqualTo(URL_BUSCADOR + "?pagina=0&identificadorInterno=B-0");
+        assertThat(enlaceDe(segunda, "Anterior")).isEqualTo(URL_BUSCADOR + "?pagina=0&identificadorInterno=B-0&numeroSerie=&capacidad=&idFabricante=");
     }
 
     @Test
@@ -782,32 +795,34 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-46: sin JavaScript el registro es un formulario POST con action y CSRF, novalidate, data-un-solo-envio y sin required, min ni pattern; solo el selector del barril y el diálogo de motivo usan modales.js")
+    @DisplayName("CP-LEN-46: sin JavaScript el registro es un formulario POST con action y CSRF, novalidate, data-un-solo-envio y sin required, min ni pattern; la lista solo tiene el filtro GET y el diálogo de motivo, y el formulario usa modales.js y envasado-form.js")
     void transversal_sinJavaScript() throws Exception {
         // Act
-        String html = html(Rol.OPERARIO_DE_PRODUCCION);
+        String formulario = formulario(Rol.OPERARIO_DE_PRODUCCION);
+        String lista = html(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
-        Matcher formularios = Pattern.compile("<form[^>]*>").matcher(contenido(html));
-        List<String> etiquetas = new ArrayList<>();
-        while (formularios.find()) {
-            etiquetas.add(formularios.group());
-        }
-        assertThat(etiquetas).hasSize(2);
-        assertThat(etiquetas).allSatisfy(form -> assertThat(form).contains("method=\"post\"").contains("action=\"").contains("novalidate").contains("data-un-solo-envio"));
-        assertThat(cuenta(contenido(html), "name=\"_csrf\"")).isEqualTo(2);
-        assertThat(html).doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=")
-                .contains("/js/modales.js").contains("/js/envasado-lista.js");
+        List<String> enFormulario = etiquetasDeFormulario(contenido(formulario));
+        assertThat(enFormulario).hasSize(1);
+        assertThat(enFormulario.get(0)).contains("method=\"post\"").contains("action=\"/lotes/12/envasados\"").contains("novalidate").contains("data-un-solo-envio");
+        assertThat(cuenta(contenido(formulario), "name=\"_csrf\"")).isEqualTo(1);
+        assertThat(formulario).doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=")
+                .contains("/js/modales.js").contains("/js/envasado-form.js");
+        List<String> enLista = etiquetasDeFormulario(contenido(lista));
+        assertThat(enLista).hasSize(2);
+        assertThat(enLista.get(0)).contains("method=\"get\"").contains("novalidate").contains("data-filtro-envasados");
+        assertThat(enLista.get(1)).contains("method=\"post\"").contains("action=\"").contains("novalidate").contains("data-un-solo-envio");
+        assertThat(lista).doesNotContain("/js/envasado-form.js").doesNotContain("/js/envasado-lista.js").contains("/js/modales.js");
     }
 
     @Test
-    @DisplayName("CP-LEN-50: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en la pantalla de envasados, sin 405 ni bucle")
+    @DisplayName("CP-LEN-50: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en el formulario de envasado, sin 405 ni bucle")
     void transversal_errorDeValidacionYLuegoRechazoDelService() throws Exception {
         // Arrange
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException("El barril no está disponible"));
 
         // Act: 1) el formulario es inválido y el navegador vuelve a la pantalla
-        MvcResult invalido = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", null).header("Referer", URL_PANTALLA))
+        MvcResult invalido = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", null).header("Referer", URL_NUEVO))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();
         String ubicacion = invalido.getResponse().getRedirectedUrl();
@@ -822,8 +837,8 @@ class EnvasadoLoteControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(ubicacion).isEqualTo(URL_PANTALLA);
-        assertThat(destino).isEqualTo(URL_PANTALLA);
+        assertThat(ubicacion).isEqualTo(URL_NUEVO);
+        assertThat(destino).isEqualTo(URL_NUEVO);
         assertThat(texto(html)).contains("El barril no está disponible");
     }
 
@@ -831,7 +846,7 @@ class EnvasadoLoteControllerTest {
     @DisplayName("CP-LEN-52: sin fecha y hora del envasado muestra La fecha y hora del envasado es obligatoria debajo del campo, conserva el barril y la cantidad y no invoca al service de registro")
     void registrar_sinFechaYHora() throws Exception {
         // Act
-        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50", null)), "data-registrar-envasado");
+        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50", null)), "data-formulario-envasado");
 
         // Assert
         assertThat(texto(registrar)).contains("La fecha y hora del envasado es obligatoria");
@@ -841,7 +856,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-53: un rechazo del service sobre la fecha (campo fechaEnvasado) vuelve a la pantalla con el error debajo del campo y lo escrito, sin alerta amarilla")
+    @DisplayName("CP-LEN-53: un rechazo del service sobre la fecha (campo fechaEnvasado) vuelve al formulario con el error debajo del campo y lo escrito, sin alerta amarilla")
     void registrar_rechazoDelServiceEnElCampoFecha() throws Exception {
         // Arrange
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any()))
@@ -850,15 +865,14 @@ class EnvasadoLoteControllerTest {
         // Act
         MvcResult rechazado = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL_PANTALLA))
+                .andExpect(redirectedUrl(URL_NUEVO))
                 .andExpect(flash().attributeCount(2))
                 .andReturn();
-        String html = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(rechazado.getFlashMap()))
+        String html = mockMvc.perform(get(URL_NUEVO).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(rechazado.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String registrar = bloque(html, "data-registrar-envasado");
+        String registrar = bloque(html, "data-formulario-envasado");
 
         // Assert
-        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote");
         assertThat(texto(registrar)).contains("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote");
         assertThat(campo(registrar, "fechaEnvasado")).isEqualTo("2026-01-15T10:00:00");
         assertThat(campo(registrar, "cantidad")).isEqualTo("50");
@@ -871,6 +885,7 @@ class EnvasadoLoteControllerTest {
         // Act + Assert: las pantallas vuelven al origen con un aviso, sin error inesperado
         List<MockHttpServletRequestBuilder> pantallas = List.of(
                 get("/lotes/abc/envasados"),
+                get("/lotes/abc/envasados/nuevo"),
                 get(URL_PANTALLA).param("pagina", "xyz"),
                 post(URL_PANTALLA + "/xyz/anular").with(csrf()).param("motivo", "Error de carga"));
         for (MockHttpServletRequestBuilder pantalla : pantallas) {
@@ -886,23 +901,28 @@ class EnvasadoLoteControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType("text/plain;charset=UTF-8"))
                 .andExpect(content().string("El valor indicado no es válido"));
+        mockMvc.perform(get(URL_BUSCADOR).param("capacidad", "abc").with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", URL_PANTALLA))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("El valor indicado no es válido"));
         verifyNoInteractions(envasadoLoteServicio, barrilServicio);
     }
 
     @Test
-    @DisplayName("CP-LEN-47: el selector y la cantidad llevan asterisco rojo y placeholder de ejemplo, la unidad va en la etiqueta y en la cabecera, y la pantalla no tiene emojis ni alertas con punto final")
+    @DisplayName("CP-LEN-47: el selector y la cantidad llevan asterisco rojo y placeholder de ejemplo, la unidad va en la etiqueta y en la cabecera, y las pantallas no tienen emojis ni alertas con punto final")
     void transversal_ayudasVisuales() throws Exception {
         // Act
+        String formulario = formulario(Rol.OPERARIO_DE_PRODUCCION);
         List<String> paginas = List.of(
                 html(Rol.OPERARIO_DE_PRODUCCION),
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
                                 .flashAttr("mensaje", "Envasado creado correctamente").flashAttr("tipo", "success"))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
+                formulario,
                 enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc")));
 
         // Assert
-        String registrar = bloque(paginas.get(0), "data-registrar-envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(4);
+        String registrar = bloque(formulario, "data-formulario-envasado");
+        assertThat(cuenta(contenido(formulario), "text-rose-600")).isEqualTo(4);
         assertThat(registrar).contains("placeholder=\"Seleccione barril\"").contains("placeholder=\"Ej: 50\"").contains("placeholder=\"Ej: 31/10/2026 08:30\"");
         assertThat(texto(registrar)).contains("Cantidad a envasar (L) *");
         assertThat(texto(bloque(paginas.get(0), "data-envasados-registrados"))).contains("Cantidad (L)");
@@ -923,6 +943,7 @@ class EnvasadoLoteControllerTest {
         // Arrange
         List<EndpointDeEnvasado> endpoints = List.of(
                 new EndpointDeEnvasado("GET pantalla", Permiso.ENVASADO_CONSULTAR, () -> get(URL_PANTALLA)),
+                new EndpointDeEnvasado("GET formulario", Permiso.ENVASADO_REGISTRAR, () -> get(URL_NUEVO)),
                 new EndpointDeEnvasado("POST registrar", Permiso.ENVASADO_REGISTRAR, () -> post(URL_PANTALLA).param("idBarril", "3").param("cantidad", "50").param("fechaEnvasado", FECHA_ENVASADO)),
                 new EndpointDeEnvasado("POST anular", Permiso.ENVASADO_ANULAR, () -> post(URL_PANTALLA + "/9/anular").param("motivo", "Error de carga")),
                 new EndpointDeEnvasado("GET buscador", Permiso.ENVASADO_REGISTRAR, () -> get(URL_BUSCADOR)));
@@ -963,19 +984,35 @@ class EnvasadoLoteControllerTest {
         }
     }
 
+    private String formulario(Rol rol) throws Exception {
+        return mockMvc.perform(get(URL_NUEVO).with(como(rol)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/envasado-form"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    private static List<String> etiquetasDeFormulario(String html) {
+        Matcher formularios = Pattern.compile("<form[^>]*>").matcher(html);
+        List<String> etiquetas = new ArrayList<>();
+        while (formularios.find()) {
+            etiquetas.add(formularios.group());
+        }
+        return etiquetas;
+    }
+
     private String html(Rol rol) throws Exception {
         return mockMvc.perform(get(URL_PANTALLA).with(como(rol))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     /**
-     * Envía un formulario inválido y sigue la redirección como lo hace el navegador: el Post-Redirect-Get vuelve a la
-     * pantalla de envasados con los errores y lo escrito en los atributos flash, y esa pantalla es la que se devuelve.
+     * Envía un formulario inválido y sigue la redirección como lo hace el navegador: el Post-Redirect-Get vuelve al
+     * formulario de envasado con los errores y lo escrito en los atributos flash, y esa pantalla es la que se devuelve.
      */
     private String enviarConErroresYVolver(MockHttpServletRequestBuilder envio) throws Exception {
-        MvcResult enviado = mockMvc.perform(envio).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL_PANTALLA)).andReturn();
-        return mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(enviado.getFlashMap()))
+        MvcResult enviado = mockMvc.perform(envio).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL_NUEVO)).andReturn();
+        return mockMvc.perform(get(URL_NUEVO).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(enviado.getFlashMap()))
                 .andExpect(status().isOk())
-                .andExpect(view().name("lote/envasado-lista"))
+                .andExpect(view().name("lote/envasado-form"))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
@@ -1030,15 +1067,16 @@ class EnvasadoLoteControllerTest {
     }
 
     /**
-     * La pantalla de solo lectura: el indicador y los envasados registrados se ven, pero no hay formulario de registro,
-     * campo de cantidad, selector ni botones Anular.
+     * La pantalla de solo lectura: el indicador y los envasados registrados se ven (con su filtro de estado), pero no hay
+     * botón Nuevo envasado, formulario, campo de cantidad, selector ni botones Anular.
      */
     private static void assertSoloLectura(String html) {
-        assertThat(html).contains("data-indicador-envasado").contains("data-envasados-registrados")
-                .doesNotContain("data-registrar-envasado").doesNotContain("name=\"cantidad\"")
+        assertThat(html).contains("data-indicador-envasado").contains("data-envasados-registrados").contains("data-filtro-envasados")
+                .doesNotContain("data-nuevo-envasado").doesNotContain("name=\"cantidad\"")
                 .doesNotContain("data-selector").doesNotContain("data-motivo-url").doesNotContain("dialogo-anular");
-        assertThat(contenido(html)).doesNotContain("<form").doesNotContain("<button");
-        assertThat(texto(contenido(html))).doesNotContain("Anular").doesNotContain("Nuevo envasado").doesNotContain("Crear envasado");
+        String sinFiltro = contenido(html).replaceAll("(?s)<form[^>]*data-filtro-envasados.*?</form>", "");
+        assertThat(sinFiltro).doesNotContain("<form").doesNotContain("<button");
+        assertThat(texto(sinFiltro)).doesNotContain("Anular").doesNotContain("Nuevo envasado").doesNotContain("Crear envasado");
     }
 
     /**

@@ -92,20 +92,27 @@ public class ClienteController {
     }
 
     /**
-     * Devuelve el contenido del modal de búsqueda de clientes (criterio de nombre + resultados con "Elegir"), que usa el
+     * Devuelve el contenido del modal de búsqueda de clientes (criterios de nombre, dirección y localidad + resultados con "Elegir"), que usa el
      * selector de cliente del despacho de un barril. No ofrece alta al vuelo.
      */
     @GetMapping("/buscador")
     @PreAuthorize("hasRole('ENCARGADO_DE_DISTRIBUCION')")
     public String buscarClientes(@RequestParam(required = false) String nombre,
+                                 @RequestParam(required = false) String direccion,
+                                 @RequestParam(required = false) Long idLocalidad,
                                  @RequestParam(defaultValue = "0") int pagina,
                                  Model model) {
+        LocalidadResponseDTO localidadFiltrada = buscarLocalidad(idLocalidad);
+        Long idLocalidadVigente = localidadFiltrada == null ? null : idLocalidad;
         Page<ClienteResponseDTO> clientes = clienteServicio.filtrarClientes(
-                vacioANulo(nombre), null, null,
+                vacioANulo(nombre), vacioANulo(direccion), idLocalidadVigente,
                 PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
 
         model.addAttribute("clientes", clientes);
         model.addAttribute("filtroNombre", nombre);
+        model.addAttribute("filtroDireccion", direccion);
+        model.addAttribute("filtroIdLocalidad", idLocalidadVigente);
+        model.addAttribute("filtroLocalidadTexto", localidadFiltrada == null ? null : localidadFiltrada.getNombre());
         return VISTA_BUSCADOR;
     }
 

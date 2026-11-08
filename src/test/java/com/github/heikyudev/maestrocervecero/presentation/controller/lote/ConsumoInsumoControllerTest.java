@@ -934,7 +934,7 @@ class ConsumoInsumoControllerTest {
         String html = buscadorDeInsumos("directo", null);
 
         // Assert
-        assertThat(html).doesNotContain("<html").doesNotContain("<select").doesNotContain("<option");
+        assertThat(html).doesNotContain("<html").containsOnlyOnce("<select").contains("name=\"tipo\"");
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_PANTALLA + "/directo/buscador/insumos\"").contains("method=\"get\"");
@@ -1121,6 +1121,22 @@ class ConsumoInsumoControllerTest {
         assertThat(marca.group()).contains("data-tooltip=\"Venció el 01/01/2020\"").contains("tabindex=\"0\"");
         assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-vencido");
         assertThat(cuenta(consumos, "data-vencido")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-103: el buscador de insumos filtra también por tipo de insumo (Malta, Lúpulo o Levadura), conserva el tipo elegido y con Todos no filtra por tipo")
+    void buscadorDeInsumos_filtraPorTipo() throws Exception {
+        // Act
+        String lupulos = mockMvc.perform(get(URL_PANTALLA + "/directo/buscador/insumos").param("tipo", "LUPULO").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String maltas = mockMvc.perform(get(URL_PANTALLA + "/directo/buscador/insumos").param("tipo", "MALTA").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String todos = buscadorDeInsumos("directo", null);
+
+        // Assert
+        assertThat(lupulos).containsPattern("<option value=\"LUPULO\"[^>]*selected").contains("data-texto=\"Cascade\"");
+        assertThat(maltas).containsPattern("<option value=\"MALTA\"[^>]*selected").doesNotContain("data-texto=\"Cascade\"");
+        assertThat(todos).contains("data-texto=\"Cascade\"").doesNotContainPattern("<option value=\"[A-Z]+\"[^>]*selected");
     }
 
     // ==================== GET .../consumos/{reservado|directo}/buscador/lotes-insumo ====================

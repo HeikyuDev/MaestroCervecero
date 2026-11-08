@@ -1,5 +1,5 @@
 /*
- * Pantalla de envasados del lote: muestra los datos del barril que se elige para registrar el envasado.
+ * Formulario de un envasado nuevo: muestra los datos del barril que se elige para registrar el envasado.
  *
  * No valida nada (el servidor es el único que valida). Cuando el selector del barril emite 'selector:cambio'
  * (comportamiento de /js/modales.js), completa [data-barril-elegido] con el fabricante y la capacidad que trae el
@@ -9,7 +9,7 @@
     'use strict';
 
     document.addEventListener('selector:cambio', function (evento) {
-        var panel = evento.target.closest('[data-registrar-envasado]');
+        var panel = evento.target.closest('[data-formulario-envasado]');
         var resumen = panel ? panel.querySelector('[data-barril-elegido]') : null;
         if (!resumen) { return; }
 

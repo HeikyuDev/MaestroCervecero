@@ -428,7 +428,7 @@ class BarrilControllerTest {
         mockMvc.perform(get(BUSCADOR_FABRICANTES))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<table class=\"tabla-buscador\">")))
-                .andExpect(content().string(matchesPattern("(?s).*<td class=\"px-4 py-3 font-medium text-slate-900\"\\s*>" + nombreLargo + "</td>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"px-3 py-3 font-medium text-slate-900\"\\s*>" + nombreLargo + "</td>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-elegir[^>]*data-id=\"2\"[^>]*data-texto=\"" + nombreLargo + "\".*>Elegir</button>.*")));
     }
 

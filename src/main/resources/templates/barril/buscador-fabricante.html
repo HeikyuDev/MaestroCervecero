@@ -17,39 +17,43 @@
     </div>
 
     <form th:action="@{/barriles/buscador/fabricantes}" method="get" data-modal-buscar
-          class="p-6 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+          class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
         <div>
             <label for="buscador-nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
             <input type="text" id="buscador-nombre" name="nombre" th:value="${filtroNombre}" autofocus autocomplete="off" placeholder="Ej: Tonelería del Sur"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
-        <button type="submit"
-                class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-            <i class="bi bi-search"></i> Buscar
-        </button>
+        <div class="sm:col-span-2 flex items-center justify-end gap-3">
+            <button type="submit"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="tabla-buscador">
+        <div class="contenedor-buscador">
+<table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3 text-right"></th>
+                <th class="px-3 py-3">Nombre</th>
+                <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="f : ${fabricantes.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${f.nombre}">Tonelería del Sur</td>
-                <td class="px-4 py-3 text-right">
+                <td class="px-3 py-3 font-medium text-slate-900" th:text="${f.nombre}">Tonelería del Sur</td>
+                <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${f.id}" th:data-texto="${f.nombre}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
             <tr th:if="${fabricantes.empty}">
-                <td colspan="2" class="px-4 py-8 text-center text-slate-400">No se encontraron fabricantes de barril con los criterios indicados</td>
+                <td colspan="2" class="px-3 py-8 text-center text-slate-400">No se encontraron fabricantes de barril con los criterios indicados</td>
             </tr>
             </tbody>
         </table>
+</div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${fabricantes}, 'fabricante|fabricantes',
                 ${fabricantes.hasPrevious()} ? @{/barriles/buscador/fabricantes(pagina=${fabricantes.number - 1}, nombre=${filtroNombre})} : null,

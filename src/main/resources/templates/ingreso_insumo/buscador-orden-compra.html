@@ -37,7 +37,7 @@
             <input type="date" id="buscador-fecha-entrega" name="fechaEntregaEstimada" th:value="${filtroFechaEntregaEstimada}" autocomplete="off" placeholder="Ej: 15/07/2027"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
-        <div class="flex justify-end">
+        <div class="sm:col-span-2 flex items-center justify-end gap-3">
             <button type="submit"
                     class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                 <i class="bi bi-search"></i> Buscar
@@ -46,14 +46,15 @@
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="tabla-buscador">
+        <div class="contenedor-buscador">
+<table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
                 <th class="px-3 py-3 whitespace-nowrap">N.º</th>
                 <th class="px-3 py-3 whitespace-nowrap">Planificación</th>
                 <th class="px-3 py-3 whitespace-nowrap">Proveedor</th>
                 <th class="px-3 py-3 whitespace-nowrap">Entrega estimada</th>
-                <th class="px-3 py-3 text-right"></th>
+                <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -66,16 +67,17 @@
                     <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${o.proveedor.razonSocial}" th:text="${o.proveedor.razonSocial}">Malterías del Sur S.A.</div>
                 </td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></td>
-                <td class="px-3 py-3 text-right">
+                <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${o.id}" th:data-texto="${textosPorId.get(o.id)}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
             <tr th:if="${ordenes.empty}">
-                <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron órdenes de compra pendientes con los criterios indicados</td>
+                <td colspan="5" class="px-3 py-8 text-center text-slate-400">No se encontraron órdenes de compra pendientes con los criterios indicados</td>
             </tr>
             </tbody>
         </table>
+</div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${ordenes}, 'orden de compra|órdenes de compra',
                 ${ordenes.hasPrevious()} ? @{${urlBuscador}(pagina=${ordenes.number - 1}, idProveedor=${filtroIdProveedor}, idPlanificacion=${filtroIdPlanificacion}, fechaEntregaEstimada=${filtroFechaEntregaEstimada})} : null,

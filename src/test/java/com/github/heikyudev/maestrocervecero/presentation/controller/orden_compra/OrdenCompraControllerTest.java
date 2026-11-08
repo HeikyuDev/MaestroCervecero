@@ -16,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOr
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
@@ -28,6 +29,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.Cata
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.PresentacionComercialResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleMaltaResponseDTO;
@@ -51,6 +53,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.LinkedMultiValueMap;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -106,6 +109,9 @@ class OrdenCompraControllerTest {
 
     @MockitoBean
     private IRecetaServicio recetaServicio;
+
+    @MockitoBean
+    private ILocalidadServicio localidadServicio;
 
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
@@ -1144,7 +1150,7 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString(">30-71234567-8<")))
                 .andExpect(content().string(containsString("data-id=\"4\"")))
                 .andExpect(content().string(containsString("data-texto=\"Malterías del Sur S.A. (30-71234567-8)\"")))
-                .andExpect(content().string(containsString("/ordenes-compra/buscador/proveedores?pagina=0&amp;razonSocial=malter%C3%ADas&amp;cuit=30712345678")));
+                .andExpect(content().string(containsString("/ordenes-compra/buscador/proveedores?pagina=0&amp;razonSocial=malter%C3%ADas&amp;nombreComercial=&amp;cuit=30712345678&amp;idLocalidad=")));
 
         // Assert
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
@@ -1152,6 +1158,49 @@ class OrdenCompraControllerTest {
         assertThat(captor.getValue().getPageSize()).isEqualTo(8);
         assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
         assertThat(captor.getValue().getSort()).isEqualTo(Sort.unsorted());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-60: el buscador de proveedores filtra también por nombre comercial y localidad (los criterios de Gestión de Proveedores), muestra esas columnas y los links de paginación conservan todos los criterios")
+    void caso_cp_occ_60() throws Exception {
+        // Arrange
+        when(proveedorServicio.filtrarProveedores(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(proveedor()), PageRequest.of(1, 8), 20));
+        when(localidadServicio.buscarPorId(9L)).thenReturn(LocalidadResponseDTO.builder().id(9L).nombre("Río Cuarto").build());
+        when(localidadServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la localidad con ID: 99"));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/proveedores").param("nombreComercial", " del sur ").param("idLocalidad", "9").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        mockMvc.perform(get(URL + "/buscador/proveedores").param("idLocalidad", "99")).andExpect(status().isOk());
+
+        // Assert
+        assertThat(html).contains("name=\"nombreComercial\"").contains("placeholder=\"Ej: Malterías del Sur\"")
+                .contains("name=\"idLocalidad\"").contains("data-buscador-url=\"/ubicaciones/localidades/buscador\"").contains("value=\"Río Cuarto\"")
+                .contains(">Nombre comercial<").contains(">Localidad<").contains(">Malterías del Sur<")
+                .contains("/ordenes-compra/buscador/proveedores?pagina=0&amp;razonSocial=&amp;nombreComercial=del%20sur&amp;cuit=&amp;idLocalidad=9");
+        verify(proveedorServicio).filtrarProveedores(isNull(), eq("del sur"), isNull(), eq(9L), any());
+        verify(proveedorServicio).filtrarProveedores(isNull(), isNull(), isNull(), isNull(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/buscador/planificaciones", "/filtros/planificaciones"})
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-61: los buscadores de planificación del formulario y del filtro filtran también por fecha de inicio (el criterio de Gestión de Planificaciones), conservan la fecha escrita y los links de paginación la conservan")
+    void caso_cp_occ_61(String ruta) throws Exception {
+        // Arrange
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion()), PageRequest.of(1, 8), 20));
+
+        // Act
+        String html = mockMvc.perform(get(URL + ruta).param("fechaInicio", "2027-07-01").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("type=\"date\"").contains("name=\"fechaInicio\"").contains("value=\"2027-07-01\"")
+                .contains("pagina=0&amp;idReceta=&amp;fechaInicio=2027-07-01");
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), any(), eq(LocalDate.of(2027, 7, 1)), any());
     }
 
     // ==================== Buscador de ítems ====================

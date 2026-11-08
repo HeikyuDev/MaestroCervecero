@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOr
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
@@ -19,6 +20,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.Prov
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
@@ -100,6 +102,7 @@ public class OrdenCompraController {
     private final IPlanificacionProduccionServicio planificacionServicio;
     private final IProveedorServicio proveedorServicio;
     private final IRecetaServicio recetaServicio;
+    private final ILocalidadServicio localidadServicio;
 
     // ==================== Listado ====================
 
@@ -242,10 +245,11 @@ public class OrdenCompraController {
     @GetMapping("/buscador/planificaciones")
     @PreAuthorize(SOLO_GERENTE)
     public String buscarPlanificaciones(@RequestParam(required = false) Long idReceta,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
         cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarPorId), idReceta,
-                EstadoSolicitud.PENDIENTE, pagina, URL_BUSCADOR_PLANIFICACIONES, URL_BUSCADOR_RECETAS,
+                fechaInicio, EstadoSolicitud.PENDIENTE, pagina, URL_BUSCADOR_PLANIFICACIONES, URL_BUSCADOR_RECETAS,
                 "Filtre y elija la planificación pendiente de la compra.");
         return VISTA_BUSCADOR_PLANIFICACION;
     }
@@ -273,19 +277,38 @@ public class OrdenCompraController {
     @GetMapping("/buscador/proveedores")
     @PreAuthorize(GERENTE_O_ENCARGADO)
     public String buscarProveedores(@RequestParam(required = false) String razonSocial,
+                                    @RequestParam(required = false) String nombreComercial,
                                     @RequestParam(required = false) String cuit,
+                                    @RequestParam(required = false) Long idLocalidad,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
+        LocalidadResponseDTO localidadFiltrada = buscarLocalidad(idLocalidad);
+        Long idLocalidadVigente = localidadFiltrada == null ? null : idLocalidad;
         Page<ProveedorResponseDTO> proveedores = proveedorServicio.filtrarProveedores(
-                vacioANulo(razonSocial), null, vacioANulo(cuit), null, paginaDeBuscador(pagina));
+                vacioANulo(razonSocial), vacioANulo(nombreComercial), vacioANulo(cuit), idLocalidadVigente, paginaDeBuscador(pagina));
         Map<Long, String> textosPorId = new HashMap<>();
         proveedores.forEach(proveedor -> textosPorId.put(proveedor.getId(), textoDeProveedor(proveedor.getVersion())));
 
         model.addAttribute("proveedores", proveedores);
         model.addAttribute("textosPorId", textosPorId);
         model.addAttribute("filtroRazonSocial", vacioANulo(razonSocial));
+        model.addAttribute("filtroNombreComercial", vacioANulo(nombreComercial));
         model.addAttribute("filtroCuit", vacioANulo(cuit));
+        model.addAttribute("filtroIdLocalidad", idLocalidadVigente);
+        model.addAttribute("filtroLocalidadTexto", localidadFiltrada == null ? null : localidadFiltrada.getNombre());
         return VISTA_BUSCADOR_PROVEEDOR;
+    }
+
+    /** La localidad elegida en el buscador, o {@code null} si no hay selección o ya no existe. */
+    private LocalidadResponseDTO buscarLocalidad(Long idLocalidad) {
+        if (idLocalidad == null) {
+            return null;
+        }
+        try {
+            return localidadServicio.buscarPorId(idLocalidad);
+        } catch (RecursoNoEncontradoException e) {
+            return null;
+        }
     }
 
     /**
@@ -338,10 +361,11 @@ public class OrdenCompraController {
     @GetMapping("/filtros/planificaciones")
     @PreAuthorize(GERENTE_O_ENCARGADO)
     public String filtrarPlanificaciones(@RequestParam(required = false) Long idReceta,
+                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                          @RequestParam(defaultValue = "0") int pagina,
                                          Model model) {
         cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId),
-                idReceta, null, pagina, URL_FILTRO_PLANIFICACIONES, URL_FILTRO_RECETAS,
+                idReceta, fechaInicio, null, pagina, URL_FILTRO_PLANIFICACIONES, URL_FILTRO_RECETAS,
                 "Filtre y elija la planificación de las órdenes de compra.");
         return VISTA_BUSCADOR_PLANIFICACION;
     }
@@ -456,13 +480,14 @@ public class OrdenCompraController {
      * cualquiera) de la receta elegida, de a {@code TAMANIO_PAGINA_BUSCADOR} y con la última registrada arriba, y el selector de receta con la URL de
      * su propio buscador. Si la receta no se resolvió, se busca sin filtrar por receta y el selector queda en blanco.
      */
-    private void cargarBuscadorDePlanificaciones(Model model, RecetaResponseDTO receta, Long idReceta, EstadoSolicitud estado, int pagina,
+    private void cargarBuscadorDePlanificaciones(Model model, RecetaResponseDTO receta, Long idReceta, LocalDate fechaInicio, EstadoSolicitud estado, int pagina,
                                                  String urlBuscador, String urlBuscadorRecetas, String subtitulo) {
         Long idRecetaFiltro = receta != null ? idReceta : null;
         model.addAttribute("planificaciones", planificacionServicio.filtrarPlanificacionesProduccion(
-                idRecetaFiltro, estado, null,
+                idRecetaFiltro, estado, fechaInicio,
                 PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroFechaInicio", fechaInicio);
         model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
         model.addAttribute("urlBuscador", urlBuscador);
         model.addAttribute("urlBuscadorRecetas", urlBuscadorRecetas);

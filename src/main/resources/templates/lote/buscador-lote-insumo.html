@@ -29,14 +29,14 @@
 
     <th:block th:if="${mensajeBuscador == null}">
         <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
-              class="p-6 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+              class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <input type="hidden" name="idInsumo" th:value="${idInsumo}">
             <div>
                 <label for="buscador-identificacion" class="block text-xs font-medium text-slate-500 mb-1">Identificación del lote</label>
                 <input type="text" id="buscador-identificacion" name="identificacion" th:value="${filtroIdentificacion}" autocomplete="off" placeholder="Ej: L-125"
                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
             </div>
-            <div class="flex justify-end">
+            <div class="sm:col-span-2 flex items-center justify-end gap-3">
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                     <i class="bi bi-search"></i> Buscar
@@ -45,13 +45,14 @@
         </form>
 
         <div class="border-t border-slate-100">
-            <table class="tabla-buscador">
+            <div class="contenedor-buscador">
+<table class="tabla-buscador">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                     <th class="px-3 py-3 whitespace-nowrap">Lote</th>
                     <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
                     <th class="px-3 py-3 whitespace-nowrap" th:text="${tituloCantidad}">Disponible</th>
-                    <th class="px-3 py-3 text-right"></th>
+                    <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -63,7 +64,7 @@
                         <span th:if="${l.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
                     </td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.cantidad}, ${l.insumo.unidadDeMedida.simbolo})}"></th:block></td>
-                    <td class="px-3 py-3 text-right">
+                    <td class="col-acciones px-3 py-3 text-right">
                         <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.identificacionLoteProveedor}"
                                 th:data-vencimiento="${l.fechaVencimiento != null} ? ${#temporals.format(l.fechaVencimiento, 'dd/MM/yyyy')} : '-'"
                                 th:data-cantidad="${(f.cantidad == f.cantidad.intValue() ? #numbers.formatInteger(f.cantidad.intValue(), 1, 'POINT') : #strings.replace(f.cantidad, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
@@ -73,10 +74,11 @@
                     </td>
                 </tr>
                 <tr th:if="${filas.empty}">
-                    <td colspan="4" class="px-4 py-8 text-center text-slate-400">No se encontraron lotes de insumo con los criterios indicados</td>
+                    <td colspan="4" class="px-3 py-8 text-center text-slate-400">No se encontraron lotes de insumo con los criterios indicados</td>
                 </tr>
                 </tbody>
             </table>
+</div>
 
             <div th:replace="~{fragments/paginacion :: paginacion(${filas}, 'lote de insumo|lotes de insumo',
                     ${filas.hasPrevious()} ? @{${urlBuscador}(pagina=${filas.number - 1}, idInsumo=${idInsumo}, identificacion=${filtroIdentificacion})} : null,

@@ -28,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -282,16 +283,18 @@ public class CronogramaController {
     @GetMapping("/buscador/planificaciones")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String buscarPlanificaciones(@RequestParam(required = false) Long idReceta,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
         RecetaResponseDTO receta = recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId);
         Long idRecetaFiltro = receta != null ? idReceta : null;
         Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_MAS_RECIENTE_PRIMERO);
         Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio
-                .filtrarPlanificacionesProduccion(idRecetaFiltro, null, null, pageable);
+                .filtrarPlanificacionesProduccion(idRecetaFiltro, null, fechaInicio, pageable);
 
         model.addAttribute("planificaciones", planificaciones);
         model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroFechaInicio", fechaInicio);
         model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
         model.addAttribute("urlBuscadorRecetas", URL_BUSCADOR_RECETAS);
         return VISTA_BUSCADOR_PLANIFICACION;

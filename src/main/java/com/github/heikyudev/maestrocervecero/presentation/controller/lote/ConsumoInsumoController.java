@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -345,8 +346,9 @@ public class ConsumoInsumoController {
     public String buscarInsumosReservados(@PathVariable Long idLote,
                                           @PathVariable String etapa,
                                           @RequestParam(required = false) String nombre,
+                                          @RequestParam(required = false) TipoInsumo tipo,
                                           Model model) {
-        return buscarInsumos(idLote, etapa, TipoConsumo.RESERVADO, nombre, model);
+        return buscarInsumos(idLote, etapa, TipoConsumo.RESERVADO, nombre, tipo, model);
     }
 
     /**
@@ -358,11 +360,12 @@ public class ConsumoInsumoController {
     public String buscarInsumosDirectos(@PathVariable Long idLote,
                                         @PathVariable String etapa,
                                         @RequestParam(required = false) String nombre,
+                                        @RequestParam(required = false) TipoInsumo tipo,
                                         Model model) {
-        return buscarInsumos(idLote, etapa, TipoConsumo.DIRECTO, nombre, model);
+        return buscarInsumos(idLote, etapa, TipoConsumo.DIRECTO, nombre, tipo, model);
     }
 
-    private String buscarInsumos(Long idLote, String etapa, TipoConsumo tipoConsumo, String nombre, Model model) {
+    private String buscarInsumos(Long idLote, String etapa, TipoConsumo tipoConsumo, String nombre, TipoInsumo tipoInsumo, Model model) {
         TipoEtapa tipo = aEtapa(etapa);
         String rechazo = motivoDeRechazo(tipo);
         if (rechazo != null) {
@@ -382,12 +385,14 @@ public class ConsumoInsumoController {
         List<FilaDeInsumo> filas = ofrecidos.stream()
                 .filter(requerido -> criterio == null
                         || requerido.getInsumo().getNombre().toLowerCase(Locale.ROOT).contains(criterio.toLowerCase(Locale.ROOT)))
+                .filter(requerido -> tipoInsumo == null || tipoDeInsumo(requerido.getInsumo()).equals(etiquetaDe(tipoInsumo)))
                 .map(requerido -> new FilaDeInsumo(requerido, tipoDeInsumo(requerido.getInsumo())))
                 .toList();
 
         model.addAttribute("filas", filas);
         model.addAttribute("reservado", tipoConsumo == TipoConsumo.RESERVADO);
         model.addAttribute("filtroNombre", nombre);
+        model.addAttribute("filtroTipo", tipoInsumo);
         model.addAttribute("urlBuscador", urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/buscador/insumos");
         return VISTA_BUSCADOR_INSUMO;
     }
@@ -488,6 +493,15 @@ public class ConsumoInsumoController {
         return requeridos.stream()
                 .filter(requerido -> requerido.getCantidadReservada() != null && requerido.getCantidadReservada() > 0)
                 .toList();
+    }
+
+    /** La etiqueta de un tipo de insumo: Malta, Lúpulo o Levadura. */
+    private static String etiquetaDe(TipoInsumo tipo) {
+        return switch (tipo) {
+            case MALTA -> "Malta";
+            case LUPULO -> "Lúpulo";
+            case LEVADURA -> "Levadura";
+        };
     }
 
     /** El tipo de insumo para mostrar: Malta, Lúpulo o Levadura. */

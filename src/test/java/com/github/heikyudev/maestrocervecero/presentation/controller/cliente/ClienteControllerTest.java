@@ -906,6 +906,27 @@ class ClienteControllerTest {
         assertThat(pagina.getValue().getPageSize()).isEqualTo(8);
     }
 
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-CLC-43: el buscador de clientes filtra también por dirección y localidad (los criterios de Gestión de Clientes), conserva lo escrito, muestra la localidad y los links de paginación conservan todos los criterios")
+    void caso_cp_clc_43() throws Exception {
+        // Arrange
+        when(clienteServicio.filtrarClientes(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(cliente(4L, "3764123456")), PageRequest.of(1, 8), 20));
+        when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador").param("nombre", "puerto").param("direccion", " corrientes ").param("idLocalidad", "9").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("name=\"direccion\"").contains("value=\" corrientes \"").contains("placeholder=\"Ej: Av. Corrientes 1234\"")
+                .contains("name=\"idLocalidad\"").contains("data-buscador-url=\"/ubicaciones/localidades/buscador\"").contains("value=\"Posadas\"")
+                .contains(">Localidad<").contains(">Posadas<")
+                .contains("/clientes/buscador?pagina=0&amp;nombre=puerto&amp;direccion=%20corrientes%20&amp;idLocalidad=9");
+        verify(clienteServicio).filtrarClientes(eq("puerto"), eq("corrientes"), eq(9L), any());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ADMINISTRADOR"})
     @DisplayName("CP-CLC-42: un rol distinto de ENCARGADO_DE_DISTRIBUCION no accede al buscador de clientes")

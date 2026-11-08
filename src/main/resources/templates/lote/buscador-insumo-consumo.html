@@ -26,13 +26,23 @@
 
     <th:block th:if="${mensajeBuscador == null}">
         <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
-              class="p-6 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+              class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <div>
                 <label for="buscador-nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
                 <input type="text" id="buscador-nombre" name="nombre" th:value="${filtroNombre}" autofocus autocomplete="off" placeholder="Ej: Cascade"
                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
             </div>
-            <div class="flex justify-end">
+            <div>
+                <label for="buscador-tipo" class="block text-xs font-medium text-slate-500 mb-1">Tipo de insumo</label>
+                <select id="buscador-tipo" name="tipo"
+                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                    <option value="">Todos</option>
+                    <option value="MALTA" th:selected="${filtroTipo != null and filtroTipo.name() == 'MALTA'}">Malta</option>
+                    <option value="LUPULO" th:selected="${filtroTipo != null and filtroTipo.name() == 'LUPULO'}">Lúpulo</option>
+                    <option value="LEVADURA" th:selected="${filtroTipo != null and filtroTipo.name() == 'LEVADURA'}">Levadura</option>
+                </select>
+            </div>
+            <div class="sm:col-span-2 flex items-center justify-end gap-3">
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                     <i class="bi bi-search"></i> Buscar
@@ -41,7 +51,8 @@
         </form>
 
         <div class="border-t border-slate-100">
-            <table class="tabla-buscador">
+            <div class="contenedor-buscador">
+<table class="tabla-buscador">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                     <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
@@ -49,7 +60,7 @@
                     <th class="px-3 py-3 whitespace-nowrap">Requerido</th>
                     <th class="px-3 py-3 whitespace-nowrap" title="Saldo reservado que todavía no se consumió">Reservado</th>
                     <th class="px-3 py-3 whitespace-nowrap">Consumido</th>
-                    <th class="px-3 py-3 text-right"></th>
+                    <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -59,18 +70,19 @@
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadRequerida}, ${r.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReservada}, ${r.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadConsumida}, ${r.unidadDeMedida.simbolo})}"></th:block></td>
-                    <td class="px-3 py-3 text-right">
+                    <td class="col-acciones px-3 py-3 text-right">
                         <button type="button" data-elegir th:data-id="${r.insumo.id}" th:data-texto="${r.insumo.nombre}"
                                 th:data-unidad="${r.unidadDeMedida.simbolo}"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                     </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(filas)}">
-                    <td colspan="6" class="px-4 py-8 text-center text-slate-400"
+                    <td colspan="6" class="px-3 py-8 text-center text-slate-400"
                         th:text="${reservado} ? 'No se encontraron insumos con saldo reservado para esta etapa con los criterios indicados' : 'No se encontraron insumos con los criterios indicados'">No se encontraron insumos con los criterios indicados</td>
                 </tr>
                 </tbody>
             </table>
+</div>
         </div>
     </th:block>
 </div>

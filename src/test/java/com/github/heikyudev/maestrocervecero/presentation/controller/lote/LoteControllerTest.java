@@ -2164,6 +2164,27 @@ class LoteControllerTest {
     // ==================== Buscadores del formulario de registro ====================
 
     @Test
+    @DisplayName("CP-LCT-179: los buscadores de planificación del formulario y del filtro filtran también por fecha de inicio (el criterio de Gestión de Planificaciones), conservan la fecha escrita y los links de paginación la conservan")
+    void buscadorDePlanificaciones_filtraPorFechaDeInicio() throws Exception {
+        // Arrange
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(
+                List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(1, 8), 20));
+
+        // Act
+        String formulario = mockMvc.perform(get(URL + "/buscador/planificaciones").param("fechaInicio", "2027-07-01").param("pagina", "1").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String filtro = mockMvc.perform(get(URL + "/filtros/planificaciones").param("fechaInicio", "2027-07-01").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(formulario).contains("type=\"date\"").contains("name=\"fechaInicio\"").contains("value=\"2027-07-01\"")
+                .contains("pagina=0&amp;idReceta=&amp;fechaInicio=2027-07-01");
+        assertThat(filtro).contains("name=\"fechaInicio\"").contains("value=\"2027-07-01\"");
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), eq(EstadoSolicitud.PENDIENTE), eq(LocalDate.of(2027, 7, 1)), any());
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), eq(LocalDate.of(2027, 7, 1)), any());
+    }
+
+    @Test
     @DisplayName("CP-LCT-109: el buscador de planificaciones devuelve un fragmento (sin layout) con el criterio de receta como selector de entidad, las columnas y el botón Elegir con su id y texto")
     void buscadorDePlanificaciones_debeDevolverElFragmento() throws Exception {
         // Arrange
