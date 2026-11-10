@@ -232,6 +232,7 @@
                                 <tr>
                                     <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
                                     <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Vence</th>
                                     <th class="px-4 py-3 whitespace-nowrap" title="Cantidad reservada originalmente">Reservada</th>
                                     <th class="px-4 py-3 whitespace-nowrap">Consumida</th>
                                     <th class="px-4 py-3 whitespace-nowrap" title="Saldo devuelto al stock al liberar la reserva">Liberada</th>
@@ -245,6 +246,7 @@
                                     th:with="simbolo=${r.loteInsumo.insumo.unidadDeMedida.simbolo}">
                                     <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.loteInsumo.insumo.nombre}">Pilsen</td>
                                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${r.loteInsumo.identificacionLoteProveedor}">L-2026-01</td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${r.loteInsumo.fechaVencimiento})}"></th:block></td>
                                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReservada}, ${simbolo})}"></th:block></td>
                                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadConsumida}, ${simbolo})}"></th:block></td>
                                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadLiberada}, ${simbolo})}"></th:block></td>

@@ -3356,14 +3356,14 @@ class LoteControllerTest {
 
         // Assert
         String reservas = bloque(html, "data-reservas-etapa");
-        assertThat(texto(reservas)).startsWith("Insumo Lote de insumo Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
+        assertThat(texto(reservas)).startsWith("Insumo Lote de insumo Vence Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
         String dialogo = elementoConAtributo(html, "dialog", "id=\"dialogo-reservas-etapa\"");
         assertThat(dialogo).contains("data-dialogo-informativo").contains("max-w-4xl").contains("overflow-x-auto").contains("Reservas de la etapa").doesNotContain("data-reservas-vacias");
         assertThat(reservas.indexOf("L-ACT")).isLessThan(reservas.indexOf("L-OLD"));
         assertThat(reservas.indexOf("L-OLD")).isLessThan(reservas.indexOf("L-LIB"));
-        assertThat(texto(reservas)).contains("L-ACT 8 g 3 g 0 g 0 g 5 g Activa")
-                .contains("L-OLD 10 g 10 g 0 g 0 g 0 g Consumida")
-                .contains("L-LIB 10 g 4 g 5 g 1 g 0 g Liberada");
+        assertThat(texto(reservas)).contains("L-ACT 15/07/2027 8 g 3 g 0 g 0 g 5 g Activa")
+                .contains("L-OLD 15/07/2027 10 g 10 g 0 g 0 g 0 g Consumida")
+                .contains("L-LIB 15/07/2027 10 g 4 g 5 g 1 g 0 g Liberada");
         assertThat(reservas).contains("data-reserva-estado=\"ACTIVA\"").contains("data-reserva-estado=\"CONSUMIDA\"").contains("data-reserva-estado=\"LIBERADA\"");
         assertThat(reservas).contains("bg-amber-50 text-amber-700").contains("bg-emerald-50 text-emerald-700").contains("bg-slate-100 text-slate-600");
     }
@@ -3383,7 +3383,7 @@ class LoteControllerTest {
         String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
 
         // Assert
-        assertThat(texto(bloque(html, "data-reservas-etapa"))).contains("L-LIB 25 g 20 g 5 g 0 g 0 g Liberada");
+        assertThat(texto(bloque(html, "data-reservas-etapa"))).contains("L-LIB 15/07/2027 25 g 20 g 5 g 0 g 0 g Liberada");
         verify(reservaInsumoServicio).listarReservasDeEtapa(1003L);
     }
 
@@ -3516,7 +3516,7 @@ class LoteControllerTest {
         String consumos = bloque(htmlConsumos, "data-seccion-consumos");
         assertThat(texto(consumos)).contains("Etapa Insumo Lote de insumo Cantidad Tipo Fecha Usuario Estado").contains("Cascade L-1 25 g Reservado").contains("Cascade L-2 5 g Directo");
         assertThat(consumos).contains("data-detalle-motivo=\"Carga equivocada\"").contains("opacity-60");
-        assertThat(texto(bloque(htmlReservas, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 25 g 25 g 0 g 0 g 0 g Consumida");
+        assertThat(texto(bloque(htmlReservas, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Vence Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 15/07/2027 25 g 25 g 0 g 0 g 0 g Consumida");
         String envasados = bloque(htmlEnvasados, "data-seccion-envasados");
         assertThat(texto(envasados)).contains("Barril Cantidad (L) Fecha y hora Estado").contains("B-001 100 01/07/2027 09:50").contains("B-002 20 01/07/2027 09:50");
         assertThat(envasados).contains("data-detalle-motivo=\"Barril equivocado\"");
@@ -3682,7 +3682,7 @@ class LoteControllerTest {
         return ReservaInsumoResponseDTO.builder().cantidadReservada(original).cantidadConsumida(consumida).cantidadLiberada(liberada)
                 .cantidadReducidaPorAjuste(reducida).cantidadPendiente(pendiente).estado(estado)
                 .etapaLote(EtapaLoteResponseDTO.builder().etapa(TipoEtapa.HERVIDO).build())
-                .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor(lote).insumo(cascade()).build()).build();
+                .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor(lote).fechaVencimiento(java.time.LocalDate.of(2027, 7, 15)).insumo(cascade()).build()).build();
     }
 
     private static InsumoRequeridoResponseDTO requerido(InsumoResponseDTO insumo, UnidadDeMedida unidad, double requerida, double reservada, double consumida) {

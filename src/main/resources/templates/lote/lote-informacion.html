@@ -197,6 +197,7 @@
                     <th class="px-3 py-3">Etapa</th>
                     <th class="px-3 py-3">Insumo</th>
                     <th class="px-3 py-3 whitespace-nowrap">Lote de insumo</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Vence</th>
                     <th class="px-3 py-3" title="Cantidad reservada originalmente">Reservada</th>
                     <th class="px-3 py-3">Consumida</th>
                     <th class="px-3 py-3" title="Saldo devuelto al stock al liberar la reserva">Liberada</th>
@@ -211,6 +212,7 @@
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${r.etapaLote.etapa.etiqueta}">Molienda</td>
                     <td class="px-3 py-3 font-medium text-slate-900" th:text="${r.loteInsumo.insumo.nombre}">Pilsen</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${r.loteInsumo.identificacionLoteProveedor}">L-123</td>
+                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${r.loteInsumo.fechaVencimiento})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReservada}, ${simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadConsumida}, ${simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadLiberada}, ${simbolo})}"></th:block></td>
