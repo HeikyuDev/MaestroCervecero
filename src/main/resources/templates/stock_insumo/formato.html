@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Formatos de presentación del módulo de stock de insumos.
+
+    tipoInsumo(valor): nombre legible del tipo de un insumo (Malta, Lúpulo o Levadura).
+    situacionStock(valor): nombre legible de la situación de stock de un insumo.
+    cantidades(c, unidad): las cuatro cantidades de stock (Disponible, Reservada, Vencida y Total), cada una con su
+    unidad, como panel de resumen del detalle de un insumo y de un lote de insumo.
+-->
+<th:block th:fragment="tipoInsumo(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'MALTA'">Malta</th:block><th:block th:case="'LUPULO'">Lúpulo</th:block><th:block th:case="'LEVADURA'">Levadura</th:block></th:block>
+
+<th:block th:fragment="situacionStock(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'CON_STOCK_DISPONIBLE'">Con stock disponible</th:block><th:block th:case="'SIN_STOCK_DISPONIBLE'">Sin stock disponible</th:block><th:block th:case="'CON_VENCIDOS'">Con lotes vencidos</th:block></th:block>
+
+<dl th:fragment="cantidades(c, unidad)" data-cantidades class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+    <div>
+        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" data-tooltip="Cantidad libre para producción: lo que hay en los lotes vigentes menos lo reservado">Disponible</span></dt>
+        <dd class="mt-1 font-medium text-slate-900" data-cantidad-disponible><th:block th:replace="~{receta/formato :: medida(${c.disponible}, ${unidad})}"></th:block></dd>
+    </div>
+    <div>
+        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" data-tooltip="Cantidad de los lotes vigentes que está reservada para lotes de producción">Reservada</span></dt>
+        <dd class="mt-1 text-slate-900" data-cantidad-reservada><th:block th:replace="~{receta/formato :: medida(${c.reservada}, ${unidad})}"></th:block></dd>
+    </div>
+    <div>
+        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" data-tooltip="Cantidad que conservan los lotes vencidos, incluida la parte que estaba reservada">Vencida</span></dt>
+        <dd class="mt-1 text-slate-900" data-cantidad-vencida><th:block th:replace="~{receta/formato :: medida(${c.vencida}, ${unidad})}"></th:block></dd>
+    </div>
+    <div>
+        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" data-tooltip="Cantidad física total: disponible, reservada y vencida">Total</span></dt>
+        <dd class="mt-1 font-semibold text-slate-900" data-cantidad-total><th:block th:replace="~{receta/formato :: medida(${c.total}, ${unidad})}"></th:block></dd>
+    </div>
+</dl>
+
+</html>

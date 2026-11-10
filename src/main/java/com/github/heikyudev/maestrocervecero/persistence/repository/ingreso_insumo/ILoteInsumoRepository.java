@@ -197,4 +197,47 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
                                                                      @Param("identificacion") String identificacion,
                                                                      @Param("hoy") LocalDate hoy,
                                                                      Pageable pageable);
+
+    /**
+     * Suma, en una sola consulta agrupada, las cantidades de stock de los lotes de los insumos indicados.
+     * <p>
+     * Cada fila es {@code [idInsumo, disponible, reservada, vencida, total]}: lo disponible y lo reservado se suman
+     * solo de los lotes vigentes (vencen hoy o después), lo vencido es la cantidad actual de los lotes que vencieron
+     * antes de hoy (incluida la parte que estaba reservada) y el total es la suma de las cantidades actuales. Los
+     * insumos sin lotes no tienen fila.
+     * </p>
+     *
+     * @param idsInsumo Los IDs de los insumos (no vacío).
+     * @param hoy Fecha de referencia para decidir qué lotes están vencidos.
+     * @return Una fila por insumo con lotes.
+     */
+    @Query("SELECT li.insumo.id, "
+            + "SUM(CASE WHEN li.fechaVencimiento >= :hoy THEN li.cantidadActual - li.cantidadReservada ELSE 0.0 END), "
+            + "SUM(CASE WHEN li.fechaVencimiento >= :hoy THEN li.cantidadReservada ELSE 0.0 END), "
+            + "SUM(CASE WHEN li.fechaVencimiento < :hoy THEN li.cantidadActual ELSE 0.0 END), "
+            + "SUM(li.cantidadActual) "
+            + "FROM LoteInsumoEntity li WHERE li.insumo.id IN :idsInsumo GROUP BY li.insumo.id")
+    List<Object[]> sumarStockPorInsumo(@Param("idsInsumo") Collection<Long> idsInsumo, @Param("hoy") LocalDate hoy);
+
+    /**
+     * Filtra, paginados, todos los lotes de un insumo (con o sin stock, vigentes o vencidos) en orden FEFO: por fecha
+     * de vencimiento ascendente y, ante igual fecha, por ID.
+     *
+     * @param idInsumo El ID del insumo.
+     * @param pageable La configuración de paginación (sin orden: lo define la consulta).
+     * @return Una página de lotes del insumo.
+     */
+    @Query(value = "SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo "
+            + "ORDER BY li.fechaVencimiento ASC, li.id ASC",
+            countQuery = "SELECT COUNT(li) FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo")
+    Page<LoteInsumoEntity> filtrarLotesDeInsumo(@Param("idInsumo") Long idInsumo, Pageable pageable);
+
+    /**
+     * Busca un lote de insumo con su insumo cargado, solo si el insumo está activo.
+     *
+     * @param id El ID del lote de insumo.
+     * @return Un Optional con el lote, o vacío si no existe o su insumo está dado de baja.
+     */
+    @Query("SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE li.id = :id AND i.estado = 'ACTIVO'")
+    Optional<LoteInsumoEntity> buscarConInsumoActivoPorId(@Param("id") Long id);
 }

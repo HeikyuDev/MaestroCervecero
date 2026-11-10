@@ -45,6 +45,16 @@ public class EtapaLoteResponseDTO {
     private LocalDateTime fechaFinalizacion;
 
     /**
+     * Identificador del lote de producción al que pertenece la etapa.
+     */
+    private Long idLote;
+
+    /**
+     * Identificador interno del lote de producción al que pertenece la etapa.
+     */
+    private String identificadorInternoLote;
+
+    /**
      * Equipamiento asignado para ejecutar esta etapa.
      */
     private EquipamientoResponseDTO equipamiento;

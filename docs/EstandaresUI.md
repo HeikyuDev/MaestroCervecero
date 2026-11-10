@@ -12,7 +12,7 @@ El prefijo de cada entrada del menú indica qué se hace en esa pantalla.
 
 Es la entrada desde la fila de una lista a la pantalla de trabajo o gestión de un registro. Hoy lo usa la lista de Control de Lotes; las listas de Control de Equipamientos y de Control de Barriles lo usan para llegar al panel del equipo o del barril.
 
-- **Cuándo usarlo:** solo en la acción que abre la pantalla donde se trabaja con el registro. No se usa para editar (lápiz), dar de baja (papelera), anular, abrir un modal informativo ni consultar un detalle de solo lectura.
+- **Cuándo usarlo:** solo en la acción que abre la pantalla donde se trabaja con el registro. No se usa para editar (lápiz), dar de baja (papelera), anular, abrir un modal informativo ni consultar un detalle de solo lectura. Excepción: las pantallas de Stock de Insumos (lista de insumos y lotes de un insumo) lo usan para llegar al detalle de solo lectura del insumo y del lote de insumo.
 - **Texto e ícono:** siempre "Abrir" con la flecha `bi-arrow-right`; es un botón visible con borde y fondo ámbar suave, no un ícono suelto ni un enlace de texto.
 - **Sin tooltip:** el texto "Abrir" basta; no lleva `data-tooltip` ni `title`. Lleva un `aria-label` corto que identifica la fila, por ejemplo "Abrir LOT-R1-02".
 - **Ubicación:** dentro de la celda `col-acciones` de la fila.

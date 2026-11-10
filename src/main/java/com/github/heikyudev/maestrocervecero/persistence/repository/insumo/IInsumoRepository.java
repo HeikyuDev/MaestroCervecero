@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -79,4 +80,50 @@ public interface IInsumoRepository extends JpaRepository<InsumoEntity, Long> {
     Page<InsumoEntity> filtrarInsumos(@Param("nombre") String nombre,
                                        @Param("tipoClase") Class<? extends InsumoEntity> tipoClase,
                                        Pageable pageable);
+
+    /**
+     * Filtra, paginados, los insumos activos para el listado de stock, ordenados alfabéticamente por nombre (sin
+     * distinguir mayúsculas) y, ante igual nombre, por ID.
+     * <p>
+     * La situación de stock se resuelve con subconsultas {@code EXISTS} sobre los lotes, sin agrupar, de modo que el
+     * conteo y la paginación sean los de una consulta simple. Como la cantidad reservada nunca supera a la actual,
+     * la suma de lo disponible de los lotes vigentes es mayor a 0 si y solo si algún lote vigente tiene saldo
+     * disponible; lo mismo vale para la cantidad vencida. Un lote vence cuando su fecha es anterior a hoy.
+     * </p>
+     *
+     * @param nombre Texto a buscar dentro del nombre con los comodines de {@code LIKE} ya escapados con {@code '!'}, o {@code null} para no filtrar.
+     * @param tipoClase Clase concreta del tipo de insumo, o {@code null} para no filtrar por tipo.
+     * @param exigirConDisponible Si es {@code true}, solo los insumos con cantidad disponible mayor a 0.
+     * @param exigirSinDisponible Si es {@code true}, solo los insumos sin cantidad disponible.
+     * @param exigirConVencidos Si es {@code true}, solo los insumos con cantidad vencida mayor a 0.
+     * @param hoy Fecha de referencia para decidir qué lotes están vencidos.
+     * @param pageable La configuración de paginación (sin orden: lo define la consulta).
+     * @return Una página de insumos activos.
+     */
+    @Query(value = "SELECT i FROM InsumoEntity i WHERE i.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')) ESCAPE '!') "
+            + "AND (:tipoClase IS NULL OR TYPE(i) = :tipoClase) "
+            + "AND (:exigirConDisponible = FALSE OR EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+            + "AND li.fechaVencimiento >= :hoy AND (li.cantidadActual - li.cantidadReservada) > 0.00005)) "
+            + "AND (:exigirSinDisponible = FALSE OR NOT EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+            + "AND li.fechaVencimiento >= :hoy AND (li.cantidadActual - li.cantidadReservada) > 0.00005)) "
+            + "AND (:exigirConVencidos = FALSE OR EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+            + "AND li.fechaVencimiento < :hoy AND li.cantidadActual > 0.00005)) "
+            + "ORDER BY UPPER(i.nombre) ASC, i.id ASC",
+            countQuery = "SELECT COUNT(i) FROM InsumoEntity i WHERE i.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')) ESCAPE '!') "
+                    + "AND (:tipoClase IS NULL OR TYPE(i) = :tipoClase) "
+                    + "AND (:exigirConDisponible = FALSE OR EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+                    + "AND li.fechaVencimiento >= :hoy AND (li.cantidadActual - li.cantidadReservada) > 0.00005)) "
+                    + "AND (:exigirSinDisponible = FALSE OR NOT EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+                    + "AND li.fechaVencimiento >= :hoy AND (li.cantidadActual - li.cantidadReservada) > 0.00005)) "
+                    + "AND (:exigirConVencidos = FALSE OR EXISTS (SELECT 1 FROM LoteInsumoEntity li WHERE li.insumo = i "
+                    + "AND li.fechaVencimiento < :hoy AND li.cantidadActual > 0.00005))")
+    Page<InsumoEntity> filtrarInsumosParaStock(@Param("nombre") String nombre,
+                                               @Param("tipoClase") Class<? extends InsumoEntity> tipoClase,
+                                               @Param("exigirConDisponible") boolean exigirConDisponible,
+                                               @Param("exigirSinDisponible") boolean exigirSinDisponible,
+                                               @Param("exigirConVencidos") boolean exigirConVencidos,
+                                               @Param("hoy") LocalDate hoy,
+                                               Pageable pageable);
 }

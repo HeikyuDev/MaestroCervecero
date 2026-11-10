@@ -141,7 +141,8 @@ class RolTest {
                 Permiso.COSTO_DIRECTO_ADICIONAL_ELIMINAR, Permiso.COSTO_DIRECTO_ADICIONAL_CONSULTAR,
                 Permiso.COSTO_FIJO_CREAR, Permiso.COSTO_FIJO_MODIFICAR, Permiso.COSTO_FIJO_ELIMINAR, Permiso.COSTO_FIJO_CONSULTAR,
                 Permiso.MOTIVO_AJUSTE_CREAR, Permiso.MOTIVO_AJUSTE_MODIFICAR, Permiso.MOTIVO_AJUSTE_ELIMINAR, Permiso.MOTIVO_AJUSTE_CONSULTAR,
-                Permiso.AJUSTE_STOCK_REGISTRAR, Permiso.AJUSTE_STOCK_ANULAR, Permiso.AJUSTE_STOCK_CONSULTAR);
+                Permiso.AJUSTE_STOCK_REGISTRAR, Permiso.AJUSTE_STOCK_ANULAR, Permiso.AJUSTE_STOCK_CONSULTAR,
+                Permiso.STOCK_INSUMO_CONSULTAR);
     }
 
     @Test
@@ -161,7 +162,8 @@ class RolTest {
                 Permiso.LIMPIEZA_BARRIL_REGISTRAR, Permiso.LIMPIEZA_BARRIL_ANULAR, Permiso.LIMPIEZA_BARRIL_CONSULTAR,
                 Permiso.FALLA_BARRIL_REGISTRAR, Permiso.FALLA_BARRIL_ANULAR, Permiso.FALLA_BARRIL_CONSULTAR,
                 Permiso.FRACCIONAMIENTO_BARRIL_REGISTRAR, Permiso.FRACCIONAMIENTO_BARRIL_ANULAR, Permiso.FRACCIONAMIENTO_BARRIL_CONSULTAR,
-                Permiso.MANTENIMIENTO_BARRIL_REGISTRAR, Permiso.MANTENIMIENTO_BARRIL_ANULAR, Permiso.MANTENIMIENTO_BARRIL_CONSULTAR);
+                Permiso.MANTENIMIENTO_BARRIL_REGISTRAR, Permiso.MANTENIMIENTO_BARRIL_ANULAR, Permiso.MANTENIMIENTO_BARRIL_CONSULTAR,
+                Permiso.STOCK_INSUMO_CONSULTAR);
     }
 
     @Test
@@ -190,5 +192,21 @@ class RolTest {
                     Permiso.MANTENIMIENTO_BARRIL_REGISTRAR, Permiso.MANTENIMIENTO_BARRIL_ANULAR, Permiso.MANTENIMIENTO_BARRIL_CONSULTAR,
                     Permiso.FRACCIONAMIENTO_BARRIL_REGISTRAR, Permiso.FRACCIONAMIENTO_BARRIL_ANULAR, Permiso.FRACCIONAMIENTO_BARRIL_CONSULTAR);
         }
+    }
+
+    @Test
+    @DisplayName("CP-RO-13: el Gerente de Producción, el Gerente de Compras, el Operario de Producción y el Encargado de Depósito consultan el stock de insumos")
+    void permisos_cuatroRolesConsultanElStockDeInsumos() {
+        assertThat(Rol.GERENTE_DE_PRODUCCION.getPermisos()).contains(Permiso.STOCK_INSUMO_CONSULTAR);
+        assertThat(Rol.GERENTE_DE_COMPRAS.getPermisos()).contains(Permiso.STOCK_INSUMO_CONSULTAR);
+        assertThat(Rol.OPERARIO_DE_PRODUCCION.getPermisos()).contains(Permiso.STOCK_INSUMO_CONSULTAR);
+        assertThat(Rol.ENCARGADO_DE_DEPOSITO.getPermisos()).contains(Permiso.STOCK_INSUMO_CONSULTAR);
+    }
+
+    @Test
+    @DisplayName("CP-RO-14: el Encargado de Distribución y el Administrador no consultan el stock de insumos")
+    void permisos_distribucionYAdministradorNoConsultanElStock() {
+        assertThat(Rol.ENCARGADO_DE_DISTRIBUCION.getPermisos()).doesNotContain(Permiso.STOCK_INSUMO_CONSULTAR);
+        assertThat(Rol.ADMINISTRADOR.getPermisos()).doesNotContain(Permiso.STOCK_INSUMO_CONSULTAR);
     }
 }

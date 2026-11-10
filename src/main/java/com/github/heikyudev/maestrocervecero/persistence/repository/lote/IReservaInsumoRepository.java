@@ -162,4 +162,17 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
     @Query("SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
             + "WHERE r.etapaLote.id = :idEtapaLote ORDER BY i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
     List<ReservaInsumoEntity> listarPorEtapa(@Param("idEtapaLote") Long idEtapaLote);
+
+    /**
+     * Filtra, paginadas, las reservas de un lote de insumo en cualquier estado, la última registrada primero, con la
+     * etapa, su lote de producción, su equipamiento y el lote de insumo con su insumo ya cargados.
+     *
+     * @param idLoteInsumo El ID del lote de insumo.
+     * @param pageable La configuración de paginación (sin orden: lo define la consulta).
+     * @return Una página de reservas del lote de insumo.
+     */
+    @Query(value = "SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.etapaLote e JOIN FETCH e.lote JOIN FETCH e.equipamiento "
+            + "JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo WHERE li.id = :idLoteInsumo ORDER BY r.id DESC",
+            countQuery = "SELECT COUNT(r) FROM ReservaInsumoEntity r WHERE r.loteInsumo.id = :idLoteInsumo")
+    Page<ReservaInsumoEntity> filtrarPorLoteInsumo(@Param("idLoteInsumo") Long idLoteInsumo, Pageable pageable);
 }

@@ -66,7 +66,8 @@ public enum Rol {
             Permiso.MOTIVO_AJUSTE_CONSULTAR,
             Permiso.AJUSTE_STOCK_REGISTRAR,
             Permiso.AJUSTE_STOCK_ANULAR,
-            Permiso.AJUSTE_STOCK_CONSULTAR
+            Permiso.AJUSTE_STOCK_CONSULTAR,
+            Permiso.STOCK_INSUMO_CONSULTAR
     )),
 
     OPERARIO_DE_PRODUCCION("Operario de Producción", Set.of(
@@ -108,7 +109,8 @@ public enum Rol {
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR,
             Permiso.FALLA_EQUIPAMIENTO_REGISTRAR,
             Permiso.FALLA_EQUIPAMIENTO_ANULAR,
-            Permiso.FALLA_EQUIPAMIENTO_CONSULTAR
+            Permiso.FALLA_EQUIPAMIENTO_CONSULTAR,
+            Permiso.STOCK_INSUMO_CONSULTAR
     )),
 
     GERENTE_DE_COMPRAS("Gerente de Compras", Set.of(
@@ -125,7 +127,8 @@ public enum Rol {
             Permiso.ORDEN_COMPRA_ANULAR,
             Permiso.ORDEN_COMPRA_FINALIZAR,
             Permiso.ORDEN_COMPRA_CONSULTAR,
-            Permiso.PLANIFICACION_PRODUCCION_CONSULTAR
+            Permiso.PLANIFICACION_PRODUCCION_CONSULTAR,
+            Permiso.STOCK_INSUMO_CONSULTAR
     )),
 
     ENCARGADO_DE_DEPOSITO("Encargado de Depósito", Set.of(
@@ -133,7 +136,8 @@ public enum Rol {
             Permiso.INGRESO_INSUMO_ANULAR,
             Permiso.INGRESO_INSUMO_CONSULTAR,
             Permiso.CONSUMO_INSUMO_CONSULTAR,
-            Permiso.ORDEN_COMPRA_CONSULTAR
+            Permiso.ORDEN_COMPRA_CONSULTAR,
+            Permiso.STOCK_INSUMO_CONSULTAR
     )),
 
     ENCARGADO_DE_DISTRIBUCION("Encargado de Distribución", Set.of(

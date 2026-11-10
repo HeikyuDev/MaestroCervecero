@@ -87,4 +87,18 @@ public interface IConsumoInsumoRepository extends JpaRepository<ConsumoInsumoEnt
      */
     @Query("SELECT c.etapaLote.lote.id FROM ConsumoInsumoEntity c WHERE c.id = :id")
     Optional<Long> buscarIdLoteDelConsumo(@Param("id") Long id);
+
+    /**
+     * Filtra, paginados, los consumos descontados de un lote de insumo (reservados y directos, registrados y
+     * anulados), el último registrado primero, con la etapa, su lote de producción, su equipamiento y el lote de
+     * insumo con su insumo ya cargados.
+     *
+     * @param idLoteInsumo El ID del lote de insumo.
+     * @param pageable La configuración de paginación (sin orden: lo define la consulta).
+     * @return Una página de consumos del lote de insumo.
+     */
+    @Query(value = "SELECT c FROM ConsumoInsumoEntity c JOIN FETCH c.etapaLote e JOIN FETCH e.lote JOIN FETCH e.equipamiento "
+            + "JOIN FETCH c.loteInsumo li JOIN FETCH li.insumo WHERE li.id = :idLoteInsumo ORDER BY c.id DESC",
+            countQuery = "SELECT COUNT(c) FROM ConsumoInsumoEntity c WHERE c.loteInsumo.id = :idLoteInsumo")
+    Page<ConsumoInsumoEntity> filtrarPorLoteInsumo(@Param("idLoteInsumo") Long idLoteInsumo, Pageable pageable);
 }

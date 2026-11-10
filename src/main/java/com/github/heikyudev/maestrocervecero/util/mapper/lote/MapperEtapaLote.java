@@ -27,6 +27,8 @@ public class MapperEtapaLote {
                 .estado(etapaLoteEntity.getEstado())
                 .fechaInicio(etapaLoteEntity.getFechaInicio())
                 .fechaFinalizacion(etapaLoteEntity.getFechaFinalizacion())
+                .idLote(etapaLoteEntity.getLote().getId())
+                .identificadorInternoLote(etapaLoteEntity.getLote().getIdentificadorInterno())
                 .equipamiento(MapperEquipamiento.toDTO(etapaLoteEntity.getEquipamiento()))
                 .build();
     }
