@@ -4,7 +4,7 @@
 
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
-| **CP-CSI-01** | Lista de stock | Muestra las columnas Nombre, Tipo, Unidad, Disponible, Reservada, Vencida, Total y Acciones, la unidad del insumo, el botón Abrir hacia el detalle, los filtros con ejemplo, Limpiar y Buscar, y ningún distintivo Vencido. |
+| **CP-CSI-01** | Lista de stock | Muestra las columnas Nombre, Tipo, Disponible, Reservada, Vencida, Total y Acciones, sin columna Unidad, cada cantidad con la unidad del insumo, el botón Abrir hacia el detalle, los filtros con ejemplo, Limpiar y Buscar, y ningún distintivo Vencido. |
 | **CP-CSI-02** | Criterios de la lista | El nombre sin espacios, el tipo y la situación se pasan al service, de a 20, y se conservan en el formulario. |
 | **CP-CSI-03** | Lista sin criterios | No se restringe por ninguno; un nombre en blanco equivale a no filtrar. |
 | **CP-CSI-04** | Parámetros inválidos | Una página negativa se acota a la primera; un tipo o una situación inexistentes, o una página que no es número, redirigen con una alerta de advertencia sin consultar el service. |

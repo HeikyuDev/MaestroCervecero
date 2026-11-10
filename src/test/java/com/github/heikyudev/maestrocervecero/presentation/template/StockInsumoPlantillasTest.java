@@ -63,7 +63,7 @@ class StockInsumoPlantillasTest {
         String insumo = leer("stock_insumo/stock-detalle-insumo.html");
         String lote = leer("stock_insumo/stock-detalle-lote.html");
 
-        assertThat(lista).contains(">Nombre</th>").contains(">Tipo</th>").contains(">Unidad</th>").contains(">Disponible</span>").contains(">Reservada</span>")
+        assertThat(lista).contains(">Nombre</th>").contains(">Tipo</th>").doesNotContain(">Unidad</th>").contains(">Disponible</span>").contains(">Reservada</span>")
                 .contains(">Vencida</span>").contains(">Total</span>").contains(">Acciones</th>")
                 .contains("placeholder=\"Ej: Pilsen\"").contains(">Limpiar</a>").contains("Buscar").contains("name=\"situacionStock\"").contains("name=\"tipo\"").contains("novalidate");
         assertThat(insumo).contains(">Lote del proveedor</th>").contains(">Vence</th>").contains(">Disponible</span>").contains(">Reservada</span>")

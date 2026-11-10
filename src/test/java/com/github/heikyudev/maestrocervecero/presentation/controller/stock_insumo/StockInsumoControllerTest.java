@@ -112,8 +112,8 @@ class StockInsumoControllerTest {
     void lista_columnas() throws Exception {
         String html = html(get("/stock-insumos").with(como(Rol.GERENTE_DE_PRODUCCION)), "stock_insumo/stock-lista");
 
-        assertThat(html).contains("Stock de Insumos").contains("Malta Pilsen").contains("Malta").contains(">kg<")
-                .contains("Disponible").contains("Reservada").contains("Vencida").contains("Total").contains("Unidad").contains("Acciones")
+        assertThat(html).contains("Stock de Insumos").contains("Malta Pilsen").contains("Malta").contains(">6 kg<").contains(">4 kg<").contains(">7 kg<").contains(">17 kg<")
+                .contains("Disponible").contains("Reservada").contains("Vencida").contains("Total").doesNotContain(">Unidad</th>").contains("Acciones")
                 .contains("data-cantidad-disponible").contains("data-cantidad-total")
                 .contains("data-boton-abrir").contains("/stock-insumos/1").contains("Abrir Malta Pilsen")
                 .contains("Ej: Pilsen").contains("Limpiar").contains("Buscar")

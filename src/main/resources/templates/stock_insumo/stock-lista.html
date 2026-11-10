@@ -58,7 +58,6 @@
                 <tr>
                     <th class="px-4 py-3">Nombre</th>
                     <th class="px-4 py-3">Tipo</th>
-                    <th class="px-4 py-3">Unidad</th>
                     <th class="px-4 py-3 text-right"><span tabindex="0" data-tooltip="Cantidad libre para producción: lo que hay en los lotes vigentes menos lo reservado">Disponible</span></th>
                     <th class="px-4 py-3 text-right"><span tabindex="0" data-tooltip="Cantidad de los lotes vigentes que está reservada para lotes de producción">Reservada</span></th>
                     <th class="px-4 py-3 text-right"><span tabindex="0" data-tooltip="Cantidad que conservan los lotes vencidos, incluida la parte que estaba reservada">Vencida</span></th>
@@ -72,11 +71,10 @@
                     <td class="px-4 py-3">
                         <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><th:block th:replace="~{stock_insumo/formato :: tipoInsumo(${i.tipo})}">Malta</th:block></span>
                     </td>
-                    <td class="px-4 py-3 text-slate-700" th:text="${i.unidadDeMedida.simbolo}">kg</td>
-                    <td class="px-4 py-3 text-slate-900 text-right font-medium whitespace-nowrap" data-cantidad-disponible><th:block th:replace="~{receta/formato :: numero(${i.cantidades.disponible})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-700 text-right whitespace-nowrap" data-cantidad-reservada><th:block th:replace="~{receta/formato :: numero(${i.cantidades.reservada})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-700 text-right whitespace-nowrap" data-cantidad-vencida><th:block th:replace="~{receta/formato :: numero(${i.cantidades.vencida})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-900 text-right font-semibold whitespace-nowrap" data-cantidad-total><th:block th:replace="~{receta/formato :: numero(${i.cantidades.total})}"></th:block></td>
+                    <td class="px-4 py-3 text-slate-900 text-right font-medium whitespace-nowrap" data-cantidad-disponible><th:block th:replace="~{receta/formato :: medida(${i.cantidades.disponible}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="px-4 py-3 text-slate-700 text-right whitespace-nowrap" data-cantidad-reservada><th:block th:replace="~{receta/formato :: medida(${i.cantidades.reservada}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="px-4 py-3 text-slate-700 text-right whitespace-nowrap" data-cantidad-vencida><th:block th:replace="~{receta/formato :: medida(${i.cantidades.vencida}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="px-4 py-3 text-slate-900 text-right font-semibold whitespace-nowrap" data-cantidad-total><th:block th:replace="~{receta/formato :: medida(${i.cantidades.total}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="col-acciones px-4 py-3">
                         <div class="flex items-center justify-end gap-1">
                             <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/stock-insumos/{id}(id=${i.id})}, 'Abrir ' + ${i.nombre})}"></th:block>
