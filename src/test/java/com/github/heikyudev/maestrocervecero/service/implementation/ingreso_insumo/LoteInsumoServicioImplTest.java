@@ -78,8 +78,8 @@ class LoteInsumoServicioImplTest {
     // ==================== filtrarLotesInsumoDisponibles (paginado, con criterios) ====================
 
     @Test
-    @DisplayName("CP-FLD-03: filtrarLotesInsumoDisponibles paginado conserva el orden que da la consulta y marca como vencido solo el lote con vencimiento anterior a hoy")
-    void filtrarLotesInsumoDisponiblesPaginado_debeConservarElOrdenYMarcarLosVencidos() {
+    @DisplayName("CP-FLD-03: filtrarLotesInsumoDisponibles paginado conserva el orden que da la consulta y consulta con la fecha de hoy para excluir los lotes vencidos")
+    void filtrarLotesInsumoDisponiblesPaginado_debeConservarElOrdenYConsultarConLaFechaDeHoy() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LocalDate hoy = LocalDate.now();
@@ -87,21 +87,19 @@ class LoteInsumoServicioImplTest {
         vigente.setFechaVencimiento(hoy.plusDays(5));
         LoteInsumoEntity venceHoy = loteInsumoEntity(11L, malta, "LOTE-B", 5.0, 0.0);
         venceHoy.setFechaVencimiento(hoy);
-        LoteInsumoEntity vencido = loteInsumoEntity(12L, malta, "LOTE-C", 2.0, 0.0);
-        vencido.setFechaVencimiento(hoy.minusDays(1));
         Pageable pageable = PageRequest.of(0, 8);
         when(loteInsumoRepository.filtrarLotesInsumoDisponiblesParaConsumo(List.of(1L), null, null, hoy, pageable))
-                .thenReturn(new PageImpl<>(List.of(vigente, venceHoy, vencido), pageable, 3));
+                .thenReturn(new PageImpl<>(List.of(venceHoy, vigente), pageable, 2));
 
         // === EJECUCION ===
         Page<LoteInsumoResponseDTO> resultado = loteInsumoServicio.filtrarLotesInsumoDisponibles(List.of(1L), null, null, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertThat(resultado.getContent()).extracting(LoteInsumoResponseDTO::getIdentificacionLoteProveedor).containsExactly("LOTE-A", "LOTE-B", "LOTE-C");
-        assertThat(resultado.getContent()).extracting(LoteInsumoResponseDTO::isVencido).containsExactly(false, false, true);
-        assertThat(resultado.getContent().get(0).getFechaVencimiento()).isEqualTo(hoy.plusDays(5));
-        assertThat(resultado.getContent().get(0).getCantidadDisponible()).isEqualTo(6.0);
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        assertThat(resultado.getContent()).extracting(LoteInsumoResponseDTO::getIdentificacionLoteProveedor).containsExactly("LOTE-B", "LOTE-A");
+        assertThat(resultado.getContent().get(1).getFechaVencimiento()).isEqualTo(hoy.plusDays(5));
+        assertThat(resultado.getContent().get(1).getCantidadDisponible()).isEqualTo(6.0);
+        verify(loteInsumoRepository).filtrarLotesInsumoDisponiblesParaConsumo(List.of(1L), null, null, hoy, pageable);
     }
 
     @Test
@@ -186,7 +184,7 @@ class LoteInsumoServicioImplTest {
         assertThat(resultado.getId()).isEqualTo(10L);
         assertThat(resultado.getIdentificacionLoteProveedor()).isEqualTo("LOTE-A");
         assertThat(resultado.getCantidadDisponible()).isEqualTo(6.0);
-        assertThat(resultado.isVencido()).isTrue();
+        assertThat(resultado.getFechaVencimiento()).isEqualTo(LocalDate.now().minusDays(3));
     }
 
     @Test

@@ -60,7 +60,6 @@
                         <p th:if="${#fields.hasErrors('idLoteInsumo')}" th:errors="*{idLoteInsumo}" class="mt-1 text-xs text-rose-600"></p>
                         <p data-lote-elegido th:hidden="${loteElegido == null}" class="mt-2 text-xs text-slate-500">
                             Vencimiento: <span data-lote-vencimiento><th:block th:if="${loteElegido != null}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${loteElegido.fechaVencimiento})}"></th:block></th:block></span>
-                            <span data-lote-vencido th:hidden="${loteElegido == null or !loteElegido.vencido}"><span class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span></span>
                             <span data-lote-cantidad-bloque th:hidden="${reservado or loteElegido == null}">&middot; <span data-lote-cantidad-titulo th:text="${reservado} ? 'Reservado' : 'Disponible'">Disponible</span>: <span data-lote-cantidad><th:block th:if="${!reservado and loteElegido != null}"><th:block th:replace="~{receta/formato :: medida(${loteElegido.cantidadDisponible}, ${loteElegido.insumo.unidadDeMedida.simbolo})}"></th:block></th:block></span></span>
                         </p>
                     </div>

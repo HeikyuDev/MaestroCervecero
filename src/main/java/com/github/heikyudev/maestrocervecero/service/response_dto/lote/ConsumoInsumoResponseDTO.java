@@ -80,7 +80,7 @@ public class ConsumoInsumoResponseDTO {
 
     /**
      * Avisos que no impiden el consumo: el consumo se registra igual. Vacía si no hay ninguno. Se
-     * informan, por ejemplo, cuando el lote de insumo está vencido o cuando el total consumido del
+     * informan, por ejemplo, cuando el total consumido del
      * insumo en la etapa supera la cantidad requerida.
      */
     @Builder.Default
@@ -89,10 +89,4 @@ public class ConsumoInsumoResponseDTO {
      * Fecha y hora en que se registró (creó) el registro, según la auditoría.
      */
     private LocalDateTime fechaRegistro;
-
-    /**
-     * Indica si el lote de insumo estaba vencido cuando se registró el consumo: su fecha de vencimiento es anterior a la
-     * fecha de registro (si vencía ese mismo día todavía era válido).
-     */
-    private boolean vencidoAlRegistrar;
 }

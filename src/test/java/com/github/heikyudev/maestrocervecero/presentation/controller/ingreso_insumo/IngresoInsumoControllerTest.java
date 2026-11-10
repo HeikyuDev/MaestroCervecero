@@ -1283,9 +1283,9 @@ class IngresoInsumoControllerTest {
         return VersionProveedorResponseDTO.builder().id(3L).razonSocial("Malterías del Sur S.A.").cuit("30712345678").build();
     }
 
-    private static LoteInsumoResponseDTO lote(Long id, String identificacion, LocalDate vencimiento, double actual, boolean vencido) {
+    private static LoteInsumoResponseDTO lote(Long id, String identificacion, LocalDate vencimiento, double actual) {
         return LoteInsumoResponseDTO.builder().id(id).insumo(pilsen()).identificacionLoteProveedor(identificacion).fechaVencimiento(vencimiento)
-                .cantidadActual(actual).cantidadDisponible(actual).vencido(vencido).build();
+                .cantidadActual(actual).cantidadDisponible(actual).build();
     }
 
     private static IngresoInsumoResponseDTO ingresoCompra(Long id, EstadoTransaccion estado, String motivo) {
@@ -1301,13 +1301,13 @@ class IngresoInsumoControllerTest {
                                         .unidadDeMedida(UnidadDeMedida.KILOGRAMO).build()).build()).build())
                 .motivoAnulacion(motivo).usuarioAnulacion(motivo == null ? null : "encargado")
                 .fechaAnulacion(motivo == null ? null : LocalDateTime.of(2027, 7, 2, 9, 30))
-                .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false)).build();
+                .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0)).build();
     }
 
     private static IngresoInsumoResponseDTO ingresoDirecto(Long id, EstadoTransaccion estado) {
         return IngresoInsumoResponseDTO.builder().id(id).tipoIngreso(TipoIngreso.DIRECTO).estado(estado).fechaIngreso(LocalDate.of(2027, 7, 1))
                 .cantidadRecibida(50.0).costoUnitario(new BigDecimal("12.5"))
-                .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false)).build();
+                .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0)).build();
     }
 
     /** Orden 7 de Malterías del Sur, para el plan 5: Pilsen (3 de 4 bolsas pendientes), Cascade (sin pendiente), Caramelo y Citra. */

@@ -6,9 +6,9 @@
     Contenido del modal de búsqueda de un lote de insumo de un consumo: el criterio de identificación del lote + resultados
     con "Elegir". Solo ofrece los lotes del insumo ya elegido en el formulario (idInsumo, que viaja en un campo oculto
     del filtro y en los enlaces de paginación). El controller ofrece, según el tipo de consumo, los lotes de ese insumo
-    con saldo reservado para la etapa (reservado) o todos los lotes con saldo disponible (directo), en orden FEFO: vigentes por vencimiento y los vencidos al final, marcados. Cada fila trae el
+    con saldo reservado para la etapa (reservado) o todos los lotes con saldo disponible (directo), en orden FEFO por vencimiento; los lotes vencidos no se ofrecen. Cada fila trae el
     lote y la cantidad que se ofrece (tituloCantidad: Reservado o Disponible). El botón "Elegir" lleva, además del id y el
-    texto, los datos que la pantalla muestra del lote elegido (vencimiento, cantidad, unidad y si está vencido). Si la
+    texto, los datos que la pantalla muestra del lote elegido (vencimiento, cantidad y unidad). Si la
     etapa no admite consumos, el controller informa el motivo en mensajeBuscador y el fragmento no muestra criterios ni
     filas.
 -->
@@ -56,12 +56,10 @@
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                <tr th:each="f : ${filas.content}" th:with="l=${f.lote}" class="hover:bg-slate-50"
-                    th:classappend="${l.vencido} ? 'bg-amber-50/40'">
+                <tr th:each="f : ${filas.content}" th:with="l=${f.lote}" class="hover:bg-slate-50">
                     <td class="px-3 py-3 font-medium text-slate-900" th:text="${l.identificacionLoteProveedor}">L-125</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
                         <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaVencimiento})}"></th:block>
-                        <span th:if="${l.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
                     </td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.cantidad}, ${l.insumo.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="col-acciones px-3 py-3 text-right">
@@ -69,7 +67,6 @@
                                 th:data-vencimiento="${l.fechaVencimiento != null} ? ${#temporals.format(l.fechaVencimiento, 'dd/MM/yyyy')} : '-'"
                                 th:data-cantidad="${(f.cantidad == f.cantidad.intValue() ? #numbers.formatInteger(f.cantidad.intValue(), 1, 'POINT') : #strings.replace(f.cantidad, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
                                 th:data-unidad="${l.insumo.unidadDeMedida.simbolo}"
-                                th:data-vencido="${l.vencido} ? 'true'"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                     </td>
                 </tr>

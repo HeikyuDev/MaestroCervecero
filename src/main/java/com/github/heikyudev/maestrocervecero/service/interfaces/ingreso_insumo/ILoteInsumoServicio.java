@@ -29,12 +29,10 @@ public interface ILoteInsumoServicio {
 
     /**
      * Filtra, paginados, los lotes de insumo con saldo disponible mayor a 0 de los insumos indicados (los de la etapa),
-     * para elegir el lote de un consumo directo. Cada lote informa si está vencido (vence antes de hoy) y su fecha de
-     * vencimiento.
+     * para elegir el lote de un consumo directo. Los lotes vencidos (vencen antes de hoy) no se ofrecen.
      * <p>
-     * El orden es FEFO y lo da la consulta: primero los vigentes por fecha de vencimiento ascendente (el que vence hoy
-     * todavía es vigente), luego los que no tienen fecha de vencimiento y al final los vencidos, también por fecha; ante
-     * igual fecha, por ID. El orden del {@code pageable} se ignora. El nombre del insumo y la identificación se buscan
+     * El orden es FEFO y lo da la consulta: por fecha de vencimiento ascendente (el que vence hoy todavía es
+     * vigente); ante igual fecha, por ID. El orden del {@code pageable} se ignora. El nombre del insumo y la identificación se buscan
      * por coincidencia parcial, sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar.
      * </p>
      *

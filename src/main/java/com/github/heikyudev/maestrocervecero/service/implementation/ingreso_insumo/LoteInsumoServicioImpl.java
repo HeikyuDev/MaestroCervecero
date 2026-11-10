@@ -38,8 +38,8 @@ public class LoteInsumoServicioImpl implements ILoteInsumoServicio {
     }
 
     /**
-     * Filtra los lotes de insumo con saldo disponible de los insumos indicados, en orden FEFO (vigentes por vencimiento,
-     * luego sin fecha de vencimiento y al final los vencidos), marcando los vencidos.
+     * Filtra los lotes de insumo con saldo disponible de los insumos indicados, en orden FEFO (por vencimiento),
+     * sin ofrecer los vencidos.
      */
     @Override
     @Transactional(readOnly = true)
@@ -52,7 +52,7 @@ public class LoteInsumoServicioImpl implements ILoteInsumoServicio {
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return loteInsumoRepository.filtrarLotesInsumoDisponiblesParaConsumo(idsInsumo, textoONulo(NormalizacionTexto.nombrePropio(nombreInsumo)),
                         textoONulo(NormalizacionTexto.nombrePropio(identificacion)), hoy, pageableSinOrden)
-                .map(loteInsumo -> MapperLoteInsumo.toDTO(loteInsumo, hoy));
+                .map(MapperLoteInsumo::toDTO);
     }
 
     /**

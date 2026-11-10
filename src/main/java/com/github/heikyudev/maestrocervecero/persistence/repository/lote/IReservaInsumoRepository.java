@@ -110,12 +110,12 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
     List<Object[]> sumarSaldoReservadoPorInsumoDeEtapa(@Param("idEtapaLote") Long idEtapaLote);
 
     /**
-     * Filtra las reservas de una etapa de lote que todavía tienen saldo reservado, para elegir el lote de insumo de un
-     * consumo reservado. Los criterios de texto nulos no restringen.
+     * Filtra las reservas de una etapa de lote que todavía tienen saldo reservado sobre un lote de insumo no vencido,
+     * para elegir el lote de insumo de un consumo reservado. Los criterios de texto nulos no restringen.
      * <p>
-     * El orden es FEFO y lo define la consulta, para que la paginación sea estable: primero los lotes de insumo
-     * vigentes por fecha de vencimiento ascendente (uno que vence hoy es vigente), luego los que no tienen fecha de
-     * vencimiento y al final los vencidos (fecha anterior a {@code hoy}), también por fecha; ante igual fecha, por ID.
+     * Un lote de insumo está vencido cuando su fecha de vencimiento es anterior a {@code hoy} (si vence hoy todavía es
+     * válido) y no se ofrece. El orden es FEFO y lo define la consulta, para que la paginación sea estable: por fecha
+     * de vencimiento ascendente; ante igual fecha, por ID.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote.
@@ -126,13 +126,12 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * @return Una página de reservas con su lote de insumo y su insumo cargados.
      */
     @Query(value = "SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
-            + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 "
+            + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 AND li.fechaVencimiento >= :hoy "
             + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
             + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
-            + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
-            + "li.fechaVencimiento ASC, li.id ASC",
+            + "ORDER BY li.fechaVencimiento ASC, li.id ASC",
             countQuery = "SELECT COUNT(r) FROM ReservaInsumoEntity r JOIN r.loteInsumo li JOIN li.insumo i "
-                    + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 "
+                    + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 AND li.fechaVencimiento >= :hoy "
                     + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
                     + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
     Page<ReservaInsumoEntity> filtrarReservasConSaldo(@Param("idEtapaLote") Long idEtapaLote,

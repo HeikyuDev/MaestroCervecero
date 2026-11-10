@@ -719,24 +719,23 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CR-24: registrarConsumoInsumoReservado — la reserva de un lote de insumo vencido se mantiene: el consumo se registra con la advertencia del vencimiento")
-    void registrarReservado_debeAdvertirElLoteDeInsumoVencido() {
+    @DisplayName("CP-CR-24: registrarConsumoInsumoReservado lanza ReglaNegocioException si el lote de insumo está vencido, sin tocar la reserva ni el stock")
+    void registrarReservado_debeRechazarUnLoteDeInsumoVencido() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         LocalDate vencimiento = LocalDate.now().minusDays(3);
         loteInsumo.setFechaVencimiento(vencimiento);
-        ReservaInsumoEntity reserva = prepararConsumoReservado(malta, loteInsumo, 6.0, 100.0);
+        prepararEtapaParaRechazoPorVencimiento(malta, loteInsumo);
 
-        // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
-
-        // === ASSERTS ===
-        assertThat(resultado.getAdvertencias()).containsExactly("Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")");
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(reserva.getCantidadPendiente()).isEqualTo(2.0);
-        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
-        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo está vencido (venció el " + formatearFecha(vencimiento) + ") y no se puede consumir");
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(10.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(6.0);
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any(LoteInsumoEntity.class));
     }
 
     @Test
@@ -761,23 +760,21 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CR-26: registrarConsumoInsumoReservado — lote de insumo vencido y exceso a la vez: devuelve ambas advertencias, primero la del vencimiento")
-    void registrarReservado_debeAdvertirElVencimientoYElExcesoALaVez() {
+    @DisplayName("CP-CR-26: registrarConsumoInsumoReservado lanza ReglaNegocioException si el lote de insumo venció ayer (límite): ya no es válido")
+    void registrarReservado_debeRechazarUnLoteDeInsumoQueVencioAyer() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         LocalDate vencimiento = LocalDate.now().minusDays(1);
         loteInsumo.setFechaVencimiento(vencimiento);
-        prepararConsumoReservado(malta, loteInsumo, 6.0, 3.5);
+        prepararEtapaParaRechazoPorVencimiento(malta, loteInsumo);
 
-        // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
-
-        // === ASSERTS ===
-        assertThat(resultado.getAdvertencias()).containsExactly(
-                "Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")",
-                "El total consumido de Malta Pilsen en esta etapa (4 kg) supera la cantidad requerida (3,5 kg)");
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo está vencido (venció el " + formatearFecha(vencimiento) + ") y no se puede consumir");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any(LoteInsumoEntity.class));
     }
 
     @Test
@@ -799,19 +796,22 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CR-28: registrarConsumoInsumoReservado — un lote de insumo que vence hoy todavía es válido (límite): sin advertencia de vencimiento")
-    void registrarReservado_noDebeAdvertirUnLoteDeInsumoQueVenceHoy() {
+    @DisplayName("CP-CR-28: registrarConsumoInsumoReservado — un lote de insumo que vence hoy todavía es válido (límite): el consumo se registra")
+    void registrarReservado_debeRegistrarUnLoteDeInsumoQueVenceHoy() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         loteInsumo.setFechaVencimiento(LocalDate.now());
-        prepararConsumoReservado(malta, loteInsumo, 6.0, 100.0);
+        ReservaInsumoEntity reserva = prepararConsumoReservado(malta, loteInsumo, 6.0, 100.0);
 
         // === EJECUCION ===
         ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
 
         // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(resultado.getAdvertencias()).isEmpty();
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(2.0);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
     }
 
     @Test
@@ -1188,23 +1188,23 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CD-21: registrarConsumoInsumoDirecto — el consumo directo sobre un lote de insumo vencido se permite, con la advertencia del vencimiento")
-    void registrarDirecto_debeAdvertirElLoteDeInsumoVencido() {
+    @DisplayName("CP-CD-21: registrarConsumoInsumoDirecto lanza ReglaNegocioException si el lote de insumo está vencido, sin tocar el stock")
+    void registrarDirecto_debeRechazarUnLoteDeInsumoVencido() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         LocalDate vencimiento = LocalDate.now().minusDays(10);
         loteInsumo.setFechaVencimiento(vencimiento);
-        prepararConsumoDirecto(malta, loteInsumo, 100.0);
+        prepararEtapaParaRechazoPorVencimiento(malta, loteInsumo);
 
-        // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
-
-        // === ASSERTS ===
-        assertThat(resultado.getAdvertencias()).containsExactly("Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")");
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
-        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo está vencido (venció el " + formatearFecha(vencimiento) + ") y no se puede consumir");
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(10.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verifyNoInteractions(consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any(LoteInsumoEntity.class));
     }
 
     @Test
@@ -1228,23 +1228,21 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CD-23: registrarConsumoInsumoDirecto — lote de insumo vencido y exceso a la vez: devuelve ambas advertencias, primero la del vencimiento")
-    void registrarDirecto_debeAdvertirElVencimientoYElExcesoALaVez() {
+    @DisplayName("CP-CD-23: registrarConsumoInsumoDirecto lanza ReglaNegocioException si el lote de insumo venció ayer (límite): ya no es válido")
+    void registrarDirecto_debeRechazarUnLoteDeInsumoQueVencioAyer() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         LocalDate vencimiento = LocalDate.now().minusDays(1);
         loteInsumo.setFechaVencimiento(vencimiento);
-        prepararConsumoDirecto(malta, loteInsumo, 3.5);
+        prepararEtapaParaRechazoPorVencimiento(malta, loteInsumo);
 
-        // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
-
-        // === ASSERTS ===
-        assertThat(resultado.getAdvertencias()).containsExactly(
-                "Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")",
-                "El total consumido de Malta Pilsen en esta etapa (4 kg) supera la cantidad requerida (3,5 kg)");
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo está vencido (venció el " + formatearFecha(vencimiento) + ") y no se puede consumir");
+        verifyNoInteractions(consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any(LoteInsumoEntity.class));
     }
 
     @Test
@@ -1266,8 +1264,8 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CD-25: registrarConsumoInsumoDirecto — un lote de insumo que vence hoy todavía es válido (límite): sin advertencia de vencimiento")
-    void registrarDirecto_noDebeAdvertirUnLoteDeInsumoQueVenceHoy() {
+    @DisplayName("CP-CD-25: registrarConsumoInsumoDirecto — un lote de insumo que vence hoy todavía es válido (límite): el consumo se registra")
+    void registrarDirecto_debeRegistrarUnLoteDeInsumoQueVenceHoy() {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
@@ -1278,7 +1276,9 @@ class ConsumoInsumoServicioImplTest {
         ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
 
         // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(resultado.getAdvertencias()).isEmpty();
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
     }
 
     @Test
@@ -1891,6 +1891,17 @@ class ConsumoInsumoServicioImplTest {
         when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaLote)).thenReturn(List.of(new RequerimientoInsumo(malta, etapaLote, cantidadRequerida)));
         when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(consumosPrevios));
         return etapaLote;
+    }
+
+    /**
+     * Prepara una etapa de Molienda en curso que requiere la malta y el lote de insumo a consumir, con solo los
+     * colaboradores que se consultan antes de rechazar un lote de insumo vencido.
+     */
+    private void prepararEtapaParaRechazoPorVencimiento(MaltaEntity malta, LoteInsumoEntity loteInsumo) {
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(loteInsumo.getId())).thenReturn(Optional.of(loteInsumo));
     }
 
     private static String formatearFecha(LocalDate fecha) {

@@ -34,8 +34,8 @@ public interface IReservaInsumoServicio {
 
     /**
      * Filtra las reservas de una etapa de lote que todavía tienen saldo reservado, para elegir el lote de insumo de un
-     * consumo reservado, en orden FEFO (vigentes por vencimiento, luego sin fecha de vencimiento y al final los
-     * vencidos, que se marcan). Las reservas agotadas no se ofrecen.
+     * consumo reservado, en orden FEFO (por vencimiento). Las reservas agotadas y las de lotes de insumo
+     * vencidos no se ofrecen.
      *
      * @param idEtapaLote El ID de la etapa de lote (obligatorio; lo resuelve el Controller).
      * @param idInsumo El ID del insumo elegido, o {@code null} para no restringir.

@@ -167,12 +167,13 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     boolean existsByInsumo_IdAndCantidadActualGreaterThan(Long idInsumo, Double cantidadActual);
 
     /**
-     * Filtra los lotes de insumo con saldo disponible (cantidad actual menos reservada, mayor a 0 al redondear a 4
-     * decimales) de los insumos indicados, para el consumo directo. Los criterios de texto nulos no restringen.
+     * Filtra los lotes de insumo no vencidos con saldo disponible (cantidad actual menos reservada, mayor a 0 al
+     * redondear a 4 decimales) de los insumos indicados, para el consumo directo. Los criterios de texto nulos no
+     * restringen.
      * <p>
-     * El orden es FEFO y lo define la consulta, para que la paginación sea estable: primero los vigentes por fecha de
-     * vencimiento ascendente (un lote que vence hoy es vigente), luego los que no tienen fecha de vencimiento y al
-     * final los vencidos (fecha anterior a {@code hoy}), también por fecha; ante igual fecha, por ID.
+     * Un lote está vencido cuando su fecha de vencimiento es anterior a {@code hoy} (si vence hoy todavía es válido) y
+     * no se ofrece. El orden es FEFO y lo define la consulta, para que la paginación sea estable: por fecha de
+     * vencimiento ascendente; ante igual fecha, por ID.
      * </p>
      *
      * @param idsInsumo Los IDs de los insumos (no vacío).
@@ -183,13 +184,12 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      * @return Una página de lotes de insumo con su insumo cargado.
      */
     @Query(value = "SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE i.id IN :idsInsumo "
-            + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 "
+            + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 AND li.fechaVencimiento >= :hoy "
             + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
             + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
-            + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
-            + "li.fechaVencimiento ASC, li.id ASC",
+            + "ORDER BY li.fechaVencimiento ASC, li.id ASC",
             countQuery = "SELECT COUNT(li) FROM LoteInsumoEntity li JOIN li.insumo i WHERE i.id IN :idsInsumo "
-                    + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 "
+                    + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 AND li.fechaVencimiento >= :hoy "
                     + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
                     + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
     Page<LoteInsumoEntity> filtrarLotesInsumoDisponiblesParaConsumo(@Param("idsInsumo") Collection<Long> idsInsumo,

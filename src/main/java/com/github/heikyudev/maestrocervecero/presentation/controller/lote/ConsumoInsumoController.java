@@ -400,7 +400,7 @@ public class ConsumoInsumoController {
     /**
      * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo reservado (criterio de identificación
      * del lote + resultados), de a 8. Solo se ofrecen los lotes del insumo elegido ({@code idInsumo}) con saldo
-     * reservado para la etapa; el orden (FEFO: vigentes por vencimiento, luego vencidos) lo da el service y no se
+     * reservado para la etapa; el orden (FEFO, por vencimiento) lo da el service; los lotes vencidos no se ofrecen y no se
      * reordena. Un modal no puede redirigir: una etapa que no admite consumos, un lote inexistente o un insumo que no
      * se eligió (o que la etapa no ofrece) se informan dentro del propio fragmento.
      */
@@ -417,7 +417,7 @@ public class ConsumoInsumoController {
 
     /**
      * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo directo, de a 8. Se ofrecen todos los
-     * lotes con saldo disponible del insumo elegido, en orden FEFO con los vencidos al final.
+     * lotes no vencidos con saldo disponible del insumo elegido, en orden FEFO.
      */
     @GetMapping("/directo/buscador/lotes-insumo")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")

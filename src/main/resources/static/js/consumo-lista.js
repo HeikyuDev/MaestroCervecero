@@ -8,8 +8,8 @@
  *     ese insumo (parámetro idInsumo), quita el lote que estuviera elegido y su resumen, y muestra la unidad del insumo
  *     como sufijo de la cantidad a consumir (data-unidad del botón "Elegir"). Si se quita el insumo, vuelve a deshabilitar el lote.
  *   - Selector del lote de insumo (campo idLoteInsumo): completa [data-lote-elegido] con el vencimiento, la cantidad
- *     (reservada o disponible, según el tipo de consumo) y la marca de vencido que trae el botón "Elegir" del buscador
- *     (data-vencimiento, data-cantidad y data-vencido), y la unidad del sufijo de la cantidad a consumir (data-unidad).
+ *     (reservada o disponible, según el tipo de consumo) que trae el botón "Elegir" del buscador
+ *     (data-vencimiento y data-cantidad), y la unidad del sufijo de la cantidad a consumir (data-unidad).
  */
 (function () {
     'use strict';
@@ -66,7 +66,6 @@
         resumen.querySelector('[data-lote-vencimiento]').textContent = datos.vencimiento || '-';
         resumen.querySelector('[data-lote-cantidad]').textContent = datos.cantidad || '-';
         resumen.querySelector('[data-lote-cantidad-bloque]').hidden = false;
-        resumen.querySelector('[data-lote-vencido]').hidden = datos.vencido !== 'true';
         resumen.hidden = false;
         if (datos.unidad) { fijarUnidad(formulario, datos.unidad); }
     }

@@ -101,7 +101,8 @@ class ConsumoInsumoControllerTest {
     private static final String ALERTA_ADVERTENCIA = "bg-amber-50 border-amber-200 text-amber-800";
     private static final String ALERTA_EXITO = "bg-teal-50 border-teal-200 text-teal-800";
     private static final String SIN_PERMISOS = "No tiene permisos para realizar esta acción";
-    private static final String VENCIDO = "Este lote de insumo se encuentra vencido (venció el 01/01/2020)";
+    private static final String EXCESO_CASCADE = "El total consumido de Cascade en esta etapa (30 g) supera la cantidad requerida (25 g)";
+    private static final String VENCIDO = "El lote de insumo está vencido (venció el 01/01/2020) y no se puede consumir";
     private static final String EXCESO = "El total consumido de Citra en esta etapa (20 g) supera la cantidad requerida (15 g)";
     private static final long ETAPA_HERVIDO = 33L;
 
@@ -138,7 +139,7 @@ class ConsumoInsumoControllerTest {
         when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of(
                 requerido(cascade(), 25, 10, 15), requerido(citra(), 15, 15, 0)));
         when(reservaInsumoServicio.filtrarReservasConSaldo(eq(ETAPA_HERVIDO), any(), any(), any())).thenReturn(Page.empty());
-        when(loteInsumoServicio.buscarPorId(5L)).thenReturn(loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 10, false));
+        when(loteInsumoServicio.buscarPorId(5L)).thenReturn(loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 10));
         when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 consumo(7L, ETAPA_HERVIDO, cascade(), "L-123", TipoConsumo.DIRECTO, 15, EstadoTransaccion.REGISTRADO, null),
                 consumo(6L, ETAPA_HERVIDO, cascade(), "L-124", TipoConsumo.RESERVADO, 5, EstadoTransaccion.ANULADO, "Error de carga"))));
@@ -149,7 +150,7 @@ class ConsumoInsumoControllerTest {
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenReturn(respuestaDeConsumo());
         when(consumoInsumoServicio.anularConsumoInsumo(any(), any())).thenReturn(respuestaDeConsumo());
         when(loteInsumoServicio.filtrarLotesInsumoDisponibles(any(Collection.class), any(), any(), any())).thenReturn(Page.empty());
-        when(loteInsumoServicio.buscarPorId(8L)).thenReturn(loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40, false));
+        when(loteInsumoServicio.buscarPorId(8L)).thenReturn(loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40));
     }
 
     // ==================== GET /lotes/{idLote}/etapas/{etapa}/consumos ====================
@@ -354,7 +355,7 @@ class ConsumoInsumoControllerTest {
     void pantalla_alertasDelPostRedirectGet() throws Exception {
         // Act
         String conAdvertencias = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(VENCIDO, EXCESO)))
+                        .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String sinAdvertencias = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
                         .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success"))
@@ -365,8 +366,8 @@ class ConsumoInsumoControllerTest {
         assertThat(cuenta(conAdvertencias, ALERTA_ADVERTENCIA)).isEqualTo(2);
         assertThat(conAdvertencias.indexOf(ALERTA_EXITO)).isLessThan(conAdvertencias.indexOf("data-advertencia"));
         assertThat(conAdvertencias.lastIndexOf("data-advertencia")).isLessThan(conAdvertencias.indexOf("data-resumen-consumo"));
-        assertThat(texto(conAdvertencias)).contains("Consumo creado correctamente", VENCIDO, EXCESO);
-        assertThat(conAdvertencias.indexOf(VENCIDO)).isLessThan(conAdvertencias.indexOf(EXCESO));
+        assertThat(texto(conAdvertencias)).contains("Consumo creado correctamente", EXCESO_CASCADE, EXCESO);
+        assertThat(conAdvertencias.indexOf(EXCESO_CASCADE)).isLessThan(conAdvertencias.indexOf(EXCESO));
         assertThat(sinAdvertencias).contains(ALERTA_EXITO).doesNotContain("data-advertencia").doesNotContain(ALERTA_ADVERTENCIA);
     }
 
@@ -511,7 +512,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-23: las advertencias del service viajan en el atributo flash advertencias, en su orden, y no impiden el consumo")
     void reservado_debePasarLasAdvertencias() throws Exception {
         // Arrange
-        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenReturn(respuestaDeConsumo(VENCIDO, EXCESO));
+        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenReturn(respuestaDeConsumo(EXCESO_CASCADE, EXCESO));
 
         // Act + Assert
         mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "7", "20"))
@@ -519,7 +520,7 @@ class ConsumoInsumoControllerTest {
                 .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=reservado"))
                 .andExpect(flash().attribute("mensaje", "Consumo creado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"))
-                .andExpect(flash().attribute("advertencias", List.of(VENCIDO, EXCESO)));
+                .andExpect(flash().attribute("advertencias", List.of(EXCESO_CASCADE, EXCESO)));
     }
 
     @Test
@@ -674,17 +675,15 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-38: el consumo directo de un lote vencido se permite y la advertencia viaja en el atributo flash advertencias")
-    void directo_loteVencidoConAdvertencia() throws Exception {
+    @DisplayName("CP-LCO-38: un lote de insumo vencido lo rechaza el service, en el consumo directo y en el reservado, y vuelve al origen con la alerta amarilla y su mensaje")
+    void rechazoPorLoteDeInsumoVencido() throws Exception {
         // Arrange
-        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenReturn(respuestaDeConsumo(VENCIDO));
+        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(VENCIDO));
+        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException(VENCIDO));
 
         // Act + Assert
-        mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "7", "5"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=directo"))
-                .andExpect(flash().attribute("tipo", "success"))
-                .andExpect(flash().attribute("advertencias", List.of(VENCIDO)));
+        assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "7", "5").header("Referer", URL_PANTALLA)), VENCIDO, "warning");
+        assertRechazoDelService(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "7", "5").header("Referer", URL_PANTALLA)), VENCIDO, "warning");
     }
 
     @Test
@@ -743,7 +742,7 @@ class ConsumoInsumoControllerTest {
         assertThat(elegido.find()).isTrue();
         assertThat(elegido.group()).doesNotContain("hidden");
         assertThat(texto(elementoConAtributo(html, "p", "data-lote-elegido"))).contains("Vencimiento: 12/03/2028", "Disponible: 40 g");
-        assertThat(Pattern.compile("<span[^>]*data-lote-vencido[^>]*>").matcher(html).results().findFirst().orElseThrow().group()).contains("hidden");
+        assertThat(html).doesNotContain("data-lote-vencido");
         verify(loteInsumoServicio).buscarPorId(8L);
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoDirecto(any(), any());
     }
@@ -1095,32 +1094,28 @@ class ConsumoInsumoControllerTest {
         assertThat(texto(html)).contains("No se encontraron insumos con los criterios indicados");
     }
 
-    // ==================== Lote de insumo vencido al registrar ====================
+    // ==================== Identificación del lote de insumo en los consumos registrados ====================
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"reservado", "directo"})
-    @DisplayName("CP-LCO-102: un consumo registrado con un lote de insumo vencido muestra la marca Vencido junto a la identificación del lote, con el tooltip Venció el dd/MM/yyyy, en las dos pestañas; uno registrado con un lote vigente no la muestra")
-    void pantalla_marcaElLoteVencidoAlRegistrar(String tipo) throws Exception {
+    @DisplayName("CP-LCO-102: un consumo registrado muestra solo la identificación del lote de insumo, sin marca de vencido, en las dos pestañas")
+    void pantalla_noMarcaElLoteDeInsumo(String tipo) throws Exception {
         // Arrange
-        ConsumoInsumoResponseDTO vencido = ConsumoInsumoResponseDTO.builder().id(9L).cantidadConsumida(5.0).tipoConsumo(TipoConsumo.RESERVADO)
-                .estado(EstadoTransaccion.REGISTRADO).vencidoAlRegistrar(true)
+        ConsumoInsumoResponseDTO antiguo = ConsumoInsumoResponseDTO.builder().id(9L).cantidadConsumida(5.0).tipoConsumo(TipoConsumo.RESERVADO)
+                .estado(EstadoTransaccion.REGISTRADO)
                 .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(ETAPA_HERVIDO).build())
                 .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor("C-900").fechaVencimiento(LocalDate.of(2020, 1, 1)).insumo(citra()).build()).build();
         ConsumoInsumoResponseDTO vigente = consumo(7L, ETAPA_HERVIDO, cascade(), "L-123", TipoConsumo.DIRECTO, 15, EstadoTransaccion.REGISTRADO, null);
-        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(vencido, vigente)));
+        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(antiguo, vigente)));
 
         // Act
         String consumos = bloque(mockMvc.perform(get(URL_PANTALLA).param("tipo", tipo).with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "data-consumos-registrados");
 
         // Assert
-        String filaVencida = elementoConAtributo(consumos, "tr", "data-consumo=\"9\"");
-        assertThat(celdas(filaVencida, "C-900").get(1)).isEqualTo("C-900 Vencido");
-        Matcher marca = Pattern.compile("<span[^>]*data-vencido[^>]*>").matcher(filaVencida);
-        assertThat(marca.find()).isTrue();
-        assertThat(marca.group()).contains("data-tooltip=\"Venció el 01/01/2020\"").contains("tabindex=\"0\"");
-        assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-vencido");
-        assertThat(cuenta(consumos, "data-vencido")).isEqualTo(1);
+        assertThat(celdas(elementoConAtributo(consumos, "tr", "data-consumo=\"9\""), "C-900").get(1)).isEqualTo("C-900");
+        assertThat(celdas(elementoConAtributo(consumos, "tr", "data-consumo=\"7\""), "L-123").get(1)).isEqualTo("L-123");
+        assertThat(consumos).doesNotContain("Vencido").doesNotContain("data-vencido");
     }
 
     @Test
@@ -1146,8 +1141,8 @@ class ConsumoInsumoControllerTest {
     void buscador_debeDevolverElFragmento() throws Exception {
         // Arrange
         stubLotesInsumo(new PageImpl<>(List.of(
-                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40, false),
-                loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15, true))));
+                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40),
+                loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15))));
 
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
@@ -1185,42 +1180,39 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-60: un lote vencido se marca con la etiqueta Vencido y su botón Elegir lleva data-vencido; uno que vence hoy o más adelante no se marca")
-    void buscador_marcaLosLotesVencidos() throws Exception {
+    @DisplayName("CP-LCO-60: el buscador del consumo directo muestra la fecha de vencimiento de cada lote, también la del que vence hoy, sin ninguna marca de vencido, y el botón Elegir no lleva data-vencido")
+    void buscador_muestraElVencimientoSinMarcas() throws Exception {
         // Arrange
         stubLotesInsumo(new PageImpl<>(List.of(
-                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40, false),
-                loteInsumo(9L, cascade(), "L-130", LocalDate.now(), 10, false),
-                loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15, true))));
+                loteInsumo(9L, cascade(), "L-130", LocalDate.now(), 10),
+                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40),
+                loteInsumo(7L, citra(), "C-900", LocalDate.of(2030, 1, 1), 15))));
 
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
-        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2020 Vencido", "15 g", "Elegir");
+        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2030", "15 g", "Elegir");
         assertThat(celdas(html, "L-125").get(1)).isEqualTo("12/03/2028");
-        assertThat(celdas(html, "L-130").get(1)).doesNotContain("Vencido");
-        assertThat(botonElegir(html, 7)).contains("data-vencido=\"true\"");
-        assertThat(botonElegir(html, 8)).doesNotContain("data-vencido");
-        assertThat(botonElegir(html, 9)).doesNotContain("data-vencido");
-        assertThat(cuenta(html, "Vencido")).isEqualTo(1);
+        assertThat(celdas(html, "L-130").get(1)).isEqualTo(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        assertThat(botonElegir(html, 8)).contains("data-vencimiento=\"12/03/2028\"").doesNotContain("data-vencido");
+        assertThat(html).doesNotContain("Vencido").doesNotContain("data-vencido");
     }
 
     @Test
-    @DisplayName("CP-LCO-61: el buscador del consumo directo muestra los lotes en el orden recibido del service, con los vencidos al final, y no los reordena")
+    @DisplayName("CP-LCO-61: el buscador del consumo directo muestra los lotes en el orden recibido del service y no los reordena")
     void buscador_respetaElOrdenDelService() throws Exception {
         // Arrange
         stubLotesInsumo(new PageImpl<>(List.of(
-                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40, false),
-                loteInsumo(9L, cascade(), "L-126", LocalDate.of(2029, 6, 1), 10, false),
-                loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15, true))));
+                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40),
+                loteInsumo(9L, cascade(), "L-126", LocalDate.of(2029, 6, 1), 10),
+                loteInsumo(7L, citra(), "C-900", LocalDate.of(2030, 1, 1), 15))));
 
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
         assertThat(IntStream.of(8, 9, 7).map(id -> html.indexOf("data-id=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
-        assertThat(html.lastIndexOf("Vencido")).isGreaterThan(html.indexOf("data-id=\"9\""));
     }
 
     @Test
@@ -1248,7 +1240,7 @@ class ConsumoInsumoControllerTest {
     void buscador_paginaDeA8() throws Exception {
         // Arrange
         List<LoteInsumoResponseDTO> lotes = IntStream.rangeClosed(1, 10)
-                .mapToObj(i -> loteInsumo(100L + i, cascade(), "L-" + i, LocalDate.of(2028, 1, i), 10, false)).toList();
+                .mapToObj(i -> loteInsumo(100L + i, cascade(), "L-" + i, LocalDate.of(2028, 1, i), 10)).toList();
         stubLotesInsumo(new PageImpl<>(lotes.subList(0, 8), PageRequest.of(0, 8), 10));
         String primera = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").param("identificacion", "L-").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -1326,13 +1318,13 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-68: un lote de insumo sin fecha de vencimiento muestra un guion, no se marca como vencido y va después de los vigentes con fecha")
+    @DisplayName("CP-LCO-68: un lote de insumo sin fecha de vencimiento muestra un guion y conserva el lugar que le da el service")
     void buscador_loteSinFechaDeVencimiento() throws Exception {
         // Arrange
         stubLotesInsumo(new PageImpl<>(List.of(
-                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40, false),
-                loteInsumo(10L, cascade(), "L-127", null, 25, false),
-                loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15, true))));
+                loteInsumo(8L, cascade(), "L-125", LocalDate.of(2028, 3, 12), 40),
+                loteInsumo(10L, cascade(), "L-127", null, 25),
+                loteInsumo(7L, citra(), "C-900", LocalDate.of(2030, 1, 1), 15))));
 
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
@@ -1347,7 +1339,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-82: el buscador del consumo reservado ofrece solo las reservas con saldo de la etapa: las pide a reservaInsumoServicio de a 8 y sin ordenar, muestra la columna Reservado con el saldo y no consulta lotes de insumo")
     void buscadorReservado_ofreceLasReservasConSaldo() throws Exception {
         // Arrange
-        stubReservas(new PageImpl<>(List.of(reserva(1L, loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 90, false), 10))));
+        stubReservas(new PageImpl<>(List.of(reserva(1L, loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 90), 10))));
 
         // Act
         String html = buscadorReservado(Rol.OPERARIO_DE_PRODUCCION);
@@ -1369,24 +1361,22 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-83: el buscador del consumo reservado muestra las reservas en el orden FEFO recibido del service, con los lotes vencidos al final y marcados, sin reordenarlos")
-    void buscadorReservado_respetaElOrdenFefoYMarcaLosVencidos() throws Exception {
+    @DisplayName("CP-LCO-83: el buscador del consumo reservado muestra las reservas en el orden FEFO recibido del service, sin marcas de vencido y sin reordenarlas")
+    void buscadorReservado_respetaElOrdenFefoSinMarcas() throws Exception {
         // Arrange
         stubReservas(new PageImpl<>(List.of(
-                reserva(1L, loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 90, false), 10),
-                reserva(2L, loteInsumo(6L, cascade(), "L-124", null, 90, false), 4),
-                reserva(3L, loteInsumo(7L, citra(), "C-900", LocalDate.of(2020, 1, 1), 15, true), 15))));
+                reserva(1L, loteInsumo(5L, cascade(), "L-123", LocalDate.of(2028, 3, 12), 90), 10),
+                reserva(2L, loteInsumo(6L, cascade(), "L-124", null, 90), 4),
+                reserva(3L, loteInsumo(7L, citra(), "C-900", LocalDate.of(2030, 1, 1), 15), 15))));
 
         // Act
         String html = buscadorReservado(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
         assertThat(IntStream.of(5, 6, 7).map(id -> html.indexOf("data-id=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
-        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2020 Vencido", "15 g", "Elegir");
+        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2030", "15 g", "Elegir");
         assertThat(celdas(html, "L-124")).containsExactly("L-124", "-", "4 g", "Elegir");
-        assertThat(botonElegir(html, 7)).contains("data-vencido=\"true\"");
-        assertThat(botonElegir(html, 5)).doesNotContain("data-vencido");
-        assertThat(cuenta(html, "Vencido")).isEqualTo(1);
+        assertThat(html).doesNotContain("Vencido").doesNotContain("data-vencido");
     }
 
     @Test
@@ -1394,7 +1384,7 @@ class ConsumoInsumoControllerTest {
     void buscadorReservado_criteriosYPaginacion() throws Exception {
         // Arrange
         List<ReservaInsumoResponseDTO> reservas = IntStream.rangeClosed(1, 10)
-                .mapToObj(i -> reserva(200L + i, loteInsumo(100L + i, cascade(), "L-" + i, LocalDate.of(2028, 1, i), 90, false), 10)).toList();
+                .mapToObj(i -> reserva(200L + i, loteInsumo(100L + i, cascade(), "L-" + i, LocalDate.of(2028, 1, i), 90), 10)).toList();
         stubReservas(new PageImpl<>(reservas.subList(0, 8), PageRequest.of(0, 8), 10));
 
         // Act
@@ -1609,7 +1599,7 @@ class ConsumoInsumoControllerTest {
         List<String> paginas = List.of(
                 html(Rol.OPERARIO_DE_PRODUCCION),
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                                .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(VENCIDO, EXCESO)))
+                                .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 mockMvc.perform(get(URL_FORMULARIO_DIRECTO).with(como(Rol.OPERARIO_DE_PRODUCCION))).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc"), "reservado"));
@@ -2063,9 +2053,9 @@ class ConsumoInsumoControllerTest {
                 .porcentaje(porcentaje).cumple(cumple).build();
     }
 
-    private static LoteInsumoResponseDTO loteInsumo(Long id, InsumoResponseDTO insumo, String identificacion, LocalDate vencimiento, double disponible, boolean vencido) {
+    private static LoteInsumoResponseDTO loteInsumo(Long id, InsumoResponseDTO insumo, String identificacion, LocalDate vencimiento, double disponible) {
         return LoteInsumoResponseDTO.builder().id(id).insumo(insumo).identificacionLoteProveedor(identificacion).fechaVencimiento(vencimiento)
-                .cantidadDisponible(disponible).vencido(vencido).build();
+                .cantidadDisponible(disponible).build();
     }
 
     private static ReservaInsumoResponseDTO reserva(Long id, LoteInsumoResponseDTO loteInsumo, double saldo) {

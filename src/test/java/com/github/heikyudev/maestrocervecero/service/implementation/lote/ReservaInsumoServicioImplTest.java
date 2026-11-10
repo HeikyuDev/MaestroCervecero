@@ -80,8 +80,8 @@ class ReservaInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FLR-03: filtrarLotesInsumoReservados con el insumo nulo propaga el nulo (todas las reservas de la etapa) y marca como vencido el lote de insumo vencido")
-    void filtrarLotesInsumoReservados_debePropagarInsumoNuloYMarcarVencidos() {
+    @DisplayName("CP-FLR-03: filtrarLotesInsumoReservados con el insumo nulo propaga el nulo y retorna todas las reservas de la etapa, también las de un lote de insumo vencido")
+    void filtrarLotesInsumoReservados_debePropagarInsumoNuloYRetornarTodasLasReservas() {
         // === PREPARACION DE DATOS ===
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
         LoteInsumoEntity vencido = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
@@ -96,22 +96,21 @@ class ReservaInsumoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadReservada).containsExactly(8.0, 0.0);
-        assertThat(resultado.get(0).getLoteInsumo().isVencido()).isTrue();
-        assertThat(resultado.get(1).getLoteInsumo().isVencido()).isFalse();
+        assertThat(resultado).extracting(reserva -> reserva.getLoteInsumo().getIdentificacionLoteProveedor()).containsExactly("LOTE-A", "LOTE-B");
         verify(reservaInsumoRepository).filtrarLotesInsumoReservados(1L, null);
     }
 
     // ==================== filtrarReservasConSaldo ====================
 
     @Test
-    @DisplayName("CP-FRS-01: filtrarReservasConSaldo restringe por el insumo, normaliza la identificación, ignora el orden del pageable y retorna las reservas mapeadas con el vencido marcado")
+    @DisplayName("CP-FRS-01: filtrarReservasConSaldo restringe por el insumo, normaliza la identificación, ignora el orden del pageable y consulta con la fecha de hoy para excluir los lotes vencidos y retorna las reservas mapeadas")
     void filtrarReservasConSaldo_debeRestringirPorInsumoYMapear() {
         // === PREPARACION DE DATOS ===
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
-        LoteInsumoEntity vencido = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
-        vencido.setFechaVencimiento(LocalDate.now().minusDays(1));
+        LoteInsumoEntity vigente = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
+        vigente.setFechaVencimiento(LocalDate.now());
         when(reservaInsumoRepository.filtrarReservasConSaldo(eq(1L), eq(7L), eq("l-125"), any(LocalDate.class), any()))
-                .thenReturn(new PageImpl<>(List.of(reservaInsumoEntity(100L, etapaLote, vencido, 8.0))));
+                .thenReturn(new PageImpl<>(List.of(reservaInsumoEntity(100L, etapaLote, vigente, 8.0))));
 
         // === EJECUCION ===
         Page<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarReservasConSaldo(
@@ -120,8 +119,8 @@ class ReservaInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().get(0).getCantidadReservada()).isEqualTo(8.0);
-        assertThat(resultado.getContent().get(0).getLoteInsumo().isVencido()).isTrue();
-        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(7L), eq("l-125"), any(LocalDate.class), eq(PageRequest.of(2, 8)));
+        assertThat(resultado.getContent().get(0).getLoteInsumo().getIdentificacionLoteProveedor()).isEqualTo("LOTE-A");
+        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(7L), eq("l-125"), eq(LocalDate.now()), eq(PageRequest.of(2, 8)));
     }
 
     @Test
