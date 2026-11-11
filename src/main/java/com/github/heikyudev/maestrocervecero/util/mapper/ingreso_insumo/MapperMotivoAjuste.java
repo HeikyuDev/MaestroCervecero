@@ -16,6 +16,18 @@ public class MapperMotivoAjuste {
      * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
      */
     public static MotivoAjusteResponseDTO toDTO(MotivoAjusteEntity motivoAjusteEntity) {
+        return toDTO(motivoAjusteEntity, null);
+    }
+
+    /**
+     * Mapea una instancia de {@link MotivoAjusteEntity} a {@link MotivoAjusteResponseDTO}, informando si el motivo tiene
+     * ajustes de insumo asociados.
+     *
+     * @param motivoAjusteEntity Entidad de motivo de ajuste a convertir.
+     * @param tieneAjustes {@code true} si el motivo tiene ajustes de insumo asociados, o {@code null} si no se calculó.
+     * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
+     */
+    public static MotivoAjusteResponseDTO toDTO(MotivoAjusteEntity motivoAjusteEntity, Boolean tieneAjustes) {
         if (motivoAjusteEntity == null) {
             return null;
         }
@@ -25,6 +37,7 @@ public class MapperMotivoAjuste {
                 .nombre(motivoAjusteEntity.getNombre())
                 .tipoAjuste(motivoAjusteEntity.getTipoAjuste())
                 .estado(motivoAjusteEntity.getEstado())
+                .tieneAjustes(tieneAjustes)
                 .build();
     }
 }

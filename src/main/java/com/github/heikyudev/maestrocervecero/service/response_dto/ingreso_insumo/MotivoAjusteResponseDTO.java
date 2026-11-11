@@ -37,4 +37,10 @@ public class MotivoAjusteResponseDTO {
      * Estado lógico del motivo de ajuste (activo o dado de baja).
      */
     private Estado estado;
+
+    /**
+     * Indica si el motivo tiene al menos un ajuste de insumo asociado, registrado o anulado. Solo lo informa
+     * {@code buscarPorId}; en los demás casos es {@code null}. Un motivo con ajustes no puede cambiar de tipo ni darse de baja.
+     */
+    private Boolean tieneAjustes;
 }

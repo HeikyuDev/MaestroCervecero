@@ -59,7 +59,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
             nombreNormalizado = null;
         }
-        return motivoAjusteRepository.filtrarMotivosAjuste(nombreNormalizado, tipoAjuste, pageable).map(MapperMotivoAjuste::toDTO);
+        return motivoAjusteRepository.filtrarMotivosAjuste(NormalizacionTexto.escaparComodinesLike(nombreNormalizado), tipoAjuste, pageable).map(MapperMotivoAjuste::toDTO);
     }
 
     /**
@@ -72,8 +72,9 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
     @Override
     @Transactional(readOnly = true)
     public MotivoAjusteResponseDTO buscarPorId(Long id) {
-        return MapperMotivoAjuste.toDTO(motivoAjusteRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id)));
+        MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
+        return MapperMotivoAjuste.toDTO(motivoAjusteEntity, ajusteInsumoRepository.existsByMotivoAjusteId(id));
     }
 
     /**
@@ -81,7 +82,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      *
      * @param motivoAjusteFormDTO Los datos del motivo de ajuste a registrar.
      * @return El motivo de ajuste registrado.
-     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres (campo {@code nombre}), o si falta el tipo de ajuste (campo {@code tipoAjuste}).
      * @throws RecursoDuplicadoException Si ya existe un motivo de ajuste activo con el mismo nombre (case-insensitive).
      */
     @Override
@@ -93,6 +94,9 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
 
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
+
+        // 2.1. Validar que el tipo de ajuste sea obligatorio
+        validarTipoAjuste(motivoAjusteFormDTO.getTipoAjuste());
 
         // 3. Validar que no exista otro motivo de ajuste con el mismo nombre (case-insensitive)
         if (motivoAjusteRepository.existsByNombreIgnoreCase(nombre)) {
@@ -120,7 +124,8 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      * @return El motivo de ajuste modificado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro motivo de ajuste activo (case-insensitive).
-     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el motivo de ajuste tiene al menos un ajuste de insumo en estado REGISTRADO.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres (campo {@code nombre}), si falta el tipo de ajuste
+     *         o si el motivo ya tiene ajustes de insumo asociados, registrados o anulados, y se intenta cambiar su tipo (campo {@code tipoAjuste}).
      */
     @Override
     @Transactional
@@ -132,15 +137,19 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
+        // 2.1. Validar que el tipo de ajuste sea obligatorio
+        validarTipoAjuste(motivoAjusteFormDTO.getTipoAjuste());
+
         // 3. Localizar el motivo de ajuste existente. Si no existe, se dispara RecursoNoEncontradoException
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
 
-        // 4. Validar que el motivo no tenga ningún ajuste de insumo REGISTRADO: no existe un caso
-        //    donde un mismo motivo a veces sume y a veces reste, así que una vez usado, su tipo
-        //    (INGRESO/EGRESO) queda fijo mientras esos ajustes sigan vigentes.
-        if (ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(id)) {
-            throw new ReglaNegocioException("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados");
+        // 4. Si el motivo tiene algún ajuste de insumo asociado (registrado o anulado), su tipo queda fijo: no existe un
+        //    caso donde un mismo motivo a veces sume y a veces reste. Mandar el mismo tipo no es un cambio, y el nombre
+        //    se puede modificar siempre.
+        if (motivoAjusteFormDTO.getTipoAjuste() != motivoAjusteEntity.getTipoAjuste()
+                && ajusteInsumoRepository.existsByMotivoAjusteId(id)) {
+            throw new ReglaNegocioException("No se puede cambiar el tipo de ajuste porque el motivo ya tiene ajustes de insumo asociados", "tipoAjuste");
         }
 
         // 5. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
@@ -169,6 +178,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      * @param id El ID del motivo de ajuste a dar de baja.
      * @return El motivo de ajuste dado de baja.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
+     * @throws ReglaNegocioException Si el motivo tiene ajustes de insumo asociados, registrados o anulados.
      */
     @Override
     @Transactional
@@ -178,11 +188,16 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
 
-        // 2. Ejecutar la baja lógica y persistir el cambio
+        // 2. Un motivo con ajustes de insumo asociados (registrados o anulados) no se puede dar de baja
+        if (ajusteInsumoRepository.existsByMotivoAjusteId(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados");
+        }
+
+        // 3. Ejecutar la baja lógica y persistir el cambio
         motivoAjusteEntity.setEstado(Estado.BAJA);
         motivoAjusteRepository.save(motivoAjusteEntity);
 
-        // 3. Retornar el DTO del motivo de ajuste dado de baja
+        // 4. Retornar el DTO del motivo de ajuste dado de baja
         return MapperMotivoAjuste.toDTO(motivoAjusteEntity);
     }
 
@@ -194,9 +209,21 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      */
     private static void validarNombre(String nombre) {
         if (nombre == null || nombre.isEmpty()) {
-            throw new ReglaNegocioException("El nombre es obligatorio");
+            throw new ReglaNegocioException("El nombre es obligatorio", "nombre");
         }
-        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre", "nombre");
+    }
+
+    /**
+     * Valida que el tipo de ajuste sea obligatorio.
+     *
+     * @param tipoAjuste Tipo de ajuste recibido.
+     * @throws ReglaNegocioException Si el tipo de ajuste es nulo.
+     */
+    private static void validarTipoAjuste(TipoAjuste tipoAjuste) {
+        if (tipoAjuste == null) {
+            throw new ReglaNegocioException("El tipo de ajuste es obligatorio", "tipoAjuste");
+        }
     }
 
     private static RecursoDuplicadoException nombreDuplicado(String nombre) {

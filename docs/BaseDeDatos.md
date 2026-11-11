@@ -382,6 +382,14 @@ instantánea calcula con los valores vigentes de los equipos y los insumos.
 
 Con los datos existentes, `fecha_envasado` toma la fecha de registro del envasado (`created_date`) y, si falta, el inicio de su etapa o la última modificación del registro; `litros_descartados` queda en 0; y los barriles `CON_CERVEZA` que conservan el contenido de un envasado registrado de un lote en ejecución, sin operaciones posteriores, pasan a `EN_USO`.
 
+### Índice por motivo de ajuste
+
+`V19__indice_ajuste_insumo_motivo_ajuste.sql`:
+
+| Tabla y columna | Cambio |
+|---|---|
+| `ajuste_insumo.motivo_ajuste_id` | Índice `idx_ajuste_insumo_motivo_ajuste_id`: acelera saber si un motivo de ajuste tiene ajustes de insumo asociados, consulta que fija su tipo y impide su baja |
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta

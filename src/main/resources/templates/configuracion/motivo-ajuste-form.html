@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#motivo-ajuste-form-content}, 'configuracion-produccion')}">
+<body>
+
+<!--
+    editando = true cuando se modifica un motivo de ajuste existente (llega motivoId), false en el alta.
+    tipoBloqueado = true cuando el motivo ya tiene ajustes de insumo: el selector del tipo se muestra deshabilitado y el
+    tipo guardado viaja en un campo oculto (el service rechaza igualmente cualquier cambio).
+-->
+<div id="motivo-ajuste-form-content" class="space-y-6" th:with="editando=${motivoId != null}">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>Volver a motivos de ajuste</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
+            th:text="${editando} ? 'Editar motivo de ajuste' : 'Nuevo motivo de ajuste'">Nuevo motivo de ajuste</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <form th:action="${editando} ? @{/configuracion-produccion/motivos-ajuste/{id}(id=${motivoId})} : @{/configuracion-produccion/motivos-ajuste}"
+          th:object="${motivoAjusteForm}" method="post" novalidate data-un-solo-envio
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar el motivo de ajuste' : 'No se pudo crear el motivo de ajuste')}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos del motivo de ajuste</h2>
+
+            <!-- Una fila por tema: identificación y tipo de ajuste -->
+            <div class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="text" id="nombre" th:field="*{nombre}" autofocus autocomplete="off" placeholder="Ej: Merma por derrame, Recuento de inventario"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre los motivos activos, sin distinguir mayúsculas. Hasta 100 caracteres.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label for="tipoAjuste" class="block text-sm font-medium text-slate-700 mb-1">Tipo de ajuste <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <select id="tipoAjuste" th:field="*{tipoAjuste}" th:disabled="${tipoBloqueado}" data-tipo-ajuste
+                                class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-500"
+                                th:classappend="${#fields.hasErrors('tipoAjuste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                            <option value="">Seleccione tipo de ajuste</option>
+                            <option th:each="t : ${tipos}" th:value="${t}" th:text="${t.name() == 'INGRESO'} ? 'Ingreso' : 'Egreso'">Ingreso</option>
+                        </select>
+                        <input type="hidden" name="tipoAjuste" th:if="${tipoBloqueado}" th:value="*{tipoAjuste}">
+                        <p th:if="${#fields.hasErrors('tipoAjuste')}" th:errors="*{tipoAjuste}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:if="${tipoBloqueado and !#fields.hasErrors('tipoAjuste')}" data-tipo-bloqueado class="mt-1 text-xs text-slate-400">No se puede cambiar porque el motivo ya tiene ajustes.</p>
+                        <p th:unless="${tipoBloqueado or #fields.hasErrors('tipoAjuste')}" class="mt-1 text-xs text-slate-400">Ingreso suma cantidad al lote de insumo; Egreso la resta.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                    th:text="${editando} ? 'Guardar cambios' : 'Crear motivo de ajuste'">
+                Crear motivo de ajuste
+            </button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

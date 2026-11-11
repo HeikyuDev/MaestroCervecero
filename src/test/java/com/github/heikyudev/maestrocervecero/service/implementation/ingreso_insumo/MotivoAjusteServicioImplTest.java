@@ -130,6 +130,18 @@ class MotivoAjusteServicioImplTest {
         verify(motivoAjusteRepository).filtrarMotivosAjuste(null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FMA-06: filtrarMotivosAjuste escapa los comodines de LIKE del nombre buscado")
+    void filtrarMotivosAjuste_debeEscaparLosComodinesDeLike() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(motivoAjusteRepository.filtrarMotivosAjuste("100!% de!_merma", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        motivoAjusteServicio.filtrarMotivosAjuste(" 100% de_merma ", null, pageable);
+
+        verify(motivoAjusteRepository).filtrarMotivosAjuste("100!% de!_merma", null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -144,7 +156,20 @@ class MotivoAjusteServicioImplTest {
 
         // === ASSERTS ===
         assertMotivoAjusteDTO(motivoEntity, resultado);
+        assertThat(resultado.getTieneAjustes()).isFalse();
         verify(motivoAjusteRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("CP-BI-03: buscarPorId informa tieneAjustes en true cuando el motivo tiene ajustes de insumo asociados")
+    void buscarPorId_debeInformarSiTieneAjustes() {
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        when(ajusteInsumoRepository.existsByMotivoAjusteId(1L)).thenReturn(true);
+
+        MotivoAjusteResponseDTO resultado = motivoAjusteServicio.buscarPorId(1L);
+
+        assertThat(resultado.getTieneAjustes()).isTrue();
     }
 
     @Test
@@ -317,19 +342,23 @@ class MotivoAjusteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MMA-05: modificarMotivoAjuste lanza ReglaNegocioException y no persiste cuando el motivo tiene ajustes de insumo registrados")
-    void modificarMotivoAjuste_debeRechazarSiTieneAjustesRegistrados() {
+    @DisplayName("CP-MMA-05: modificarMotivoAjuste lanza ReglaNegocioException en el campo tipoAjuste y no persiste cuando se cambia el tipo de un motivo con ajustes de insumo asociados")
+    void modificarMotivoAjuste_debeRechazarCambiarElTipoSiTieneAjustes() {
         // === PREPARACION DE DATOS ===
         MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Corrección de conteo", TipoAjuste.INGRESO);
         MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Corrección de conteo", TipoAjuste.EGRESO);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
-        when(ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(1L)).thenReturn(true);
+        // Un ajuste asociado cuenta en cualquier estado (REGISTRADO o ANULADO): la consulta no distingue
+        when(ajusteInsumoRepository.existsByMotivoAjusteId(1L)).thenReturn(true);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados");
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo("No se puede cambiar el tipo de ajuste porque el motivo ya tiene ajustes de insumo asociados");
+                    assertThat(e.getCampo()).isEqualTo("tipoAjuste");
+                });
 
+        assertThat(motivoEntity.getTipoAjuste()).isEqualTo(TipoAjuste.INGRESO);
         verify(motivoAjusteRepository, never()).existsByNombreIgnoreCaseAndIdNot(any(), any());
         verify(motivoAjusteRepository, never()).save(any());
     }
@@ -363,7 +392,124 @@ class MotivoAjusteServicioImplTest {
         assertMotivoAjusteDTO(motivoEntity, resultado);
         verify(motivoAjusteRepository).findById(1L);
         verify(motivoAjusteRepository).save(motivoEntity);
+        verify(ajusteInsumoRepository).existsByMotivoAjusteId(1L);
         verify(motivoAjusteRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("CP-BMA-03: bajaMotivoAjuste lanza ReglaNegocioException y no persiste cuando el motivo tiene ajustes de insumo asociados, registrados o anulados")
+    void bajaMotivoAjuste_debeRechazarSiTieneAjustesAsociados() {
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        // Un ajuste asociado cuenta en cualquier estado (REGISTRADO o ANULADO): la consulta no distingue
+        when(ajusteInsumoRepository.existsByMotivoAjusteId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.bajaMotivoAjuste(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados");
+
+        assertThat(motivoEntity.getEstado()).isEqualTo(Estado.ACTIVO);
+        verify(motivoAjusteRepository, never()).save(any());
+    }
+
+    // ==================== tipo de ajuste y motivos usados ====================
+
+    @Test
+    @DisplayName("CP-AMA-11: altaMotivoAjuste lanza ReglaNegocioException en el campo tipoAjuste y no persiste cuando el tipo de ajuste es nulo")
+    void altaMotivoAjuste_debeRechazarTipoNulo() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Rotura de lote", null);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO))
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo("El tipo de ajuste es obligatorio");
+                    assertThat(e.getCampo()).isEqualTo("tipoAjuste");
+                });
+
+        verifyNoInteractions(motivoAjusteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AMA-12: altaMotivoAjuste informa el campo nombre cuando el nombre falta o supera los 100 caracteres")
+    void altaMotivoAjuste_debeInformarElCampoNombre() {
+        MotivoAjusteFormDTO vacio = motivoAjusteFormDTO("   ", TipoAjuste.EGRESO);
+        MotivoAjusteFormDTO largo = motivoAjusteFormDTO("x".repeat(101), TipoAjuste.EGRESO);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(vacio))
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> assertThat(e.getCampo()).isEqualTo("nombre"));
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(largo))
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo("El nombre no puede superar 100 caracteres");
+                    assertThat(e.getCampo()).isEqualTo("nombre");
+                });
+    }
+
+    @Test
+    @DisplayName("CP-MMA-11: modificarMotivoAjuste cambia el tipo de un motivo sin ajustes de insumo asociados")
+    void modificarMotivoAjuste_debePermitirCambiarElTipoSinAjustes() {
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Corrección de conteo", TipoAjuste.INGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        when(ajusteInsumoRepository.existsByMotivoAjusteId(1L)).thenReturn(false);
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Corrección de conteo", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(motivoEntity)).thenReturn(motivoEntity);
+
+        MotivoAjusteResponseDTO resultado = motivoAjusteServicio.modificarMotivoAjuste(1L, motivoAjusteFormDTO("Corrección de conteo", TipoAjuste.EGRESO));
+
+        assertThat(resultado.getTipoAjuste()).isEqualTo(TipoAjuste.EGRESO);
+        verify(ajusteInsumoRepository).existsByMotivoAjusteId(1L);
+        verify(motivoAjusteRepository).save(motivoEntity);
+    }
+
+    @Test
+    @DisplayName("CP-MMA-12: modificarMotivoAjuste cambia el nombre de un motivo con ajustes de insumo asociados y conserva su tipo")
+    void modificarMotivoAjuste_debePermitirCambiarElNombreConAjustes() {
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Corrección de conteo", TipoAjuste.INGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Recuento de inventario", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(motivoEntity)).thenReturn(motivoEntity);
+
+        MotivoAjusteResponseDTO resultado = motivoAjusteServicio.modificarMotivoAjuste(1L, motivoAjusteFormDTO("Recuento de inventario", TipoAjuste.INGRESO));
+
+        assertThat(resultado.getNombre()).isEqualTo("Recuento de inventario");
+        assertThat(resultado.getTipoAjuste()).isEqualTo(TipoAjuste.INGRESO);
+        // Con el mismo tipo no hay nada que bloquear: ni siquiera se consulta si tiene ajustes
+        verify(ajusteInsumoRepository, never()).existsByMotivoAjusteId(any());
+    }
+
+    @Test
+    @DisplayName("CP-MMA-13: modificarMotivoAjuste con ajustes de insumo asociados y el mismo tipo no es un cambio de tipo: se aplica la modificación")
+    void modificarMotivoAjuste_debeAceptarElMismoTipoConAjustes() {
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Corrección de conteo", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Corrección de conteo", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(motivoEntity)).thenReturn(motivoEntity);
+
+        MotivoAjusteResponseDTO resultado = motivoAjusteServicio.modificarMotivoAjuste(1L, motivoAjusteFormDTO("Corrección de conteo", TipoAjuste.EGRESO));
+
+        assertThat(resultado.getTipoAjuste()).isEqualTo(TipoAjuste.EGRESO);
+        verify(motivoAjusteRepository).save(motivoEntity);
+    }
+
+    @Test
+    @DisplayName("CP-MMA-14: modificarMotivoAjuste lanza ReglaNegocioException en el campo tipoAjuste y no consulta el repositorio cuando el tipo es nulo")
+    void modificarMotivoAjuste_debeRechazarTipoNulo() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Corrección de conteo", null);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo("El tipo de ajuste es obligatorio");
+                    assertThat(e.getCampo()).isEqualTo("tipoAjuste");
+                });
+
+        verifyNoInteractions(motivoAjusteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MMA-15: modificarMotivoAjuste informa el campo nombre cuando el nombre falta")
+    void modificarMotivoAjuste_debeInformarElCampoNombre() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("   ", TipoAjuste.EGRESO);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOfSatisfying(ReglaNegocioException.class, e -> assertThat(e.getCampo()).isEqualTo("nombre"));
     }
 
     // ==================== helpers ====================

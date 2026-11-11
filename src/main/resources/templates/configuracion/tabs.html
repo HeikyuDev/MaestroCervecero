@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
 
-<!-- Pestañas de Configuración de Producción (componente fragments/pestanas): cada una es su propia URL y se muestra según los permisos. activa = 'parametros' | 'costos' -->
+<!-- Pestañas de Configuración de Producción (componente fragments/pestanas): cada una es su propia URL y se muestra según los permisos. activa = 'parametros' | 'costos' | 'motivos-ajuste' -->
 <th:block th:fragment="tabs(activa)">
     <th:block th:replace="~{fragments/pestanas :: pestanas('Configuración de Producción', 'configuracion', ~{::enlaces})}">
         <th:block th:fragment="enlaces">
@@ -11,6 +11,9 @@
             </th:block>
             <th:block sec:authorize="hasAuthority('COSTO_DIRECTO_ADICIONAL_CONSULTAR')">
                 <a th:replace="~{fragments/pestanas :: pestana(@{/configuracion-produccion/costos-directos-adicionales}, ${activa == 'costos'}, 'costos', ~{fragments/pestanas :: bi('bi-cash-coin')}, 'Costos directos adicionales')}"></a>
+            </th:block>
+            <th:block sec:authorize="hasAuthority('MOTIVO_AJUSTE_CONSULTAR')">
+                <a th:replace="~{fragments/pestanas :: pestana(@{/configuracion-produccion/motivos-ajuste}, ${activa == 'motivos-ajuste'}, 'motivos-ajuste', ~{fragments/pestanas :: bi('bi-sliders2')}, 'Motivos de ajuste')}"></a>
             </th:block>
         </th:block>
     </th:block>

@@ -45,18 +45,16 @@ public interface IAjusteInsumoRepository extends JpaRepository<AjusteInsumoEntit
                                                    Pageable pageable);
 
     /**
-     * Verifica si el motivo de ajuste indicado tiene al menos un ajuste de insumo en estado
-     * {@code REGISTRADO}.
+     * Verifica si un motivo de ajuste tiene al menos un ajuste de insumo asociado, en cualquier estado (REGISTRADO o ANULADO).
      * <p>
-     * Se usa para impedir cambiar el {@code tipoAjuste} (INGRESO/EGRESO) de un motivo ya usado:
-     * no existe un caso en el que un mismo motivo a veces sume y a veces reste, así que un motivo
-     * con ajustes {@code REGISTRADO} tiene su tipo fijo mientras esos ajustes sigan vigentes.
+     * Se usa para fijar el tipo (INGRESO/EGRESO) de un motivo ya usado y para impedir su baja: los ajustes anulados
+     * también conservan la referencia al motivo.
      * </p>
      *
      * @param idMotivoAjuste El ID del motivo de ajuste a verificar.
-     * @return {@code true} si existe al menos un ajuste de insumo REGISTRADO con ese motivo, {@code false} en caso contrario.
+     * @return {@code true} si existe al menos un ajuste de insumo con ese motivo, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM AjusteInsumoEntity a " +
-            "WHERE a.motivoAjuste.id = :idMotivoAjuste AND a.estado = 'REGISTRADO'")
-    boolean existsByMotivoAjusteIdAndEstadoRegistrado(@Param("idMotivoAjuste") Long idMotivoAjuste);
+            "WHERE a.motivoAjuste.id = :idMotivoAjuste")
+    boolean existsByMotivoAjusteId(@Param("idMotivoAjuste") Long idMotivoAjuste);
 }

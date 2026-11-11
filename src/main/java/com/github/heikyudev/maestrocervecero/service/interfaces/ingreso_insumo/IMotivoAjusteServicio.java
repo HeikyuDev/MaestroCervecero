@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.T
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.MotivoAjusteResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +32,7 @@ public interface IMotivoAjusteServicio {
      * Obtiene un motivo de ajuste activo por su ID.
      *
      * @param id El ID del motivo de ajuste.
-     * @return El motivo de ajuste correspondiente al ID.
+     * @return El motivo de ajuste correspondiente al ID, con {@code tieneAjustes} indicando si tiene ajustes de insumo asociados.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
      */
     MotivoAjusteResponseDTO buscarPorId(Long id);
@@ -41,6 +42,7 @@ public interface IMotivoAjusteServicio {
      *
      * @param motivoAjusteFormDTO Los datos del motivo de ajuste a registrar.
      * @return El motivo de ajuste registrado.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres (campo {@code nombre}), o si falta el tipo de ajuste (campo {@code tipoAjuste}).
      * @throws RecursoDuplicadoException Si ya existe un motivo de ajuste activo con el mismo nombre (case-insensitive).
      */
     MotivoAjusteResponseDTO altaMotivoAjuste(MotivoAjusteFormDTO motivoAjusteFormDTO);
@@ -53,6 +55,9 @@ public interface IMotivoAjusteServicio {
      * @return El motivo de ajuste modificado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro motivo de ajuste activo (case-insensitive).
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres (campo {@code nombre}), si falta el tipo de ajuste
+     *         o si el motivo ya tiene ajustes de insumo asociados, registrados o anulados, y se intenta cambiar su tipo (campo {@code tipoAjuste}).
+     *         El nombre se puede cambiar siempre.
      */
     MotivoAjusteResponseDTO modificarMotivoAjuste(Long id, MotivoAjusteFormDTO motivoAjusteFormDTO);
 
@@ -62,6 +67,7 @@ public interface IMotivoAjusteServicio {
      * @param id El ID del motivo de ajuste a eliminar.
      * @return El motivo de ajuste eliminado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
+     * @throws ReglaNegocioException Si el motivo tiene ajustes de insumo asociados, registrados o anulados.
      */
     MotivoAjusteResponseDTO bajaMotivoAjuste(Long id);
 }
