@@ -174,9 +174,8 @@ public class EnvasadoLoteController {
 
     /**
      * Registra un envasado en el barril elegido con el buscador y vuelve a la lista. Si el formulario es inválido, o
-     * el service rechaza un campo del formulario (por ejemplo, la fecha y hora del envasado), vuelve al formulario con
-     * el error en su campo, el barril elegido y lo escrito. Los demás rechazos del service los muestra el
-     * {@code ControllerAdvices}.
+     * el service lo rechaza, vuelve al formulario con el error (en su campo si el rechazo es de un campo del
+     * formulario, como la fecha y hora del envasado; si no, en el resumen de errores), el barril elegido y lo escrito.
      */
     @PostMapping
     @PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")
@@ -195,15 +194,16 @@ public class EnvasadoLoteController {
         try {
             envasadoLoteServicio.registrarEnvasadoLote(contexto.etapa().getId(), envasadoForm);
         } catch (ReglaNegocioException e) {
-            if (e.getCampo() == null || !CAMPOS_DEL_FORMULARIO.contains(e.getCampo())) {
-                throw e;
+            if (e.getCampo() != null && CAMPOS_DEL_FORMULARIO.contains(e.getCampo())) {
+                bindingResult.rejectValue(e.getCampo(), "reglaNegocio", e.getMessage());
+            } else {
+                bindingResult.reject("reglaNegocio", e.getMessage());
             }
-            bindingResult.rejectValue(e.getCampo(), "reglaNegocio", e.getMessage());
             redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
             redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, envasadoForm);
             return volverAlFormulario(idLote);
         }
-        agregarMensaje(redirectAttributes, "Envasado creado correctamente", TipoAlerta.SUCCESS);
+        agregarMensaje(redirectAttributes, "Envasado registrado correctamente", TipoAlerta.SUCCESS);
         return volverALaPantalla(idLote);
     }
 

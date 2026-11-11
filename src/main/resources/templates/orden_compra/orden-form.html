@@ -111,7 +111,7 @@
                                   th:with="item=${itemsPorId.get(detalle?.idCatalogoProveedor)}, pc=${item?.presentacionComercial}">
                             <tr th:replace="~{orden_compra/orden-form-filas :: item(${i.index}, ${detalle?.idCatalogoProveedor}, ${detalle?.cantidad}, ${detalle?.costoUnitario},
                                     ${item?.insumo?.nombre}, ${pc?.nombre},
-                                    ${(pc == null or pc.cantidad == null or pc.unidadDeMedida == null) ? null : ((pc.cantidad == pc.cantidad.intValue() ? #numbers.formatInteger(pc.cantidad.intValue(), 1, 'POINT') : #strings.replace(pc.cantidad, '.', ',')) + ' ' + pc.unidadDeMedida.simbolo)},
+                                    ${(pc == null or pc.cantidad == null or pc.unidadDeMedida == null) ? null : #cantidades.conUnidad(pc.cantidad, pc.unidadDeMedida.simbolo)},
                                     ${#fields.hasErrors('detallesCompra[' + i.index + '].*')})}"></tr>
                         </th:block>
                         <tr data-fila-vacia th:hidden="${!#lists.isEmpty(ordenCompraForm.detallesCompra)}">

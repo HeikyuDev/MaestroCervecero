@@ -2,10 +2,9 @@ package com.github.heikyudev.maestrocervecero.util.validacion;
 
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 
+import com.github.heikyudev.maestrocervecero.util.FormatoCantidad;
+
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.util.Locale;
 
 /**
  * Validaciones numéricas y de longitud de texto reutilizables por los services.
@@ -16,9 +15,6 @@ import java.util.Locale;
  * </p>
  */
 public final class ValidacionesNumericas {
-
-    private static final Locale LOCALE_ES = Locale.forLanguageTag("es-AR");
-    private static final String PATRON_NUMERO = "#,##0.##";
 
     private ValidacionesNumericas() {
     }
@@ -192,15 +188,13 @@ public final class ValidacionesNumericas {
 
     /**
      * Formatea un número con el estilo de la aplicación (separador de miles {@code .}, separador
-     * decimal {@code ,} y hasta dos decimales), por ejemplo {@code 1.250,5}.
+     * decimal {@code ,} y hasta cuatro decimales, los mismos que muestran las tablas), por ejemplo
+     * {@code 1.250,5} o {@code 11,655}.
      *
      * @param numero Número a formatear.
      * @return El número formateado.
      */
     public static String formatearNumero(double numero) {
-        DecimalFormatSymbols simbolos = DecimalFormatSymbols.getInstance(LOCALE_ES);
-        simbolos.setGroupingSeparator('.');
-        simbolos.setDecimalSeparator(',');
-        return new DecimalFormat(PATRON_NUMERO, simbolos).format(numero);
+        return FormatoCantidad.formatear(numero);
     }
 }

@@ -3358,7 +3358,7 @@ class LoteControllerTest {
         String reservas = bloque(html, "data-reservas-etapa");
         assertThat(texto(reservas)).startsWith("Insumo Lote de insumo Vence Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
         String dialogo = elementoConAtributo(html, "dialog", "id=\"dialogo-reservas-etapa\"");
-        assertThat(dialogo).contains("data-dialogo-informativo").contains("max-w-4xl").contains("overflow-x-auto").contains("Reservas de la etapa").doesNotContain("data-reservas-vacias");
+        assertThat(dialogo).contains("data-dialogo-informativo").contains("max-w-6xl").contains("overflow-x-auto").contains("Reservas de la etapa").doesNotContain("data-reservas-vacias");
         assertThat(reservas.indexOf("L-ACT")).isLessThan(reservas.indexOf("L-OLD"));
         assertThat(reservas.indexOf("L-OLD")).isLessThan(reservas.indexOf("L-LIB"));
         assertThat(texto(reservas)).contains("L-ACT 15/07/2027 8 g 3 g 0 g 0 g 5 g Activa")

@@ -15,7 +15,7 @@
     <div class="flex items-start justify-between gap-4 p-6 pb-0">
         <div>
             <h3 class="text-lg font-semibold text-slate-900">Buscar ítem de la orden</h3>
-            <p class="text-sm text-slate-500" th:text="${textoOrden != null} ? |Orden de compra ${textoOrden}. Elija el ítem que se recibe. Cantidades en unidades.| : 'Elija el ítem que se recibe. Cantidades en unidades.'">Elija el ítem que se recibe. Cantidades en unidades.</p>
+            <p class="text-sm text-slate-500" th:text="${textoOrden != null} ? |Orden de compra ${textoOrden}${#strings.endsWith(textoOrden, '.') ? '' : '.'} Elija el ítem que se recibe. Cantidades en unidades.| : 'Elija el ítem que se recibe. Cantidades en unidades.'">Elija el ítem que se recibe. Cantidades en unidades.</p>
         </div>
         <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
                 class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">

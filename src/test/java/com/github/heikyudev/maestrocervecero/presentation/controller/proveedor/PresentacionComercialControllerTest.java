@@ -358,7 +358,7 @@ class PresentacionComercialControllerTest {
                 .andExpect(content().string(not(containsString("Failed to convert"))));
         mockMvc.perform(post(URL).with(csrf()).params(datosCon("unidadDeMedida", "LITRO")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("El valor ingresado no es válido")))
+                .andExpect(content().string(containsString("El valor indicado no es válido")))
                 .andExpect(content().string(not(containsString("Failed to convert"))));
 
         verify(presentacionComercialServicio, never()).altaPresentacionComercial(any());

@@ -50,14 +50,14 @@
 
     /**
      * Cantidad con su unidad tal como la muestra el servidor (receta/formato :: medida): sin ceros
-     * sobrantes, con coma decimal y punto como separador de miles en los enteros ("4,5 kg", "1.500 g").
-     * Si el campo quedó vacío la celda queda vacía.
+     * sobrantes, con coma decimal, punto como separador de miles y hasta 4 decimales ("4,5 kg", "1.500 g",
+     * "1.847,3685 g"). Si el campo quedó vacío la celda queda vacía.
      */
     function formatearNumero(valor) {
         var numero = Number(valor);
-        return Number.isInteger(numero)
-            ? String(numero).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-            : String(numero).replace('.', ',');
+        var partes = (Math.round(numero * 10000) / 10000).toFixed(4).replace(/0+$/, '').replace(/\.$/, '').split('.');
+        partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return partes.join(',');
     }
 
     function formatear(valor, unidad) {

@@ -31,6 +31,9 @@ public class MetodosCicloVida {
     public static final String CAMPO_BARRIL = "idBarril";
     /** Nombre del campo del formulario con la fecha y hora de la operación. */
     public static final String CAMPO_FECHA = "fecha";
+
+    /** Sujeto con el que los mensajes de fecha nombran la fecha de una operación del ciclo de vida. */
+    public static final String SUJETO_FECHA_OPERACION = "La fecha de la operación";
     /** Nombre del campo del formulario con las observaciones. */
     public static final String CAMPO_OBSERVACIONES = "observaciones";
     /** Nombre del campo del formulario con el motivo de anulación. */
@@ -203,8 +206,19 @@ public class MetodosCicloVida {
      * @throws ReglaNegocioException Si alguna de las fechas dadas es posterior o igual a {@code fechaNuevaOperacion}.
      */
     public static void validarFechaPosteriorAUltimaOperacion(LocalDateTime fechaNuevaOperacion, String nombreEntidad, String campo, LocalDateTime... fechasOperacionesExistentes) {
+        validarFechaPosteriorAUltimaOperacion(SUJETO_FECHA_OPERACION, fechaNuevaOperacion, nombreEntidad, campo, fechasOperacionesExistentes);
+    }
+
+    /**
+     * Igual que {@link #validarFechaPosteriorAUltimaOperacion(LocalDateTime, String, String, LocalDateTime...)}, pero el
+     * mensaje nombra la fecha con el sujeto indicado (por ejemplo {@code "La fecha y hora del envasado"}); la estructura
+     * de la frase es la misma para todas las fechas.
+     *
+     * @param sujeto Frase que encabeza el mensaje.
+     */
+    public static void validarFechaPosteriorAUltimaOperacion(String sujeto, LocalDateTime fechaNuevaOperacion, String nombreEntidad, String campo, LocalDateTime... fechasOperacionesExistentes) {
         if (hayFechaPosteriorOIgual(fechaNuevaOperacion, fechasOperacionesExistentes)) {
-            throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la última operación registrada sobre este " + nombreEntidad, campo);
+            throw new ReglaNegocioException(sujeto + " debe ser posterior a la última operación registrada sobre este " + nombreEntidad, campo);
         }
     }
 
@@ -233,8 +247,19 @@ public class MetodosCicloVida {
      * @throws ReglaNegocioException Si la fecha es posterior a la fecha y hora actual.
      */
     public static void validarFechaNoFutura(LocalDateTime fechaNuevaOperacion, String campo) {
+        validarFechaNoFutura(SUJETO_FECHA_OPERACION, fechaNuevaOperacion, campo);
+    }
+
+    /**
+     * Igual que {@link #validarFechaNoFutura(LocalDateTime, String)}, pero el mensaje nombra la fecha con el sujeto
+     * indicado (por ejemplo {@code "La fecha y hora del envasado"}); la estructura de la frase es la misma para todas
+     * las fechas.
+     *
+     * @param sujeto Frase que encabeza el mensaje.
+     */
+    public static void validarFechaNoFutura(String sujeto, LocalDateTime fechaNuevaOperacion, String campo) {
         if (fechaNuevaOperacion.isAfter(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de la operación no puede ser posterior a la fecha y hora actual", campo);
+            throw new ReglaNegocioException(sujeto + " no puede ser posterior a la fecha y hora actual", campo);
         }
     }
 

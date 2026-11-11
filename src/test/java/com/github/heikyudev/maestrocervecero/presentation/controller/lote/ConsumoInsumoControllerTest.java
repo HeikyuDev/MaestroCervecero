@@ -355,10 +355,10 @@ class ConsumoInsumoControllerTest {
     void pantalla_alertasDelPostRedirectGet() throws Exception {
         // Act
         String conAdvertencias = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
+                        .flashAttr("mensaje", "Consumo registrado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String sinAdvertencias = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success"))
+                        .flashAttr("mensaje", "Consumo registrado correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
@@ -366,7 +366,7 @@ class ConsumoInsumoControllerTest {
         assertThat(cuenta(conAdvertencias, ALERTA_ADVERTENCIA)).isEqualTo(2);
         assertThat(conAdvertencias.indexOf(ALERTA_EXITO)).isLessThan(conAdvertencias.indexOf("data-advertencia"));
         assertThat(conAdvertencias.lastIndexOf("data-advertencia")).isLessThan(conAdvertencias.indexOf("data-resumen-consumo"));
-        assertThat(texto(conAdvertencias)).contains("Consumo creado correctamente", EXCESO_CASCADE, EXCESO);
+        assertThat(texto(conAdvertencias)).contains("Consumo registrado correctamente", EXCESO_CASCADE, EXCESO);
         assertThat(conAdvertencias.indexOf(EXCESO_CASCADE)).isLessThan(conAdvertencias.indexOf(EXCESO));
         assertThat(sinAdvertencias).contains(ALERTA_EXITO).doesNotContain("data-advertencia").doesNotContain(ALERTA_ADVERTENCIA);
     }
@@ -496,7 +496,7 @@ class ConsumoInsumoControllerTest {
         mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "10"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=reservado"))
-                .andExpect(flash().attribute("mensaje", "Consumo creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Consumo registrado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"))
                 .andExpect(flash().attributeCount(2));
 
@@ -518,7 +518,7 @@ class ConsumoInsumoControllerTest {
         mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "7", "20"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=reservado"))
-                .andExpect(flash().attribute("mensaje", "Consumo creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Consumo registrado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"))
                 .andExpect(flash().attribute("advertencias", List.of(EXCESO_CASCADE, EXCESO)));
     }
@@ -530,7 +530,7 @@ class ConsumoInsumoControllerTest {
         String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", null), "reservado");
 
         // Assert
-        assertThat(texto(html)).contains("Nuevo consumo reservado", "No se pudo crear el consumo", "La cantidad es obligatoria");
+        assertThat(texto(html)).contains("Nuevo consumo reservado", "No se pudo registrar el consumo", "La cantidad es obligatoria");
         assertThat(html).contains("data-formulario-consumo").contains("data-selector-buscar");
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoReservado(any(), any());
     }
@@ -542,7 +542,7 @@ class ConsumoInsumoControllerTest {
         String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), null, "10"), "reservado");
 
         // Assert
-        assertThat(texto(html)).contains("No se pudo crear el consumo", "El lote de insumo es obligatorio");
+        assertThat(texto(html)).contains("No se pudo registrar el consumo", "El lote de insumo es obligatorio");
         assertThat(campo(html, "cantidadConsumida")).isEqualTo("10");
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoReservado(any(), any());
     }
@@ -582,14 +582,13 @@ class ConsumoInsumoControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"0", "-5", "NaN", "Infinity"})
-    @DisplayName("CP-LCO-28: una cantidad no válida para el negocio llega al service con el valor recibido y su rechazo vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LCO-28: una cantidad no válida para el negocio llega al service con el valor recibido y su rechazo vuelve al formulario con el motivo, el insumo, el lote de insumo y la cantidad escrita")
     void reservado_cantidadNoValidaParaElService(String cantidad) throws Exception {
         // Arrange
         when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", cantidad).header("Referer", URL_PANTALLA)),
-                "La cantidad debe ser mayor a 0", "warning");
+        assertRechazoVuelveAlFormulario(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", cantidad), "reservado", "La cantidad debe ser mayor a 0", "5", cantidad);
         ArgumentCaptor<ConsumoInsumoFormDTO> form = ArgumentCaptor.forClass(ConsumoInsumoFormDTO.class);
         verify(consumoInsumoServicio).registrarConsumoInsumoReservado(eq(ETAPA_HERVIDO), form.capture());
         assertThat(form.getValue().getCantidadConsumida()).isEqualTo(Double.valueOf(cantidad));
@@ -602,13 +601,13 @@ class ConsumoInsumoControllerTest {
             "El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo",
             "La etapa debe estar en curso para poder registrar consumos de insumo",
             "El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta"})
-    @DisplayName("CP-LCO-29/30/31/32: los rechazos de negocio del service (tope reservado, sin reserva, lote o etapa que no admiten el consumo, insumo ajeno a la etapa) vuelven al origen con la alerta amarilla y su mensaje")
+    @DisplayName("CP-LCO-29/30/31/32: los rechazos de negocio del service (tope reservado, sin reserva, lote o etapa que no admiten el consumo, insumo ajeno a la etapa) vuelven al formulario con su mensaje y lo que el usuario había cargado")
     void reservado_rechazosDelService(String mensaje) throws Exception {
         // Arrange
         when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "50").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "50"), "reservado", mensaje, "5", "50");
     }
 
     @Test
@@ -663,7 +662,7 @@ class ConsumoInsumoControllerTest {
         mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=directo"))
-                .andExpect(flash().attribute("mensaje", "Consumo creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Consumo registrado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         // Assert
@@ -675,15 +674,15 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-38: un lote de insumo vencido lo rechaza el service, en el consumo directo y en el reservado, y vuelve al origen con la alerta amarilla y su mensaje")
+    @DisplayName("CP-LCO-38: un lote de insumo vencido lo rechaza el service, en el consumo directo y en el reservado, y vuelve al formulario con su mensaje y lo que el usuario había cargado")
     void rechazoPorLoteDeInsumoVencido() throws Exception {
         // Arrange
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(VENCIDO));
         when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException(VENCIDO));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "7", "5").header("Referer", URL_PANTALLA)), VENCIDO, "warning");
-        assertRechazoDelService(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "7", "5").header("Referer", URL_PANTALLA)), VENCIDO, "warning");
+        assertRechazoVuelveAlFormulario(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5"), "directo", VENCIDO, "8", "5");
+        assertRechazoVuelveAlFormulario(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "5"), "reservado", VENCIDO, "5", "5");
     }
 
     @Test
@@ -697,19 +696,19 @@ class ConsumoInsumoControllerTest {
         mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "15"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA + "?tipo=directo"))
-                .andExpect(flash().attribute("mensaje", "Consumo creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Consumo registrado correctamente"))
                 .andExpect(flash().attribute("advertencias", List.of(exceso)));
     }
 
     @Test
-    @DisplayName("CP-LCO-40: un stock insuficiente lo rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LCO-40: un stock insuficiente lo rechaza el service y vuelve al formulario con el mensaje y lo que el usuario había cargado")
     void directo_stockInsuficiente() throws Exception {
         // Arrange
         String mensaje = "La cantidad no puede superar la cantidad disponible del lote de insumo (3 g)";
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "50").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "50"), "directo", mensaje, "8", "50");
     }
 
     @Test
@@ -719,7 +718,7 @@ class ConsumoInsumoControllerTest {
         String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), null, "5"), "directo");
 
         // Assert
-        assertThat(texto(html)).contains("Nuevo consumo directo", "No se pudo crear el consumo", "El lote de insumo es obligatorio");
+        assertThat(texto(html)).contains("Nuevo consumo directo", "No se pudo registrar el consumo", "El lote de insumo es obligatorio");
         assertThat(html.indexOf("data-selector-buscar")).isLessThan(html.lastIndexOf("El lote de insumo es obligatorio"));
         assertThat(campo(html, "cantidadConsumida")).isEqualTo("5");
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoDirecto(any(), any());
@@ -748,7 +747,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-43: una cantidad no numérica muestra Ingrese un número válido y conserva el lote elegido; los valores 0, -5, NaN e Infinity los rechaza el service")
+    @DisplayName("CP-LCO-43: una cantidad no numérica muestra Ingrese un número válido y conserva el lote elegido; los valores 0, -5, NaN e Infinity los rechaza el service y vuelve al formulario con la cantidad escrita")
     void directo_cantidadNoNumericaOInvalida() throws Exception {
         // Act: el formato es un error del campo
         String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "abc"), "directo");
@@ -762,34 +761,33 @@ class ConsumoInsumoControllerTest {
         // Act + Assert: el valor es una regla del service
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
         for (String cantidad : List.of("0", "-5", "NaN", "Infinity")) {
-            assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", cantidad).header("Referer", URL_PANTALLA)),
-                    "La cantidad debe ser mayor a 0", "warning");
+            assertRechazoVuelveAlFormulario(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", cantidad), "directo", "La cantidad debe ser mayor a 0", "8", cantidad);
         }
         verify(consumoInsumoServicio, times(4)).registrarConsumoInsumoDirecto(eq(ETAPA_HERVIDO), any());
     }
 
     @Test
-    @DisplayName("CP-LCO-44: un lote de insumo de otro insumo lo rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LCO-44: un lote de insumo de otro insumo lo rechaza el service y vuelve al formulario con el mensaje y lo que el usuario había cargado")
     void directo_loteDeOtroInsumo() throws Exception {
         // Arrange
         String mensaje = "El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta";
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "9", "5").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5"), "directo", mensaje, "8", "5");
     }
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
             "El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo",
             "La etapa debe estar en curso para poder registrar consumos de insumo"})
-    @DisplayName("CP-LCO-45: un lote o una etapa que no admiten el consumo los rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LCO-45: un lote o una etapa que no admiten el consumo los rechaza el service y vuelve al formulario con el mensaje y lo que el usuario había cargado")
     void directo_loteOEtapaQueNoAdmitenElConsumo(String mensaje) throws Exception {
         // Arrange
         when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5"), "directo", mensaje, "8", "5");
     }
 
     @Test
@@ -1149,7 +1147,7 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         assertThat(html).doesNotContain("<html").doesNotContain("<select");
-        assertThat(texto(html)).contains("Buscar lote de insumo", "Identificación del lote", "Lote", "Vencimiento", "Disponible");
+        assertThat(texto(html)).contains("Buscar lote de insumo", "Identificación del lote", "Lote", "Vence", "Disponible");
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_BUSCADOR_DIRECTO + "\"").contains("method=\"get\"");
@@ -1548,16 +1546,16 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-70: un rechazo del service sin Referer redirige a la raíz con la alerta amarilla y el mensaje del service")
+    @DisplayName("CP-LCO-70: un rechazo del service en una anulación sin Referer redirige a la raíz con la alerta amarilla y el mensaje del service")
     void transversal_rechazoSinReferer() throws Exception {
         // Arrange
-        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La etapa debe estar en curso para poder registrar consumos de insumo"));
+        when(consumoInsumoServicio.anularConsumoInsumo(eq(7L), any())).thenThrow(new ReglaNegocioException("La etapa debe estar en curso para poder anular un consumo de insumo"));
 
         // Act + Assert
-        mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "5"))
+        mockMvc.perform(postAnular(como(Rol.OPERARIO_DE_PRODUCCION), 7L, "Error de carga"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"))
-                .andExpect(flash().attribute("mensaje", "La etapa debe estar en curso para poder registrar consumos de insumo"))
+                .andExpect(flash().attribute("mensaje", "La etapa debe estar en curso para poder anular un consumo de insumo"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 
@@ -1599,7 +1597,7 @@ class ConsumoInsumoControllerTest {
         List<String> paginas = List.of(
                 html(Rol.OPERARIO_DE_PRODUCCION),
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                                .flashAttr("mensaje", "Consumo creado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
+                                .flashAttr("mensaje", "Consumo registrado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(EXCESO_CASCADE, EXCESO)))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 mockMvc.perform(get(URL_FORMULARIO_DIRECTO).with(como(Rol.OPERARIO_DE_PRODUCCION))).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc"), "reservado"));
@@ -1622,7 +1620,7 @@ class ConsumoInsumoControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"reservado", "directo"})
-    @DisplayName("CP-LCO-74: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en una pantalla con GET (el formulario), sin 405 ni bucle")
+    @DisplayName("CP-LCO-74: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en una pantalla con GET (el formulario) y el rechazo se muestra en el resumen de errores, sin 405 ni bucle")
     void transversal_errorDeValidacionYLuegoRechazoDelService(String formulario) throws Exception {
         // Arrange
         when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad debe ser mayor a 0"));
@@ -1650,7 +1648,7 @@ class ConsumoInsumoControllerTest {
         // Assert: las dos veces vuelve al formulario (que tiene GET) y el rechazo se muestra como alerta
         assertThat(ubicacion).isEqualTo(urlFormulario);
         assertThat(destino).isEqualTo(urlFormulario);
-        assertThat(texto(html)).contains("La cantidad debe ser mayor a 0");
+        assertThat(texto(html)).contains("No se pudo registrar el consumo", "La cantidad debe ser mayor a 0");
     }
 
     @ParameterizedTest(name = "{0}")
@@ -1925,6 +1923,18 @@ class ConsumoInsumoControllerTest {
                 .andExpect(redirectedUrl(URL_PANTALLA))
                 .andExpect(flash().attribute("mensaje", mensaje))
                 .andExpect(flash().attribute("tipo", tipo));
+    }
+
+    /**
+     * El rechazo del service en un registro vuelve al formulario del tipo de consumo (Post-Redirect-Get) con el motivo en el
+     * resumen de errores y lo que el usuario había cargado: el insumo, el lote de insumo y la cantidad.
+     */
+    private void assertRechazoVuelveAlFormulario(MockHttpServletRequestBuilder envio, String formulario, String mensaje, String idLoteInsumo, String cantidad) throws Exception {
+        String html = enviarConErroresYVolver(envio, formulario);
+        assertThat(texto(html)).contains("No se pudo registrar el consumo", mensaje);
+        assertThat(campo(html, "idInsumo")).isEqualTo("31");
+        assertThat(campo(html, "idLoteInsumo")).isEqualTo(idLoteInsumo);
+        assertThat(campo(html, "cantidadConsumida")).isEqualTo(cantidad);
     }
 
     private void assertRechazado(ResultActions resultado) throws Exception {

@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.ILoteInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
@@ -43,6 +44,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
@@ -71,6 +73,7 @@ public class ConsumoInsumoController {
     private static final String VISTA_FORMULARIO = "lote/consumo-form";
     private static final String VISTA_BUSCADOR = "lote/buscador-lote-insumo :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "consumoForm";
+    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("idInsumo", "idLoteInsumo", "cantidadConsumida");
     private static final String MENSAJE_ETAPA_INVALIDA = "La etapa indicada no es válida";
     private static final String MENSAJE_NO_OPERABLE = "Solo se pueden registrar consumos con el lote en ejecución y la etapa en curso";
     private static final String MENSAJE_SIN_INSUMOS = "Esta etapa no consume insumos";
@@ -291,11 +294,24 @@ public class ConsumoInsumoController {
             return "redirect:" + urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/nuevo";
         }
 
-        ConsumoInsumoResponseDTO consumo = tipoConsumo == TipoConsumo.RESERVADO
-                ? consumoInsumoServicio.registrarConsumoInsumoReservado(contexto.etapa().getId(), consumoForm)
-                : consumoInsumoServicio.registrarConsumoInsumoDirecto(contexto.etapa().getId(), consumoForm);
+        ConsumoInsumoResponseDTO consumo;
+        try {
+            consumo = tipoConsumo == TipoConsumo.RESERVADO
+                    ? consumoInsumoServicio.registrarConsumoInsumoReservado(contexto.etapa().getId(), consumoForm)
+                    : consumoInsumoServicio.registrarConsumoInsumoDirecto(contexto.etapa().getId(), consumoForm);
+        } catch (ReglaNegocioException e) {
+            // El rechazo del service vuelve al formulario con el insumo, el lote de insumo y la cantidad que el usuario había cargado
+            if (e.getCampo() != null && CAMPOS_DEL_FORMULARIO.contains(e.getCampo())) {
+                bindingResult.rejectValue(e.getCampo(), "reglaNegocio", e.getMessage());
+            } else {
+                bindingResult.reject("reglaNegocio", e.getMessage());
+            }
+            redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
+            redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, consumoForm);
+            return "redirect:" + urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/nuevo";
+        }
 
-        agregarMensaje(redirectAttributes, "Consumo creado correctamente", TipoAlerta.SUCCESS);
+        agregarMensaje(redirectAttributes, "Consumo registrado correctamente", TipoAlerta.SUCCESS);
         if (consumo.getAdvertencias() != null && !consumo.getAdvertencias().isEmpty()) {
             redirectAttributes.addFlashAttribute("advertencias", consumo.getAdvertencias());
         }

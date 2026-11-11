@@ -315,12 +315,12 @@ class EnvasadoLoteControllerTest {
     void pantalla_alertasDelPostRedirectGet() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Envasado creado correctamente").flashAttr("tipo", "success"))
+                        .flashAttr("mensaje", "Envasado registrado correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(html).contains(ALERTA_EXITO);
-        assertThat(texto(html)).contains("Envasado creado correctamente");
+        assertThat(texto(html)).contains("Envasado registrado correctamente");
     }
 
     @Test
@@ -417,7 +417,7 @@ class EnvasadoLoteControllerTest {
         mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA))
-                .andExpect(flash().attribute("mensaje", "Envasado creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Envasado registrado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         // Assert
@@ -435,7 +435,7 @@ class EnvasadoLoteControllerTest {
         String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null, null));
 
         // Assert
-        assertThat(texto(bloque(html, "data-formulario-envasado"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria", "La fecha y hora del envasado es obligatoria");
+        assertThat(texto(bloque(html, "data-formulario-envasado"))).contains("No se pudo registrar el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria", "La fecha y hora del envasado es obligatoria");
         assertThat(html).contains("data-formulario-envasado").doesNotContain("data-indicador-envasado").doesNotContain("data-envasados-registrados");
         verify(envasadoLoteServicio, never()).registrarEnvasadoLote(any(), any());
         verifyNoInteractions(barrilServicio);
@@ -472,43 +472,42 @@ class EnvasadoLoteControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"0", "-5", "NaN", "Infinity"})
-    @DisplayName("CP-LEN-20: una cantidad no válida para el negocio llega al service con el valor recibido y su rechazo vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LEN-20: una cantidad no válida para el negocio llega al service con el valor recibido y su rechazo vuelve al formulario con el motivo, el barril elegido y la cantidad escrita")
     void registrar_cantidadNoValidaParaElService(String cantidad) throws Exception {
         // Arrange
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException("La cantidad a envasar debe ser mayor a 0"));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", cantidad).header("Referer", URL_PANTALLA)),
-                "La cantidad a envasar debe ser mayor a 0", "warning");
+        assertRechazoVuelveAlFormulario(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", cantidad), "La cantidad a envasar debe ser mayor a 0", cantidad);
         ArgumentCaptor<RegistrarEnvasadoLoteFormDTO> form = ArgumentCaptor.forClass(RegistrarEnvasadoLoteFormDTO.class);
         verify(envasadoLoteServicio).registrarEnvasadoLote(eq(ETAPA_ENVASADO), form.capture());
         assertThat(form.getValue().getCantidad()).isEqualTo(Double.valueOf(cantidad));
     }
 
     @Test
-    @DisplayName("CP-LEN-21: un barril que no está disponible lo rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LEN-21: un barril que no está disponible lo rechaza el service y vuelve al formulario con el motivo, el barril elegido y la cantidad escrita")
     void registrar_barrilNoDisponible() throws Exception {
         // Arrange
         String mensaje = "El barril debe encontrarse en estado operativo Disponible para poder envasar en él";
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"), mensaje, "50");
     }
 
     @Test
-    @DisplayName("CP-LEN-22: una cantidad mayor a la capacidad del barril la rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LEN-22: una cantidad mayor a la capacidad del barril la rechaza el service y vuelve al formulario con el motivo, el barril elegido y la cantidad escrita")
     void registrar_cantidadMayorALaCapacidadDelBarril() throws Exception {
         // Arrange
         String mensaje = "La cantidad a envasar no puede superar la capacidad del barril seleccionado (50 L)";
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "80").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "80"), mensaje, "80");
     }
 
     @Test
-    @DisplayName("CP-LEN-23: una cantidad mayor a la capacidad útil del fermentador la rechaza el service y vuelve al origen con la alerta amarilla")
+    @DisplayName("CP-LEN-23: una cantidad mayor a la capacidad útil del fermentador la rechaza el service y vuelve al formulario con el motivo, el barril elegido y la cantidad escrita")
     void registrar_cantidadMayorALaCapacidadUtil() throws Exception {
         // Arrange
         String mensaje = "La cantidad a envasar supera la capacidad útil del fermentador (quedan 10 L disponibles para envasar)";
@@ -516,20 +515,20 @@ class EnvasadoLoteControllerTest {
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "20").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "20"), mensaje, "20");
     }
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
             "El lote debe encontrarse en estado En ejecución para poder registrar un envasado",
             "La etapa debe estar en curso para poder registrar un envasado"})
-    @DisplayName("CP-LEN-24: los rechazos del service por un lote o una etapa que no admiten el envasado vuelven al origen con la alerta amarilla y su mensaje")
+    @DisplayName("CP-LEN-24: los rechazos del service por un lote o una etapa que no admiten el envasado vuelven al formulario con su mensaje, el barril elegido y la cantidad escrita")
     void registrar_loteOEtapaQueNoAdmitenElEnvasado(String mensaje) throws Exception {
         // Arrange
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException(mensaje));
 
         // Act + Assert
-        assertRechazoDelService(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50").header("Referer", URL_PANTALLA)), mensaje, "warning");
+        assertRechazoVuelveAlFormulario(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"), mensaje, "50");
     }
 
     @Test
@@ -781,16 +780,16 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-45: un rechazo del service sin Referer redirige a la raíz con la alerta amarilla y el mensaje del service")
+    @DisplayName("CP-LEN-45: un rechazo del service en una anulación sin Referer redirige a la raíz con la alerta amarilla y el mensaje del service")
     void transversal_rechazoSinReferer() throws Exception {
         // Arrange
-        when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException("La etapa debe estar en curso para poder registrar un envasado"));
+        when(envasadoLoteServicio.anularEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder anular un envasado"));
 
         // Act + Assert
-        mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"))
+        mockMvc.perform(postAnular(como(Rol.OPERARIO_DE_PRODUCCION), 9L, "Error de carga"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"))
-                .andExpect(flash().attribute("mensaje", "La etapa debe estar en curso para poder registrar un envasado"))
+                .andExpect(flash().attribute("mensaje", "El lote debe encontrarse en estado En ejecución para poder anular un envasado"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 
@@ -915,7 +914,7 @@ class EnvasadoLoteControllerTest {
         List<String> paginas = List.of(
                 html(Rol.OPERARIO_DE_PRODUCCION),
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                                .flashAttr("mensaje", "Envasado creado correctamente").flashAttr("tipo", "success"))
+                                .flashAttr("mensaje", "Envasado registrado correctamente").flashAttr("tipo", "success"))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 formulario,
                 enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc")));
@@ -1047,6 +1046,18 @@ class EnvasadoLoteControllerTest {
             peticion.param("motivo", motivo);
         }
         return peticion;
+    }
+
+    /**
+     * El rechazo del service en un registro vuelve al formulario (Post-Redirect-Get) con el motivo en el resumen de
+     * errores y lo que el usuario había cargado: el barril elegido y la cantidad.
+     */
+    private void assertRechazoVuelveAlFormulario(MockHttpServletRequestBuilder envio, String mensaje, String cantidad) throws Exception {
+        String registrar = bloque(enviarConErroresYVolver(envio), "data-formulario-envasado");
+        assertThat(texto(registrar)).contains("No se pudo registrar el envasado", mensaje);
+        assertThat(campo(registrar, "idBarril")).isEqualTo("3");
+        assertThat(textoDelSelector(registrar, "Seleccione barril")).isEqualTo("B-001");
+        assertThat(campo(registrar, "cantidad")).isEqualTo(cantidad);
     }
 
     private void assertRechazoDelService(ResultActions resultado, String mensaje, String tipo) throws Exception {

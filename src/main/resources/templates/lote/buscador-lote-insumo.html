@@ -50,7 +50,7 @@
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                     <th class="px-3 py-3 whitespace-nowrap">Lote</th>
-                    <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Vence</th>
                     <th class="px-3 py-3 whitespace-nowrap" th:text="${tituloCantidad}">Disponible</th>
                     <th class="col-acciones px-3 py-3"><span class="sr-only">Acciones</span></th>
                 </tr>
@@ -65,7 +65,7 @@
                     <td class="col-acciones px-3 py-3 text-right">
                         <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.identificacionLoteProveedor}"
                                 th:data-vencimiento="${l.fechaVencimiento != null} ? ${#temporals.format(l.fechaVencimiento, 'dd/MM/yyyy')} : '-'"
-                                th:data-cantidad="${(f.cantidad == f.cantidad.intValue() ? #numbers.formatInteger(f.cantidad.intValue(), 1, 'POINT') : #strings.replace(f.cantidad, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
+                                th:data-cantidad="${#cantidades.conUnidad(f.cantidad, l.insumo.unidadDeMedida.simbolo)}"
                                 th:data-unidad="${l.insumo.unidadDeMedida.simbolo}"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                     </td>

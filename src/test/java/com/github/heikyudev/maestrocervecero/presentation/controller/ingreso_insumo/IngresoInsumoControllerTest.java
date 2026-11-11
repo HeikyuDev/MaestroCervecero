@@ -1014,7 +1014,7 @@ class IngresoInsumoControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("Orden de compra N.º 7 - Malterías del Sur S.A.");
+        assertThat(texto(html)).contains("Orden de compra N.º 7 - Malterías del Sur S.A. Elija el ítem que se recibe").doesNotContain("S.A..");
         assertThat(texto(html)).doesNotContain("Cascade");
         assertThat(celdas(html, "data-id=\"73\"")).containsExactly("Citra", "Bolsa (1 kg)", "2", "0", "2", "Elegir");
         assertThat(celdas(html, "data-id=\"70\"")).containsExactly("Pilsen", "Bolsa (25 kg)", "4", "1", "3", "Elegir");

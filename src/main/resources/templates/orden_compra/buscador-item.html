@@ -67,7 +67,7 @@
                 <td class="col-acciones px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${i.id}" th:data-texto="${i.insumo.nombre + ' - ' + i.presentacionComercial.nombre}"
                             th:data-insumo="${i.insumo.nombre}" th:data-presentacion="${i.presentacionComercial.nombre}"
-                            th:data-medida="${(pc.cantidad == null or pc.unidadDeMedida == null) ? '' : ((pc.cantidad == pc.cantidad.intValue() ? #numbers.formatInteger(pc.cantidad.intValue(), 1, 'POINT') : #strings.replace(pc.cantidad, '.', ',')) + ' ' + pc.unidadDeMedida.simbolo)}"
+                            th:data-medida="${(pc.cantidad == null or pc.unidadDeMedida == null) ? '' : #cantidades.conUnidad(pc.cantidad, pc.unidadDeMedida.simbolo)}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>

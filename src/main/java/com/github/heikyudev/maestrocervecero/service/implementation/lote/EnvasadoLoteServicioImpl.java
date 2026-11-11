@@ -65,6 +65,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     private final IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
 
     private static final String CAMPO_FECHA_ENVASADO = "fechaEnvasado";
+    private static final String SUJETO_FECHA_ENVASADO = "La fecha y hora del envasado";
 
     /**
      * Filtra los envasados de lote de una etapa de lote puntual.
@@ -155,7 +156,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         if (fechaEnvasado == null) {
             throw new ReglaNegocioException("La fecha y hora del envasado es obligatoria", CAMPO_FECHA_ENVASADO);
         }
-        MetodosCicloVida.validarFechaNoFutura(fechaEnvasado, CAMPO_FECHA_ENVASADO);
+        MetodosCicloVida.validarFechaNoFutura(SUJETO_FECHA_ENVASADO, fechaEnvasado, CAMPO_FECHA_ENVASADO);
 
         // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
         //    se bloquea para escritura antes de validarlo: no puede intercalarse con otro envasado, con la
@@ -167,7 +168,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaEnvasado(etapaLote, lote);
         if (etapaLote.getFechaInicio() != null && fechaEnvasado.isBefore(etapaLote.getFechaInicio())) {
-            throw new ReglaNegocioException("La fecha y hora del envasado no puede ser anterior al inicio de la etapa de Envasado del lote", CAMPO_FECHA_ENVASADO);
+            throw new ReglaNegocioException(SUJETO_FECHA_ENVASADO + " no puede ser anterior al inicio de la etapa de Envasado del lote", CAMPO_FECHA_ENVASADO);
         }
 
         // 3. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
@@ -181,6 +182,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
         // 5. Validar que la fecha del envasado sea posterior a la última operación o envasado registrado del barril
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                SUJETO_FECHA_ENVASADO,
                 fechaEnvasado,
                 "barril",
                 CAMPO_FECHA_ENVASADO,

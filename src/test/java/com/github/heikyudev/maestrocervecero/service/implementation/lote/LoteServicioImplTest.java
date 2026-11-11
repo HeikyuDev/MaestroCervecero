@@ -601,7 +601,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La mezcla de agua y grano (21,26 L) desbordará el macerador seleccionado (capacidad útil: 20 L)");
+                .hasMessage("La mezcla de agua y grano (21,2622 L) desbordará el macerador seleccionado (capacidad útil: 20 L)");
     }
 
     @Test
@@ -688,7 +688,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(21.264000000000003).build()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen objetivo (21,26 L) supera la capacidad útil del fermentador seleccionado (20 L)");
+                .hasMessage("El volumen objetivo (21,264 L) supera la capacidad útil del fermentador seleccionado (20 L)");
     }
 
     @Test
@@ -1311,7 +1311,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan \\d+,\\d{1,2} kg \\(disponible 2 kg, necesario \\d+,\\d{1,2} kg\\)");
+                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan \\d+,\\d{1,4} kg \\(disponible 2 kg, necesario \\d+,\\d{1,4} kg\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1332,7 +1332,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nLupuloB: faltan \\d+,\\d{1,2} g \\(disponible 5 g, necesario \\d+,\\d{1,2} g\\)");
+                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nLupuloB: faltan \\d+,\\d{1,4} g \\(disponible 5 g, necesario \\d+,\\d{1,4} g\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1473,7 +1473,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan 12,05 kg (disponible 0,3 kg, necesario 12,35 kg)");
+                .hasMessage("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan 12,0457 kg (disponible 0,3 kg, necesario 12,3457 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -3758,7 +3758,7 @@ class LoteServicioImplTest {
         assertThat(resultado.getAguaLavado()).isEqualTo(0.0);
         assertThat(resultado.getAguaTotal()).isEqualTo(40.1616);
         assertThat(resultado.getAdvertencias()).containsExactly(
-                "El mosto extraído del macerador (30,77 L) supera el volumen pre-hervor (25 L), por lo que no se requiere agua de lavado");
+                "El mosto extraído del macerador (30,7664 L) supera el volumen pre-hervor (25 L), por lo que no se requiere agua de lavado");
     }
 
     @Test

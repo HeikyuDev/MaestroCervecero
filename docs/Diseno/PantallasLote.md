@@ -315,7 +315,7 @@ Página aparte (no es un modal), solo para etapas que consumen insumos. Arriba, 
 < Volver al lote
 Consumos de Hervido  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
-[ Consumo creado correctamente ]                                                  (verde)
+[ Consumo registrado correctamente ]                                                  (verde)
 [ El total consumido de Citra en esta etapa (20 g) supera la cantidad requerida (15 g) ] (amarillo, arriba)
 
 INSUMOS DE LA ETAPA           Avance para finalizar: 80% como mínimo de cada insumo
@@ -369,7 +369,7 @@ Página aparte con la misma estructura que la de consumos: el resumen arriba, la
 < Volver al lote
 Envasados  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
-[ Envasado creado correctamente ]                                                 (verde)
+[ Envasado registrado correctamente ]                                                 (verde)
 
 RESUMEN                                                       Volumen objetivo: 300 L
 120 L de 330 L (capacidad útil del fermentador F-01)

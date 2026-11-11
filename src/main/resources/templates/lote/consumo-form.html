@@ -34,7 +34,7 @@
     <form id="consumo-form" th:action="@{${urlAccion}}" th:object="${consumoForm}" method="post" novalidate data-un-solo-envio data-formulario-consumo
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
-        <div th:replace="~{fragments/form-errors :: resumen('No se pudo crear el consumo')}"></div>
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar el consumo')}"></div>
 
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider"

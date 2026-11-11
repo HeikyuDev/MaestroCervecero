@@ -1098,7 +1098,7 @@ class ProveedorControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Nombre</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Cantidad</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Unidad</th>.*")))
-                .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">1234,5</td>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">1.234,5</td>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">kg</td>.*")))
                 // La celda del nombre conserva el corte libre de tabla-buscador
                 .andExpect(content().string(matchesPattern("(?s).*<td class=\"(?![^\"]*whitespace-nowrap)[^\"]*\">" + nombreLargo + "</td>.*")));
@@ -1137,7 +1137,7 @@ class ProveedorControllerTest {
         while (elegir.find()) {
             medidas.add(elegir.group(1) + " " + elegir.group(2));
         }
-        assertThat(medidas).containsExactly("25 kg", "1.000 g", "2,5 g", "1234,5 kg");
+        assertThat(medidas).containsExactly("25 kg", "1.000 g", "2,5 g", "1.234,5 kg");
         assertThat(medidas).allSatisfy(medida -> assertThat(formulario).contains("data-celda=\"medidaPresentacion\">" + medida + "</span>"));
     }
 

@@ -25,6 +25,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.O
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.FormatoCantidad;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
@@ -51,8 +52,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -503,13 +502,7 @@ public class IngresoInsumoController {
 
     /** La cantidad con el formato de la aplicación: separador de miles {@code .}, coma decimal y hasta 4 decimales. */
     private static String textoDeCantidad(Number cantidad) {
-        if (cantidad == null) {
-            return "-";
-        }
-        DecimalFormatSymbols simbolos = new DecimalFormatSymbols(Locale.ROOT);
-        simbolos.setGroupingSeparator('.');
-        simbolos.setDecimalSeparator(',');
-        return new DecimalFormat("#,##0.####", simbolos).format(cantidad);
+        return FormatoCantidad.formatear(cantidad);
     }
 
     /** El número sin ceros sobrantes ("25" y no "25.0"). */

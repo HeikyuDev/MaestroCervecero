@@ -45,7 +45,7 @@
     /**
      * Cantidad con su unidad tal como la muestra el servidor (receta/formato :: medida). La cantidad llega del buscador
      * de presentaciones (data-cantidad) ya escrita con el formato de receta/formato :: numero ("25", "2,5", "1.000",
-     * "1234,5"): solo se le agrega la unidad, así la fila agregada queda igual que la que pinta el servidor.
+     * "1.234,5"): solo se le agrega la unidad, así la fila agregada queda igual que la que pinta el servidor.
      */
     function formatearMedida(cantidad, unidad) {
         if (cantidad === undefined || cantidad === null || cantidad === '' || !unidad) { return ''; }
