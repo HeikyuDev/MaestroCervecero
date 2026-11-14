@@ -18,7 +18,15 @@
          2. Cambie el hasRole/hasAnyRole al rol que corresponda
          3. Ajuste el ícono, título, valor y colores
          ===================================================================== -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <!-- El operario de producción ve su panel de control (home/dashboard-operario) en lugar de las tarjetas de resumen -->
+    <!-- Si el panel no se pudo armar, el controller no lo carga y avisa con la alerta del layout: el resto de la pantalla se muestra igual -->
+    <th:block sec:authorize="hasRole('OPERARIO_DE_PRODUCCION')">
+        <th:block th:if="${dashboardOperario != null}">
+            <th:block th:replace="~{home/dashboard-operario :: panel(${dashboardOperario})}"></th:block>
+        </th:block>
+    </th:block>
+
+    <div sec:authorize="!hasRole('OPERARIO_DE_PRODUCCION')" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
         <!-- Estado del Sistema (Todos los autenticados) -->
         <div class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">

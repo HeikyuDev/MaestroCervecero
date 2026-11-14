@@ -93,6 +93,9 @@ class ProveedorControllerTest {
     private IProveedorServicio proveedorServicio;
 
     @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardOperarioServicio dashboardOperarioServicio;
+
+    @MockitoBean
     private IInsumoServicio insumoServicio;
 
     @MockitoBean

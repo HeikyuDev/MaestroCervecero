@@ -518,10 +518,12 @@ public interface ILoteServicio {
      * @param identificadorInterno Texto a buscar dentro del código del lote, o {@code null} para no filtrar por él.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
      * @param etapaActual El tipo de etapa actualmente en curso, o {@code null} para no filtrar por ella.
+     * @param inicioEstimadoHasta Fecha de inicio estimada máxima (inclusive): solo entran los lotes cuya fecha de inicio
+     *                            estimada es esa o anterior. {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación (solo se usa el tamaño y el número de página).
      * @return Una página de lotes en formato {@link LoteCronogramaResponseDTO}.
      */
-    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Pageable pageable);
+    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, LocalDate inicioEstimadoHasta, Pageable pageable);
 
     /**
      * Obtiene el detalle de un lote para su pantalla: la cabecera, las seis etapas en orden del proceso con su equipo y
@@ -549,4 +551,26 @@ public interface ILoteServicio {
      * @throws ReglaNegocioException Si no se informó el lote o la etapa.
      */
     AvanceEtapaResponseDTO calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa);
+
+    /**
+     * Calcula el avance de una etapa del lote con un porcentaje mínimo de consumo ya conocido, con la misma regla que
+     * {@link #calcularAvanceDeEtapa(Long, TipoEtapa)} pero sin leer la configuración de producción: sirve para evaluar
+     * varios lotes con una sola lectura de {@link #obtenerPorcentajeMinimoConsumoParaAvanzarEtapa()}.
+     *
+     * @param idLote El ID del lote.
+     * @param etapa El tipo de la etapa.
+     * @param porcentajeMinimo El porcentaje mínimo de consumo, entre 0 y 100.
+     * @return El avance de la etapa.
+     * @throws RecursoNoEncontradoException Si no existe el lote o si el lote no tiene la etapa.
+     * @throws ReglaNegocioException Si no se informó el lote o la etapa.
+     */
+    AvanceEtapaResponseDTO calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa, double porcentajeMinimo);
+
+    /**
+     * Obtiene de la configuración de producción el porcentaje mínimo de consumo que exige cada etapa para avanzar.
+     *
+     * @return El porcentaje mínimo, entre 0 y 100.
+     * @throws RecursoNoEncontradoException Si no se encuentra la configuración de producción.
+     */
+    double obtenerPorcentajeMinimoConsumoParaAvanzarEtapa();
 }

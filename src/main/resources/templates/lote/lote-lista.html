@@ -52,7 +52,12 @@
                 <option th:each="e : ${etapas}" th:value="${e}" th:selected="${e == filtroEtapaActual}" th:text="${e.etiqueta}">Molienda</option>
             </select>
         </div>
-        <div class="flex items-center justify-end gap-3">
+        <div>
+            <label for="inicioEstimadoHasta" class="block text-xs font-medium text-slate-500 mb-1">Inicio estimado hasta</label>
+            <input type="date" id="inicioEstimadoHasta" name="inicioEstimadoHasta" th:value="${filtroInicioEstimadoHasta}" autocomplete="off" placeholder="Ej: 01/07/2027"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="col-span-full flex items-center justify-end gap-3">
             <a th:href="@{/lotes}"
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
             <button type="submit"
@@ -124,8 +129,8 @@
         </div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${lotes}, 'lote|lotes',
-                ${lotes.hasPrevious()} ? @{/lotes(pagina=${lotes.number - 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual})} : null,
-                ${lotes.hasNext()} ? @{/lotes(pagina=${lotes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual})} : null,
+                ${lotes.hasPrevious()} ? @{/lotes(pagina=${lotes.number - 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual}, inicioEstimadoHasta=${filtroInicioEstimadoHasta})} : null,
+                ${lotes.hasNext()} ? @{/lotes(pagina=${lotes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual}, inicioEstimadoHasta=${filtroInicioEstimadoHasta})} : null,
                 false)}"></div>
     </div>
 </div>

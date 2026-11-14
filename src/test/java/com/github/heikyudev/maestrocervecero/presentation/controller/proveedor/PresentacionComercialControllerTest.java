@@ -57,6 +57,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, ControllerAdvices.class})
 class PresentacionComercialControllerTest {
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardOperarioServicio dashboardOperarioServicio;
+
     private static final String OBLIGATORIO = "<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>";
     private static final String URL = "/presentaciones-comerciales";
     private static final String NOTA_BLOQUEO = "La cantidad y la unidad de medida no se pueden cambiar si la presentación está en el catálogo de un proveedor activo o en una orden de compra pendiente.";

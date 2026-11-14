@@ -276,6 +276,7 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      * @param identificadorInterno Texto a buscar dentro del identificador interno (ya normalizado), o {@code null}.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
      * @param etapaActual El tipo de etapa actualmente EN_CURSO, o {@code null} para no filtrar por ella.
+     * @param inicioEstimadoHasta Fecha de inicio estimada máxima (inclusive), o {@code null} para no filtrar por ella.
      * @param pageable Paginación; el orden lo define la consulta.
      * @return Los IDs de la página.
      */
@@ -285,19 +286,53 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
             + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+            + "AND (CAST(:inicioEstimadoHasta AS LocalDate) IS NULL OR l.fechaInicioEstimada <= :inicioEstimadoHasta) "
             + "ORDER BY l.id DESC",
             countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
                     + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
                     + "AND (:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
                     + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estado IS NULL OR l.estado = :estado) "
-                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual))")
+                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+                    + "AND (CAST(:inicioEstimadoHasta AS LocalDate) IS NULL OR l.fechaInicioEstimada <= :inicioEstimadoHasta)")
     Page<Long> filtrarIdsDeLotesParaListado(@Param("idPlanificacion") Long idPlanificacion,
                                             @Param("idReceta") Long idReceta,
                                             @Param("identificadorInterno") String identificadorInterno,
                                             @Param("estado") EstadoLote estado,
                                             @Param("etapaActual") TipoEtapa etapaActual,
+                                            @Param("inicioEstimadoHasta") LocalDate inicioEstimadoHasta,
                                             Pageable pageable);
+
+    /**
+     * Obtiene una página con los IDs de los lotes EN_EJECUCION del panel del operario, por fecha de finalización
+     * estimada ascendente (el más atrasado primero) y, ante igual fecha, por ID ascendente. La fecha es obligatoria
+     * en el lote ({@code not null} en la base), por lo que el orden no necesita tratar los nulos. El total de la página es
+     * la cantidad de lotes en ejecución. Los lotes de la página se cargan con
+     * {@link #buscarParaListadoPorIds(Collection)}.
+     *
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los IDs de la página.
+     */
+    @Query(value = "SELECT l.id FROM LoteEntity l WHERE l.estado = 'EN_EJECUCION' "
+            + "ORDER BY l.fechaFinalizacionEstimada ASC, l.id ASC",
+            countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE l.estado = 'EN_EJECUCION'")
+    Page<Long> buscarIdsDeLotesEnEjecucionParaPanel(Pageable pageable);
+
+    /**
+     * Obtiene una página con los IDs de los lotes PENDIENTE del panel del operario cuya fecha de inicio estimada es la
+     * indicada o anterior, por fecha de inicio estimada ascendente y, ante igual fecha, por ID ascendente. La fecha es
+     * obligatoria en el lote ({@code not null} en la base), por lo que el orden no necesita tratar los nulos. El total de
+     * la página es la cantidad de lotes a iniciar. Los lotes de la página se cargan con
+     * {@link #buscarParaListadoPorIds(Collection)}.
+     *
+     * @param hasta Fecha de inicio estimada máxima (inclusive); en el panel, la fecha de hoy.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los IDs de la página.
+     */
+    @Query(value = "SELECT l.id FROM LoteEntity l WHERE l.estado = 'PENDIENTE' AND l.fechaInicioEstimada <= :hasta "
+            + "ORDER BY l.fechaInicioEstimada ASC, l.id ASC",
+            countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE l.estado = 'PENDIENTE' AND l.fechaInicioEstimada <= :hasta")
+    Page<Long> buscarIdsDeLotesAIniciarParaPanel(@Param("hasta") LocalDate hasta, Pageable pageable);
 
     /**
      * Carga, en una sola consulta, los lotes del listado con la planificación, su versión de receta y las etapas con su

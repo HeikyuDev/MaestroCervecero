@@ -108,6 +108,9 @@ public final class LimitesTecnicos {
     /** Cantidad máxima de días entre la fecha actual y la fecha de entrega estimada de una orden de compra (un año). */
     public static final int ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA = 365;
 
+    /** Cantidad máxima de filas que muestra cada bloque del panel del operario. */
+    public static final int PANEL_OPERARIO_FILAS_POR_BLOQUE = 5;
+
     /** Cantidad máxima de unidades de la presentación comercial que se puede solicitar en un ítem de una orden de compra. */
     public static final int CANTIDAD_COMPRA_MAXIMA = 1_000_000;
 

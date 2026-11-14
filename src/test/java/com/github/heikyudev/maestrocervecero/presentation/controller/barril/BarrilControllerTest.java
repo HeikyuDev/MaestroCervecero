@@ -60,6 +60,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, ControllerAdvices.class})
 class BarrilControllerTest {
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardOperarioServicio dashboardOperarioServicio;
+
     private static final String OBLIGATORIO = "<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>";
     private static final String BUSCADOR_FABRICANTES = "/barriles/buscador/fabricantes";
 

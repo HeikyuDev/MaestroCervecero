@@ -213,11 +213,11 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Filtra los lotes para el listado de lotes, del último registrado al primero. Ver
-     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, TipoEtapa, Pageable)}.
+     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, TipoEtapa, LocalDate, Pageable)}.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Pageable pageable) {
+    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, LocalDate inicioEstimadoHasta, Pageable pageable) {
         // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
         String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
         if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
@@ -226,7 +226,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 1. Paginar solo los IDs, ya ordenados por la consulta (el orden del pageable se ignora: siempre es el mismo)
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idReceta, identificadorInternoNormalizado, estado, etapaActual, pageableSinOrden);
+        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idReceta, identificadorInternoNormalizado, estado, etapaActual, inicioEstimadoHasta, pageableSinOrden);
         if (idsDeLaPagina.isEmpty()) {
             return new PageImpl<>(List.of(), pageableSinOrden, idsDeLaPagina.getTotalElements());
         }
@@ -327,11 +327,38 @@ public class LoteServicioImpl implements ILoteServicio {
         LoteEntity lote = loteRepository.findById(idLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
         EtapaLoteEntity etapaLote = lote.obtenerEtapaPorTipo(etapa);
-        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
-                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
-        double porcentajeMinimo = configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa();
+        return calcularAvance(etapaLote, obtenerPorcentajeMinimoConsumoParaAvanzarEtapa());
+    }
 
+    /**
+     * Calcula el avance de una etapa con un porcentaje mínimo ya leído. Ver
+     * {@link ILoteServicio#calcularAvanceDeEtapa(Long, TipoEtapa, double)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AvanceEtapaResponseDTO calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa, double porcentajeMinimo) {
+        validarLoteInformado(idLote);
+        validarInformado(etapa, "La etapa es obligatoria");
+
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+        return calcularAvance(lote.obtenerEtapaPorTipo(etapa), porcentajeMinimo);
+    }
+
+    /**
+     * Lee de la configuración de producción el porcentaje mínimo de consumo para avanzar de etapa. Ver
+     * {@link ILoteServicio#obtenerPorcentajeMinimoConsumoParaAvanzarEtapa()}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public double obtenerPorcentajeMinimoConsumoParaAvanzarEtapa() {
+        return configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"))
+                .getPorcentajeMinimoConsumoParaAvanzarEtapa();
+    }
+
+    private AvanceEtapaResponseDTO calcularAvance(EtapaLoteEntity etapaLote, double porcentajeMinimo) {
         List<AvanceInsumoResponseDTO> insumos = evaluarAvance(consumoInsumoServicio.filtrarInsumosRequeridos(etapaLote.getId()), porcentajeMinimo);
         return AvanceEtapaResponseDTO.builder()
                 .porcentajeMinimo(porcentajeMinimo)
@@ -2047,7 +2074,7 @@ public class LoteServicioImpl implements ILoteServicio {
                     || !enEjecucion.getFechaFinalizacionEstimada().isBefore(hoy)) {
                 continue;
             }
-            int diasDeAtraso = (int) ChronoUnit.DAYS.between(enEjecucion.getFechaFinalizacionEstimada(), hoy);
+            int diasDeAtraso = MetodosCronograma.calcularDiasDeAtraso(enEjecucion.getFechaFinalizacionEstimada(), hoy);
             atrasos.put(enEjecucion.getId(), new AtrasoDeLote(diasDeAtraso, 0));
 
             List<LoteEntity> pendientes = cola.stream()

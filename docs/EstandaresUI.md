@@ -18,6 +18,31 @@ Es la entrada desde la fila de una lista a la pantalla de trabajo o gestión de 
 - **Ubicación:** dentro de la celda `col-acciones` de la fila.
 - **Fragmento:** `fragments/boton-abrir :: abrir(url, etiquetaAccesible)`. Lo protege `BotonAbrirTest`.
 
+## Botón de registro en la fila
+
+Es la acción de una fila que lleva al formulario de alta de una operación concreta sobre ese registro, por ejemplo la limpieza o el mantenimiento de un equipo o de un barril desde el panel del operario. "Abrir" entra a la pantalla donde se trabaja con el registro; el botón de registro entra directo al formulario de una operación, de modo que no se confunden.
+
+- **Cuándo usarlo:** solo cuando la fila ofrece registrar una operación (limpieza, mantenimiento) y el destino es el formulario de alta de esa operación. Si el destino es el panel o el detalle del registro, va "Abrir".
+- **Aspecto:** el mismo borde y fondo ámbar suaves de "Abrir" (`text-xs font-semibold`), con el ícono de la operación a la izquierda del texto y sin flecha. Los íconos son los de las pestañas del panel del equipo: `bi-stars` para la limpieza y `bi-wrench` para el mantenimiento.
+- **Texto:** el nombre de la operación, "Registrar limpieza" o "Registrar mantenimiento".
+- **Sin tooltip:** el texto basta; no lleva `data-tooltip` ni `title`. Lleva un `aria-label` que identifica la fila, por ejemplo "Registrar limpieza de FER-01".
+- **Permiso:** se muestra solo con el permiso de registro de la operación (`LIMPIEZA_EQUIPAMIENTO_REGISTRAR`, `LIMPIEZA_BARRIL_REGISTRAR`, `MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR` o `MANTENIMIENTO_BARRIL_REGISTRAR`); sin él la celda queda vacía.
+- **Ubicación:** dentro de la celda `col-acciones` de la fila, a la derecha.
+- **Fragmento:** `fragments/boton-registrar :: registrar(url, texto, icono, etiquetaAccesible)`. Lo protege `BotonRegistrarTest`.
+
+## Panel de control del operario
+
+La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashboard-operario` en lugar de las tarjetas de resumen, que siguen igual para los demás roles. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+
+- **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con título en mayúsculas pequeñas, ícono y número grande. Cada contador lleva al listado filtrado correspondiente y sin el permiso de la lista queda como texto plano.
+- **Fila 2, trabajo de planta:** "Lotes de hoy" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Limpiezas pendientes" a la derecha.
+- **Fila 3, mantenimiento:** "Pendientes de mantenimiento" a todo el ancho, con Equipos y debajo Barriles, igual que "Limpiezas pendientes".
+- **Bloques:** cada bloque es una tarjeta con su título, el contador del total real de sus registros y su enlace "Ver todos" en el encabezado; muestra hasta `LimitesTecnicos.PANEL_OPERARIO_FILAS_POR_BLOQUE` filas en la tabla compacta de las listas. Los lotes se abren con "Abrir" y las limpiezas y los mantenimientos se registran con el botón de registro.
+- **Subgrupos apilados:** los subgrupos de un mismo bloque (Equipos y Barriles en las limpiezas y en el mantenimiento, En ejecución y A iniciar en los lotes) van uno debajo del otro, el de equipos primero, separados por una línea y con el mismo subencabezado y estilo de tabla; ningún par de subgrupos de un bloque va lado a lado.
+- **Estado vacío:** un bloque sin filas muestra una sola línea de texto gris centrada ("No hay equipos en limpieza"), sin tabla, sin encabezado de columnas y sin tarjeta vacía.
+- **Permisos:** cada atajo se protege con `sec:authorize` sobre el permiso de su destino, el mismo del `@PreAuthorize` del método al que lleva.
+- Lo protegen `DashboardOperarioPlantillasTest` y `HomeControllerTest`.
+
 ## Ícono del ojo "Ver ..."
 
 Es el estándar para abrir una vista de detalle de solo lectura: órdenes de compra, planificaciones, recetas y entradas de la bitácora de auditoría. Usa el ícono `bi-eye` con un texto "Ver ..." específico (por ejemplo, "Ver orden") y no se reemplaza por el botón "Abrir".
@@ -42,7 +67,7 @@ Un texto que puede ser largo (el motivo de una anulación o cancelación, las ob
 
 **Todo botón de fila va en la columna Acciones.** El botón i (de anulación, cancelación u observaciones), el ojo "Ver", modificar, baja, "Anular" y "Abrir" van siempre en la celda de la columna Acciones (`col-acciones`), a la derecha de todo, nunca en otra celda junto al badge de estado o a un dato. El orden dentro de la celda es: i (observaciones, luego anulación), ojo, y al final anular, modificar o baja; los que no aplican no se renderizan y una fila sin ningún botón deja la celda vacía. La columna Acciones existe siempre (encabezado y celdas, sin `th:if` ni `sec:authorize` en la columna): solo el contenido de cada celda se condiciona al permiso y al estado, de modo que la i se ve también cuando la etapa no es operable o el usuario no puede anular. Las tablas de solo lectura con anulados (consumos y envasados del Detalle del lote) tienen su columna Acciones solo con la i. Excepción: en la cabecera de un detalle (planificación, orden de compra, lote cancelado) la i va junto al badge de estado, porque no es una fila. Lo verifica `BotonesDeFilaEnAccionesTest`.
 
-**Botones de los filtros a la derecha.** En toda lista con tarjeta de filtros, "Limpiar" y "Buscar" van en un contenedor `flex items-center justify-end gap-3` que ocupa la fila completa de la grilla de filtros (`md:col-span-2` en una grilla de dos columnas, `lg:col-span-3` en una de tres, `col-span-full` en cualquier caso), de modo que quedan en el borde derecho de la tarjeta con cualquier cantidad de filtros. Excepciones: la lista de lotes (sus cinco filtros y los botones llenan las filas) y la barra de filtro en línea de las pantallas de consumos y de envasados. Lo verifica `BotonesDeFiltrosALaDerechaTest`.
+**Botones de los filtros a la derecha.** En toda lista con tarjeta de filtros, "Limpiar" y "Buscar" van en un contenedor `flex items-center justify-end gap-3` que ocupa la fila completa de la grilla de filtros (`md:col-span-2` en una grilla de dos columnas, `lg:col-span-3` en una de tres, `col-span-full` en cualquier caso), de modo que quedan en el borde derecho de la tarjeta con cualquier cantidad de filtros. Excepción: la barra de filtro en línea de las pantallas de consumos y de envasados. Lo verifica `BotonesDeFiltrosALaDerechaTest`.
 
 **Operario de producción: solo consulta de la administración.** El OPERARIO_DE_PRODUCCION ve en la sección Administración del menú Gestión de Insumos, Gestión de Recetas, Gestión de Barriles y Gestión de Equipamientos (mismas opciones, mismo orden y mismo resaltado que el gerente de producción), con sus listas, filtros, pestañas y detalles (el ojo de equipamiento y de recetas). Nunca ve ni ejecuta altas, modificaciones ni bajas: los botones "Nuevo ...", el lápiz y el tacho se ocultan con `sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"`, igual que el `@PreAuthorize` de esos métodos, que sigue exclusivo del gerente. Si la columna Acciones queda sin ningún botón (maltas, lúpulos, levaduras, barriles y fabricantes, cuyas tablas ya muestran todos los datos), se oculta entera para el operario; si le queda el ojo, el ojo va centrado. No se crean pantallas de detalle donde la tabla ya muestra todos los datos.
 

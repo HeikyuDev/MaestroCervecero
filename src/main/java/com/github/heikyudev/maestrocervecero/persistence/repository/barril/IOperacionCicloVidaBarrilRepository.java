@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -90,6 +91,19 @@ public interface IOperacionCicloVidaBarrilRepository extends JpaRepository<Opera
     List<OperacionCicloVidaBarril> buscarRegistradasEnPeriodo(@Param("idBarril") Long idBarril,
                                                               @Param("desde") LocalDateTime desde,
                                                               @Param("hasta") LocalDateTime hasta);
+
+    /**
+     * Busca, en una sola consulta, la última operación registrada de cada barril de un conjunto de IDs: la de mayor
+     * fecha y, ante igual fecha, la de mayor ID (la misma regla que {@link #buscarIdUltimaOperacionRegistrada(Long)}).
+     * Las operaciones anuladas no cuentan.
+     *
+     * @param idsBarril Los IDs de los barriles; no debe estar vacío.
+     * @return Una operación por cada barril que tenga alguna registrada; los demás no figuran.
+     */
+    @Query("SELECT o FROM OperacionCicloVidaBarril o WHERE o.barril.id IN :idsBarril AND o.estado = 'REGISTRADO' "
+            + "AND NOT EXISTS (SELECT 1 FROM OperacionCicloVidaBarril p WHERE p.barril.id = o.barril.id "
+            + "AND p.estado = 'REGISTRADO' AND (p.fecha > o.fecha OR (p.fecha = o.fecha AND p.id > o.id)))")
+    List<OperacionCicloVidaBarril> buscarUltimasOperacionesRegistradas(@Param("idsBarril") Collection<Long> idsBarril);
 
     default Optional<Long> buscarIdUltimaOperacionRegistrada(Long idBarril) {
         return buscarIdsOperacionesRegistradasDeLaUltimaALaPrimera(idBarril, PageRequest.of(0, 1)).stream().findFirst();

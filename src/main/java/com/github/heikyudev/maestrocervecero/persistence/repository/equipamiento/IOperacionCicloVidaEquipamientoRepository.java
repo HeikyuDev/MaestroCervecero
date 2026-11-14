@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,6 +85,19 @@ public interface IOperacionCicloVidaEquipamientoRepository extends JpaRepository
     @Query("SELECT o.id FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id = :idEquipamiento AND o.estado = 'REGISTRADO' "
             + "ORDER BY o.fecha DESC, o.id DESC")
     List<Long> buscarIdsOperacionesRegistradasDeLaUltimaALaPrimera(@Param("idEquipamiento") Long idEquipamiento, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Busca, en una sola consulta, la última operación registrada de cada equipamiento de un conjunto de IDs: la de
+     * mayor fecha y, ante igual fecha, la de mayor ID (la misma regla que
+     * {@link #buscarIdUltimaOperacionRegistrada(Long)}). Las operaciones anuladas no cuentan.
+     *
+     * @param idsEquipamiento Los IDs de los equipamientos; no debe estar vacío.
+     * @return Una operación por cada equipamiento que tenga alguna registrada; los demás no figuran.
+     */
+    @Query("SELECT o FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id IN :idsEquipamiento AND o.estado = 'REGISTRADO' "
+            + "AND NOT EXISTS (SELECT 1 FROM OperacionCicloVidaEquipamiento p WHERE p.equipamiento.id = o.equipamiento.id "
+            + "AND p.estado = 'REGISTRADO' AND (p.fecha > o.fecha OR (p.fecha = o.fecha AND p.id > o.id)))")
+    List<OperacionCicloVidaEquipamiento> buscarUltimasOperacionesRegistradas(@Param("idsEquipamiento") Collection<Long> idsEquipamiento);
 
     /**
      * Busca el ID de la última operación registrada de un equipamiento: la de mayor fecha y, ante igual fecha,

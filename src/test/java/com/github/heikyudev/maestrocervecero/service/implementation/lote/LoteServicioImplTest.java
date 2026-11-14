@@ -7138,12 +7138,12 @@ class LoteServicioImplTest {
         lote3.setIdentificadorInterno("LOT-R7-03");
         LoteEntity lote1 = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
         lote1.setId(1L);
-        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, PageRequest.of(0, 20)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, null, PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(3L, 1L), pageable, 45));
         when(loteRepository.buscarParaListadoPorIds(List.of(3L, 1L))).thenReturn(List.of(lote1, lote3));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(45);
@@ -7164,15 +7164,15 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
         LoteEntity lote = crearLoteMinimo(1L, "IPA-1");
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
         when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(lote));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
     }
 
     @Test
@@ -7180,14 +7180,14 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeNormalizarElIdentificadorInterno() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   lot-r7  ", null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   lot-r7  ", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable);
     }
 
     @Test
@@ -7195,13 +7195,13 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeTratarElCodigoEnBlancoComoNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, "    ", null, null, pageable);
+        loteServicio.filtrarLotesParaListado(null, null, "    ", null, null, null, pageable);
 
         // === ASSERTS ===
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
     }
 
     @Test
@@ -7209,10 +7209,10 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeRetornarPaginaVaciaSinCargarLotes() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
@@ -7225,18 +7225,37 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeIgnorarElOrdenDelPageable() {
         // === PREPARACION DE DATOS ===
         Pageable pageableConOrden = PageRequest.of(2, 20, Sort.by(Sort.Direction.ASC, "volumenObjetivo"));
-        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(Pageable.class)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(2, 20), 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, null, null, null, pageableConOrden);
+        loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageableConOrden);
 
         // === ASSERTS ===
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), captor.capture());
+        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), captor.capture());
         assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
         assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("CP-FLL-10: filtrarLotesParaListado propaga la fecha de inicio estimada máxima al repositorio")
+    void filtrarLotesParaListado_debePropagarLaFechaDeInicioEstimadaMaxima() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        LocalDate hasta = LocalDate.of(2026, 11, 13);
+        LoteEntity lote = crearLoteMinimo(1L, "IPA-1");
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, EstadoLote.PENDIENTE, null, hasta, pageable))
+                .thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
+        when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(lote));
+
+        // === EJECUCION ===
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, EstadoLote.PENDIENTE, null, hasta, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, EstadoLote.PENDIENTE, null, hasta, pageable);
     }
 
     // ==================== buscarDetallePorId ====================
@@ -7537,6 +7556,37 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getInsumos().get(0).isCumple()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-AV-09: calcularAvanceDeEtapa con el porcentaje mínimo informado aplica la misma regla sin leer la configuración de producción")
+    void calcularAvanceDeEtapa_conPorcentajeInformadoNoDebeLeerLaConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        findEtapa(lote, TipoEtapa.HERVIDO).setId(11L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 20.0, 15.0)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO, 80.0);
+
+        // === ASSERTS ===
+        assertThat(resultado.getPorcentajeMinimo()).isEqualTo(80.0);
+        assertThat(resultado.isCumpleMinimo()).isFalse();
+        verifyNoInteractions(configuracionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AV-10: obtenerPorcentajeMinimoConsumoParaAvanzarEtapa devuelve el porcentaje de la configuración y lanza RecursoNoEncontradoException si no existe")
+    void obtenerPorcentajeMinimo_debeLeerLaConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID))
+                .thenReturn(Optional.of(configuracionConMinimo(65.0)), Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.obtenerPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(65.0);
+        assertThatThrownBy(() -> loteServicio.obtenerPorcentajeMinimoConsumoParaAvanzarEtapa())
+                .isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró la configuración de producción");
     }
 
     private void prepararAvance(double porcentajeMinimo, List<InsumoRequeridoResponseDTO> insumosRequeridos) {

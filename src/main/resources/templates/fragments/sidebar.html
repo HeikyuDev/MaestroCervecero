@@ -76,7 +76,7 @@
             </th:block>
 
             <!-- CONTROL DE BARRILES (Operario de Producción: limpiezas, fallas, fraccionamientos y mantenimientos; Encargado de Distribución: despachos y devoluciones; Gerente de Producción: los consulta) -->
-            <th:block sec:authorize="hasAnyAuthority('LIMPIEZA_BARRIL_CONSULTAR', 'FALLA_BARRIL_CONSULTAR', 'FRACCIONAMIENTO_BARRIL_CONSULTAR', 'MANTENIMIENTO_BARRIL_CONSULTAR', 'DESPACHO_BARRIL_CONSULTAR', 'DEVOLUCION_BARRIL_CONSULTAR')">
+            <th:block th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}">
                 <a th:replace="~{fragments/sidebar ::enlace('/control-barriles', ${opcionActiva}, 'control-barriles', 'bi-clipboard-check', 'Control de Barriles')}"></a>
             </th:block>
 

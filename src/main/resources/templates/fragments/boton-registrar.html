@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Botón de registro en la fila de un listado: lleva desde la fila al formulario de alta de una operación concreta sobre ese
+    registro (por ejemplo, la limpieza o el mantenimiento de un equipo). Tiene el mismo aspecto suave ámbar del botón "Abrir",
+    con el ícono de la operación a la izquierda y sin flecha, de modo que no se confunda con la entrada a una pantalla de
+    trabajo. Pensado para la celda fija col-acciones.
+
+    Parámetros: url (destino ya resuelto, por ejemplo @{/control-equipamiento/{id}/limpiezas/nueva(id=${e.id})}), texto
+    ("Registrar limpieza"), icono (clase Bootstrap Icons de la operación, por ejemplo 'bi-stars') y etiquetaAccesible (texto
+    corto para lectores de pantalla que identifica la fila, por ejemplo 'Registrar limpieza de FER-01'). No lleva tooltip.
+
+    Uso: <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-equipamiento/{id}/limpiezas/nueva(id=${e.id})}, 'Registrar limpieza', 'bi-stars', 'Registrar limpieza de ' + ${e.identificadorInterno})}"></th:block>
+-->
+<a th:fragment="registrar(url, texto, icono, etiquetaAccesible)" data-boton-registrar th:href="${url}" th:aria-label="${etiquetaAccesible}"
+   class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-700 shadow-sm hover:bg-amber-500 hover:text-white hover:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i th:class="'bi ' + ${icono}" aria-hidden="true"></i> <th:block th:text="${texto}">Registrar limpieza</th:block>
+</a>
+
+</html>

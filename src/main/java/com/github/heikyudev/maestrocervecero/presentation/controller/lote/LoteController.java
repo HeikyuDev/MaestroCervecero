@@ -172,7 +172,8 @@ public class LoteController {
     /**
      * Lista los lotes, de a 20 y con el último registrado arriba. Los criterios (planificación, receta, código, estado,
      * etapa actual) son opcionales y llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido:
-     * un valor inválido o una planificación o una receta inexistentes se ignoran con un aviso.
+     * un valor inválido o una planificación o una receta inexistentes se ignoran con un aviso. El criterio "Inicio
+     * estimado hasta" limita la lista a los lotes cuya fecha de inicio estimada es esa fecha o anterior.
      */
     @GetMapping
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
@@ -181,6 +182,7 @@ public class LoteController {
                               @RequestParam(required = false) String codigo,
                               @RequestParam(required = false) String estado,
                               @RequestParam(required = false) String etapaActual,
+                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicioEstimadoHasta,
                               @RequestParam(defaultValue = "0") int pagina,
                               Model model) {
         List<String> avisos = new ArrayList<>();
@@ -224,7 +226,7 @@ public class LoteController {
 
         String codigoFiltro = vacioANulo(codigo);
         Page<LoteCronogramaResponseDTO> lotes = loteServicio.filtrarLotesParaListado(idPlanificacionFiltro, idRecetaFiltro,
-                codigoFiltro, estadoFiltro, etapaFiltro, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                codigoFiltro, estadoFiltro, etapaFiltro, inicioEstimadoHasta, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lotes", lotes);
         model.addAttribute("estados", EstadoLote.values());
@@ -236,6 +238,7 @@ public class LoteController {
         model.addAttribute("filtroEstado", estadoFiltro);
         model.addAttribute("etapas", TipoEtapa.values());
         model.addAttribute("filtroEtapaActual", etapaFiltro);
+        model.addAttribute("filtroInicioEstimadoHasta", inicioEstimadoHasta);
         agregarAvisos(model, avisos);
         return VISTA_LISTA;
     }

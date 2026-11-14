@@ -93,8 +93,8 @@ class ControlBarrilPlantillasTest {
     void sidebar() throws IOException {
         String html = leer("fragments/sidebar.html");
 
-        assertThat(html).contains("'/control-barriles'").contains("'control-barriles', 'bi-clipboard-check', 'Control de Barriles'").contains("LIMPIEZA_BARRIL_CONSULTAR")
-                .contains("DESPACHO_BARRIL_CONSULTAR").contains("'ENCARGADO_DE_DISTRIBUCION')\">\n            <p th:replace=\"~{fragments/sidebar ::seccion('Operación')}\"");
+        assertThat(html).contains("'/control-barriles'").contains("'control-barriles', 'bi-clipboard-check', 'Control de Barriles'").contains("PermisosPlantilla).CONSULTA_BARRIL")
+                .contains("'ENCARGADO_DE_DISTRIBUCION')\">\n            <p th:replace=\"~{fragments/sidebar ::seccion('Operación')}\"");
         assertThat(html.indexOf("'/control-equipamiento'")).isLessThan(html.indexOf("'/control-barriles'"));
         assertThat(leer("layout/base.html")).contains("'control-barriles': 'Control de barriles'");
     }
