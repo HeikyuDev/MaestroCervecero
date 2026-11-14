@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.planificacion
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -82,6 +83,11 @@ public class PlanificacionProduccionResponseDTO {
      * Estado actual de la planificación de producción (PENDIENTE, FINALIZADA, ANULADA).
      */
     private EstadoSolicitud estado;
+
+    /**
+     * Prioridad de la planificación de producción (BAJA, MEDIA, ALTA).
+     */
+    private PrioridadPlanificacion prioridad;
 
     /**
      * Versión de receta utilizada en esta planificación de producción.

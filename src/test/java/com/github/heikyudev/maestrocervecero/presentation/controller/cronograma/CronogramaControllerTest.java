@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -2517,6 +2518,58 @@ class CronogramaControllerTest {
         assertThat(valido).doesNotContain("data-aviso-buscador");
         verify(fermentadorServicio).filtrarFermentadores(isNull(), isNull(), any());
         verify(fermentadorServicio).filtrarFermentadores(isNull(), eq(EstadoOperativo.EN_USO), any());
+    }
+
+    @Test
+    @DisplayName("CP-CGC-113: cada barra se rellena con el color de la prioridad de su planificación y conserva el tratamiento de su estado, con el ícono del estado y la prioridad en el tooltip")
+    void diagrama_lasBarrasSeColoreanPorPrioridadYConservanElEstado() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "ALTA-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1).toBuilder().prioridad(PrioridadPlanificacion.ALTA).build(),
+                lote(2L, "MEDIA-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2).toBuilder().prioridad(PrioridadPlanificacion.MEDIA).build(),
+                lote(3L, "BAJA-1", EstadoLote.PENDIENTE, "F-01", 9L, "Ipa", 3).toBuilder().prioridad(PrioridadPlanificacion.BAJA).build()));
+
+        for (Rol rol : List.of(Rol.GERENTE_DE_PRODUCCION, Rol.OPERARIO_DE_PRODUCCION)) {
+            // Act
+            String html = mockMvc.perform(get(URL).with(como(rol))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+            // Assert: el relleno es la prioridad y el estado sigue en su clase
+            assertThat(barra(html, "title=\"ALTA-1 - En ejecuci")).contains("gantt-prioridad--alta").contains("gantt-color--en-ejecucion")
+                    .contains("Prioridad: Alta");
+            assertThat(barra(html, "title=\"MEDIA-1 - Pendiente")).contains("gantt-prioridad--media").contains("gantt-color--pendiente")
+                    .contains("Prioridad: Media");
+            assertThat(barra(html, "title=\"BAJA-1 - Pendiente")).contains("gantt-prioridad--baja").contains("gantt-color--pendiente")
+                    .contains("Prioridad: Baja");
+            assertThat(html).contains("bi bi-play-fill gantt-estado-icono").contains("bi bi-clock gantt-estado-icono")
+                    .doesNotContain("bi bi-check2 gantt-estado-icono")
+                    .contains(".gantt-prioridad--alta { background-color: #e11d48;")
+                    .contains(".gantt-prioridad--media { background-color: #b45309;")
+                    .contains(".gantt-prioridad--baja { background-color: #64748b;");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-CGC-114: la pantalla muestra la leyenda \"Prioridad: Alta, Media, Baja\" con los tres colores, aparte de la leyenda de estados")
+    void diagrama_muestraLaLeyendaDePrioridad() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "ALTA-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1).toBuilder().prioridad(PrioridadPlanificacion.ALTA).build()));
+
+        for (Rol rol : List.of(Rol.GERENTE_DE_PRODUCCION, Rol.OPERARIO_DE_PRODUCCION)) {
+            // Act
+            String html = mockMvc.perform(get(URL).with(como(rol))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+            // Assert
+            Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda de prioridad\"[^>]*>(.*?)</ul>").matcher(html);
+            assertThat(m.find()).isTrue();
+            String leyendaPrioridad = m.group(1);
+            assertThat(leyendaPrioridad).contains("Prioridad:").contains("gantt-prioridad--alta").contains("gantt-prioridad--media").contains("gantt-prioridad--baja");
+            assertThat(leyendaPrioridad.indexOf("Alta")).isLessThan(leyendaPrioridad.indexOf("Media"));
+            assertThat(leyendaPrioridad.indexOf("Media")).isLessThan(leyendaPrioridad.indexOf("Baja"));
+            assertThat(leyenda(html)).doesNotContain("Prioridad");
+        }
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.planificac
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.FinalizacionForzadaPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.PlanificacionProduccionFormDTO;
@@ -118,6 +119,7 @@ public class PlanificacionProduccionController {
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
     public String mostrarFormularioAlta(Model model) {
         PlanificacionProduccionFormDTO planificacionForm = new PlanificacionProduccionFormDTO();
+        planificacionForm.setPrioridad(PrioridadPlanificacion.MEDIA);
         model.addAttribute(ATRIBUTO_FORMULARIO, planificacionForm);
         cargarModeloFormulario(model, planificacionForm);
         return VISTA_FORMULARIO;
@@ -294,10 +296,12 @@ public class PlanificacionProduccionController {
 
     /**
      * Carga lo que la vista del formulario necesita además del DTO: el nombre de la receta elegida (para
-     * mostrarlo en el selector sin agregar campos de solo lectura al DTO) y la URL de cancelación.
+     * mostrarlo en el selector sin agregar campos de solo lectura al DTO), las prioridades disponibles y la URL
+     * de cancelación.
      */
     private void cargarModeloFormulario(Model model, PlanificacionProduccionFormDTO planificacionForm) {
         model.addAttribute("recetaTexto", nombreDeReceta(planificacionForm.getIdReceta()));
+        model.addAttribute("prioridades", PrioridadPlanificacion.values());
         model.addAttribute("urlCancelar", URL_LISTA);
     }
 

@@ -47,6 +47,8 @@ El usuario elige una receta, no una versión: el service resuelve la última ver
 |**CP-RPP-14**|Cantidad a producir sobre el techo|`cantidadAProducir: 10000000.01`|`cantidadAProducir > 10000000` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La cantidad a producir no puede superar 10.000.000 litros"). No consulta ningún repositorio.|
 |**CP-RPP-15**|Rango de exactamente 1.825 días _(Límite válido)_|`fechaInicioEstimada: 01/03/2099`, `fechaFinalizacionEstimada: inicio + 1825 días`, `idReceta: 1L` con versión activa|Días entre inicio y fin `> 1825` $\rightarrow$ **FALSE**|La planificación se registra en `estado = PENDIENTE` y se ejecuta `save()`.|
 |**CP-RPP-16**|Rango de 1.826 días|`fechaInicioEstimada: 01/03/2099`, `fechaFinalizacionEstimada: inicio + 1826 días`|Días entre inicio y fin `> 1825` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La planificación no puede durar más de 5 años (1.825 días) entre las fechas de inicio y de finalización estimadas"). No consulta ningún repositorio (la validación es anterior a la receta).|
+|**CP-RPP-17**|Prioridad nula|`prioridad: null`|`prioridad == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La prioridad es obligatoria"). No consulta ningún repositorio.|
+|**CP-RPP-18**|La prioridad informada se guarda|`prioridad: ALTA`, `idReceta: 1L` con versión activa|Todas las validaciones $\rightarrow$ **FALSE**|La entidad que se persiste tiene `prioridad = ALTA` y el DTO devuelto la informa. La prioridad queda fija: la planificación no se modifica después de registrada.|
 
 ### 4. `anularPlanificacionProduccion(Long id, AnulacionPlanificacionProduccionFormDTO anulacionFormDTO)`
 

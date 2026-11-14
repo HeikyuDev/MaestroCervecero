@@ -68,6 +68,18 @@ public interface ILoteServicio {
      * inicio estimada de la planificación de producción del lote ni a hoy; por eso pueden quedar huecos
      * en la cola del fermentador.
      * </p>
+     * <p>
+     * La prioridad de la planificación del lote ({@code BAJA} &lt; {@code MEDIA} &lt; {@code ALTA}) define su lugar en la
+     * cola de lotes pendientes del fermentador: el lote se ubica detrás del último lote pendiente cuya planificación tiene
+     * igual o mayor prioridad (a igual prioridad, el que llegó primero va primero), y por delante de los lotes pendientes
+     * de planificaciones de prioridad estrictamente menor, que se empujan hacia la derecha. En ese caso se recalculan en la
+     * misma transacción las fechas estimadas de toda la cola pendiente del fermentador, en su nuevo orden: cada lote
+     * conserva su duración y arranca cuando termina el anterior más el día de limpieza, sin comenzar antes de hoy ni de la
+     * fecha de inicio estimada de su planificación. Un lote en ejecución nunca se mueve y es el piso de la cola: los lotes
+     * nuevos comienzan dos días después de su fin estimado (o desde hoy si está atrasado), nunca antes. Si ningún lote
+     * pendiente queda por detrás, solo se calcula la fecha del lote nuevo, sin tocar los demás. El fermentador se bloquea
+     * para escritura para que dos registros simultáneos no se intercalen.
+     * </p>
      *
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.

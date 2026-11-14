@@ -46,6 +46,7 @@ public class MapperPlanificacionProduccion {
                 .motivoAnulacion(planificacionProduccionEntity.getMotivoAnulacion())
                 .usuarioAnulacion(planificacionProduccionEntity.getEstado() == EstadoSolicitud.ANULADA ? planificacionProduccionEntity.getLastModifiedBy() : null)
                 .estado(planificacionProduccionEntity.getEstado())
+                .prioridad(planificacionProduccionEntity.getPrioridad())
                 .versionReceta(MapperReceta.toDTO(planificacionProduccionEntity.getVersionReceta()))
                 .build();
     }

@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_p
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -51,6 +52,11 @@ public class PlanificacionProduccionEntity extends AuditableEntity<String> {
     @Column(name = "estado" , nullable = false)
     @Enumerated(EnumType.STRING)
     private EstadoSolicitud estado;
+
+    @Column(name = "prioridad", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private PrioridadPlanificacion prioridad = PrioridadPlanificacion.MEDIA;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_receta_id", nullable = false)

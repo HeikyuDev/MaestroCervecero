@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -47,6 +48,12 @@ public class PlanificacionProduccionFormDTO {
     @NotNull(message = "La cantidad a producir es obligatoria")
     @Positive(message = "La cantidad a producir debe ser mayor a 0")
     private Double cantidadAProducir;
+
+    /**
+     * Prioridad de la planificación: define el lugar de sus lotes nuevos en la cola de pendientes de un fermentador.
+     */
+    @NotNull(message = "La prioridad es obligatoria")
+    private PrioridadPlanificacion prioridad;
 
     /**
      * Identificador de la receta a utilizar en esta planificación de producción.

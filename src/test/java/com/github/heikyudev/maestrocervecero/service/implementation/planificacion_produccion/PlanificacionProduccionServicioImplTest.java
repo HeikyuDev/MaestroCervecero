@@ -24,6 +24,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.planificacio
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.FinalizacionForzadaPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.PlanificacionProduccionFormDTO;
@@ -387,6 +388,33 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(guardada.getVersionReceta()).isSameAs(receta.getVersiones().get(0));
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-17: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la prioridad es nula")
+    void registrar_debeRechazarPrioridadNula() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).prioridad(null).build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La prioridad es obligatoria");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-18: registrarPlanificacionProduccion guarda la prioridad informada en la planificación")
+    void registrar_debeGuardarLaPrioridadInformada() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).prioridad(PrioridadPlanificacion.ALTA).build();
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, true)));
+        when(planificacionProduccionRepository.save(any(PlanificacionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO);
+
+        ArgumentCaptor<PlanificacionProduccionEntity> captor = ArgumentCaptor.forClass(PlanificacionProduccionEntity.class);
+        verify(planificacionProduccionRepository).save(captor.capture());
+        assertThat(captor.getValue().getPrioridad()).isEqualTo(PrioridadPlanificacion.ALTA);
+        assertThat(resultado.getPrioridad()).isEqualTo(PrioridadPlanificacion.ALTA);
     }
 
     @Test
@@ -1646,6 +1674,7 @@ class PlanificacionProduccionServicioImplTest {
                 .fechaInicioEstimada(LocalDate.of(2099, 3, 1))
                 .fechaFinalizacionEstimada(LocalDate.of(2099, 4, 1))
                 .cantidadAProducir(100.0)
+                .prioridad(PrioridadPlanificacion.MEDIA)
                 .idReceta(idReceta);
     }
 

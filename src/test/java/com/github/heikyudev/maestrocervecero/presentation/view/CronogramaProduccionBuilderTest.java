@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.view;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.CronogramaProduccionVista.ColaFermentador;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Alineacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
@@ -1233,6 +1234,58 @@ class CronogramaProduccionBuilderTest {
             assertThat(c.getEnEjecucion()).isNull();
             assertThat(c.getPendientes()).isEmpty();
         });
+    }
+
+    @Test
+    @DisplayName("CP-GCB-58: cada barra lleva la clave y la etiqueta de la prioridad de su planificación, y MEDIA si el lote no la informa")
+    void cadaBarraLlevaLaPrioridadDeSuPlanificacion() {
+        // Arrange: tres lotes de un mismo carril con prioridades distintas y uno sin prioridad informada
+        LoteCronogramaResponseDTO alta = loteB(1L, "L-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(4)).prioridad(PrioridadPlanificacion.ALTA).build();
+        LoteCronogramaResponseDTO media = loteB(2L, "L-2", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(6), fecha(9)).prioridad(PrioridadPlanificacion.MEDIA).build();
+        LoteCronogramaResponseDTO baja = loteB(3L, "L-3", EstadoLote.PENDIENTE, "F-01", 9L, "Ipa", fecha(11), fecha(14)).prioridad(PrioridadPlanificacion.BAJA).build();
+        LoteCronogramaResponseDTO sinDato = loteB(4L, "L-4", EstadoLote.PENDIENTE, "F-01", 10L, "Lager", fecha(16), fecha(19)).build();
+
+        // Act
+        CronogramaProduccionVista vista = construir(List.of(alta, media, baja, sinDato), List.of(), null, HOY, LocalDate.of(2027, 6, 30), fecha(25));
+
+        // Assert
+        List<Barra> barras = vista.getGantt().getCarriles().get(0).getBarras();
+        assertThat(barras).extracting(Barra::getPrioridadClave).containsExactly("alta", "media", "baja", "media");
+        assertThat(barras).extracting(Barra::getPrioridadEtiqueta).containsExactly("Alta", "Media", "Baja", "Media");
+    }
+
+    @Test
+    @DisplayName("CP-GCB-59: la prioridad es independiente del estado: una barra en ejecución y otra finalizada conservan su estado y su prioridad")
+    void laPrioridadNoCambiaElEstadoDeLaBarra() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "L-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(4))
+                .fechaInicio(fecha(1).atTime(8, 0)).prioridad(PrioridadPlanificacion.BAJA).build();
+        LoteCronogramaResponseDTO finalizado = loteB(2L, "L-2", EstadoLote.FINALIZADO, "F-01", 8L, "Stout", fecha(6), fecha(9))
+                .fechaInicio(fecha(6).atTime(8, 0)).fechaFinalizacion(fecha(9).atTime(18, 0)).prioridad(PrioridadPlanificacion.ALTA).build();
+
+        // Act
+        CronogramaProduccionVista vista = construir(List.of(enEjecucion, finalizado), List.of(), null, fecha(3), LocalDate.of(2027, 6, 30), fecha(25));
+
+        // Assert
+        List<Barra> barras = vista.getGantt().getCarriles().get(0).getBarras();
+        assertThat(barras).extracting(Barra::getEstadoClave).containsExactly("en-ejecucion", "finalizado");
+        assertThat(barras).extracting(Barra::getPrioridadClave).containsExactly("baja", "alta");
+    }
+
+    @Test
+    @DisplayName("CP-GCB-60: el tooltip de la barra informa la prioridad debajo de la planificación y se omite si el lote no la informa")
+    void elTooltipInformaLaPrioridad() {
+        // Arrange
+        LoteCronogramaResponseDTO conPrioridad = loteB(1L, "L-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(4)).prioridad(PrioridadPlanificacion.ALTA).build();
+        LoteCronogramaResponseDTO sinPrioridad = loteB(2L, "L-2", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(6), fecha(9)).build();
+
+        // Act
+        CronogramaProduccionVista vista = construir(List.of(conPrioridad, sinPrioridad), List.of(), null, HOY, LocalDate.of(2027, 6, 30), fecha(25));
+
+        // Assert
+        List<Barra> barras = vista.getGantt().getCarriles().get(0).getBarras();
+        assertThat(barras.get(0).getTooltip()).contains("Planificación: Plan #7 - Pale Ale\nPrioridad: Alta\nInicio estimado:");
+        assertThat(barras.get(1).getTooltip()).doesNotContain("Prioridad:");
     }
 
     // ==================== Datos de prueba ====================

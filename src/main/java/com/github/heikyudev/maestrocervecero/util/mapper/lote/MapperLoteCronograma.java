@@ -41,6 +41,7 @@ public class MapperLoteCronograma {
                 .fechaCancelacion(loteEntity.getFechaCancelacion())
                 .idPlanificacionProduccion(loteEntity.getPlanificacionProduccion().getId())
                 .nombreReceta(loteEntity.getPlanificacionProduccion().getVersionReceta().getNombre())
+                .prioridad(loteEntity.getPlanificacionProduccion().getPrioridad())
                 .idFermentador(fermentador != null ? fermentador.getId() : null)
                 .identificadorInternoFermentador(fermentador != null ? fermentador.getIdentificadorInterno() : null)
                 .identificadorInternoMolino(identificadorDeEtapa(loteEntity, TipoEtapa.MOLIENDA))

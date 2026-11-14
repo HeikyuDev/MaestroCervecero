@@ -13,11 +13,13 @@
     de las barras, para no cruzar su texto; "hoy" también lleva una bandera sobre el eje. Las etiquetas de
     fecha de los bordes se alinean hacia adentro (alineación calculada por el builder).
 
-    Tres colores (la misma paleta en las barras y en la leyenda): azul para lo planificado (los pendientes), naranja
-    sólido para los lotes en ejecución (de su inicio real a su fin estimado; el avance lo marca la línea de hoy) y
-    verde para los finalizados. Los lotes cancelados no se dibujan. El lote en ejecución atrasado extiende su barra hasta hoy,
-    toda en naranja, con la etiqueta "Atrasado N días"; los pendientes que su atraso corre se dibujan en azul en su
-    posición corrida, sin marca propia. Entre dos lotes vivos de un fermentador se dibuja un bloque celeste de un día
+    Color y estado: el relleno de cada barra es la prioridad de la planificación del lote (rojo Alta, ámbar Media,
+    gris Baja, como las insignias de prioridad) y el estado se ve en el tratamiento de la barra, con un icono delante del
+    texto: pendiente liso con un reloj (bi-clock); en ejecución (de su inicio real a su fin estimado; el avance lo marca la
+    línea de hoy) con borde oscuro, rayas y un triángulo (bi-play-fill); finalizado apagado con una tilde (bi-check2).
+    Los lotes cancelados no se dibujan. El lote en ejecución atrasado extiende su barra hasta hoy con la etiqueta
+    "Atrasado N días"; los pendientes que su atraso corre se dibujan como pendientes en su posición corrida, sin marca propia.
+    La leyenda de prioridad precede a la de estados, y el tooltip de cada barra informa la prioridad. Entre dos lotes vivos de un fermentador se dibuja un bloque celeste de un día
     para su limpieza, con un icono de destellos (bi-stars) que se oculta si el bloque es muy angosto.
 
     Lo usan el estado actual de una planificación y el cronograma global (cronograma/cronograma). El global
@@ -33,9 +35,18 @@
 <div th:fragment="gantt(vista, enlazar)">
 
     <style>
-        .gantt-color--pendiente { background: #2563eb; color: #ffffff; }
-        .gantt-color--en-ejecucion { background: #ea580c; color: #ffffff; }
-        .gantt-color--finalizado { background: #047857; color: #ffffff; }
+        /* Relleno de la barra: la prioridad de la planificación del lote (rojo Alta, ámbar Media, gris Baja, como sus
+           insignias); el estado del lote no cambia el relleno sino el tratamiento (ver más abajo) */
+        .gantt-prioridad--alta { background-color: #e11d48; color: #ffffff; }
+        .gantt-prioridad--media { background-color: #b45309; color: #ffffff; }
+        .gantt-prioridad--baja { background-color: #64748b; color: #ffffff; }
+        .gantt-prioridad--neutra { background-color: #94a3b8; color: #ffffff; }
+        /* Estado del lote, sobre cualquier relleno: pendiente liso con un reloj; en ejecución con borde oscuro, rayas y un
+           triángulo de avance; finalizado apagado con una tilde */
+        .gantt-color--pendiente, .gantt-color--en-ejecucion, .gantt-color--finalizado { color: #ffffff; }
+        .gantt-color--en-ejecucion { box-shadow: inset 0 0 0 2px #0f172a; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0, rgba(255, 255, 255, 0.28) 6px, transparent 6px, transparent 12px); }
+        .gantt-color--finalizado { filter: saturate(0.45) brightness(1.12); }
+        .gantt-estado-icono { position: relative; flex-shrink: 0; margin-left: 0.375rem; font-size: 12px; line-height: 1; }
         .gantt-color--limpieza { background: #e0f2fe; color: #0284c7; box-shadow: inset 0 0 0 1px #38bdf8; }
         /* Bloques contiguos (una barra y la limpieza que le sigue o antecede): el builder no los superpone y cada barra lleva a
            los lados un borde blanco de 1 px que no cambia su posición ni su ancho (box-sizing: border-box, fondo recortado al
@@ -72,15 +83,23 @@
         .gantt-muestra-icono { font-size: 9px; line-height: 1; }
     </style>
 
-    <!-- Leyenda -->
+    <!-- Leyenda de prioridad: el color de relleno de las barras -->
+    <ul class="mb-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Leyenda de prioridad" data-gantt-leyenda-prioridad>
+        <li class="font-semibold text-slate-700">Prioridad:</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--alta"></span> Alta</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--media"></span> Media</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--baja"></span> Baja</li>
+    </ul>
+
+    <!-- Leyenda de estados y marcas -->
     <ul class="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Leyenda del diagrama">
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Pendiente</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--en-ejecucion"></span> En ejecución</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--finalizado"></span> Finalizado</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--neutra gantt-color--pendiente"><i class="bi bi-clock gantt-muestra-icono" aria-hidden="true"></i></span> Pendiente</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--neutra gantt-color--en-ejecucion"><i class="bi bi-play-fill gantt-muestra-icono" aria-hidden="true"></i></span> En ejecución</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--neutra gantt-color--finalizado"><i class="bi bi-check2 gantt-muestra-icono" aria-hidden="true"></i></span> Finalizado</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"><i class="bi bi-stars gantt-muestra-icono" data-gantt-leyenda-limpieza-icono aria-hidden="true"></i></span> Limpieza de equipamientos</li>
         <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-rose-500"></span> Hoy</li>
         <li th:if="${vista.inicioPlanificacionPct != null or vista.finPlanificacionPct != null}" class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-dashed border-slate-500"></span> Inicio y fin estimados de la planificación</li>
-        <li th:if="${vista.planificacionResaltada}" class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente opacity-30"></span> Lote de otra planificación (atenuado)</li>
+        <li th:if="${vista.planificacionResaltada}" class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-prioridad--neutra opacity-30"></span> Lote de otra planificación (atenuado)</li>
     </ul>
 
     <div class="overflow-x-auto rounded-lg border border-slate-200" data-gantt>
@@ -141,11 +160,12 @@
                          th:title="${b.tooltip}"
                          th:attr="role=${enlazar ? null : 'img'}, tabindex=${enlazar ? null : '0'}, aria-label=${enlazar ? null : b.tooltip}, data-gantt-continua-antes=${b.continuaAntes ? 'true' : null}, data-gantt-continua-despues=${b.continuaDespues ? 'true' : null}"
                          th:style="|left: ${b.izquierdaPct}%; width: ${b.anchoPct}%|"
-                         th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}${b.continuaAntes ? ' gantt-barra--continua-antes' : ''}${b.continuaDespues ? ' gantt-barra--continua-despues' : ''}|"
+                         th:classappend="|gantt-prioridad--${b.prioridadClave} gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}${b.continuaAntes ? ' gantt-barra--continua-antes' : ''}${b.continuaDespues ? ' gantt-barra--continua-despues' : ''}|"
                          class="gantt-barra focus:outline-none focus:ring-2 focus:ring-slate-800">
                         <a th:if="${enlazar}" th:href="@{/lotes/{id}(id=${b.idLote})}" th:attr="aria-label=${b.tooltip}" data-gantt-barra-enlace
                            class="absolute inset-0 z-10 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"></a>
                         <i th:if="${b.continuaAntes}" class="bi bi-chevron-left gantt-continua" aria-hidden="true"></i>
+                        <i th:class="|bi ${b.estadoClave == 'en-ejecucion' ? 'bi-play-fill' : (b.estadoClave == 'finalizado' ? 'bi-check2' : 'bi-clock')} gantt-estado-icono|" data-gantt-estado-icono aria-hidden="true"></i>
                         <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
                         <span th:if="${b.etiquetaAtraso != null}" th:text="${b.etiquetaAtraso}"
                               data-gantt-atraso-etiqueta class="gantt-etiqueta-atraso">Atrasado 3 días</span>

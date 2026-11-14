@@ -82,6 +82,10 @@
                     <dt class="text-xs font-medium text-slate-500">Cantidad a producir (L)</dt>
                     <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block></dd>
                 </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Prioridad</dt>
+                    <dd class="mt-1" data-prioridad><span th:replace="~{planificacion_produccion/formato :: prioridadPlanificacion(${planificacion.prioridad})}"></span></dd>
+                </div>
             </dl>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                 <div>

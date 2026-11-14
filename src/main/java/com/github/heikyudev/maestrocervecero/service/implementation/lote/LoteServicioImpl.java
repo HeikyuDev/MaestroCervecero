@@ -68,6 +68,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEtapaLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.method.GeneradorIdentificador;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosCronograma;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
@@ -339,6 +340,11 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Registra un nuevo lote, reservando su lugar en el cronograma de uso de equipamiento.
+     * <p>
+     * El lugar en la cola de pendientes del fermentador lo define la planificación del lote (prioridad y, a igual
+     * prioridad, menor margen y fin más temprano): el lote pasa por delante de los pendientes que le pierden, que se empujan hacia atrás
+     * reencadenando las fechas de toda la cola en la misma transacción. Ver {@link ILoteServicio#registrarLote}.
+     * </p>
      *
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
@@ -383,6 +389,10 @@ public class LoteServicioImpl implements ILoteServicio {
         OllaHervorEntity ollaHervor = ollaHervorRepository.findById(loteFormDTO.getIdOllaHervor())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + loteFormDTO.getIdOllaHervor()));
 
+        // El fermentador se bloquea para escritura (exclusión mutua de su cola de lotes pendientes): dos registros
+        // simultáneos sobre el mismo fermentador no pueden intercalarse al ubicar el lote en la cola. Respeta el orden
+        // canónico (planificación, fermentador, cola); ningún equipo anterior se bloquea, por lo que no hay inversión
+        fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdFermentador());
         FermentadorEntity fermentador = fermentadorRepository.findById(loteFormDTO.getIdFermentador())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + loteFormDTO.getIdFermentador()));
 
@@ -416,8 +426,10 @@ public class LoteServicioImpl implements ILoteServicio {
         // 8. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
         String identificadorInterno = generarIdentificadorInterno(versionReceta);
 
-        // 9. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
-        //    la fecha de inicio estimada de su planificación de producción ni antes de hoy)
+        // 9. Recuperar la cola de lotes pendientes del fermentador (bloqueada para escritura) y calcular la planificación
+        //    del lote en su cronograma: por defecto, detrás de todos los lotes vivos (nunca antes de la fecha de inicio
+        //    estimada de su planificación de producción ni antes de hoy)
+        List<LoteEntity> colaPendiente = new ArrayList<>(loteRepository.buscarPendientesDeFermentadorParaReordenar(loteFormDTO.getIdFermentador()));
         LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
@@ -439,6 +451,19 @@ public class LoteServicioImpl implements ILoteServicio {
                 .build();
 
         loteEntity.setEtapas(crearEtapasPendientes(loteEntity, molino, macerador, ollaHervor, fermentador));
+
+        // 11. Ubicar el lote por la prioridad de su planificación: si hay lotes pendientes de planificaciones de menor
+        //     prioridad, el lote nuevo pasa por delante y se reencadenan las fechas de toda la cola en su nuevo orden
+        //     (los lotes en ejecución no forman parte de la cola y son el piso de la cadena). Si no, queda al final
+        //     con las fechas ya calculadas
+        List<MetodosCronograma.CriterioDeCola> criteriosDeLaCola = colaPendiente.stream()
+                .map(l -> criterioDeCola(l.getPlanificacionProduccion()))
+                .toList();
+        int posicionEnCola = MetodosCronograma.calcularPosicionEnCola(criteriosDeLaCola, criterioDeCola(planificacionProduccion));
+        if (posicionEnCola < colaPendiente.size()) {
+            colaPendiente.add(posicionEnCola, loteEntity);
+            reencadenarLotesPendientes(loteFormDTO.getIdFermentador(), colaPendiente, false);
+        }
 
         return MapperLote.toDTO(loteRepository.save(loteEntity));
     }
@@ -1907,6 +1932,11 @@ public class LoteServicioImpl implements ILoteServicio {
             }
         }
         return atrasos;
+    }
+
+    private static MetodosCronograma.CriterioDeCola criterioDeCola(PlanificacionProduccionEntity planificacion) {
+        return new MetodosCronograma.CriterioDeCola(planificacion.getPrioridad(),
+                planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada());
     }
 
     private static boolean tieneFechasEstimadasValidas(LoteEntity lote) {

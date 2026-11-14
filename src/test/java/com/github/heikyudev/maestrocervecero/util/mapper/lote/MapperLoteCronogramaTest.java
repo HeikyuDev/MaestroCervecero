@@ -269,6 +269,20 @@ class MapperLoteCronogramaTest {
         assertThat(resultado.getNombreReceta()).isEqualTo("Pilsen Reserva");
     }
 
+    @Test
+    @DisplayName("CP-MLC-15: toDTO copia la prioridad de la planificación del lote")
+    void toDTO_debeCopiarLaPrioridadDeLaPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLote(10L, EstadoLote.PENDIENTE, seisEtapasConEstado(EstadoEtapaLote.PENDIENTE));
+        lote.getPlanificacionProduccion().setPrioridad(com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion.ALTA);
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = MapperLoteCronograma.toDTO(lote);
+
+        // === ASSERTS ===
+        assertThat(resultado.getPrioridad()).isEqualTo(com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion.ALTA);
+    }
+
     // ==================== helpers ====================
 
     private static LoteEntity crearLote(Long id, EstadoLote estado, List<EtapaLoteEntity> etapas) {

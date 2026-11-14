@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.view;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Alineacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
@@ -982,6 +983,24 @@ class GanttPlanificacionBuilderTest {
         assertThat(finAnterior).isLessThanOrEqualTo(limpieza.getIzquierdaPct() + 0.011);
         assertThat(limpieza.getIzquierdaPct() + limpieza.getAnchoPct()).isLessThanOrEqualTo(barras.get(1).getIzquierdaPct() + 0.011);
         assertThat(barras.get(0).getAnchoPct()).isGreaterThan(0.0);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-71: cada barra lleva la prioridad de su planificación (MEDIA si el lote no la informa) y el tooltip la menciona")
+    void cadaBarraLlevaLaPrioridad() {
+        // Arrange
+        LoteCronogramaResponseDTO alta = loteB(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", fecha(1), fecha(5)).prioridad(PrioridadPlanificacion.ALTA).build();
+        LoteCronogramaResponseDTO sinDato = lote(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", fecha(8), fecha(12));
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(alta, sinDato), fecha(1), fecha(12), fecha(1));
+
+        // Assert
+        List<Barra> barras = vista.getCarriles().get(0).getBarras();
+        assertThat(barras).extracting(Barra::getPrioridadClave).containsExactly("alta", "media");
+        assertThat(barras).extracting(Barra::getPrioridadEtiqueta).containsExactly("Alta", "Media");
+        assertThat(barras.get(0).getTooltip()).contains("Prioridad: Alta\n");
+        assertThat(barras.get(1).getTooltip()).doesNotContain("Prioridad:");
     }
 
     @Test

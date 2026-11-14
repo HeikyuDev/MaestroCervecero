@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
@@ -453,7 +454,7 @@ class PlanificacionProduccionControllerTest {
     @DisplayName("CP-PPC-19: un alta válida enlaza los datos (fechas ISO), delega en el service y redirige al listado con alerta de éxito")
     void alta_debeRedirigirAlListadoConAlerta() throws Exception {
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "600")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/planificaciones-produccion"))
@@ -478,6 +479,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear la planificación")))
                 .andExpect(content().string(containsString("La receta es obligatoria")))
                 .andExpect(content().string(containsString("La cantidad a producir es obligatoria")))
+                .andExpect(content().string(containsString("La prioridad es obligatoria")))
                 .andExpect(content().string(containsString("La fecha de inicio estimada es obligatoria")))
                 .andExpect(content().string(containsString("La fecha de finalización estimada es obligatoria")));
 
@@ -491,7 +493,7 @@ class PlanificacionProduccionControllerTest {
         when(recetaServicio.buscarPorId(3L)).thenReturn(receta(3L, "Pale Ale"));
 
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "-5")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "-5")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
@@ -510,7 +512,7 @@ class PlanificacionProduccionControllerTest {
     @DisplayName("CP-PPC-22: un valor que no es número ni fecha es un error del campo (mensaje claro) y no llama al service")
     void alta_conTiposInvalidosMuestraErroresDeCampo() throws Exception {
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "abc")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "abc")
                         .param("fechaInicioEstimada", "no-es-fecha").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
@@ -529,7 +531,7 @@ class PlanificacionProduccionControllerTest {
                 .thenThrow(new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada"));
 
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "600")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-25").param("fechaFinalizacionEstimada", "2027-07-01"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
@@ -550,7 +552,7 @@ class PlanificacionProduccionControllerTest {
                 .thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
 
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "99").param("cantidadAProducir", "600")
+                        .param("idReceta", "99").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
@@ -564,7 +566,7 @@ class PlanificacionProduccionControllerTest {
     @DisplayName("CP-PPC-25: el GERENTE_DE_COMPRAS no puede registrar planificaciones y el service no se invoca")
     void alta_debeRechazarAlGerenteDeCompras() throws Exception {
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "600")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
@@ -577,7 +579,7 @@ class PlanificacionProduccionControllerTest {
     @DisplayName("CP-PPC-26: el OPERARIO_DE_PRODUCCION no puede registrar planificaciones")
     void alta_debeRechazarAlOperario() throws Exception {
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
-                        .param("idReceta", "3").param("cantidadAProducir", "600")
+                        .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
@@ -2092,6 +2094,104 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("colspan=\"9\"")));
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-108: el listado muestra la columna Prioridad con la etiqueta legible y su color")
+    void listado_debeMostrarLaPrioridadConEtiquetaLegible() throws Exception {
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/planificaciones-produccion"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Prioridad</th>")))
+                .andExpect(content().string(matchesPattern("(?s).*data-prioridad>\s*<span[^>]*bg-rose-50 text-rose-700[^>]*>Alta</span>.*")))
+                .andExpect(content().string(not(containsString(">ALTA<"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-109: el formulario de alta ofrece la prioridad en un select obligatorio con placeholder y Media preseleccionada")
+    void formularioAlta_laPrioridadEsUnSelectConMediaPreseleccionada() throws Exception {
+        mockMvc.perform(get("/planificaciones-produccion/nueva"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Prioridad <span class=\"text-rose-600\" title=\"Obligatorio\">*</span>")))
+                .andExpect(content().string(containsString("<option value=\"\">Seleccione prioridad</option>")))
+                .andExpect(content().string(containsString("<option value=\"BAJA\">Baja</option>")))
+                .andExpect(content().string(containsString("<option value=\"MEDIA\" selected=\"selected\">Media</option>")))
+                .andExpect(content().string(containsString("<option value=\"ALTA\">Alta</option>")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-110: un alta con la prioridad ALTA la entrega al service")
+    void alta_debeEntregarLaPrioridadAlService() throws Exception {
+        mockMvc.perform(post("/planificaciones-produccion").with(csrf())
+                        .param("idReceta", "3").param("prioridad", "ALTA").param("cantidadAProducir", "600")
+                        .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
+                .andExpect(status().is3xxRedirection());
+
+        ArgumentCaptor<PlanificacionProduccionFormDTO> captor = ArgumentCaptor.forClass(PlanificacionProduccionFormDTO.class);
+        verify(planificacionServicio).registrarPlanificacionProduccion(captor.capture());
+        assertThat(captor.getValue().getPrioridad()).isEqualTo(PrioridadPlanificacion.ALTA);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-111: un alta sin prioridad se rechaza con \"La prioridad es obligatoria\" y no llama al service")
+    void alta_sinPrioridadMuestraElErrorYNoLlamaAlService() throws Exception {
+        mockMvc.perform(post("/planificaciones-produccion").with(csrf())
+                        .param("idReceta", "3").param("cantidadAProducir", "600")
+                        .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/planificacion-form"))
+                .andExpect(content().string(containsString("La prioridad es obligatoria")));
+
+        verifyNoInteractions(planificacionServicio);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-112: si el service rechaza el alta se conserva la prioridad elegida")
+    void alta_rechazadaConservaLaPrioridadElegida() throws Exception {
+        when(planificacionServicio.registrarPlanificacionProduccion(any()))
+                .thenThrow(new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada"));
+
+        mockMvc.perform(post("/planificaciones-produccion").with(csrf())
+                        .param("idReceta", "3").param("prioridad", "BAJA").param("cantidadAProducir", "600")
+                        .param("fechaInicioEstimada", "2027-07-25").param("fechaFinalizacionEstimada", "2027-07-01"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<option value=\"BAJA\" selected=\"selected\">Baja</option>")))
+                .andExpect(content().string(not(containsString("<option value=\"MEDIA\" selected=\"selected\">"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-114: el diagrama del estado actual colorea las barras por la prioridad de su planificación y muestra la leyenda de prioridad")
+    void detalle_elGanttColoreaPorPrioridad() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01").toBuilder().prioridad(PrioridadPlanificacion.ALTA).build()));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("gantt-prioridad--alta gantt-color--pendiente").contains("Prioridad: Alta")
+                .contains("aria-label=\"Leyenda de prioridad\"").contains("bi bi-clock gantt-estado-icono");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-113: el estado actual muestra la prioridad de la planificación")
+    void detalle_debeMostrarLaPrioridad() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Prioridad</dt>")))
+                .andExpect(content().string(matchesPattern("(?s).*data-prioridad><span[^>]*>Alta</span>.*")));
+    }
+
     // ==================== Datos de prueba ====================
 
     private static RequestPostProcessor como(Rol rol) {
@@ -2121,6 +2221,7 @@ class PlanificacionProduccionControllerTest {
                 .fechaFinalizacionEstimada(LocalDate.of(2027, 7, 25))
                 .cantidadAProducir(600.0)
                 .estado(estado)
+                .prioridad(PrioridadPlanificacion.ALTA)
                 .versionReceta(VersionRecetaResponseDTO.builder().id(70L).nombre(nombreReceta).volumenBase(20.0).build());
     }
 

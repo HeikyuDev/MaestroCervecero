@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.view;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Alineacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
@@ -452,6 +453,8 @@ final class GanttGeometria {
                 .tooltip(tooltip)
                 .estadoClave(claveDe(estado))
                 .estadoEtiqueta(estado.getEtiqueta())
+                .prioridadClave(prioridadDe(lote).name().toLowerCase(Locale.ROOT))
+                .prioridadEtiqueta(prioridadDe(lote).getEtiqueta())
                 .desde(tramo.desde())
                 .hasta(tramo.hasta())
                 .izquierdaPct(izquierda)
@@ -483,6 +486,9 @@ final class GanttGeometria {
         texto.append(nombreDe(lote)).append(" - ").append(estado.getEtiqueta()).append('\n');
         for (String linea : lineasExtra) {
             texto.append(linea).append('\n');
+        }
+        if (lote.getPrioridad() != null) {
+            texto.append("Prioridad: ").append(lote.getPrioridad().getEtiqueta()).append('\n');
         }
         if (estado == EstadoLote.EN_EJECUCION && lote.getDiasDeAtraso() > 0 && lote.getFechaFinalizacionEstimada() != null) {
             texto.append("Atrasado ").append(dias(lote.getDiasDeAtraso())).append(" respecto de la fecha estimada (")
@@ -522,6 +528,11 @@ final class GanttGeometria {
 
     static double porcentaje(double dias, int totalDias) {
         return redondear(dias * 100.0 / totalDias);
+    }
+
+    /** Prioridad de la planificación del lote; {@code MEDIA} si no la informa. */
+    private static PrioridadPlanificacion prioridadDe(LoteCronogramaResponseDTO lote) {
+        return lote.getPrioridad() != null ? lote.getPrioridad() : PrioridadPlanificacion.MEDIA;
     }
 
     private static String claveDe(EstadoLote estado) {

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.util.mapper.planificacion_producci
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,20 @@ class MapperPlanificacionProduccionTest {
 
         // === ASSERTS ===
         assertThat(resultado.getUsuarioAnulacion()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-MPP-03: toDTO copia la prioridad de la planificación")
+    void toDTO_debeCopiarLaPrioridad() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = planificacion(EstadoSolicitud.PENDIENTE);
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+
+        // === EJECUCION ===
+        PlanificacionProduccionResponseDTO resultado = MapperPlanificacionProduccion.toDTO(planificacion, 0.0);
+
+        // === ASSERTS ===
+        assertThat(resultado.getPrioridad()).isEqualTo(PrioridadPlanificacion.ALTA);
     }
 
     private static PlanificacionProduccionEntity planificacion(EstadoSolicitud estado) {

@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -75,6 +76,11 @@ public class LoteCronogramaResponseDTO {
      * Nombre de la versión de receta con la que se produce el lote (la de su planificación).
      */
     private String nombreReceta;
+
+    /**
+     * Prioridad de la planificación del lote: define el color de su barra en los diagramas de Gantt.
+     */
+    private PrioridadPlanificacion prioridad;
 
     /**
      * ID del fermentador asignado al lote (el equipamiento de su etapa de Fermentación, compartido

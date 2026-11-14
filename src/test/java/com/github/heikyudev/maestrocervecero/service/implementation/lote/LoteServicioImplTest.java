@@ -36,6 +36,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.costo_adicional.ICostoDirectoAdicionalRepository;
@@ -826,6 +827,555 @@ class LoteServicioImplTest {
         LoteEntity guardado = captor.getValue();
         assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now());
         assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(22));
+    }
+
+    @Test
+    @DisplayName("CP-RL-48: registrarLote — una planificación ALTA pasa por delante de los pendientes BAJA, que se empujan la duración del lote nuevo y conservan la suya")
+    void registrarLote_debeEmpujarLosPendientesDeMenorPrioridadLaDuracionDelLoteNuevo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy, hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteBaja(12L, hoy.plusDays(12), hoy.plusDays(27));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(27)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El lote nuevo dura 22 días: arranca hoy (fermentador libre) y termina hoy + 22
+        LoteEntity nuevo = captor.getValue();
+        assertFechas(nuevo, hoy, hoy.plusDays(22));
+        // B (10 días) arranca 2 días después del fin del nuevo; C (15 días) 2 días después del fin de B
+        assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(34));
+        assertFechas(loteC, hoy.plusDays(36), hoy.plusDays(51));
+        assertThat(capturarLotesGuardados()).containsExactly(nuevo, loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-RL-49: registrarLote — una planificación de igual prioridad va después de los pendientes existentes y no toca sus fechas")
+    void registrarLote_debeUbicarAlFinalUnLoteDeIgualPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(10), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(10)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(12), hoy.plusDays(34));
+        assertFechas(loteB, hoy, hoy.plusDays(10));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-RL-50: registrarLote — con un lote en ejecución, el lote de mayor prioridad arranca dos días después de su fin estimado y nunca hoy")
+    void registrarLote_noDebeArrancarHoyConUnLoteEnEjecucionAunqueTengaMayorPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 4L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(4L)).thenReturn(Optional.of(enEjecucion));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(17)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El lote en ejecución termina hoy + 5: el nuevo arranca hoy + 7 y B, 2 días después del fin del nuevo (hoy + 29)
+        assertFechas(captor.getValue(), hoy.plusDays(7), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(31), hoy.plusDays(41));
+        // El lote en ejecución nunca se mueve
+        assertFechas(enEjecucion, hoy.minusDays(10), hoy.plusDays(5));
+        assertThat(capturarLotesGuardados()).doesNotContain(enEjecucion);
+    }
+
+    @Test
+    @DisplayName("CP-RL-51: registrarLote — con un lote en ejecución atrasado, el lote de mayor prioridad arranca dentro de dos días")
+    void registrarLote_debeArrancarDentroDeDosDiasConUnLoteEnEjecucionAtrasadoYMayorPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 4L, hoy.minusDays(20), hoy.minusDays(3), hoy.minusDays(20));
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy.plusDays(2), hoy.plusDays(12));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(4L)).thenReturn(Optional.of(enEjecucion));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(12)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(2), hoy.plusDays(24));
+        assertFechas(loteB, hoy.plusDays(26), hoy.plusDays(36));
+        assertFechas(enEjecucion, hoy.minusDays(20), hoy.minusDays(3));
+    }
+
+    @Test
+    @DisplayName("CP-RL-52: registrarLote — una planificación MEDIA va entre las ALTA y las BAJA y solo empuja a las BAJA, manteniendo el orden de las demás")
+    void registrarLote_debeUbicarUnLoteMediaDespuesDeLasAltasYMediasYAntesDeLasBajas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        LoteEntity loteA = crearLotePendienteConPrioridad(10L, PrioridadPlanificacion.ALTA, hoy, hoy.plusDays(10));
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy.plusDays(12), hoy.plusDays(22));
+        LoteEntity loteC = crearLotePendienteConPrioridad(12L, PrioridadPlanificacion.MEDIA, hoy.plusDays(24), hoy.plusDays(34));
+        LoteEntity loteD = crearLotePendienteConPrioridad(13L, PrioridadPlanificacion.BAJA, hoy.plusDays(36), hoy.plusDays(46));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteA, loteB, loteC, loteD));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(46)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        LoteEntity nuevo = captor.getValue();
+        assertFechas(loteA, hoy, hoy.plusDays(10));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(22));
+        assertFechas(loteC, hoy.plusDays(24), hoy.plusDays(34));
+        assertFechas(nuevo, hoy.plusDays(36), hoy.plusDays(58));
+        assertFechas(loteD, hoy.plusDays(60), hoy.plusDays(70));
+        // Solo se guardan los lotes cuyas fechas cambiaron: el nuevo y el BAJA empujado
+        assertThat(capturarLotesGuardados()).containsExactly(nuevo, loteD);
+    }
+
+    @Test
+    @DisplayName("CP-RL-53: registrarLote — la cola de otro fermentador no interviene: solo se consulta y se reencadena la del fermentador del lote")
+    void registrarLote_soloDebeConsiderarLaColaDelFermentadorDelLote() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity loteDelFermentador4 = crearLotePendienteBaja(11L, hoy, hoy.plusDays(10));
+        LoteEntity loteDelFermentador5 = crearLotePendienteBaja(12L, hoy, hoy.plusDays(10));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteDelFermentador4));
+        lenient().when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteDelFermentador5));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(10)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(loteDelFermentador4, hoy.plusDays(24), hoy.plusDays(34));
+        assertFechas(loteDelFermentador5, hoy, hoy.plusDays(10));
+        verify(loteRepository).buscarPendientesDeFermentadorParaReordenar(4L);
+        verify(loteRepository, never()).buscarPendientesDeFermentadorParaReordenar(5L);
+        verify(loteRepository).buscarLoteEnEjecucionDeFermentador(4L);
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(5L);
+    }
+
+    @Test
+    @DisplayName("CP-RL-54: registrarLote — bloquea la planificación, luego el fermentador y luego la cola pendiente, en el orden canónico")
+    void registrarLote_debeBloquearPlanificacionFermentadorYColaEnOrdenCanonico() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(planificacionProduccionRepository, fermentadorRepository, loteRepository);
+        orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+        orden.verify(fermentadorRepository).buscarPorIdParaCambiarEstadoOperativo(4L);
+        orden.verify(loteRepository).buscarPendientesDeFermentadorParaReordenar(4L);
+        orden.verify(loteRepository).save(any(LoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RL-55: registrarLote — un lote empujado hacia atrás respeta el piso de su planificación aunque el lote nuevo termine antes")
+    void registrarLote_debeRespetarElPisoFuturoDeLaPlanificacionDelLoteEmpujado() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        // B se guardó de hoy a hoy + 10 y su planificación pasó a iniciar dentro de 40 días
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy, hoy.plusDays(10));
+        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(40));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(10)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El lote nuevo (22 días) termina hoy + 22, pero B no arranca antes de su piso: hoy + 40 (conserva sus 10 días)
+        assertFechas(captor.getValue(), hoy, hoy.plusDays(22));
+        assertFechas(loteB, hoy.plusDays(40), hoy.plusDays(50));
+    }
+
+    @Test
+    @DisplayName("CP-RL-56: registrarLote — una planificación ALTA que inicia en el futuro queda en la posición 0 y deja el hueco libre: los pendientes de menor prioridad van detrás")
+    void registrarLote_debeDejarElHuecoLibreSiLaPlanificacionDeMayorPrioridadIniciaEnElFuturo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase(hoy.plusDays(10));
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy, hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteBaja(12L, hoy.plusDays(12), hoy.plusDays(22));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(22)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El nuevo arranca en su piso (hoy + 10) y B y C no ocupan el hueco de hoy a hoy + 10: van detrás del nuevo
+        assertFechas(captor.getValue(), hoy.plusDays(10), hoy.plusDays(32));
+        assertFechas(loteB, hoy.plusDays(34), hoy.plusDays(44));
+        assertFechas(loteC, hoy.plusDays(46), hoy.plusDays(56));
+        assertThat(capturarLotesGuardados()).containsExactly(captor.getValue(), loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-RL-57: registrarLote — con un lote en ejecución y dos pendientes BAJA de distinta duración, el lote ALTA nuevo pasa primero y cada BAJA conserva su duración")
+    void registrarLote_debeEncadenarDosPendientesBajaDeDistintaDuracionDetrasDelLoteNuevo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 4L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
+        LoteEntity loteC = crearLotePendienteBaja(12L, hoy.plusDays(19), hoy.plusDays(34));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(4L)).thenReturn(Optional.of(enEjecucion));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(34)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El lote en ejecución termina hoy + 5: el nuevo (22 días) arranca hoy + 7; B (10 días) y C (15 días) van detrás
+        assertFechas(captor.getValue(), hoy.plusDays(7), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(31), hoy.plusDays(41));
+        assertFechas(loteC, hoy.plusDays(43), hoy.plusDays(58));
+        assertFechas(enEjecucion, hoy.minusDays(10), hoy.plusDays(5));
+    }
+
+    @Test
+    @DisplayName("CP-RL-58: registrarLote — con una ALTA en cola y una BAJA detrás, el lote ALTA nuevo va después de la ALTA existente y antes de la BAJA")
+    void registrarLote_debeUbicarUnLoteAltaDespuesDeLaAltaExistenteYAntesDeLaBaja() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        LoteEntity loteA = crearLotePendienteConPrioridad(10L, PrioridadPlanificacion.ALTA, hoy, hoy.plusDays(10));
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy.plusDays(12), hoy.plusDays(22));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteA, loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(22)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        LoteEntity nuevo = captor.getValue();
+        assertFechas(loteA, hoy, hoy.plusDays(10));
+        assertFechas(nuevo, hoy.plusDays(12), hoy.plusDays(34));
+        assertFechas(loteB, hoy.plusDays(36), hoy.plusDays(46));
+        // La ALTA existente no cambió: solo se guardan el nuevo y la BAJA empujada
+        assertThat(capturarLotesGuardados()).containsExactly(nuevo, loteB);
+    }
+
+    @Test
+    @DisplayName("CP-RL-59: registrarLote — si el lote nuevo pasa por delante de algún pendiente se reencadena toda la cola del fermentador: un pendiente atrasado (inicio anterior a hoy) pasa a hoy")
+    void registrarLote_debeMoverAHoyLosPendientesAtrasadosAlReencadenarLaCola() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearConfiguracionYReceta();
+        // A (ALTA, 10 días) quedó atrasada: debía iniciar hace 5 días; B (BAJA) va detrás
+        LoteEntity loteA = crearLotePendienteConPrioridad(10L, PrioridadPlanificacion.ALTA, hoy.minusDays(5), hoy.plusDays(5));
+        LoteEntity loteB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteA, loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(17)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // El nuevo (ALTA) queda detrás de A; el reencadenado de toda la cola mueve A de hoy - 5 a hoy
+        LoteEntity nuevo = captor.getValue();
+        assertFechas(loteA, hoy, hoy.plusDays(10));
+        assertFechas(nuevo, hoy.plusDays(12), hoy.plusDays(34));
+        assertFechas(loteB, hoy.plusDays(36), hoy.plusDays(46));
+    }
+
+    @Test
+    @DisplayName("CP-RL-60: registrarLote — si el lote nuevo va al final de la cola no se reencadena: un pendiente atrasado conserva sus fechas")
+    void registrarLote_noDebeReencadenarLaColaSiElLoteNuevoVaAlFinal() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        LoteEntity loteAtrasado = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(5), hoy.minusDays(5));
+        // Su planificación (del hoy - 5 al hoy + 25) tiene el mismo margen que la del lote nuevo (30 días) y termina antes
+        loteAtrasado.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteAtrasado));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(5)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(7), hoy.plusDays(29));
+        assertFechas(loteAtrasado, hoy.minusDays(5), hoy.plusDays(5));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-RL-61: registrarLote — a igual prioridad, la planificación de menor margen pasa por delante y empuja a las de mayor margen")
+    void registrarLote_debeUbicarPrimeroLaPlanificacionDeMenorMargenDeLaMismaPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(10));
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy, hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteConPrioridad(12L, PrioridadPlanificacion.MEDIA, hoy.plusDays(12), hoy.plusDays(27));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(27)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        // Margen del nuevo: 10 días; el de B y C: 30 días
+        assertFechas(captor.getValue(), hoy, hoy.plusDays(22));
+        assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(34));
+        assertFechas(loteC, hoy.plusDays(36), hoy.plusDays(51));
+        assertThat(capturarLotesGuardados()).containsExactly(captor.getValue(), loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-RL-62: registrarLote — a igual prioridad y margen, la planificación que termina antes va primero")
+    void registrarLote_debeUbicarPrimeroLaPlanificacionQueTerminaAntesConIgualMargen() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        // Nuevo: de hoy a hoy + 20; B: de hoy + 5 a hoy + 25 (ambos de 20 días de margen)
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(20));
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy.plusDays(5), hoy.plusDays(15));
+        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(5));
+        loteB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(15)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy, hoy.plusDays(22));
+        assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(34));
+    }
+
+    @Test
+    @DisplayName("CP-RL-63: registrarLote — a igual prioridad y margen, la planificación que termina después va detrás y no se reencadena")
+    void registrarLote_debeUbicarDetrasLaPlanificacionQueTerminaDespuesConIgualMargen() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        // Nuevo: de hoy + 10 a hoy + 30; B: de hoy + 5 a hoy + 25 (ambos de 20 días de margen)
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase(hoy.plusDays(10));
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(30));
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy.plusDays(5), hoy.plusDays(15));
+        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(5));
+        loteB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(15)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(17), hoy.plusDays(39));
+        assertFechas(loteB, hoy.plusDays(5), hoy.plusDays(15));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-RL-64: registrarLote — con empate total de prioridad, margen y fin el lote nuevo queda después (orden de registro)")
+    void registrarLote_debeUbicarDespuesEnUnEmpateTotal() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy, hoy.plusDays(10));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(10)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(12), hoy.plusDays(34));
+        assertFechas(loteB, hoy, hoy.plusDays(10));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-RL-65: registrarLote — ALTA contra ALTA con un lote en ejecución: gana el menor margen y arranca dos días después del fin del lote en ejecución")
+    void registrarLote_debeDesempatarAltaContraAltaRespetandoElLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(10));
+        mockearConfiguracionYReceta();
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 4L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.ALTA, hoy.plusDays(7), hoy.plusDays(17));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(4L)).thenReturn(Optional.of(enEjecucion));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(17)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(7), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(31), hoy.plusDays(41));
+        assertFechas(enEjecucion, hoy.minusDays(10), hoy.plusDays(5));
+    }
+
+    @Test
+    @DisplayName("CP-RL-66: registrarLote — en una cola reordenada a mano el lote nuevo va después del último lote que le gana o empata")
+    void registrarLote_debeUsarElUltimoLoteQueLeGanaEnUnaColaReordenadaAMano() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(20));
+        mockearConfiguracionYReceta();
+        // Márgenes de la cola: B 10, C 30, D 10; el nuevo tiene 20: D le gana, así que va detrás de D aunque C le pierda
+        LoteEntity loteB = crearLotePendienteConMargen(11L, 10, hoy, hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteConMargen(12L, 30, hoy.plusDays(12), hoy.plusDays(22));
+        LoteEntity loteD = crearLotePendienteConMargen(13L, 10, hoy.plusDays(24), hoy.plusDays(34));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(34)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(36), hoy.plusDays(58));
+        assertFechas(loteB, hoy, hoy.plusDays(10));
+        assertFechas(loteC, hoy.plusDays(12), hoy.plusDays(22));
+        assertFechas(loteD, hoy.plusDays(24), hoy.plusDays(34));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-SQ-20: subirLoteEnCola sigue siendo libre: un lote de prioridad BAJA puede subir por delante de uno ALTA sin controlar la prioridad")
+    void subirLoteEnCola_noDebeControlarLaPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteAlta = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.ALTA, hoy, hoy.plusDays(10));
+        LoteEntity loteBaja = crearLotePendienteConPrioridad(12L, PrioridadPlanificacion.BAJA, hoy.plusDays(12), hoy.plusDays(27));
+        when(ordenCanonicoDeBloqueo.bloquearLote(12L, false)).thenReturn(loteBaja);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteAlta, loteBaja));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        loteServicio.subirLoteEnCola(12L);
+
+        // === ASSERTS ===
+        assertFechas(loteBaja, hoy, hoy.plusDays(15));
+        assertFechas(loteAlta, hoy.plusDays(17), hoy.plusDays(27));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-19: bajarLoteEnCola sigue siendo libre: un lote ALTA puede bajar por detrás de uno BAJA sin controlar la prioridad")
+    void bajarLoteEnCola_noDebeControlarLaPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteAlta = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.ALTA, hoy, hoy.plusDays(10));
+        LoteEntity loteBaja = crearLotePendienteConPrioridad(12L, PrioridadPlanificacion.BAJA, hoy.plusDays(12), hoy.plusDays(27));
+        when(ordenCanonicoDeBloqueo.bloquearLote(11L, false)).thenReturn(loteAlta);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteAlta, loteBaja));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertFechas(loteBaja, hoy, hoy.plusDays(15));
+        assertFechas(loteAlta, hoy.plusDays(17), hoy.plusDays(27));
+    }
+
+    @Test
+    @DisplayName("CP-IL-32: iniciarLote — un lote planificado para dentro de dos años se inicia hoy y los demás pendientes se corren a la derecha")
+    void iniciarLote_debeIniciarHoyUnLotePlanificadoParaDentroDeDosAnios() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteX = prepararInicioDeLoteConStockSuficiente(12L, hoy.plusDays(730), hoy.plusDays(750));
+        loteX.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(730));
+        LoteEntity loteB = crearLotePendienteEnCola(10L, hoy.plusDays(1), hoy.plusDays(11), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(loteX));
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(12L);
+
+        // === ASSERTS ===
+        assertThat(loteX.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertFechas(loteX, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(32));
     }
 
     @Test
@@ -5556,6 +6106,24 @@ class LoteServicioImplTest {
                 .lote(lote)
                 .build());
         return lote;
+    }
+
+    /** Lote pendiente de la cola cuya planificación tiene la prioridad indicada y cuyo piso de planificación es hoy. */
+    private static LoteEntity crearLotePendienteConPrioridad(Long id, PrioridadPlanificacion prioridad, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+        LoteEntity lote = crearLotePendienteEnCola(id, fechaInicioEstimada, fechaFinalizacionEstimada, LocalDate.now());
+        lote.getPlanificacionProduccion().setPrioridad(prioridad);
+        return lote;
+    }
+
+    /** Lote pendiente MEDIA cuya planificación tiene el margen indicado (inicio hoy, fin hoy + margen). */
+    private static LoteEntity crearLotePendienteConMargen(Long id, int margen, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+        LoteEntity lote = crearLotePendienteConPrioridad(id, PrioridadPlanificacion.MEDIA, fechaInicioEstimada, fechaFinalizacionEstimada);
+        lote.getPlanificacionProduccion().setFechaFinalizacionEstimada(LocalDate.now().plusDays(margen));
+        return lote;
+    }
+
+    private static LoteEntity crearLotePendienteBaja(Long id, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+        return crearLotePendienteConPrioridad(id, PrioridadPlanificacion.BAJA, fechaInicioEstimada, fechaFinalizacionEstimada);
     }
 
     /** Lote B de la cola base de los reordenamientos: id 11, 18 días, de {@code hoy + 12} a {@code hoy + 30}. */

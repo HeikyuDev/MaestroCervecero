@@ -161,7 +161,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      *
      * @param planificacionProduccionFormDTO Objeto DTO que contiene los datos de creación de la planificación de producción.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la cantidad a producir no es un número finito mayor a 0 o supera el máximo técnico, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), si la fecha de finalización estimada es anterior a la fecha de inicio estimada, o si entre ambas pasan más de 1.825 días (5 años).
+     * @throws ReglaNegocioException Si la cantidad a producir no es un número finito mayor a 0 o supera el máximo técnico, si no se informó la prioridad, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), si la fecha de finalización estimada es anterior a la fecha de inicio estimada, o si entre ambas pasan más de 1.825 días (5 años).
      * @throws RecursoNoEncontradoException Si la receta referenciada no existe, o si no tiene ninguna versión activa.
      */
     @Override
@@ -177,6 +177,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(planificacionProduccionFormDTO.getCantidadAProducir(),
                 LimitesTecnicos.CANTIDAD_A_PRODUCIR_MAXIMA_LITROS, "La cantidad a producir", "litros");
+
+        // 1 bis. Validar que se haya informado la prioridad
+        if (planificacionProduccionFormDTO.getPrioridad() == null) {
+            throw new ReglaNegocioException("La prioridad es obligatoria");
+        }
 
         // 2. Validar que se hayan informado ambas fechas
         LocalDate fechaInicioEstimada = planificacionProduccionFormDTO.getFechaInicioEstimada();
@@ -212,6 +217,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
                 .fechaFinalizacionEstimada(fechaFinalizacionEstimada)
                 .cantidadAProducir(planificacionProduccionFormDTO.getCantidadAProducir())
                 .estado(EstadoSolicitud.PENDIENTE)
+                .prioridad(planificacionProduccionFormDTO.getPrioridad())
                 .versionReceta(versionRecetaEntity)
                 .build();
 

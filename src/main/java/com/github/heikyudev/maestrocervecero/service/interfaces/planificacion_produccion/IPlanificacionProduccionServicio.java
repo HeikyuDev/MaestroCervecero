@@ -52,10 +52,16 @@ public interface IPlanificacionProduccionServicio {
 
     /**
      * Registra una nueva planificación de producción.
+     * <p>
+     * La prioridad ({@code BAJA}, {@code MEDIA} o {@code ALTA}) es obligatoria y queda fija: define el lugar que ocupan
+     * los lotes de la planificación en la cola de pendientes de un fermentador al registrarse (ver
+     * {@code ILoteServicio#registrarLote}). La planificación no se modifica después de registrada, por lo que su prioridad
+     * no cambia.
+     * </p>
      *
      * @param planificacionProduccionFormDTO Los datos de la planificación de producción a registrar.
      * @return La planificación de producción registrada.
-     * @throws ReglaNegocioException Si la cantidad a producir no es un número finito mayor a 0 o supera el máximo técnico, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), si la fecha de finalización estimada es anterior a la fecha de inicio estimada, o si entre ambas pasan más de 1.825 días (5 años).
+     * @throws ReglaNegocioException Si la cantidad a producir no es un número finito mayor a 0 o supera el máximo técnico, si no se informó la prioridad, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), si la fecha de finalización estimada es anterior a la fecha de inicio estimada, o si entre ambas pasan más de 1.825 días (5 años).
      * @throws RecursoNoEncontradoException Si la receta referenciada no existe, o si no tiene ninguna versión activa.
      */
     PlanificacionProduccionResponseDTO registrarPlanificacionProduccion(PlanificacionProduccionFormDTO planificacionProduccionFormDTO);

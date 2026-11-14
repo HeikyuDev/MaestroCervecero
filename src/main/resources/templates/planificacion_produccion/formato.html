@@ -6,6 +6,8 @@
 
     estadoPlanificacion(estado): etiqueta de color del estado de una planificación (azul pendiente,
     verde finalizada, gris anulada), con su nombre legible.
+    prioridadPlanificacion(prioridad): etiqueta de color de la prioridad de una planificación (rojo alta, ámbar
+    media, gris baja), con su nombre legible.
     estadoLote(estado): etiqueta de color del estado de un lote (azul pendiente, ámbar en ejecución,
     verde finalizado, gris cancelado), con su nombre legible. Es la etiqueta de la tabla de lotes; el diagrama de Gantt tiene sus propios tres colores.
     fecha(valor): una fecha como dd/MM/yyyy, o un guion si no tiene valor.
@@ -15,6 +17,11 @@
       th:classappend="${estado.name() == 'PENDIENTE'} ? 'bg-blue-50 text-blue-700'
                     : (${estado.name() == 'FINALIZADA'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600')"
       th:text="${estado.etiqueta}">Pendiente</span>
+
+<span th:fragment="prioridadPlanificacion(prioridad)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${prioridad != null and prioridad.name() == 'ALTA'} ? 'bg-rose-50 text-rose-700'
+                    : (${prioridad != null and prioridad.name() == 'MEDIA'} ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600')"
+      th:text="${prioridad != null} ? ${prioridad.etiqueta} : '-'">Media</span>
 
 <span th:fragment="estadoLote(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
       th:classappend="${estado.name() == 'PENDIENTE'} ? 'bg-blue-50 text-blue-700'

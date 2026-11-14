@@ -133,6 +133,12 @@ public class GanttPlanificacionVista {
         String estadoClave;
 
         String estadoEtiqueta;
+
+        /** Clave de la prioridad de la planificación del lote para el color de relleno: alta, media o baja ({@code media} si el lote no la informa). */
+        String prioridadClave;
+
+        /** Nombre legible de la prioridad (Alta, Media, Baja). */
+        String prioridadEtiqueta;
         LocalDate desde;
         LocalDate hasta;
 
