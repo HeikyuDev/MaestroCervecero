@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.cliente;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ExcluidoDeAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
@@ -24,12 +25,16 @@ public class ClienteEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String nombre;
 
+    // Los datos de contacto son personales: nunca se copian al detalle de auditoría
     // Opcional: solo dígitos, sin unicidad
+    @ExcluidoDeAuditoria
     private String telefono;
 
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String email;
 
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String direccion;
 

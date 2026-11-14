@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ExcluidoDeAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,6 +34,8 @@ public class UsuarioEntity extends AuditableEntity<String>{
 
     // Hash BCrypt (nunca la contraseña en texto plano), generado por el PasswordEncoder
     // configurado en SecurityConfig antes de llegar a este campo.
+    // Nunca se copia al detalle de auditoría (estados anterior y posterior de la bitácora)
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String password;
 
@@ -76,8 +79,12 @@ public class UsuarioEntity extends AuditableEntity<String>{
     private String nombre;
     @Column(nullable = false)
     private String apellido;
+    // Dato personal: nunca se copia al detalle de auditoría
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String correo;
     // Opcional: solo dígitos, sin unicidad
+    // Dato personal: nunca se copia al detalle de auditoría
+    @ExcluidoDeAuditoria
     private String telefono;
 }

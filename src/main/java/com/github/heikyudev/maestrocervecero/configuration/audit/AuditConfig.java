@@ -1,6 +1,8 @@
 package com.github.heikyudev.maestrocervecero.configuration.audit;
 
 import com.github.heikyudev.maestrocervecero.service.implementation.auditoria.AuditLogServiceImpl;
+import org.hibernate.cfg.AvailableSettings;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -29,5 +31,12 @@ public class AuditConfig {
     @Bean
     public AuditorAware<String> auditorAware() {
         return new AuditorAwareImpl();
+    }
+
+    // Engancha al Hibernate de toda la aplicación el interceptor que captura el estado anterior y el posterior de
+    // las entidades para el detalle de auditoría (ver CapturaEstadoInterceptor).
+    @Bean
+    public HibernatePropertiesCustomizer capturaEstadoCustomizer(CapturaEstadoInterceptor capturaEstadoInterceptor) {
+        return propiedades -> propiedades.put(AvailableSettings.INTERCEPTOR, capturaEstadoInterceptor);
     }
 }

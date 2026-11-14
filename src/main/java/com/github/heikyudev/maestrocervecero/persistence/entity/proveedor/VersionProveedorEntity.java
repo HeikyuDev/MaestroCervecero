@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.proveedor;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ExcluidoDeAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.versionado.VersionadoEntity;
 import jakarta.persistence.*;
@@ -41,12 +42,16 @@ public class VersionProveedorEntity implements VersionadoEntity {
     @Column(nullable = false)
     private String cuit;
 
+    // Los datos de contacto son personales: nunca se copian al detalle de auditoría
+    @ExcluidoDeAuditoria
     @Column
     private String telefono;
 
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String email;
 
+    @ExcluidoDeAuditoria
     @Column(nullable = false)
     private String direccion;
 

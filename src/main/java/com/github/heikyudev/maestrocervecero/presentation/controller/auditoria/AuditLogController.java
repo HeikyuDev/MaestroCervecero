@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -29,8 +30,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.vacioANulo;
 
 /**
- * Controller de la bitácora de auditoría. Es de solo lectura (consulta con filtros y paginación) y
- * solo la ve el ADMINISTRADOR.
+ * Controller de la bitácora de auditoría. Es de solo lectura (consulta con filtros y paginación, y detalle de
+ * una entrada con sus estados anterior y posterior) y solo la ve el ADMINISTRADOR.
  */
 @Controller
 @RequestMapping("/auditoria")
@@ -38,6 +39,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 public class AuditLogController {
 
     private static final String VISTA_LISTA = "auditoria/auditoria-lista";
+    private static final String VISTA_DETALLE = "auditoria/auditoria-detalle";
 
     /**
      * La bitácora es transaccional: se lista con la entrada más reciente arriba. El id desempata
@@ -94,5 +96,18 @@ public class AuditLogController {
         model.addAttribute("filtroAccion", accion);
         model.addAttribute("filtroConcepto", concepto);
         return VISTA_LISTA;
+    }
+
+    /**
+     * Muestra el detalle de una entrada de la bitácora: quién, cuándo, módulo, acción, registro e IP, y la comparación
+     * campo a campo entre el estado anterior y el posterior del registro afectado. Es de solo lectura.
+     * <p>
+     * Un ID que no existe lo resuelve el {@code ControllerAdvices}, que redirige con la alerta.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public String detalleAuditoria(@PathVariable Long id, Model model) {
+        model.addAttribute("log", auditLogService.buscarPorId(id));
+        return VISTA_DETALLE;
     }
 }

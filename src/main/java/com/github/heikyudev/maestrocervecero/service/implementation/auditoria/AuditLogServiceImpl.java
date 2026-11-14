@@ -4,9 +4,12 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.repository.auditoria.IAuditLogRepository;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.auditoria.ComparadorEstadosAuditoria;
 import com.github.heikyudev.maestrocervecero.util.mapper.auditoria.MapperAuditLog;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,9 @@ public class AuditLogServiceImpl implements IAuditLogService {
     // Repositorio de bitácoras de auditoría
     private final IAuditLogRepository auditLogRepository;
 
+    // Lee y compara los JSON de los estados anterior y posterior
+    private final ComparadorEstadosAuditoria comparadorEstados;
+
     @Override
     @Async
     public void guardar(AuditLogEntity auditLogEntity) {
@@ -45,11 +51,31 @@ public class AuditLogServiceImpl implements IAuditLogService {
         }
         // Atrapamos cualquier falla aquí adentro: un problema al auditar NO debe
         // hacer fallar (ni siquiera enterarse) al método de negocio que la disparó.
+        // Solo el tipo de la falla se escribe en el log: su mensaje puede citar valores de los estados.
         try {
             auditLogRepository.save(auditLogEntity);
         } catch (Exception ex) {
-            log.error("No se pudo persistir el registro de auditoría (username={}, accion={})",
-                    auditLogEntity.getUsername(), auditLogEntity.getAccion(), ex);
+            log.error("No se pudo persistir el registro de auditoría (username={}, accion={}, falla={})",
+                    auditLogEntity.getUsername(), auditLogEntity.getAccion(), ex.getClass().getSimpleName());
+            reintentarSinEstados(auditLogEntity);
+        }
+    }
+
+    // El detalle de estados es lo más probable de rechazar (tamaño, contenido): se conserva la entrada de la
+    // bitácora sin él antes de perderla por completo. Se reintenta una sola vez.
+    private void reintentarSinEstados(AuditLogEntity auditLogEntity) {
+        if (auditLogEntity.getEstadoAnterior() == null && auditLogEntity.getEstadoPosterior() == null) {
+            return;
+        }
+        auditLogEntity.setEstadoAnterior(null);
+        auditLogEntity.setEstadoPosterior(null);
+        try {
+            auditLogRepository.save(auditLogEntity);
+            log.warn("Se guardó el registro de auditoría sin el detalle de estados (username={}, accion={})",
+                    auditLogEntity.getUsername(), auditLogEntity.getAccion());
+        } catch (Exception ex) {
+            log.error("No se pudo persistir el registro de auditoría sin el detalle de estados (username={}, accion={}, falla={})",
+                    auditLogEntity.getUsername(), auditLogEntity.getAccion(), ex.getClass().getSimpleName());
         }
     }
 
@@ -87,5 +113,24 @@ public class AuditLogServiceImpl implements IAuditLogService {
         return auditLogRepository
                 .filtrarAuditLogs(fechaDesde, fechaHasta, accion, conceptoAuditoria, usernameNormalizado, pageable)
                 .map(MapperAuditLog::toDTO);
+    }
+
+    /**
+     * Recupera el detalle de una entrada de la bitácora con la comparación de sus estados anterior y posterior.
+     * <p>
+     * Los estados se leen de los JSON guardados; si faltan o están dañados, el detalle se devuelve sin campos
+     * ({@code tieneDetalle == false}) en lugar de fallar.
+     *
+     * @param id Identificador de la entrada de la bitácora.
+     * @return {@link AuditLogDetalleResponseDTO} con la cabecera de la entrada y la comparación de sus estados.
+     * @throws RecursoNoEncontradoException Si no existe una entrada con el id indicado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AuditLogDetalleResponseDTO buscarPorId(Long id) {
+        AuditLogEntity auditLogEntity = auditLogRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el registro de auditoría con ID: " + id));
+        return MapperAuditLog.toDetalleDTO(auditLogEntity,
+                comparadorEstados.comparar(auditLogEntity.getEstadoAnterior(), auditLogEntity.getEstadoPosterior()));
     }
 }

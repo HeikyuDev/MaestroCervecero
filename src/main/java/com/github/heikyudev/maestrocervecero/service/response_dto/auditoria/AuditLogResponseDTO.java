@@ -53,4 +53,10 @@ public class AuditLogResponseDTO {
      * IP remota desde la que se ejecutó la acción, o {@code null} si no había una request HTTP asociada.
      */
     private String ipAddress;
+
+    /**
+     * Indica si la entrada guardó el estado anterior o el posterior del registro afectado, es decir, si tiene una
+     * pantalla de detalle con datos para mostrar.
+     */
+    private boolean tieneDetalle;
 }

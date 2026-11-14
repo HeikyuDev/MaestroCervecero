@@ -425,6 +425,43 @@ el `pom.xml`.
 - Si el método auditado se ejecuta dentro de una transacción externa que sigue abierta, el registro se difiere a
   `TransactionSynchronization.afterCommit`; si esa transacción se revierte, no se registra.
 
+## Detalle de estados de la bitácora
+
+`V22__detalle_estados_auditoria.sql` agrega a `audit_log` las columnas `estado_anterior` y `estado_posterior` (`text`, aceptan `NULL`). Guardan, en JSON, el estado del registro afectado antes y después de la operación. Las entradas de sesión y las operaciones que no modifican el registro quedan con las dos columnas en `NULL`.
+
+**Captura.** `AuditAspect` abre una captura (`RegistroEstadosEntidad`, por hilo) antes de ejecutar el método auditado. `CapturaEstadoInterceptor`, el interceptor de Hibernate que registra `AuditConfig`, entrega a esa captura el estado anterior y el posterior de cada entidad que se inserta, actualiza o elimina en el flush del commit; Hibernate conoce ambos en `onFlushDirty` (estado actual y estado cargado de la base). Con varios cambios de la misma entidad en una operación se conserva el anterior del primero y el posterior del último. Fuera de un método auditado no se captura nada.
+
+**Qué entrada recibe cada estado.** La entrada toma los estados de la entidad cuyo tipo corresponde al concepto de la entrada (el nombre de la clase sin `Entity` es igual al del concepto sin guiones bajos ni la palabra `DE`; `OLLA_DE_HERVOR` corresponde a `OllaHervorEntity`) y cuyo id es el `entidadId` de la entrada. Los cambios de otras entidades de la misma operación (por ejemplo, el barril que modifica un despacho) no se atribuyen a la entrada.
+
+| Operación | Estado anterior | Estado posterior |
+| --- | --- | --- |
+| Alta | `NULL` | Registro creado |
+| Modificación, finalización, anulación y baja lógica (que es una modificación del estado) | Registro antes del cambio | Registro después del cambio |
+| Eliminación física | Registro eliminado | `NULL` |
+
+**Forma del JSON.** Un objeto plano con el `id` primero y luego los campos persistentes de la entidad, en el orden de sus propiedades. Los enteros y decimales (incluido `BigDecimal`) son números JSON, los booleanos son booleanos, los enumerados llevan su nombre, las fechas y horas van en ISO-8601 y los valores sin dato van como `null`. Una asociación se reemplaza por el id de la entidad asociada bajo el nombre del campo seguido de `Id` (`fabricanteId`). No se recorren colecciones ni grafos, y nunca se inicializa un proxy perezoso.
+
+```json
+{"id":12,"createdBy":"admin","createdDate":"2026-11-13T10:30:15","estado":"ACTIVO","fabricanteId":3,"capacidad":50.0,"nombre":"Barril A"}
+```
+
+**Datos secretos y personales.** La bitácora no copia credenciales ni datos personales de contacto. Se omiten los campos marcados con `@ExcluidoDeAuditoria` y todo campo cuyo nombre contenga `password`, `contrasena`, `contraseña`, `secret`, `token`, `hash`, `clave`, `pin`, `apikey`, `credencial` u `otp`, sin distinguir mayúsculas (`SerializadorEstadoEntidad.FRAGMENTOS_SENSIBLES`). Una prueba recorre todas las entidades y falla si alguna tiene un campo de nombre sensible sin la anotación.
+
+| Entidad | Campos excluidos | Motivo |
+| --- | --- | --- |
+| `UsuarioEntity` | `password` | Credencial (hash BCrypt) |
+| `UsuarioEntity` | `correo`, `telefono` | Datos personales de contacto |
+| `ClienteEntity` | `telefono`, `email`, `direccion` | Datos personales de contacto |
+| `VersionProveedorEntity` | `telefono`, `email`, `direccion` | Datos de contacto |
+
+Los datos de negocio (CUIT, razón social, nombres, localidad) sí se guardan: identifican qué registro cambió. Un cambio en un dato de contacto genera igualmente la entrada de la bitácora, pero su detalle no muestra el campo excluido. Un campo personal nuevo de una entidad se anota con `@ExcluidoDeAuditoria`.
+
+**Acotación de la captura.** La captura retiene solo las entidades cuyo tipo corresponde a un concepto de los métodos auditados en curso, de modo que una operación que modifica muchas entidades de otros tipos no acumula sus estados en memoria.
+
+**Tolerancia a fallas.** La bitácora nunca interrumpe la operación de negocio: una falla al despachar la entrada (por ejemplo, la cola asíncrona llena) se registra en el log sin propagarse; si no se puede persistir una entrada con estados, se reintenta una vez sin ellos para conservar la entrada. Los logs de estas fallas informan solo el tipo de la excepción, nunca su mensaje, porque puede citar valores de los estados.
+
+**Alcance.** Se capturan los cambios que pasan por la sesión de Hibernate; las actualizaciones masivas por consulta (`@Modifying`) no pasan por el interceptor y no generan estados. El estado se guarda como se leyó de la entidad: los cambios posteriores del registro no reescriben entradas viejas.
+
 ## Política de datos iniciales
 
 | Tipo de dato | Dónde vive | Motivo |

@@ -4,10 +4,14 @@ import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConf
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.CampoAuditoriaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.EstadoCampoAuditoria;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -284,6 +288,183 @@ class AuditLogControllerTest {
                 .andExpect(flash().attribute("tipo", "warning"));
 
         verify(auditLogService, never()).filtrarAuditLogs(any(), any(), any(), any(), any(), any());
+    }
+
+    // ==================== Lista: botón Ver ====================
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-14: la lista tiene la columna Acciones y muestra el ojo Ver hacia /auditoria/{id} solo en las entradas con detalle de estados")
+    void listado_debeMostrarElOjoVerSoloConDetalle() throws Exception {
+        LocalDateTime fecha = LocalDateTime.of(2026, 9, 15, 10, 30);
+        when(auditLogService.filtrarAuditLogs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        AuditLogResponseDTO.builder().id(41L).username("u").accion(AccionAuditoria.MODIFICAR).conceptoAuditoria(ConceptoAuditoria.MALTA)
+                                .entidadId("2").fechaHora(fecha).tieneDetalle(true).build(),
+                        AuditLogResponseDTO.builder().id(42L).username("u").accion(AccionAuditoria.LOGOUT).conceptoAuditoria(ConceptoAuditoria.SESION)
+                                .fechaHora(fecha).tieneDetalle(false).build()),
+                        PageRequest.of(0, 20), 2));
+
+        mockMvc.perform(get("/auditoria"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">Acciones</th>")))
+                .andExpect(content().string(containsString("href=\"/auditoria/41\"")))
+                .andExpect(content().string(containsString("aria-label=\"Ver detalle de la entrada 41\"")))
+                .andExpect(content().string(containsString("bi-eye")))
+                .andExpect(content().string(not(containsString("href=\"/auditoria/42\""))));
+    }
+
+    // ==================== Detalle ====================
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-15: el detalle muestra la cabecera de la entrada y la tabla Campo / Estado anterior / Estado posterior con cada fila resaltada según su cambio")
+    void detalle_debeMostrarLaCabeceraYLaComparacion() throws Exception {
+        when(auditLogService.buscarPorId(7L)).thenReturn(detalle(7L, AccionAuditoria.MODIFICAR, true, List.of(
+                campo("ID", "12", "12", EstadoCampoAuditoria.SIN_CAMBIOS),
+                campo("Nombre", "Pilsen", "Pilsen Premium", EstadoCampoAuditoria.MODIFICADO),
+                campo("Color", null, "Dorada", EstadoCampoAuditoria.AGREGADO),
+                campo("Origen", "Alemania", null, EstadoCampoAuditoria.ELIMINADO))));
+
+        mockMvc.perform(get("/auditoria/7"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("auditoria/auditoria-detalle"))
+                .andExpect(content().string(containsString("<title>Bitácora de Auditoría - Maestro Cervecero</title>")))
+                .andExpect(content().string(containsString("Detalle de auditoría")))
+                .andExpect(content().string(containsString("Volver a la bitácora")))
+                .andExpect(content().string(containsString("admin")))
+                .andExpect(content().string(containsString("15/09/2026 10:30")))
+                .andExpect(content().string(containsString("127.0.0.1")))
+                .andExpect(content().string(containsString("Malta")))
+                .andExpect(content().string(containsString(">Estado anterior</th>")))
+                .andExpect(content().string(containsString(">Estado posterior</th>")))
+                .andExpect(content().string(containsString("data-estado-campo=\"MODIFICADO\"")))
+                .andExpect(content().string(containsString("bg-amber-50")))
+                .andExpect(content().string(containsString("data-estado-campo=\"AGREGADO\"")))
+                .andExpect(content().string(containsString("bg-emerald-50")))
+                .andExpect(content().string(containsString("data-estado-campo=\"ELIMINADO\"")))
+                .andExpect(content().string(containsString("bg-rose-50")))
+                .andExpect(content().string(containsString("data-estado-campo=\"SIN_CAMBIOS\"")))
+                .andExpect(content().string(containsString("Pilsen Premium")))
+                .andExpect(content().string(containsString("Alemania")))
+                .andExpect(content().string(not(containsString("No hay detalle de estados para este registro"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-16: el detalle de un alta muestra un guion en el estado anterior de todos los campos")
+    void detalle_deUnAltaMuestraGuionEnElAnterior() throws Exception {
+        when(auditLogService.buscarPorId(8L)).thenReturn(detalle(8L, AccionAuditoria.CREAR, true, List.of(
+                campo("Nombre", null, "Cascade", EstadoCampoAuditoria.AGREGADO))));
+
+        mockMvc.perform(get("/auditoria/8"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Cascade")))
+                .andExpect(content().string(containsString("text-slate-700\">-</td>")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-17: una entrada sin estados guardados muestra \"No hay detalle de estados para este registro\" y no la tabla")
+    void detalle_sinEstadosMuestraElAvisoGris() throws Exception {
+        when(auditLogService.buscarPorId(9L)).thenReturn(detalle(9L, AccionAuditoria.LOGIN_EXITOSO, false, List.of()));
+
+        mockMvc.perform(get("/auditoria/9"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No hay detalle de estados para este registro")))
+                .andExpect(content().string(containsString("text-slate-400")))
+                .andExpect(content().string(not(containsString(">Estado anterior</th>"))))
+                .andExpect(content().string(not(containsString("data-estado-campo"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-18: el detalle escapa todo el contenido: un valor con HTML se muestra como texto, nunca como marcado")
+    void detalle_debeEscaparElContenido() throws Exception {
+        when(auditLogService.buscarPorId(10L)).thenReturn(AuditLogDetalleResponseDTO.builder()
+                .id(10L).username("<b>admin</b>").accion(AccionAuditoria.MODIFICAR).conceptoAuditoria(ConceptoAuditoria.MALTA)
+                .entidadId("1").fechaHora(LocalDateTime.of(2026, 9, 15, 10, 30)).tieneDetalle(true)
+                .campos(List.of(campo("Nombre", "<script>alert(1)</script>", "<img src=x onerror=alert(2)>", EstadoCampoAuditoria.MODIFICADO)))
+                .build());
+
+        mockMvc.perform(get("/auditoria/10"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
+                .andExpect(content().string(containsString("&lt;b&gt;admin&lt;/b&gt;")))
+                .andExpect(content().string(not(containsString("<script>alert(1)"))))
+                .andExpect(content().string(not(containsString("<img src=x"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-19: el detalle muestra solo la cabecera y la tabla comparativa, sin sección de JSON")
+    void detalle_noMuestraElJson() throws Exception {
+        when(auditLogService.buscarPorId(11L)).thenReturn(detalle(11L, AccionAuditoria.MODIFICAR, true, List.of(
+                campo("Nombre", "A", "B", EstadoCampoAuditoria.MODIFICADO))));
+
+        mockMvc.perform(get("/auditoria/11"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-seccion-estados")))
+                .andExpect(content().string(containsString(">Estado anterior</th>")))
+                .andExpect(content().string(not(containsString("<details"))))
+                .andExpect(content().string(not(containsString("JSON"))))
+                .andExpect(content().string(not(containsString("&quot;nombre&quot;"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-20: un ID inexistente redirige con la alerta del service")
+    void detalle_conIdInexistenteRedirigeConAlerta() throws Exception {
+        when(auditLogService.buscarPorId(99L))
+                .thenThrow(new RecursoNoEncontradoException("No se encontró el registro de auditoría con ID: 99"));
+
+        mockMvc.perform(get("/auditoria/99").header("Referer", "/auditoria"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "No se encontró el registro de auditoría con ID: 99"))
+                .andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-21: un ID que no es numérico se rechaza sin llegar al service")
+    void detalle_conIdInvalidoSeRechaza() throws Exception {
+        mockMvc.perform(get("/auditoria/abc").header("Referer", "/auditoria"))
+                .andExpect(status().is3xxRedirection());
+
+        verify(auditLogService, never()).buscarPorId(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
+    @DisplayName("CP-AC-22: un rol distinto de ADMINISTRADOR no puede ver el detalle (no llega al service)")
+    void detalle_debeRechazarRolNoAdministrador() throws Exception {
+        mockMvc.perform(get("/auditoria/7"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verify(auditLogService, never()).buscarPorId(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-23: un visitante sin sesión es enviado al login al pedir el detalle")
+    void detalle_debeRedirigirAlLoginSiNoHaySesion() throws Exception {
+        mockMvc.perform(get("/auditoria/7"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("/login")));
+
+        verify(auditLogService, never()).buscarPorId(any());
+    }
+
+    private static CampoAuditoriaResponseDTO campo(String nombre, String anterior, String posterior, EstadoCampoAuditoria estado) {
+        return CampoAuditoriaResponseDTO.builder().campo(nombre).valorAnterior(anterior).valorPosterior(posterior).estado(estado).build();
+    }
+
+    private static AuditLogDetalleResponseDTO detalle(Long id, AccionAuditoria accion, boolean tieneDetalle, List<CampoAuditoriaResponseDTO> campos) {
+        return AuditLogDetalleResponseDTO.builder()
+                .id(id).username("admin").accion(accion).conceptoAuditoria(ConceptoAuditoria.MALTA).entidadId("12")
+                .fechaHora(LocalDateTime.of(2026, 9, 15, 10, 30)).ipAddress("127.0.0.1")
+                .tieneDetalle(tieneDetalle).campos(campos)
+                .build();
     }
 
     private static AuditLogResponseDTO entrada(Long id, String username, AccionAuditoria accion, ConceptoAuditoria concepto,

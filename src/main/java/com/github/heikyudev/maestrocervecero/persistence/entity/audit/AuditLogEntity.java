@@ -62,4 +62,13 @@ public class AuditLogEntity {
     // no tiene una request HTTP asociada, no hay IP que capturar (ver RequestUtils).
     @Column(name = "ip_address")
     private String ipAddress;
+
+    // Estado del registro afectado ANTES de la operación, en JSON (campos persistentes y ids de sus asociaciones, sin
+    // secretos). Nullable: es null en altas, en entradas de sesión y cuando la operación no modificó el registro.
+    @Column(name = "estado_anterior", columnDefinition = "text")
+    private String estadoAnterior;
+
+    // Estado del registro afectado DESPUÉS de la operación, en JSON. Nullable por los mismos motivos.
+    @Column(name = "estado_posterior", columnDefinition = "text")
+    private String estadoPosterior;
 }

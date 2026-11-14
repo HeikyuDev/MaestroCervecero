@@ -3,7 +3,9 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.auditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,7 +17,9 @@ import java.time.LocalDateTime;
  * consultarlas.
  * <p>
  * La bitácora es de solo lectura desde el punto de vista del usuario: sus entradas las generan
- * {@code AuditAspect} y {@code SecurityAuditListener}, y nunca se modifican ni se eliminan. Por eso
+ * {@code AuditAspect} y {@code SecurityAuditListener}, y nunca se modifican ni se eliminan. Las entradas de negocio
+ * guardan además, en JSON, el estado anterior y el posterior del registro afectado (sin campos secretos), que el
+ * detalle permite comparar. Por eso
  * este servicio no ofrece alta, modificación ni baja manuales, ni baja lógica: no existe el concepto
  * de entrada "inactiva".
  */
@@ -54,4 +58,19 @@ public interface IAuditLogService {
     Page<AuditLogResponseDTO> filtrarAuditLogs(LocalDateTime fechaDesde, LocalDateTime fechaHasta,
                                                AccionAuditoria accion, ConceptoAuditoria conceptoAuditoria,
                                                String username, Pageable pageable);
+
+    /**
+     * Recupera el detalle de una entrada de la bitácora: su cabecera (quién, cuándo, módulo, acción, registro e IP) y la
+     * comparación campo a campo entre el estado anterior y el posterior del registro afectado.
+     * <p>
+     * Cada campo del detalle indica si quedó igual, cambió, se agregó (solo existe en el estado posterior, como en un
+     * alta) o se eliminó (solo existe en el anterior). Un estado guardado que falta, está vacío o no es un JSON válido
+     * se trata como inexistente: si ninguno de los dos es legible, la entrada no tiene detalle
+     * ({@code tieneDetalle == false}, sin campos), pero la consulta no falla.
+     *
+     * @param id Identificador de la entrada de la bitácora.
+     * @return {@link AuditLogDetalleResponseDTO} con la cabecera de la entrada y la comparación de sus estados.
+     * @throws RecursoNoEncontradoException Si no existe una entrada con el id indicado.
+     */
+    AuditLogDetalleResponseDTO buscarPorId(Long id);
 }

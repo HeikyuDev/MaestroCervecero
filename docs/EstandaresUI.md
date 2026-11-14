@@ -20,9 +20,13 @@ Es la entrada desde la fila de una lista a la pantalla de trabajo o gestión de 
 
 ## Ícono del ojo "Ver ..."
 
-Es el estándar para abrir una vista de detalle de solo lectura: órdenes de compra, planificaciones y recetas. Usa el ícono `bi-eye` con un texto "Ver ..." específico (por ejemplo, "Ver orden") y no se reemplaza por el botón "Abrir".
+Es el estándar para abrir una vista de detalle de solo lectura: órdenes de compra, planificaciones, recetas y entradas de la bitácora de auditoría. Usa el ícono `bi-eye` con un texto "Ver ..." específico (por ejemplo, "Ver orden") y no se reemplaza por el botón "Abrir".
 
 **Ojo y "Abrir" juntos.** Cuando un registro tiene una pantalla de detalle de solo lectura y además un panel de trabajo, el ojo "Ver" abre el detalle y "Abrir" el panel. Ejemplo, el lote: la lista de lotes ofrece al GERENTE_DE_PRODUCCION el ojo (`/lotes/{id}/detalle`, "Detalle del lote": información, etapas, costos, consumos, reservas y envasados) y a continuación "Abrir" (`/lotes/{id}`, panel de trabajo); el OPERARIO_DE_PRODUCCION ve solo "Abrir", porque el detalle y sus costos son del gerente. Ambos van centrados en la columna de acciones y el ojo lleva solo `aria-label` ("Ver LOT-R1-02"), sin tooltip. Las barras del Gantt y las colas del cronograma siguen llevando al panel de trabajo.
+
+**Auditoría.** En la lista de la bitácora el ojo (`/auditoria/{id}`, solo el ADMINISTRADOR) aparece únicamente en las entradas que guardaron un estado anterior o posterior; las demás dejan la celda de Acciones vacía. Lleva solo `aria-label` ("Ver detalle de la entrada 41"), sin tooltip.
+
+**Comparación de estados (antes y después).** Una tabla que compara dos versiones de un registro lleva las columnas Campo, el estado anterior y el estado posterior, y resalta la fila completa según el cambio: `bg-amber-50` si el campo cambió, `bg-emerald-50` si solo existe en el posterior, `bg-rose-50` si solo existe en el anterior y sin resalte si quedó igual. En una fila cambiada el valor anterior va en `text-rose-700` y el posterior en `text-emerald-700`. Los valores sin dato se muestran con "-" y una referencia de colores precede a la tabla. Es el patrón del detalle de la bitácora (`auditoria/auditoria-detalle`); lo protege `AuditoriaPlantillasTest`.
 
 **Equipamiento.** En la lista de Control de Equipamientos el ojo (solo el GERENTE_DE_PRODUCCION) abre el historial del equipo (`/control-equipamiento/{id}/historial`) y "Abrir" el panel operativo (`/control-equipamiento/{id}`), que el gerente ve en solo lectura. En las listas de Gestión de Equipamientos el ojo abre el detalle del equipamiento (`/equipamiento/{id}/detalle`).
 
