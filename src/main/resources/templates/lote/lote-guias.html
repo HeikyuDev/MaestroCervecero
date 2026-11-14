@@ -10,8 +10,7 @@
 
     tiempoDeEtapa: los datos de tiempo de la etapa, para insertar dentro de una fila de datos (dl). La duración estimada
     se muestra siempre (con un guion y la aclaración en gris si no se pudo estimar, o con la base del cálculo en gris
-    en la Molienda y el Envasado); el fin previsto solo con la etapa en curso y la duración real solo con la etapa
-    finalizada.
+    en la Molienda y el Envasado); el fin previsto solo con la etapa en curso.
     avisoAgua: alerta amarilla de la tarjeta cuando el cálculo del agua no se pudo hacer.
     cantidadesDeInsumos(lista): una línea "Insumo: cantidad" por cada insumo requerido de la lista.
 -->
@@ -32,10 +31,6 @@
     <div th:if="${estimacion != null and estimacion.fechaFinPrevista != null}" data-fin-previsto>
         <dt class="text-xs font-medium text-slate-500">Fin previsto</dt>
         <dd class="font-semibold text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${estimacion.fechaFinPrevista})}"></th:block></dd>
-    </div>
-    <div th:if="${estimacion != null and estimacion.duracionRealTexto != null}" data-duracion-real>
-        <dt class="text-xs font-medium text-slate-500">Duración real</dt>
-        <dd class="font-semibold text-slate-900" th:text="${estimacion.duracionRealTexto}">1 h 40 min</dd>
     </div>
 </th:block>
 
@@ -220,7 +215,7 @@
 <div th:fragment="envasado" class="space-y-3">
     <div th:if="${resumenEnvasadoError != null}" data-aviso-envasado
          class="p-3 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 text-sm" role="alert" th:text="${resumenEnvasadoError}">No se puede resumir el envasado</div>
-    <!-- Una fila por tema: tiempo (duración estimada, fin previsto, duración real) y volumen -->
+    <!-- Una fila por tema: tiempo (duración estimada, fin previsto) y volumen -->
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>

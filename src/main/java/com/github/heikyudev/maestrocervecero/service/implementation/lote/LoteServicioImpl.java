@@ -1153,11 +1153,8 @@ public class LoteServicioImpl implements ILoteServicio {
             case ENVASADO -> estimarEnvasado(lote);
         };
 
-        // 3. El fin previsto es solo de la etapa en curso y la duración real solo de la finalizada
+        // 3. El fin previsto es solo de la etapa en curso
         EstadoEtapaLote estado = etapaLote.getEstado();
-        Long minutosReales = estado == EstadoEtapaLote.FINALIZADA
-                ? MetodosEstimacionEtapa.minutosReales(etapaLote.getFechaInicio(), etapaLote.getFechaFinalizacion())
-                : null;
         return EstimacionEtapaResponseDTO.builder()
                 .etapa(etapa)
                 .duracionEstimadaMinutos(duracion.minutos())
@@ -1165,8 +1162,6 @@ public class LoteServicioImpl implements ILoteServicio {
                 .fechaFinPrevista(estado == EstadoEtapaLote.EN_CURSO
                         ? MetodosEstimacionEtapa.calcularFinPrevisto(etapaLote.getFechaInicio(), duracion.minutos())
                         : null)
-                .duracionRealMinutos(minutosReales)
-                .duracionRealTexto(MetodosEstimacionEtapa.formatearDuracion(minutosReales))
                 .aclaracion(duracion.aclaracion())
                 .build();
     }

@@ -92,7 +92,7 @@ Valen para todas las pantallas, no solo para las de lotes.
 - **Fechas.** `dd/MM/yyyy` y `dd/MM/yyyy HH:mm`, y "-" cuando no hay valor. Los campos de fecha llevan un placeholder de ejemplo ("Ej: 01/07/2027").
 - **Paginación.** Pie común de las listas: "N registro(s) · Página X de Y" con "Anterior" y "Siguiente" (íconos `bi-chevron-left` y `bi-chevron-right`); la etiqueta se escribe en singular cuando hay un solo registro ("1 consumo"). El cronograma pagina de a 5 fermentadores; las demás tablas, de a 10 (los lotes, de a 20).
 - **Textos largos.** Un texto que escribe el usuario (nombre de receta, identificador, código) se acorta con puntos suspensivos dentro de un ancho máximo y se completa en un tooltip flotante; nunca ensancha la tabla.
-- **Títulos.** Los títulos de pantalla y las opciones del menú van en mayúscula inicial en cada palabra significativa ("Panel de Control", "Control de Lotes"); las etiquetas y los datos, en oración ("Estado del sistema").
+- **Títulos.** Los títulos de pantalla y las opciones del menú van en mayúscula inicial en cada palabra significativa ("Panel de Control", "Control de Lotes"); las etiquetas y los datos, en oración ("Barriles en poder de clientes").
 - **Obligatorios.** Todo formulario, incluidos los diálogos, lleva la nota "Los campos marcados con * son obligatorios." y el asterisco rojo.
 - **Botones.** Buscar usa `bi-search` y va acompañado del enlace "Limpiar"; la acción de abrir el registro usa el botón estándar "Abrir" y las de editar y dar de baja usan solo ícono (`bi-pencil-square`, `bi-trash`, tamaño `text-lg` con `p-2`) con `title` y `aria-label`.
 - **Mensajes.** Los motivos que acompañan a una indicación se separan con dos puntos ("... porque tiene envasados registrados: anule los envasados para poder cancelarlo"); un número fuera de rango se informa como "X debe ser mayor a 0"; el nombre obligatorio, como "El nombre es obligatorio".
@@ -247,8 +247,8 @@ Cada dato de la guía es una etiqueta gris chica con su valor destacado debajo, 
 
 - "Duración estimada" se muestra siempre. Se redacta en días cuando son días completos ("1 día", "10 días") y, si no, en minutos u horas y minutos ("45 min", "1 h", "2 h 30 min"). Si no se pudo estimar muestra un guion y, debajo, en gris, el dato que falta ("La receta no define la duración de la maceración"). En Molienda y Envasado, debajo y en gris, va la base del cálculo ("4,3952 kg a 5 kg/h", "330 L a 165 L/h", donde 330 L es la capacidad útil del fermentador).
 - "Fin previsto" (fecha y hora) aparece solo con la etapa En curso: es el inicio real de la etapa más la duración estimada.
-- "Duración real" aparece solo con la etapa Finalizada, junto a la estimada (como la cabecera del lote, que muestra las fechas estimadas y las reales). La franja de estado de la etapa sigue mostrando el inicio y el fin reales.
-- Con la etapa Pendiente o Cancelada solo se muestra la duración estimada.
+- La franja de estado de la etapa muestra el inicio y el fin reales.
+- Con la etapa Pendiente, Finalizada o Cancelada solo se muestra la duración estimada.
 
 De dónde sale la duración estimada de cada etapa:
 

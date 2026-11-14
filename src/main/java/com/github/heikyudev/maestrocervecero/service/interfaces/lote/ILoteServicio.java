@@ -371,8 +371,7 @@ public interface ILoteServicio {
      *     en litros por hora.</li>
      * </ul>
      * Las duraciones calculadas por rendimiento se redondean hacia arriba al minuto. El fin previsto es el inicio real
-     * de la etapa más la duración estimada y solo se informa con la etapa En curso; la duración real solo se informa
-     * con la etapa Finalizada. Un dato que falta (sin configuración de producción, sin malta, rendimiento o velocidad
+     * de la etapa más la duración estimada y solo se informa con la etapa En curso. Un dato que falta (sin configuración de producción, sin malta, rendimiento o velocidad
      * no positivos) no es un error: la duración queda sin estimar y la aclaración indica el dato que falta.
      *
      * @param idLote El ID del lote.

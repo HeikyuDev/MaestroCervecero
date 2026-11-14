@@ -29,11 +29,10 @@ Un lote con 4,3952 kg de malta, un molino de 5 kg/h, un fermentador de 20 L de c
 - Molienda: $4{,}3952 / 5 \times 60 = 52{,}7424$ minutos, que son 53 minutos.
 - Envasado: $20 / 10 \times 60 = 120$ minutos, que son "2 h".
 
-## Fin previsto y duración real
+## Fin previsto
 
 - Fin previsto = inicio real de la etapa + duración estimada. Solo se informa con la etapa En curso y duración estimada.
-- Duración real = fin real − inicio real, en minutos completos. Solo se informa con la etapa Finalizada y fechas coherentes.
-- Con la etapa Pendiente o Cancelada solo hay duración estimada.
+- Con la etapa Pendiente, Finalizada o Cancelada solo hay duración estimada.
 
 ## Redacción
 

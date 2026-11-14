@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.util.method;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 
 /**
@@ -74,20 +73,6 @@ public final class MetodosEstimacionEtapa {
             return null;
         }
         return inicio.plusMinutes(minutosEstimados);
-    }
-
-    /**
-     * Calcula la duración real de una etapa, en minutos completos (los segundos sobrantes se descartan).
-     *
-     * @param inicio Fecha y hora en que arrancó la etapa.
-     * @param fin Fecha y hora en que terminó la etapa.
-     * @return Los minutos transcurridos, o {@code null} si falta alguna de las fechas o el fin es anterior al inicio.
-     */
-    public static Long minutosReales(LocalDateTime inicio, LocalDateTime fin) {
-        if (inicio == null || fin == null || fin.isBefore(inicio)) {
-            return null;
-        }
-        return Duration.between(inicio, fin).toMinutes();
     }
 
     /**

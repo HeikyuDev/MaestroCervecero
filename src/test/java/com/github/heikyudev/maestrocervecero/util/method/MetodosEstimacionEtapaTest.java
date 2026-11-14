@@ -80,19 +80,6 @@ class MetodosEstimacionEtapaTest {
     }
 
     @Test
-    @DisplayName("CP-MEE-08: minutosReales cuenta los minutos completos entre el inicio y el fin, y devuelve null si falta una fecha o el fin es anterior")
-    void minutosReales_cuentaMinutosCompletos() {
-        LocalDateTime inicio = LocalDateTime.of(2027, 7, 1, 8, 0);
-
-        assertThat(MetodosEstimacionEtapa.minutosReales(inicio, LocalDateTime.of(2027, 7, 1, 9, 40))).isEqualTo(100L);
-        assertThat(MetodosEstimacionEtapa.minutosReales(inicio, LocalDateTime.of(2027, 7, 1, 9, 40, 59))).isEqualTo(100L);
-        assertThat(MetodosEstimacionEtapa.minutosReales(inicio, inicio)).isEqualTo(0L);
-        assertThat(MetodosEstimacionEtapa.minutosReales(inicio, LocalDateTime.of(2027, 7, 1, 7, 0))).isNull();
-        assertThat(MetodosEstimacionEtapa.minutosReales(null, inicio)).isNull();
-        assertThat(MetodosEstimacionEtapa.minutosReales(inicio, null)).isNull();
-    }
-
-    @Test
     @DisplayName("CP-MEE-09: formatearDuracion redacta minutos, horas, horas y minutos, y días completos con su singular y plural")
     void formatearDuracion_redactaLaDuracion() {
         assertThat(MetodosEstimacionEtapa.formatearDuracion(0L)).isEqualTo("0 min");

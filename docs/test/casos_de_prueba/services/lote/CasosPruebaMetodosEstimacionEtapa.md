@@ -1,6 +1,6 @@
 ## Casos de prueba de `MetodosEstimacionEtapa`
 
-**Tipo de prueba:** unitaria (clase `MetodosEstimacionEtapaTest`), sin Spring ni mocks. Verifica los cálculos puros de la duración estimada de una etapa de lote, de su fin previsto, de su duración real y la redacción de una duración.
+**Tipo de prueba:** unitaria (clase `MetodosEstimacionEtapaTest`), sin Spring ni mocks. Verifica los cálculos puros de la duración estimada de una etapa de lote, de su fin previsto y la redacción de una duración.
 
 **Reglas:** todas las duraciones son minutos enteros. Las que salen de un rendimiento (Molienda y Envasado) se redondean hacia arriba al minuto, con un mínimo de 1, y toleran el error de coma flotante. Un dato nulo, no positivo o no finito da `null`: nunca se inventa una duración.
 
@@ -31,11 +31,6 @@
 |---|---|---|---|---|
 |**CP-MEE-07**|Fin previsto|Inicio `01/07/2027 08:00` con `90` y con `14400` minutos; inicio nulo; duración nula|Hay inicio y duración|`01/07/2027 09:30` y `11/07/2027 08:00`; `null` si falta alguno de los dos datos.|
 
-### `minutosReales(LocalDateTime inicio, LocalDateTime fin)`
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-MEE-08**|Duración real|Inicio `01/07/2027 08:00` y fin `09:40`; fin `09:40:59`; fin igual al inicio; fin anterior; fechas nulas|Hay ambas fechas y el fin no es anterior|`100` minutos (los segundos sobrantes se descartan), `0` con fin igual al inicio; `null` con el fin anterior o con una fecha nula.|
 
 ### `formatearDuracion(Long minutos)`
 

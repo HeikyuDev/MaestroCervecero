@@ -3231,7 +3231,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-182: la guía de una Molienda pendiente muestra la duración estimada con la base del cálculo en gris, y ni fin previsto ni duración real")
+    @DisplayName("CP-LCT-182: la guía de una Molienda pendiente muestra la duración estimada con la base del cálculo en gris, y sin fin previsto")
     void detalle_guiaDeMoliendaPendienteMuestraLaDuracionEstimada() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, etapas(EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE,
@@ -3243,7 +3243,7 @@ class LoteControllerTest {
 
         // Assert
         assertThat(texto(guiaHtml)).contains("Molino M-01", "Duración estimada 53 min 4,3952 kg a 5 kg/h")
-                .doesNotContain("Fin previsto").doesNotContain("Duración real");
+                .doesNotContain("Fin previsto");
         assertThat(elementoConAtributo(guiaHtml, "p", "data-aclaracion-estimacion")).contains("text-slate-500");
     }
 
@@ -3260,22 +3260,7 @@ class LoteControllerTest {
 
         // Assert
         String fila = texto(guiaHtml.substring(guiaHtml.indexOf("<dl"), guiaHtml.indexOf("</dl>")));
-        assertThat(fila).contains("Molino M-01", "Duración estimada 53 min", "Fin previsto 01/07/2027 08:53").doesNotContain("Duración real");
-    }
-
-    @Test
-    @DisplayName("CP-LCT-184: la guía de una etapa finalizada muestra la duración real junto a la estimada y ya no muestra el fin previsto")
-    void detalle_guiaDeEtapaFinalizadaMuestraLaDuracionReal() throws Exception {
-        // Arrange
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
-        when(loteServicio.estimarEtapa(12L, TipoEtapa.HERVIDO)).thenReturn(
-                estimacion(TipoEtapa.HERVIDO, "1 h 30 min").duracionRealMinutos(100L).duracionRealTexto("1 h 40 min").build());
-
-        // Act
-        String guia = texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia"));
-
-        // Assert
-        assertThat(guia).contains("Duración estimada 1 h 30 min", "Duración real 1 h 40 min").doesNotContain("Fin previsto");
+        assertThat(fila).contains("Molino M-01", "Duración estimada 53 min", "Fin previsto 01/07/2027 08:53");
     }
 
     @Test

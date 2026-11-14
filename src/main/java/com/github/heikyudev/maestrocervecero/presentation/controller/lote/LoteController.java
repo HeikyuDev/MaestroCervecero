@@ -708,7 +708,7 @@ public class LoteController {
     }
 
     /**
-     * La estimación de tiempo de la etapa para la guía (duración estimada, fin previsto o duración real). Si no se puede
+     * La estimación de tiempo de la etapa para la guía (duración estimada o fin previsto). Si no se puede
      * calcular devuelve {@code null} y la guía muestra un guion, sin cerrar el detalle.
      */
     private EstimacionEtapaResponseDTO estimacionDeEtapa(Long idLote, TipoEtapa tipoEtapa) {

@@ -4615,7 +4615,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ET-03: estimarEtapa de una Molienda pendiente divide la malta planificada por el rendimiento del molino, sin fin previsto ni duración real, y no modifica nada")
+    @DisplayName("CP-ET-03: estimarEtapa de una Molienda pendiente divide la malta planificada por el rendimiento del molino, sin fin previsto, y no modifica nada")
     void estimarEtapa_molienda_pendienteSoloTieneDuracionEstimada() {
         // === PREPARACION DE DATOS ===
         loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, null, null);
@@ -4630,8 +4630,6 @@ class LoteServicioImplTest {
         assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("53 min");
         assertThat(resultado.getAclaracion()).isEqualTo("4,3952 kg a 5 kg/h");
         assertThat(resultado.getFechaFinPrevista()).isNull();
-        assertThat(resultado.getDuracionRealMinutos()).isNull();
-        assertThat(resultado.getDuracionRealTexto()).isNull();
         verify(loteRepository, never()).save(any());
     }
 
@@ -4663,12 +4661,11 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(53L);
         assertThat(resultado.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 1, 8, 53));
-        assertThat(resultado.getDuracionRealMinutos()).isNull();
     }
 
     @Test
-    @DisplayName("CP-ET-06: estimarEtapa de una Molienda finalizada informa la duración real junto a la estimada y ya no informa fin previsto")
-    void estimarEtapa_molienda_finalizadaInformaLaDuracionReal() {
+    @DisplayName("CP-ET-06: estimarEtapa de una Molienda finalizada informa la duración estimada y ya no informa fin previsto")
+    void estimarEtapa_molienda_finalizadaNoInformaFinPrevisto() {
         // === PREPARACION DE DATOS ===
         loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, INICIO_ETAPA, LocalDateTime.of(2027, 7, 1, 9, 10));
 
@@ -4677,8 +4674,6 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("53 min");
-        assertThat(resultado.getDuracionRealMinutos()).isEqualTo(70L);
-        assertThat(resultado.getDuracionRealTexto()).isEqualTo("1 h 10 min");
         assertThat(resultado.getFechaFinPrevista()).isNull();
     }
 
@@ -4878,7 +4873,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ET-16: estimarEtapa de una etapa cancelada informa la duración estimada pero ni fin previsto ni duración real")
+    @DisplayName("CP-ET-16: estimarEtapa de una etapa cancelada informa la duración estimada pero no fin previsto")
     void estimarEtapa_canceladaSoloTieneDuracionEstimada() {
         // === PREPARACION DE DATOS ===
         loteParaEstimar(TipoEtapa.HERVIDO, EstadoEtapaLote.CANCELADA, INICIO_ETAPA, null);
@@ -4889,25 +4884,6 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(60L);
         assertThat(resultado.getFechaFinPrevista()).isNull();
-        assertThat(resultado.getDuracionRealMinutos()).isNull();
-    }
-
-    @Test
-    @DisplayName("CP-ET-17: estimarEtapa de una etapa finalizada sin fecha de fin o con el fin anterior al inicio no informa duración real")
-    void estimarEtapa_finalizadaConFechasInconsistentesNoInformaDuracionReal() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = loteParaEstimar(TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, INICIO_ETAPA, null);
-
-        // === EJECUCION ===
-        EstimacionEtapaResponseDTO sinFin = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
-        findEtapa(lote, TipoEtapa.MACERACION).setFechaFinalizacion(INICIO_ETAPA.minusHours(1));
-        EstimacionEtapaResponseDTO finAnterior = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
-
-        // === ASSERTS ===
-        assertThat(sinFin.getDuracionRealMinutos()).isNull();
-        assertThat(sinFin.getDuracionRealTexto()).isNull();
-        assertThat(finAnterior.getDuracionRealMinutos()).isNull();
-        assertThat(finAnterior.getDuracionEstimadaTexto()).isEqualTo("1 h");
     }
 
     @Test
