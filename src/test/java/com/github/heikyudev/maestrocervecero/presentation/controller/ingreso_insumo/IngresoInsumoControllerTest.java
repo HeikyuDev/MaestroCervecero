@@ -452,6 +452,26 @@ class IngresoInsumoControllerTest {
         verifyNoInteractions(ingresoInsumoServicio);
     }
 
+    @Test
+    @DisplayName("CP-IIC-70: el formulario por compra con una orden pendiente indicada (idOrdenCompra) la muestra elegida y habilita el selector de ítem; una orden inexistente o no pendiente deja el selector vacío")
+    void formularioCompra_conOrdenIndicadaLaMuestraElegida() throws Exception {
+        // Act
+        String conOrden = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "7").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ingreso_insumo/ingreso-compra-form"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String finalizada = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "8").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        String formulario = bloque(conOrden, "data-formulario-ingreso");
+        assertThat(textoDelSelector(formulario, "Seleccione orden de compra")).isNotEmpty();
+        assertThat(apertura(formulario, "data-selector-item")).doesNotContain("data-deshabilitado");
+        assertThat(textoDelSelector(bloque(finalizada, "data-formulario-ingreso"), "Seleccione orden de compra")).isEmpty();
+        verifyNoInteractions(ingresoInsumoServicio);
+    }
+
     // ==================== POST /ingresos-insumo/compra ====================
 
     @Test

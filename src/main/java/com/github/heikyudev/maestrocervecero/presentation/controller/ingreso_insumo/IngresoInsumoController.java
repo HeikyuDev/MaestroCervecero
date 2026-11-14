@@ -197,13 +197,18 @@ public class IngresoInsumoController {
 
     // ==================== Alta por compra ====================
 
-    /** Muestra el formulario vacío del ingreso por compra, con la fecha de ingreso de hoy. */
+    /**
+     * Muestra el formulario vacío del ingreso por compra, con la fecha de ingreso de hoy. Si llega una orden de compra
+     * ({@code idOrdenCompra}, desde el panel del encargado de depósito) la orden llega elegida; una orden que ya no existe
+     * o que no está Pendiente deja el selector vacío. El ID de la orden es un parámetro aparte: no forma parte del formulario.
+     */
     @GetMapping("/compra/nuevo")
     @PreAuthorize(REGISTRAR)
-    public String mostrarFormularioCompra(Model model) {
+    public String mostrarFormularioCompra(@RequestParam(required = false) Long idOrdenCompra, Model model) {
         IngresoInsumoPorCompraFormDTO ingresoForm = IngresoInsumoPorCompraFormDTO.builder().fechaIngreso(LocalDate.now()).build();
+        OrdenCompraResponseDTO orden = resolverUno(idOrdenCompra, ordenCompraServicio::buscarPorId);
         model.addAttribute(ATRIBUTO_FORMULARIO, ingresoForm);
-        cargarModeloCompra(model, ingresoForm, null);
+        cargarModeloCompra(model, ingresoForm, orden != null && orden.getEstado() == EstadoSolicitud.PENDIENTE ? orden : null);
         return VISTA_FORMULARIO_COMPRA;
     }
 

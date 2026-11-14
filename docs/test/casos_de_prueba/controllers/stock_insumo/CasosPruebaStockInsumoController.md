@@ -24,3 +24,4 @@
 | **CP-CSI-18** | Paginación de las pestañas | Se pide con tamaño 20 y el pie conserva la pestaña. |
 | **CP-CSI-19** | Lote de insumo inexistente | Un lote inexistente o de un insumo dado de baja redirige con alerta de peligro. |
 | **CP-CSI-20** | Menú | Las pantallas muestran la opción Stock de Insumos a los cuatro roles con el permiso y el título de la pestaña del navegador. |
+| **CP-CSI-21** | Registrar ajuste desde el detalle del insumo | Cada lote del insumo ofrece "Registrar ajuste" con el lote elegido (`/ajustes-insumo/nuevo?idLoteInsumo=<id>`) junto a "Abrir", solo para el rol con `AJUSTE_INSUMO_REGISTRAR` (encargado de depósito); el gerente de producción, que solo consulta, ve "Abrir" y no ve el botón. |

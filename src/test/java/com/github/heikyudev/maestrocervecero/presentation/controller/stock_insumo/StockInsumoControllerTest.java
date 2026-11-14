@@ -240,6 +240,17 @@ class StockInsumoControllerTest {
     }
 
     @Test
+    @DisplayName("CP-CSI-21: el detalle del insumo ofrece Registrar ajuste en cada lote, con el lote elegido, solo a quien puede registrar ajustes de insumo")
+    void detalleInsumo_registrarAjusteSoloConPermiso() throws Exception {
+        String encargado = html(get("/stock-insumos/1").with(como(Rol.ENCARGADO_DE_DEPOSITO)), "stock_insumo/stock-detalle-insumo");
+        String gerente = html(get("/stock-insumos/1").with(como(Rol.GERENTE_DE_PRODUCCION)), "stock_insumo/stock-detalle-insumo");
+
+        assertThat(encargado).contains("data-boton-registrar").contains("href=\"/ajustes-insumo/nuevo?idLoteInsumo=10\"").contains("aria-label=\"Registrar ajuste del lote L-125\"")
+                .contains("href=\"/ajustes-insumo/nuevo?idLoteInsumo=11\"").contains("data-boton-abrir");
+        assertThat(gerente).doesNotContain("data-boton-registrar").doesNotContain("/ajustes-insumo/nuevo").contains("data-boton-abrir");
+    }
+
+    @Test
     @DisplayName("CP-CSI-12: el detalle del insumo pide la página con tamaño 20 y la acota cuando es negativa")
     void detalleInsumo_pagina() throws Exception {
         html(get("/stock-insumos/1").param("pagina", "-1").with(como(Rol.GERENTE_DE_PRODUCCION)), "stock_insumo/stock-detalle-insumo");

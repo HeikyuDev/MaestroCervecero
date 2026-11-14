@@ -7,7 +7,7 @@
 <!--
     Detalle del stock de un insumo: pantalla de solo lectura con el resumen de sus cantidades (disponible, reservada,
     vencida y total) y todos sus lotes, también los que no tienen stock o están vencidos, por fecha de vencimiento
-    ascendente (el que vence primero arriba). "Abrir" lleva al detalle del lote.
+    ascendente (el que vence primero arriba). "Abrir" lleva al detalle del lote y "Registrar ajuste", que ve quien puede registrar ajustes de insumo, al formulario de ajuste con el lote elegido.
 -->
 <div id="stock-detalle-insumo-content" class="space-y-6">
 
@@ -73,6 +73,9 @@
                     <td class="px-4 py-3 text-slate-900 text-right font-semibold whitespace-nowrap" data-cantidad-total><th:block th:replace="~{receta/formato :: medida(${l.cantidades.total}, ${simbolo})}"></th:block></td>
                     <td class="col-acciones px-4 py-3">
                         <div class="flex items-center justify-end gap-1">
+                            <th:block sec:authorize="hasAuthority('AJUSTE_INSUMO_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/ajustes-insumo/nuevo(idLoteInsumo=${l.id})}, 'Registrar ajuste', 'bi-sliders2', 'Registrar ajuste del lote ' + ${l.identificacionLoteProveedor})}"></th:block>
+                            </th:block>
                             <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/stock-insumos/lotes/{id}(id=${l.id})}, 'Abrir lote ' + ${l.identificacionLoteProveedor})}"></th:block>
                         </div>
                     </td>

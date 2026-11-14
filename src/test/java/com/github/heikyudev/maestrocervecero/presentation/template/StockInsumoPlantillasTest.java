@@ -96,6 +96,17 @@ class StockInsumoPlantillasTest {
         return Files.readString(TEMPLATES.resolve(ruta), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
+    @Test
+    @DisplayName("CP-PSI-07: la tabla de lotes del detalle del insumo ofrece Registrar ajuste con el lote elegido (idLoteInsumo) y lo protege con AJUSTE_INSUMO_REGISTRAR")
+    void registrarAjusteDesdeLosLotes() throws IOException {
+        String html = leer("stock_insumo/stock-detalle-insumo.html");
+        int boton = html.indexOf("fragments/boton-registrar :: registrar(@{/ajustes-insumo/nuevo(idLoteInsumo=${l.id})}");
+
+        assertThat(boton).isPositive();
+        assertThat(html.substring(html.lastIndexOf("<th:block sec:authorize=\"", boton), boton)).contains("hasAuthority('AJUSTE_INSUMO_REGISTRAR')");
+        assertThat(html).contains("'Registrar ajuste', 'bi-sliders2'").doesNotContain("<form");
+    }
+
     private static int count(String texto, String buscado) {
         return texto.split(java.util.regex.Pattern.quote(buscado), -1).length - 1;
     }

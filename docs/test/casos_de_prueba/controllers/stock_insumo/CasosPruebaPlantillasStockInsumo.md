@@ -10,3 +10,4 @@
 | **CP-PSI-04** | Columnas y filtros | Cada tabla lleva sus columnas; la lista tiene los filtros con ejemplo, Limpiar y Buscar y es `novalidate`. |
 | **CP-PSI-05** | Detalle del lote | Usa pestañas con ícono y protege el enlace al lote de producción con `LOTE_CONSULTAR`. |
 | **CP-PSI-06** | Sin Vencido ni costos | Ninguna pantalla del stock lleva un distintivo Vencido ni muestra costos. |
+| **CP-PSI-07** | Registrar ajuste desde los lotes | La tabla de lotes del detalle del insumo ofrece "Registrar ajuste" (`bi-sliders2`) con `idLoteInsumo` y lo protege con `AJUSTE_INSUMO_REGISTRAR`; no usa formularios. |

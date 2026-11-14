@@ -113,7 +113,8 @@ Cualquier otro rol (o un usuario con el permiso de otra acción) es rechazado: l
 |**CP-IIC-61**|Cada endpoint exige su permiso|Cada endpoint, con los otros dos permisos del módulo y, por separado, con solo el suyo|El permiso es por acción|Con los otros dos: 3xx con la alerta de permisos. Con solo el suyo: respuesta 200 o 3xx sin la alerta.|
 |**CP-IIC-62**|Menú|Encargado con los tres permisos, y un usuario con el rol pero sin `INGRESO_INSUMO_CONSULTAR`|La opción del menú depende del permiso de consulta|La sidebar muestra "Ingresos de Insumo" con el permiso y no la muestra sin él.|
 |**CP-IIC-63**|Sin sesión y sin CSRF|Sin iniciar sesión (páginas y envíos); y envíos con sesión pero sin token CSRF|La seguridad de la sesión y del token|Sin sesión: redirige a `/login`. Sin token CSRF: el envío es rechazado (3xx) y no llega al service.|
+|**CP-IIC-70**|Formulario por compra con la orden indicada|`GET /ingresos-insumo/compra/nuevo?idOrdenCompra=7` (orden Pendiente) y `idOrdenCompra=8` (orden Finalizada)|El ID de la orden es un parámetro aparte del formulario y solo una orden Pendiente llega elegida|Con la orden 7 el selector de orden muestra la orden y el selector de ítem queda habilitado; con la orden 8 el selector de orden queda vacío. No se registra nada.|
 
 ### Resumen
 
-La clase tiene 69 casos (CP-IIC-01 a CP-IIC-69); los tres de seguridad CP-IIC-59, CP-IIC-60 y CP-IIC-61 son parametrizados y se ejecutan una vez por endpoint (11), por lo que `IngresoInsumoControllerTest` ejecuta 99 pruebas.
+La clase tiene 70 casos (CP-IIC-01 a CP-IIC-70); los tres de seguridad CP-IIC-59, CP-IIC-60 y CP-IIC-61 son parametrizados y se ejecutan una vez por endpoint (11), por lo que `IngresoInsumoControllerTest` ejecuta 99 pruebas.
