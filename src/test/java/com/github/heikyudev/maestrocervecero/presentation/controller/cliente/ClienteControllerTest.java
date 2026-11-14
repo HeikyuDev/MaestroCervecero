@@ -65,6 +65,21 @@ class ClienteControllerTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardOperarioServicio dashboardOperarioServicio;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardGerenteServicio dashboardGerenteServicio;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardEncargadoDepositoServicio dashboardEncargadoDepositoServicio;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardAdministradorServicio dashboardAdministradorServicio;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardGerenteComprasServicio dashboardGerenteComprasServicio;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardEncargadoDistribucionServicio dashboardEncargadoDistribucionServicio;
+
     private static final String OBLIGATORIO = "<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>";
     private static final String URL = "/clientes";
     private static final String VISTA_FORMULARIO = "cliente/cliente-form";

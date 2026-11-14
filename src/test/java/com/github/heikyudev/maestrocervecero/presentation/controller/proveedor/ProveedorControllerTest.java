@@ -96,6 +96,21 @@ class ProveedorControllerTest {
     private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardOperarioServicio dashboardOperarioServicio;
 
     @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardGerenteServicio dashboardGerenteServicio;
+
+    @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardEncargadoDepositoServicio dashboardEncargadoDepositoServicio;
+
+    @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardAdministradorServicio dashboardAdministradorServicio;
+
+    @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardGerenteComprasServicio dashboardGerenteComprasServicio;
+
+    @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardEncargadoDistribucionServicio dashboardEncargadoDistribucionServicio;
+
+    @MockitoBean
     private IInsumoServicio insumoServicio;
 
     @MockitoBean
