@@ -12,8 +12,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IPrese
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.CatalogoProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.PresentacionComercialResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
@@ -41,7 +39,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -283,24 +280,6 @@ public class ProveedorController {
     }
 
     // ==================== Modelo del formulario ====================
-
-    private static Map<TipoInsumo, String> tiposDeInsumo() {
-        Map<TipoInsumo, String> tipos = new LinkedHashMap<>();
-        tipos.put(TipoInsumo.MALTA, "Malta");
-        tipos.put(TipoInsumo.LUPULO, "Lúpulo");
-        tipos.put(TipoInsumo.LEVADURA, "Levadura");
-        return tipos;
-    }
-
-    /**
-     * El tipo del insumo para mostrar: Malta, Lúpulo o Levadura.
-     */
-    private static String etiquetaTipo(InsumoResponseDTO insumo) {
-        if (insumo instanceof MaltaResponseDTO) {
-            return TIPOS_DE_INSUMO.get(TipoInsumo.MALTA);
-        }
-        return TIPOS_DE_INSUMO.get(insumo instanceof LupuloResponseDTO ? TipoInsumo.LUPULO : TipoInsumo.LEVADURA);
-    }
 
     /**
      * Marca el duplicado en el campo que indica el service (el CUIT o el correo electrónico, los dos datos únicos de la

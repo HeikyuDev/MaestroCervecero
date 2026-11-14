@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.configuracion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
+import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -35,6 +36,10 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * <p>
  * Un motivo con ajustes de insumo asociados, registrados o anulados, no puede cambiar de tipo ni darse de baja: en la
  * edición el selector del tipo se muestra bloqueado y el service sigue siendo la fuente de verdad de la regla.
+ * </p>
+ * <p>
+ * Si el alta se abre desde el selector del motivo de otro formulario ({@link RetornoContextual}), al guardar se vuelve a
+ * ese formulario con el motivo creado ya elegido.
  * </p>
  */
 @Controller
@@ -73,27 +78,33 @@ public class MotivoAjusteController {
      */
     @GetMapping("/nuevo")
     @PreAuthorize("hasAuthority('MOTIVO_AJUSTE_CREAR')")
-    public String mostrarFormularioAlta(Model model) {
+    public String mostrarFormularioAlta(@RequestParam(required = false) String retorno,
+                                        @RequestParam(required = false) String campo,
+                                        Model model) {
         model.addAttribute(ATRIBUTO_FORMULARIO, new MotivoAjusteFormDTO());
-        cargarModeloFormulario(model, null, false);
+        cargarModeloFormulario(model, null, false, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
      * Procesa el alta (Post-Redirect-Get). Si la validación del formulario o una regla del service falla, se vuelve a
-     * renderizar el formulario (sin redirigir) para no perder lo tipeado.
+     * renderizar el formulario (sin redirigir) para no perder lo tipeado. Si el alta se abrió desde el selector de otro
+     * formulario ({@link RetornoContextual}), al guardar se vuelve a ese formulario con el motivo creado ya elegido.
      */
     @PostMapping
     @PreAuthorize("hasAuthority('MOTIVO_AJUSTE_CREAR')")
     public String altaMotivoAjuste(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) MotivoAjusteFormDTO motivoAjusteForm,
                                    BindingResult bindingResult,
+                                   @RequestParam(required = false) String retorno,
+                                   @RequestParam(required = false) String campo,
                                    Model model,
                                    RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
-                motivoAjusteServicio.altaMotivoAjuste(motivoAjusteForm);
+                MotivoAjusteResponseDTO motivo = motivoAjusteServicio.altaMotivoAjuste(motivoAjusteForm);
                 agregarMensaje(redirectAttributes, "Motivo de ajuste creado correctamente", TipoAlerta.SUCCESS);
-                return "redirect:" + URL_LISTA;
+                String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, motivo == null ? null : motivo.getId());
+                return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -101,7 +112,7 @@ public class MotivoAjusteController {
             }
         }
 
-        cargarModeloFormulario(model, null, false);
+        cargarModeloFormulario(model, null, false, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
@@ -117,7 +128,7 @@ public class MotivoAjusteController {
                 .nombre(motivo.getNombre())
                 .tipoAjuste(motivo.getTipoAjuste())
                 .build());
-        cargarModeloFormulario(model, id, Boolean.TRUE.equals(motivo.getTieneAjustes()));
+        cargarModeloFormulario(model, id, Boolean.TRUE.equals(motivo.getTieneAjustes()), null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -145,7 +156,7 @@ public class MotivoAjusteController {
         }
 
         // El bloqueo del tipo se vuelve a leer del service: no depende de lo que haya enviado el formulario
-        cargarModeloFormulario(model, id, Boolean.TRUE.equals(motivoAjusteServicio.buscarPorId(id).getTieneAjustes()));
+        cargarModeloFormulario(model, id, Boolean.TRUE.equals(motivoAjusteServicio.buscarPorId(id).getTieneAjustes()), null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -176,10 +187,13 @@ public class MotivoAjusteController {
         }
     }
 
-    private void cargarModeloFormulario(Model model, Long motivoId, boolean tipoBloqueado) {
+    private void cargarModeloFormulario(Model model, Long motivoId, boolean tipoBloqueado, String retorno, String campo) {
+        String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("motivoId", motivoId);
         model.addAttribute("tipos", TipoAjuste.values());
         model.addAttribute("tipoBloqueado", tipoBloqueado);
-        model.addAttribute("urlCancelar", URL_LISTA);
+        model.addAttribute("retorno", retornoValido);
+        model.addAttribute("campo", RetornoContextual.campoValido(campo));
+        model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
     }
 }

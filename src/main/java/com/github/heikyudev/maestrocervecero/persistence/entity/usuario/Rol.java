@@ -64,9 +64,7 @@ public enum Rol {
             Permiso.MOTIVO_AJUSTE_MODIFICAR,
             Permiso.MOTIVO_AJUSTE_ELIMINAR,
             Permiso.MOTIVO_AJUSTE_CONSULTAR,
-            Permiso.AJUSTE_STOCK_REGISTRAR,
-            Permiso.AJUSTE_STOCK_ANULAR,
-            Permiso.AJUSTE_STOCK_CONSULTAR,
+            Permiso.AJUSTE_INSUMO_CONSULTAR,
             Permiso.STOCK_INSUMO_CONSULTAR
     )),
 
@@ -137,6 +135,9 @@ public enum Rol {
             Permiso.INGRESO_INSUMO_CONSULTAR,
             Permiso.CONSUMO_INSUMO_CONSULTAR,
             Permiso.ORDEN_COMPRA_CONSULTAR,
+            Permiso.AJUSTE_INSUMO_REGISTRAR,
+            Permiso.AJUSTE_INSUMO_ANULAR,
+            Permiso.AJUSTE_INSUMO_CONSULTAR,
             Permiso.STOCK_INSUMO_CONSULTAR
     )),
 

@@ -3,10 +3,15 @@ package com.github.heikyudev.maestrocervecero.presentation.controller;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import org.springframework.data.domain.Page;
@@ -18,6 +23,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -111,6 +117,43 @@ public final class MetodosControlador {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /**
+     * El estado transaccional con ese nombre (sin distinguir mayúsculas), o {@code null} si el texto está vacío o no
+     * corresponde a ninguno (se muestran todos).
+     */
+    public static EstadoTransaccion aEstadoTransaccion(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
+            return null;
+        }
+        try {
+            return EstadoTransaccion.valueOf(limpio.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * El tipo del insumo para mostrar: Malta, Lúpulo o Levadura.
+     */
+    public static String etiquetaTipo(InsumoResponseDTO insumo) {
+        if (insumo instanceof MaltaResponseDTO) {
+            return "Malta";
+        }
+        return insumo instanceof LupuloResponseDTO ? "Lúpulo" : "Levadura";
+    }
+
+    /**
+     * Los tipos de insumo con su etiqueta, en el orden en que se ofrecen en los selectores.
+     */
+    public static Map<TipoInsumo, String> tiposDeInsumo() {
+        Map<TipoInsumo, String> tipos = new LinkedHashMap<>();
+        tipos.put(TipoInsumo.MALTA, "Malta");
+        tipos.put(TipoInsumo.LUPULO, "Lúpulo");
+        tipos.put(TipoInsumo.LEVADURA, "Levadura");
+        return tipos;
     }
 
     /**

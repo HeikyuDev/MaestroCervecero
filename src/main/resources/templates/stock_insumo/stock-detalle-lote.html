@@ -7,7 +7,8 @@
 <!--
     Detalle de un lote de insumo: pantalla de solo lectura con los datos del lote y sus cantidades (disponible,
     reservada, vencida y total) y, en dos pestañas, las reservas y los consumos que se hicieron sobre él, el último
-    registro arriba. El lote de producción de cada fila lleva al panel del lote para quien puede consultar lotes.
+    registro arriba. El lote de producción de cada fila lleva al panel del lote para quien puede consultar lotes. El
+    botón "Ajustar" lleva al formulario de un ajuste de insumo con este lote elegido y lo ve quien puede registrar ajustes.
 -->
 <div id="stock-detalle-lote-content" class="space-y-6"
      th:with="simbolo=${lote.unidadDeMedida.simbolo}">
@@ -17,7 +18,13 @@
         <a th:href="@{/stock-insumos/{id}(id=${lote.idInsumo})}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i> <span>Volver a <span th:text="${lote.nombreInsumo}">Pilsen</span></span>
         </a>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Lote <span th:text="${lote.identificacionLoteProveedor}">L-125</span></h1>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Lote <span th:text="${lote.identificacionLoteProveedor}">L-125</span></h1>
+            <a sec:authorize="hasAuthority('AJUSTE_INSUMO_REGISTRAR')" data-ajustar-lote th:href="@{/ajustes-insumo/nuevo(idLoteInsumo=${lote.id})}"
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                <i class="bi bi-sliders2"></i> Ajustar
+            </a>
+        </div>
     </section>
 
     <!-- 1. Información del lote de insumo -->

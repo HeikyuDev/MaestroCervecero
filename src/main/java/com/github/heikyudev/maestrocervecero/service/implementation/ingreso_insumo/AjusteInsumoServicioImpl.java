@@ -22,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperAjusteInsumo;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,12 +30,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
+
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final long UNIDADES_POR_CANTIDAD = Math.round(Math.pow(10, LimitesTecnicos.ESCALA_CANTIDADES));
 
     private final IAjusteInsumoRepository ajusteInsumoRepository;
     private final IMotivoAjusteRepository motivoAjusteRepository;
@@ -42,23 +51,37 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
     private final IReservaInsumoRepository reservaInsumoRepository;
 
     /**
-     * Filtra los ajustes de insumo, opcionalmente por lote de insumo y/o estado transaccional.
+     * Filtra los ajustes de insumo, opcionalmente por lote de insumo, tipo de ajuste, estado
+     * transaccional y/o rango de fecha de registro.
      * <p>
      * A diferencia del resto de los módulos, {@code estado} no asume {@code REGISTRADO} por
      * defecto: incluye tanto los ajustes en estado {@code REGISTRADO} como los {@code ANULADO}
      * cuando no se lo informa, ya que la anulación es un cierre excepcional del registro
      * histórico, no una baja lógica que deba ocultarlo de las búsquedas.
      * </p>
+     * <p>
+     * Valida que el rango de fechas, si viene completo, no esté invertido; en ese caso no consulta
+     * el repositorio.
+     * </p>
      *
      * @param idLoteInsumo El ID del lote de insumo a filtrar, o {@code null} para no filtrar por él.
+     * @param tipoAjuste El tipo de ajuste (el del motivo del ajuste) a filtrar, o {@code null} para no filtrar por él.
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
+     * @param fechaDesde Límite inferior (inclusive) del rango de fecha de registro, o {@code null} para no acotarlo.
+     * @param fechaHasta Límite superior (inclusive) del rango de fecha de registro, o {@code null} para no acotarlo.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return Una página de ajustes de insumo en formato DTO que cumplen los criterios indicados.
+     * @throws ReglaNegocioException Si {@code fechaDesde} es posterior a {@code fechaHasta}.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<AjusteInsumoResponseDTO> filtrarAjustesInsumos(Long idLoteInsumo, EstadoTransaccion estado, Pageable pageable) {
-        return ajusteInsumoRepository.filtrarAjustesInsumo(idLoteInsumo, estado, pageable).map(MapperAjusteInsumo::toDTO);
+    public Page<AjusteInsumoResponseDTO> filtrarAjustesInsumos(Long idLoteInsumo, TipoAjuste tipoAjuste, EstadoTransaccion estado, LocalDateTime fechaDesde, LocalDateTime fechaHasta, Pageable pageable) {
+        if (fechaDesde != null && fechaHasta != null && fechaDesde.isAfter(fechaHasta)) {
+            throw new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde");
+        }
+
+        return ajusteInsumoRepository.filtrarAjustesInsumo(idLoteInsumo, tipoAjuste, estado, fechaDesde, fechaHasta, pageable)
+                .map(MapperAjusteInsumo::toDTO);
     }
 
     /**
@@ -88,39 +111,53 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * @param ajusteInsumoFormDTO Los datos del ajuste a registrar.
      * @return El ajuste de insumo registrado.
      * @throws RecursoNoEncontradoException Si el motivo de ajuste o el lote de insumo referenciados no existen.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero, si la observación no fue informada, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
+     * @throws ReglaNegocioException Si los datos, el lote de insumo o el motivo de ajuste no fueron informados, si la cantidad es nula, NaN, infinita, menor o igual a cero, supera el máximo o tiene más decimales que la escala, si la observación no fue informada, si un ajuste de tipo INGRESO se aplica sobre un lote de insumo vencido, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.AJUSTE_INSUMO)
     public AjusteInsumoResponseDTO registrarAjusteInsumo(AjusteInsumoFormDTO ajusteInsumoFormDTO) {
-        // 1. Validar que el motivo de ajuste esté registrado en el sistema
+        // 1. Validar que se hayan informado los datos, el lote de insumo y el motivo de ajuste
+        if (ajusteInsumoFormDTO == null) {
+            throw new ReglaNegocioException("Los datos del ajuste de insumo son obligatorios");
+        }
+        if (ajusteInsumoFormDTO.getIdLoteInsumo() == null) {
+            throw new ReglaNegocioException("El lote de insumo es obligatorio", "idLoteInsumo");
+        }
+        if (ajusteInsumoFormDTO.getIdMotivoAjuste() == null) {
+            throw new ReglaNegocioException("El motivo de ajuste es obligatorio", "idMotivoAjuste");
+        }
+
+        // 2. Validar la cantidad (informada, finita, mayor a 0, dentro del máximo y de la escala) y la observación
+        double cantidad = validarCantidad(ajusteInsumoFormDTO.getCantidad());
+        String observacion = NormalizacionTexto.nombrePropio(ajusteInsumoFormDTO.getObservacion());
+        if (observacion == null || observacion.isEmpty()) {
+            throw new ReglaNegocioException("La observación es obligatoria", "observacion");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(observacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "La observación", "observacion");
+
+        // 3. Validar que el motivo de ajuste esté registrado en el sistema
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(ajusteInsumoFormDTO.getIdMotivoAjuste())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + ajusteInsumoFormDTO.getIdMotivoAjuste()));
 
-        // 2. Validar que el lote de insumo esté registrado en el sistema (bloqueado para escritura,
+        // 4. Validar que el lote de insumo esté registrado en el sistema (bloqueado para escritura,
         //    ya que este ajuste va a mutar su stock)
         LoteInsumoEntity loteInsumoEntity = loteInsumoRepository.buscarPorIdParaAjustar(ajusteInsumoFormDTO.getIdLoteInsumo())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + ajusteInsumoFormDTO.getIdLoteInsumo()));
 
-        // 3. Validar que la cantidad sea mayor a 0
-        Double cantidad = ajusteInsumoFormDTO.getCantidad();
-        if (cantidad == null || cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad debe ser mayor a 0");
+        // 5. Validar que un ajuste de tipo INGRESO no se aplique sobre un lote de insumo vencido
+        //    (un EGRESO sí se permite: es la merma típica de un lote vencido)
+        if (motivoAjusteEntity.getTipoAjuste() == TipoAjuste.INGRESO
+                && loteInsumoEntity.getFechaVencimiento().isBefore(LocalDate.now())) {
+            throw new ReglaNegocioException("El lote de insumo está vencido (venció el "
+                    + loteInsumoEntity.getFechaVencimiento().format(FORMATO_FECHA) + ") y no admite ajustes de ingreso", "idLoteInsumo");
         }
 
-        // 4. Validar que se haya informado la observación
-        String observacion = NormalizacionTexto.nombrePropio(ajusteInsumoFormDTO.getObservacion());
-        if (observacion == null || observacion.isEmpty()) {
-            throw new ReglaNegocioException("La observación es obligatoria");
-        }
-        ValidacionesNumericas.validarLongitudMaxima(observacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "La observación");
-
-        // 5. Aplicar el ajuste al lote (valida, para un EGRESO, que no deje cantidad disponible
+        // 6. Aplicar el ajuste al lote (valida, para un EGRESO, que no deje cantidad disponible
         //    negativa) y persistirlo
         loteInsumoEntity = aplicarAjusteAlLote(loteInsumoEntity, motivoAjusteEntity.getTipoAjuste(), cantidad);
 
-        // 6. Construir y persistir el ajuste de insumo, y retornar el DTO de respuesta correspondiente
+        // 7. Construir y persistir el ajuste de insumo, y retornar el DTO de respuesta correspondiente
         AjusteInsumoEntity ajusteInsumoEntity = AjusteInsumoEntity.builder()
                 .cantidad(cantidad)
                 .observacion(observacion)
@@ -143,21 +180,28 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * @param anularAjusteInsumoFormDTO Los datos de la anulación (motivo).
      * @return El ajuste de insumo anulado.
      * @throws RecursoNoEncontradoException Si el ajuste de insumo con el ID especificado no existe.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el ajuste no se encuentra en estado {@code REGISTRADO}, o si revertir un ajuste de tipo INGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
+     * @throws ReglaNegocioException Si el ID o los datos de la anulación no fueron informados, si el motivo de anulación no fue informado, si el ajuste no se encuentra en estado {@code REGISTRADO}, o si revertir un ajuste de tipo INGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.AJUSTE_INSUMO)
     public AjusteInsumoResponseDTO anularAjusteInsumo(Long id, AnularAjusteInsumoFormDTO anularAjusteInsumoFormDTO) {
-        // 1. Validar que se haya informado el motivo de anulación
+        // 1. Validar que se hayan informado el ajuste y el motivo de anulación
+        if (id == null) {
+            throw new ReglaNegocioException("El ajuste de insumo es obligatorio");
+        }
+        if (anularAjusteInsumoFormDTO == null) {
+            throw new ReglaNegocioException("Los datos de la anulación del ajuste de insumo son obligatorios");
+        }
         String motivoAnulacion = NormalizacionTexto.nombrePropio(anularAjusteInsumoFormDTO.getMotivoAnulacion());
         if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
-            throw new ReglaNegocioException("El motivo de anulación es obligatorio");
+            throw new ReglaNegocioException("El motivo de anulación es obligatorio", "motivoAnulacion");
         }
-        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación", "motivoAnulacion");
 
-        // 2. Localizar el ajuste de insumo. Si no existe, se dispara RecursoNoEncontradoException
-        AjusteInsumoEntity ajusteInsumoEntity = ajusteInsumoRepository.findById(id)
+        // 2. Localizar el ajuste de insumo bloqueando su fila antes de validar su estado: una segunda anulación del
+        //    mismo ajuste espera a la primera y luego lo encuentra ANULADO. Si no existe, se dispara RecursoNoEncontradoException
+        AjusteInsumoEntity ajusteInsumoEntity = ajusteInsumoRepository.buscarPorIdParaAnular(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ajuste de insumo con ID: " + id));
 
         // 3. Validar que el ajuste se encuentre en estado REGISTRADO
@@ -248,7 +292,8 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      */
     private LoteInsumoEntity descontarDelLote(LoteInsumoEntity loteInsumoEntity, double cantidad) {
         if (cantidad > loteInsumoEntity.getCantidadActual()) {
-            throw new ReglaNegocioException("La cantidad a descontar no puede superar la cantidad actual del lote de insumo");
+            throw new ReglaNegocioException("La cantidad a descontar no puede superar la cantidad actual del lote de insumo ("
+                    + describirCantidad(loteInsumoEntity.getCantidadActual(), loteInsumoEntity) + ")");
         }
 
         double excedenteSobreReservado = Math.max(0, cantidad - loteInsumoEntity.getCantidadDisponible());
@@ -273,21 +318,124 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * o un consumo concurrente las modifique al mismo tiempo.
      * </p>
      *
+     * <p>
+     * El reparto trabaja en unidades enteras de la última cifra de las cantidades y usa el método del mayor resto: cada
+     * reserva recibe su parte entera y las unidades que sobran se asignan a las reservas con mayor resto (a igual resto,
+     * la de mayor saldo pendiente), sin superar nunca el saldo de ninguna. Así la suma de lo quitado a las reservas es
+     * exactamente el excedente (o todo el saldo pendiente, si este es menor) y el contador del lote baja por esa misma
+     * suma.
+     * </p>
+     *
      * @param loteInsumoEntity Lote de insumo sobre el que se reducen las reservas.
      * @param excedente Cantidad total a repartir y descontar entre las reservas activas.
      */
     private void reducirReservasProporcionalmente(LoteInsumoEntity loteInsumoEntity, double excedente) {
         List<ReservaInsumoEntity> reservas = reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(loteInsumoEntity.getId());
-        double totalPendiente = reservas.stream().mapToDouble(ReservaInsumoEntity::getCantidadPendiente).sum();
 
-        if (totalPendiente > 0) {
-            for (ReservaInsumoEntity reserva : reservas) {
-                double proporcion = reserva.getCantidadPendiente() / totalPendiente;
-                reserva.reducirPorAjuste(excedente * proporcion);
+        long[] pendientes = new long[reservas.size()];
+        BigInteger totalPendiente = BigInteger.ZERO;
+        for (int i = 0; i < pendientes.length; i++) {
+            pendientes[i] = aUnidades(reservas.get(i).getCantidadPendiente());
+            totalPendiente = totalPendiente.add(BigInteger.valueOf(pendientes[i]));
+        }
+
+        BigInteger aReducir = BigInteger.valueOf(aUnidades(excedente)).min(totalPendiente);
+        long[] reducciones = repartirPorMayorResto(pendientes, totalPendiente, aReducir);
+
+        long totalReducido = 0;
+        for (int i = 0; i < reducciones.length; i++) {
+            if (reducciones[i] > 0) {
+                reservas.get(i).reducirPorAjuste(deUnidades(reducciones[i]));
+                totalReducido += reducciones[i];
             }
         }
         reservaInsumoRepository.saveAll(reservas);
 
-        loteInsumoEntity.setCantidadReservada(loteInsumoEntity.getCantidadReservada() - excedente);
+        // El contador del lote baja por lo realmente quitado a las reservas, nunca por el excedente en bruto
+        loteInsumoEntity.liberarReserva(Math.min(deUnidades(totalReducido), loteInsumoEntity.getCantidadReservada()));
+        // Lo reservado nunca supera lo que físicamente queda en el lote
+        double reservadoSobrante = Redondeo.redondear(loteInsumoEntity.getCantidadReservada() - loteInsumoEntity.getCantidadActual());
+        if (reservadoSobrante > 0) {
+            loteInsumoEntity.liberarReserva(reservadoSobrante);
+        }
+    }
+
+    /**
+     * Reparte {@code aRepartir} unidades enteras en proporción a {@code pendientes} con el método del mayor resto,
+     * sin asignar a ninguna posición más que su propio pendiente.
+     *
+     * @param pendientes Saldo pendiente de cada reserva, en unidades enteras.
+     * @param totalPendiente Suma de {@code pendientes}.
+     * @param aRepartir Unidades a repartir (no superiores a {@code totalPendiente}).
+     * @return Las unidades asignadas a cada posición; su suma es exactamente {@code aRepartir}.
+     */
+    private static long[] repartirPorMayorResto(long[] pendientes, BigInteger totalPendiente, BigInteger aRepartir) {
+        long[] partes = new long[pendientes.length];
+        if (totalPendiente.signum() == 0 || aRepartir.signum() == 0) {
+            return partes;
+        }
+
+        BigInteger[] restos = new BigInteger[pendientes.length];
+        BigInteger asignado = BigInteger.ZERO;
+        for (int i = 0; i < pendientes.length; i++) {
+            BigInteger[] divisionYResto = aRepartir.multiply(BigInteger.valueOf(pendientes[i])).divideAndRemainder(totalPendiente);
+            partes[i] = divisionYResto[0].longValueExact();
+            restos[i] = divisionYResto[1];
+            asignado = asignado.add(divisionYResto[0]);
+        }
+
+        // Las unidades que sobran son menos que la cantidad de reservas: una más a cada una de las de mayor resto
+        List<Integer> orden = new ArrayList<>();
+        for (int i = 0; i < pendientes.length; i++) {
+            orden.add(i);
+        }
+        orden.sort(Comparator.<Integer, BigInteger>comparing(i -> restos[i]).reversed()
+                .thenComparing(Comparator.<Integer>comparingLong(i -> pendientes[i]).reversed()));
+        long sobrantes = aRepartir.subtract(asignado).longValueExact();
+        for (int k = 0; k < sobrantes; k++) {
+            partes[orden.get(k)]++;
+        }
+        return partes;
+    }
+
+    private static long aUnidades(double cantidad) {
+        return Math.round(Redondeo.redondear(cantidad) * UNIDADES_POR_CANTIDAD);
+    }
+
+    private static double deUnidades(long unidades) {
+        return Redondeo.redondear((double) unidades / UNIDADES_POR_CANTIDAD);
+    }
+
+    /**
+     * Valida la cantidad de un ajuste, expresada en la unidad de medida del insumo, y la devuelve redondeada a la
+     * escala de las cantidades ({@link LimitesTecnicos#ESCALA_CANTIDADES} decimales): informada, un número finito
+     * mayor a 0, que no supere {@link LimitesTecnicos#CANTIDAD_INGRESO_MAXIMA} y con no más de
+     * {@link LimitesTecnicos#ESCALA_CANTIDADES} decimales.
+     *
+     * @param cantidad Cantidad a validar.
+     * @return La cantidad redondeada.
+     * @throws ReglaNegocioException Si la cantidad es nula, NaN, infinita, menor o igual a cero, supera el máximo o tiene más decimales que la escala.
+     */
+    private static double validarCantidad(Double cantidad) {
+        if (cantidad == null) {
+            throw new ReglaNegocioException("La cantidad es obligatoria", "cantidad");
+        }
+        if (!Double.isFinite(cantidad) || cantidad <= 0) {
+            throw new ReglaNegocioException("La cantidad debe ser mayor a 0", "cantidad");
+        }
+        if (cantidad > LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA) {
+            throw new ReglaNegocioException("La cantidad no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA), "cantidad");
+        }
+        ValidacionesNumericas.validarMaximoDecimales(cantidad, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad", "cantidad");
+        return Redondeo.redondear(cantidad);
+    }
+
+    /**
+     * Describe una cantidad de un insumo con la unidad de medida del insumo del lote de insumo (por ejemplo
+     * {@code "12,35 kg"}).
+     */
+    private static String describirCantidad(double cantidad, LoteInsumoEntity loteInsumo) {
+        return ValidacionesNumericas.formatearNumero(cantidad) + " " + loteInsumo.getInsumo().getUnidadDeMedida().getSimbolo();
     }
 }

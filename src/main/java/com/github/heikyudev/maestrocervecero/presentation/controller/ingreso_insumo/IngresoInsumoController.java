@@ -520,38 +520,9 @@ public class IngresoInsumoController {
         return version.getRazonSocial() + " (" + ValidacionesTexto.formatearCuit(version.getCuit()) + ")";
     }
 
-    /** El tipo del insumo para mostrar: Malta, Lúpulo o Levadura. */
-    private static String etiquetaTipo(InsumoResponseDTO insumo) {
-        if (insumo instanceof MaltaResponseDTO) {
-            return "Malta";
-        }
-        return insumo instanceof LupuloResponseDTO ? "Lúpulo" : "Levadura";
-    }
-
-    private static Map<TipoInsumo, String> tiposDeInsumo() {
-        Map<TipoInsumo, String> tipos = new LinkedHashMap<>();
-        tipos.put(TipoInsumo.MALTA, "Malta");
-        tipos.put(TipoInsumo.LUPULO, "Lúpulo");
-        tipos.put(TipoInsumo.LEVADURA, "Levadura");
-        return tipos;
-    }
-
     /** La pestaña pedida: "directo" es la de los ingresos directos; cualquier otro valor, o ninguno, la de "Por compra". */
     private static String pestanaDe(String texto) {
         return PESTANA_DIRECTO.equalsIgnoreCase(vacioANulo(texto)) ? PESTANA_DIRECTO : PESTANA_COMPRA;
-    }
-
-    /** El estado con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno (se muestran todos). */
-    private static EstadoTransaccion aEstadoTransaccion(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            return EstadoTransaccion.valueOf(limpio.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 
     /**

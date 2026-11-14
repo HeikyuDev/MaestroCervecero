@@ -15,16 +15,20 @@
     <div>
         <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i>
-            <span>Volver a motivos de ajuste</span>
+            <span th:text="${retorno != null} ? 'Volver al formulario anterior' : 'Volver a motivos de ajuste'">Volver a motivos de ajuste</span>
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
             th:text="${editando} ? 'Editar motivo de ajuste' : 'Nuevo motivo de ajuste'">Nuevo motivo de ajuste</h1>
-        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
+            <span th:if="${retorno != null}">Al guardar vuelve al formulario que estaba completando.</span></p>
     </div>
 
     <form th:action="${editando} ? @{/configuracion-produccion/motivos-ajuste/{id}(id=${motivoId})} : @{/configuracion-produccion/motivos-ajuste}"
           th:object="${motivoAjusteForm}" method="post" novalidate data-un-solo-envio
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
+        <input type="hidden" name="campo" th:if="${retorno != null and campo != null}" th:value="${campo}">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
         <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar el motivo de ajuste' : 'No se pudo crear el motivo de ajuste')}"></div>
@@ -51,7 +55,7 @@
                                 class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-500"
                                 th:classappend="${#fields.hasErrors('tipoAjuste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                             <option value="">Seleccione tipo de ajuste</option>
-                            <option th:each="t : ${tipos}" th:value="${t}" th:text="${t.name() == 'INGRESO'} ? 'Ingreso' : 'Egreso'">Ingreso</option>
+                            <option th:each="t : ${tipos}" th:value="${t}" th:text="${t.etiqueta}">Ingreso</option>
                         </select>
                         <input type="hidden" name="tipoAjuste" th:if="${tipoBloqueado}" th:value="*{tipoAjuste}">
                         <p th:if="${#fields.hasErrors('tipoAjuste')}" th:errors="*{tipoAjuste}" class="mt-1 text-xs text-rose-600"></p>

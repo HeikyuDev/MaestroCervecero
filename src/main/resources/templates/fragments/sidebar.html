@@ -104,6 +104,11 @@
             <th:block sec:authorize="hasAuthority('STOCK_INSUMO_CONSULTAR')">
                 <a th:replace="~{fragments/sidebar ::enlace('/stock-insumos', ${opcionActiva}, 'stock-insumos', 'bi-stack', 'Stock de Insumos')}"></a>
             </th:block>
+
+            <!-- AJUSTES DE INSUMO (Encargado de Depósito: los gestiona; Gerente de Producción: los consulta) -->
+            <th:block sec:authorize="hasAuthority('AJUSTE_INSUMO_CONSULTAR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/ajustes-insumo', ${opcionActiva}, 'ajustes-insumo', 'bi-sliders2', 'Ajustes de Insumo')}"></a>
+            </th:block>
         </th:block>
 
         <!--

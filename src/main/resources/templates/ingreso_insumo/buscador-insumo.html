@@ -6,7 +6,9 @@
     Contenido del modal de búsqueda de insumos (maltas, lúpulos y levaduras) de los ingresos de insumo: criterios de
     filtro + resultados con "Elegir". Lo usan el formulario del ingreso directo y el filtro del listado: el controller
     indica la URL del buscador (urlBuscador). El botón "Elegir" lleva en data-unidad el símbolo de la unidad del insumo
-    y en data-tipo su tipo.
+    y en data-tipo su tipo. Cuando el insumo es el primer paso de la elección de un lote (el filtro de la lista de ajustes
+    de insumo), el controller indica la URL de los lotes (urlLotesDelInsumo) y "Elegir" es un enlace que carga, dentro del
+    mismo modal, los lotes de ese insumo.
 -->
 <div th:fragment="buscador">
 
@@ -61,9 +63,11 @@
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${tiposPorId.get(i.id)}">Malta</td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${i.unidadDeMedida.simbolo}">kg</td>
                 <td class="col-acciones px-3 py-3 text-right">
-                    <button type="button" data-elegir th:data-id="${i.id}" th:data-texto="${i.nombre}" th:data-tipo="${tiposPorId.get(i.id)}"
+                    <button type="button" th:unless="${urlLotesDelInsumo != null}" data-elegir th:data-id="${i.id}" th:data-texto="${i.nombre}" th:data-tipo="${tiposPorId.get(i.id)}"
                             th:data-unidad="${i.unidadDeMedida.simbolo}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                    <a th:if="${urlLotesDelInsumo != null}" data-modal-get th:href="@{${urlLotesDelInsumo}(idInsumo=${i.id})}"
+                       class="inline-block shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</a>
                 </td>
             </tr>
             <tr th:if="${insumos.empty}">

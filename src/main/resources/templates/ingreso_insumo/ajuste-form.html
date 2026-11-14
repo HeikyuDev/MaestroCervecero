@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::#ajuste-form-content}, 'ajustes-insumo')}">
+<body>
+
+<!--
+    Formulario de un ajuste de insumo. Es una página aparte: al registrar vuelve a la lista (Post-Redirect-Get) y un
+    formulario inválido (o una regla del service) vuelve acá con sus errores y lo que se había cargado. El insumo, el lote
+    de insumo y el motivo se eligen con el buscador en modal. El insumo es un campo de ayuda de pantalla: solo sirve para
+    ofrecer los lotes de ese insumo, y al registrar viaja el lote. El lote de insumo queda deshabilitado hasta elegir el
+    insumo, solo ofrece los lotes de ese insumo y, al cambiar el insumo, se quita el lote elegido. Al elegir el lote se
+    muestran su vencimiento y su cantidad actual; al elegir el motivo, su tipo. La unidad del insumo se muestra como sufijo
+    de la cantidad (comportamiento de /js/ajuste-insumo-form.js, solo de visualización). Los tres campos ocultos
+    unidadInsumo, vencimientoLote y cantidadLote guardan esos datos mostrados para recuperarlos al volver del alta de un
+    motivo desde el selector; el service no los usa.
+-->
+<div id="ajuste-form-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a ajustes de insumo
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nuevo ajuste de insumo</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <form id="ajuste-form" th:action="@{${urlAccion}}" th:object="${ajusteForm}" method="post" novalidate data-un-solo-envio data-formulario-ajuste
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar el ajuste')}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lote de insumo</h2>
+
+            <!-- Una fila por tema: el insumo y el lote -->
+            <div class="space-y-5 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <span class="block text-sm font-medium text-slate-700 mb-1">Insumo <span class="text-rose-600" title="Obligatorio">*</span></span>
+                        <div th:replace="~{fragments/selector-entidad :: selector('idInsumo', ${insumoElegido != null} ? ${insumoElegido.id} : null, ${insumoElegido != null} ? ${insumoElegido.nombre} : null,
+                                ${urlBuscadorInsumos}, null, null, false, false, 'Seleccione insumo')}"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <span class="block text-sm font-medium text-slate-700 mb-1">Lote de insumo <span class="text-rose-600" title="Obligatorio">*</span></span>
+                        <div data-selector-lote th:data-buscador-base="${urlBuscadorLotes}" th:data-deshabilitado="${insumoElegido == null} ? 'true'"
+                             th:classappend="${insumoElegido == null} ? 'opacity-50'">
+                        <div th:replace="~{fragments/selector-entidad :: selector('idLoteInsumo', *{idLoteInsumo}, ${loteElegido != null} ? ${loteElegido.identificacionLoteProveedor} : null,
+                                ${insumoElegido != null} ? ${urlBuscadorLotes + '?idInsumo=' + insumoElegido.id} : ${urlBuscadorLotes}, null, null, false, ${#fields.hasErrors('idLoteInsumo')}, 'Seleccione lote de insumo')}"></div>
+                        </div>
+                        <p data-ayuda-lote th:hidden="${insumoElegido != null}" class="mt-1 text-xs text-slate-500">Elija primero el insumo.</p>
+                        <p th:if="${#fields.hasErrors('idLoteInsumo')}" th:errors="*{idLoteInsumo}" class="mt-1 text-xs text-rose-600"></p>
+                        <p data-lote-elegido th:hidden="${loteElegido == null}" class="mt-2 text-xs text-slate-500">
+                            Vencimiento: <span data-lote-vencimiento><th:block th:if="${loteElegido != null}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${loteElegido.fechaVencimiento})}"></th:block></th:block></span>
+                            &middot; Cantidad actual: <span data-lote-cantidad><th:block th:if="${loteElegido != null}"><th:block th:replace="~{receta/formato :: medida(${loteElegido.cantidadActual}, ${loteElegido.insumo.unidadDeMedida.simbolo})}"></th:block></th:block></span>
+                        </p>
+                        <input type="hidden" name="unidadInsumo" data-unidad-insumo th:value="${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo}">
+                        <input type="hidden" name="vencimientoLote" data-vencimiento-lote
+                               th:value="${loteElegido != null and loteElegido.fechaVencimiento != null} ? ${#temporals.format(loteElegido.fechaVencimiento, 'dd/MM/yyyy')}">
+                        <input type="hidden" name="cantidadLote" data-cantidad-lote
+                               th:value="${loteElegido != null} ? ${#cantidades.conUnidad(loteElegido.cantidadActual, loteElegido.insumo.unidadDeMedida.simbolo)}">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ajuste</h2>
+
+            <!-- Una fila por tema: motivo, cantidad y observación -->
+            <div class="space-y-5 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <span class="flex items-center gap-1 text-sm font-medium text-slate-700 mb-1">Motivo de ajuste <span class="text-rose-600" title="Obligatorio">*</span>
+                            <th:block th:replace="~{fragments/tooltip :: ayuda('Ver cómo afecta un egreso a las reservas', 'info-motivo-reservas')}"></th:block>
+                        </span>
+                        <div id="info-motivo-reservas" hidden>Un egreso que supera la cantidad disponible del lote reduce en forma proporcional las reservas activas, y anular el ajuste no las restituye</div>
+                        <div th:replace="~{fragments/selector-entidad :: selector('idMotivoAjuste', *{idMotivoAjuste}, ${motivoElegido != null} ? ${motivoElegido.nombre} : null,
+                                ${urlBuscadorMotivos},
+                                ${#authorization.expression('hasAuthority(''MOTIVO_AJUSTE_CREAR'')')} ? @{/configuracion-produccion/motivos-ajuste/nuevo} : null,
+                                'Crear nuevo motivo', false, ${#fields.hasErrors('idMotivoAjuste')}, 'Seleccione motivo de ajuste')}"></div>
+                        <p th:if="${#fields.hasErrors('idMotivoAjuste')}" th:errors="*{idMotivoAjuste}" class="mt-1 text-xs text-rose-600"></p>
+                        <p data-motivo-elegido th:hidden="${motivoElegido == null}" class="mt-2 text-xs text-slate-500">
+                            Tipo: <span data-motivo-tipo th:text="${motivoElegido != null} ? ${motivoElegido.tipoAjuste.etiqueta} : ''">Egreso</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <label for="cantidad" class="block text-sm font-medium text-slate-700 mb-1">Cantidad <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div th:replace="~{fragments/campo-unidad :: numero('cantidad', ${cantidadEscrita}, 'Ej: 2,5',
+                                ${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo} : null, '', ${#fields.hasErrors('cantidad')}, false)}"></div>
+                        <p th:if="${#fields.hasErrors('cantidad')}" th:errors="*{cantidad}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                </div>
+                <div>
+                    <label for="observacion" class="block text-sm font-medium text-slate-700 mb-1">Observación <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <textarea id="observacion" th:field="*{observacion}" rows="3" autocomplete="off" placeholder="Ej: Derrame durante el trasvase"
+                              class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                              th:classappend="${#fields.hasErrors('observacion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
+                    <p th:if="${#fields.hasErrors('observacion')}" th:errors="*{observacion}" class="mt-1 text-xs text-rose-600"></p>
+                    <p class="mt-1 text-xs text-slate-400">Hasta 255 caracteres.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Registrar ajuste</button>
+        </div>
+    </form>
+
+    <script th:src="@{/js/ajuste-insumo-form.js}" defer></script>
+</div>
+
+</body>
+</html>

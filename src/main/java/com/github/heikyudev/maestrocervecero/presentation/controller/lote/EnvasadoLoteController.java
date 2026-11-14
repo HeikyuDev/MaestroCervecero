@@ -299,19 +299,6 @@ public class EnvasadoLoteController {
         }
     }
 
-    /** El estado con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno (se muestran todos). */
-    private static EstadoTransaccion aEstadoTransaccion(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            return EstadoTransaccion.valueOf(limpio.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
     /**
      * Lo que el usuario había cargado en el formulario que falló: la cantidad tal como la escribió (aunque no fuera un
      * número) y el barril elegido. Un barril que ya no existe deja el selector vacío.

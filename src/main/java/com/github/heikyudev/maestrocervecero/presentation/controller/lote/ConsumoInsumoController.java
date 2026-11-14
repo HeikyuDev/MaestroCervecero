@@ -582,19 +582,6 @@ public class ConsumoInsumoController {
         }).toList();
     }
 
-    /** El estado con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno (se muestran todos). */
-    private static EstadoTransaccion aEstadoTransaccion(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            return EstadoTransaccion.valueOf(limpio.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
     /** La pestaña pedida: "directo" es el consumo directo; cualquier otro valor, o ninguno, la pestaña "Reservados". */
     private static TipoConsumo aTipoConsumo(String texto) {
         return "directo".equalsIgnoreCase(vacioANulo(texto)) ? TipoConsumo.DIRECTO : TipoConsumo.RESERVADO;
