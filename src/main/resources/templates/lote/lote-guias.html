@@ -4,16 +4,40 @@
 <!--
     Tarjeta guía de cada etapa del detalle del lote: lo que el operario necesita saber para trabajar la etapa. Cada
     dato es una etiqueta gris chica con su valor destacado debajo, como en la cabecera del lote. Cada fragmento usa
-    las variables del detalle (lote, receta, etapaMostrada, requeridos, agua, aguaError, adiciones, levaduras,
-    lupulosEnSeco, resumenEnvasado) y se inserta dentro del panel de la etapa. El avance del consumo frente a lo
-    requerido no va en la guía: está en la tabla "Insumos de la etapa".
+    las variables del detalle (lote, receta, etapaMostrada, estimacion, requeridos, agua, aguaError, adiciones,
+    levaduras, lupulosEnSeco, resumenEnvasado) y se inserta dentro del panel de la etapa. El avance del consumo frente
+    a lo requerido no va en la guía: está en la tabla "Insumos de la etapa".
 
+    tiempoDeEtapa: los datos de tiempo de la etapa, para insertar dentro de una fila de datos (dl). La duración estimada
+    se muestra siempre (con un guion y la aclaración en gris si no se pudo estimar, o con la base del cálculo en gris
+    en la Molienda y el Envasado); el fin previsto solo con la etapa en curso y la duración real solo con la etapa
+    finalizada.
     avisoAgua: alerta amarilla de la tarjeta cuando el cálculo del agua no se pudo hacer.
     cantidadesDeInsumos(lista): una línea "Insumo: cantidad" por cada insumo requerido de la lista.
 -->
 
 <div th:fragment="avisoAgua" th:if="${aguaError != null}" data-aviso-agua
      class="p-3 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 text-sm" role="alert" th:text="${aguaError}">No se puede calcular el agua del lote</div>
+
+<th:block th:fragment="tiempoDeEtapa">
+    <div data-duracion-estimada>
+        <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
+        <dd class="font-semibold text-slate-900">
+            <th:block th:if="${estimacion != null and estimacion.duracionEstimadaTexto != null}" th:text="${estimacion.duracionEstimadaTexto}">1 h 30 min</th:block>
+            <th:block th:unless="${estimacion != null and estimacion.duracionEstimadaTexto != null}">-</th:block>
+            <p th:if="${estimacion != null and estimacion.aclaracion != null}" data-aclaracion-estimacion
+               class="mt-1 text-xs font-normal text-slate-500" th:text="${estimacion.aclaracion}">45 kg a 30 kg/h</p>
+        </dd>
+    </div>
+    <div th:if="${estimacion != null and estimacion.fechaFinPrevista != null}" data-fin-previsto>
+        <dt class="text-xs font-medium text-slate-500">Fin previsto</dt>
+        <dd class="font-semibold text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${estimacion.fechaFinPrevista})}"></th:block></dd>
+    </div>
+    <div th:if="${estimacion != null and estimacion.duracionRealTexto != null}" data-duracion-real>
+        <dt class="text-xs font-medium text-slate-500">Duración real</dt>
+        <dd class="font-semibold text-slate-900" th:text="${estimacion.duracionRealTexto}">1 h 40 min</dd>
+    </div>
+</th:block>
 
 <ul th:fragment="cantidadesDeInsumos(lista)" class="space-y-1">
     <li th:each="r : ${lista}"><span th:text="${r.insumo.nombre}">Pilsner</span>: <th:block th:replace="~{receta/formato :: medida(${r.cantidadRequerida}, ${r.unidadDeMedida.simbolo})}"></th:block></li>
@@ -26,6 +50,7 @@
             <dt class="text-xs font-medium text-slate-500">Molino</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></dd>
         </div>
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div class="sm:col-span-2 xl:col-span-4" data-malta-a-moler>
@@ -46,10 +71,7 @@
             <dt class="text-xs font-medium text-slate-500">Macerador</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></dd>
         </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaceracion}, 'min', 'min')}"></th:block></dd>
-        </div>
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>
     <dl th:if="${maltaMolida != null or agua != null}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <!-- Malta que se agrega al macerador: la realmente molida (consumos registrados en la Molienda); sin consumos, la requerida por la receta -->
@@ -119,10 +141,7 @@
             <dt class="text-xs font-medium text-slate-500">Olla de hervor</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></dd>
         </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionHervido}, 'min', 'min')}"></th:block></dd>
-        </div>
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>
     <dl th:if="${agua != null}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div th:if="${agua != null}" data-volumen-pre-hervor>
@@ -152,10 +171,7 @@
             <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></dd>
         </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionFermentacion}, 'día', 'días')}"></th:block></dd>
-        </div>
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div>
@@ -190,10 +206,7 @@
             <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></dd>
         </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaduracion}, 'día', 'días')}"></th:block></dd>
-        </div>
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
     </dl>
     <dl th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="sm:col-span-2" data-lupulos-en-seco>
@@ -207,6 +220,10 @@
 <div th:fragment="envasado" class="space-y-3">
     <div th:if="${resumenEnvasadoError != null}" data-aviso-envasado
          class="p-3 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 text-sm" role="alert" th:text="${resumenEnvasadoError}">No se puede resumir el envasado</div>
+    <!-- Una fila por tema: tiempo (duración estimada, fin previsto, duración real) y volumen -->
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <th:block th:replace="~{lote/lote-guias :: tiempoDeEtapa}"></th:block>
+    </dl>
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div>
             <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>

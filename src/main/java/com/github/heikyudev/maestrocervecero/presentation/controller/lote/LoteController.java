@@ -28,6 +28,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServic
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EstimacionEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -41,6 +42,7 @@ import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -87,6 +89,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * de envasados tienen su propio Controller.
  * </p>
  */
+@Slf4j
 @Controller
 @RequestMapping("/lotes")
 @RequiredArgsConstructor
@@ -664,13 +667,15 @@ public class LoteController {
     }
 
     /**
-     * Carga lo que la tarjeta guía de la etapa necesita además de los insumos: el agua del lote (Maceración y Hervido,
+     * Carga lo que la tarjeta guía de la etapa necesita además de los insumos: la estimación de tiempo de la etapa
+     * (duración estimada, fin previsto), el agua del lote (Maceración y Hervido,
      * donde un cálculo imposible se informa en la propia tarjeta sin cerrar el detalle), los lúpulos con su tiempo de
      * hervor (Hervido) y el resumen del envasado (Envasado).
      */
     private void cargarGuiaDeEtapa(Model model, Long idLote, TipoEtapa tipoEtapa, EtapaLoteResponseDTO etapa,
                                    List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta,
                                    List<EtapaLoteResponseDTO> etapas) {
+        model.addAttribute("estimacion", estimacionDeEtapa(idLote, tipoEtapa));
         if (tipoEtapa == TipoEtapa.MACERACION) {
             model.addAttribute("maltaMolida", maltaMolidaDelLote(etapas));
         }
@@ -696,6 +701,23 @@ public class LoteController {
             } catch (ReglaNegocioException e) {
                 model.addAttribute("resumenEnvasadoError", e.getMessage());
             }
+        }
+    }
+
+    /**
+     * La estimación de tiempo de la etapa para la guía (duración estimada, fin previsto o duración real). Si no se puede
+     * calcular devuelve {@code null} y la guía muestra un guion, sin cerrar el detalle.
+     */
+    private EstimacionEtapaResponseDTO estimacionDeEtapa(Long idLote, TipoEtapa tipoEtapa) {
+        try {
+            return loteServicio.estimarEtapa(idLote, tipoEtapa);
+        } catch (RuntimeException e) {
+            // Cualquier falla de la estimación (también un dato inesperadamente nulo) deja la guía con un guion; solo
+            // se informa el tipo de la falla
+            if (!(e instanceof ReglaNegocioException || e instanceof RecursoNoEncontradoException)) {
+                log.warn("No se pudo estimar la etapa {} del lote {} ({})", tipoEtapa, idLote, e.getClass().getSimpleName());
+            }
+            return null;
         }
     }
 

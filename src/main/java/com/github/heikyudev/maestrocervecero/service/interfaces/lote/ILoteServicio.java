@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteForm
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EstimacionEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -355,6 +356,32 @@ public interface ILoteServicio {
      *                               no es un macerador o una olla de hervor, o si el cálculo produce un valor no válido.
      */
     AguaLoteResponseDTO calcularAguaDelLote(Long id);
+
+    /**
+     * Estima el tiempo de una etapa de un lote para su guía. Es de solo lectura y sirve para un lote en cualquier
+     * estado.
+     * <ul>
+     *     <li>Molienda: la malta planificada del lote (escalada a su volumen objetivo) dividida por el rendimiento de
+     *     molienda del molino del lote (el de su escalado o, si no tiene, el vigente del molino de la etapa), en
+     *     kilogramos por hora.</li>
+     *     <li>Maceración y Hervido: los minutos que define la receta para cada una.</li>
+     *     <li>Fermentación y Maduración: los días que define la receta para cada una.</li>
+     *     <li>Envasado: la capacidad útil del fermentador del lote (la de su escalado o, si no tiene, la vigente del
+     *     fermentador de la etapa) dividida por la velocidad estándar de envasado de la configuración de producción,
+     *     en litros por hora.</li>
+     * </ul>
+     * Las duraciones calculadas por rendimiento se redondean hacia arriba al minuto. El fin previsto es el inicio real
+     * de la etapa más la duración estimada y solo se informa con la etapa En curso; la duración real solo se informa
+     * con la etapa Finalizada. Un dato que falta (sin configuración de producción, sin malta, rendimiento o velocidad
+     * no positivos) no es un error: la duración queda sin estimar y la aclaración indica el dato que falta.
+     *
+     * @param idLote El ID del lote.
+     * @param etapa La etapa a estimar.
+     * @return La estimación de la etapa.
+     * @throws ReglaNegocioException Si no se informó el lote o la etapa.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado o el lote no tiene la etapa.
+     */
+    EstimacionEtapaResponseDTO estimarEtapa(Long idLote, TipoEtapa etapa);
 
     /**
      * Lista los lotes reales de una planificación de producción, en una versión liviana pensada

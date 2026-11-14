@@ -52,6 +52,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEta
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EstimacionEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -103,6 +104,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -1139,6 +1141,7 @@ class LoteControllerTest {
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1001L)).thenReturn(List.of(
                 requerido(pilsen(), UnidadDeMedida.KILOGRAMO, 40.0, 0.0, 40.0), requerido(caramelo(), UnidadDeMedida.KILOGRAMO, 5.0, 0.0, 5.0)));
         when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.MACERACION)).thenReturn(estimacion(TipoEtapa.MACERACION, "1 h").build());
 
         // Act
         String guiaHtml = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "maceracion"), "data-guia");
@@ -1147,7 +1150,7 @@ class LoteControllerTest {
 
         // Assert
         assertThat(guia).contains("Malta molida a agregar Caramelo 60: 5 kg Pilsen: 40 kg Total: 45 kg Requerida por la receta: 45 kg", "Agua de macerado 139 L", "Agua de lavado 60 L", "Agua total 199 L",
-                "Duración estimada 60 min", "Macerador MA-01")
+                "Duración estimada 1 h", "Macerador MA-01")
                 .doesNotContain("3 L/kg").doesNotContain("Incluye el espacio muerto del macerador").doesNotContain("=");
         assertThat(texto(panel)).contains("3 L/kg × 45 kg + 4 L de espacio muerto = 139 L", "espacio muerto");
         assertThat(panel).contains("hidden");
@@ -1322,12 +1325,13 @@ class LoteControllerTest {
         when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
         when(consumoInsumoServicio.filtrarAdicionesLupulo(1003L)).thenReturn(List.of(
                 adicion("Cascade", UsoLupulo.HERVOR, 60.0, 25.0), adicion("Citra", UsoLupulo.WHIRLPOOL, 0.0, 15.0)));
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.HERVIDO)).thenReturn(estimacion(TipoEtapa.HERVIDO, "1 h 30 min").build());
 
         // Act
         String guia = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia");
 
         // Assert
-        assertThat(texto(guia)).contains("Volumen pre-hervor 345 L", "Duración estimada 90 min", "Olla de hervor OH-01", "Lúpulos a agregar").doesNotContain("40 g");
+        assertThat(texto(guia)).contains("Volumen pre-hervor 345 L", "Duración estimada 1 h 30 min", "Olla de hervor OH-01", "Lúpulos a agregar").doesNotContain("40 g");
         assertThat(guia).doesNotContain("<table");
         assertThat(texto(elementoConTexto(guia, "li", "Cascade"))).isEqualTo("Cascade: 25 g, agregar cuando falten 60 min para terminar el hervor");
         assertThat(texto(elementoConTexto(guia, "li", "Citra"))).isEqualTo("Citra: 15 g, agregar en el whirlpool");
@@ -1340,6 +1344,7 @@ class LoteControllerTest {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1004L)).thenReturn(List.of(requerido(levadura(), UnidadDeMedida.GRAMO, 11.5, 11.5, 0.0)));
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.FERMENTACION)).thenReturn(estimacion(TipoEtapa.FERMENTACION, "10 días").build());
 
         // Act
         String guia = texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion"), "data-guia"));
@@ -1355,6 +1360,7 @@ class LoteControllerTest {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION, etapasEnCurso(TipoEtapa.MADURACION)).build());
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1005L)).thenReturn(List.of(requerido(citra(), UnidadDeMedida.GRAMO, 40.0, 40.0, 0.0)));
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.MADURACION)).thenReturn(estimacion(TipoEtapa.MADURACION, "4 días").build());
 
         // Act
         String conInsumos = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "maduracion");
@@ -3182,6 +3188,119 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("data-ver-receta").contains("href=\"/planificaciones-produccion/7/receta\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-182: la guía de una Molienda pendiente muestra la duración estimada con la base del cálculo en gris, y ni fin previsto ni duración real")
+    void detalle_guiaDeMoliendaPendienteMuestraLaDuracionEstimada() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, etapas(EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE,
+                EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE)).build());
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.MOLIENDA)).thenReturn(estimacion(TipoEtapa.MOLIENDA, "53 min").aclaracion("4,3952 kg a 5 kg/h").build());
+
+        // Act
+        String guiaHtml = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "molienda"), "data-guia");
+
+        // Assert
+        assertThat(texto(guiaHtml)).contains("Molino M-01", "Duración estimada 53 min 4,3952 kg a 5 kg/h")
+                .doesNotContain("Fin previsto").doesNotContain("Duración real");
+        assertThat(elementoConAtributo(guiaHtml, "p", "data-aclaracion-estimacion")).contains("text-slate-500");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-183: la guía de una etapa en curso muestra la duración estimada y el fin previsto con fecha y hora, en la misma fila que el equipo")
+    void detalle_guiaDeEtapaEnCursoMuestraElFinPrevisto() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA, etapasEnCurso(TipoEtapa.MOLIENDA)).build());
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.MOLIENDA)).thenReturn(
+                estimacion(TipoEtapa.MOLIENDA, "53 min").fechaFinPrevista(LocalDateTime.of(2027, 7, 1, 8, 53)).build());
+
+        // Act
+        String guiaHtml = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "molienda"), "data-guia");
+
+        // Assert
+        String fila = texto(guiaHtml.substring(guiaHtml.indexOf("<dl"), guiaHtml.indexOf("</dl>")));
+        assertThat(fila).contains("Molino M-01", "Duración estimada 53 min", "Fin previsto 01/07/2027 08:53").doesNotContain("Duración real");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-184: la guía de una etapa finalizada muestra la duración real junto a la estimada y ya no muestra el fin previsto")
+    void detalle_guiaDeEtapaFinalizadaMuestraLaDuracionReal() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.HERVIDO)).thenReturn(
+                estimacion(TipoEtapa.HERVIDO, "1 h 30 min").duracionRealMinutos(100L).duracionRealTexto("1 h 40 min").build());
+
+        // Act
+        String guia = texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia"));
+
+        // Assert
+        assertThat(guia).contains("Duración estimada 1 h 30 min", "Duración real 1 h 40 min").doesNotContain("Fin previsto");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-185: sin estimación la guía muestra un guion en la duración estimada y la aclaración del dato que falta en gris; si el service rechaza la estimación o falla de forma inesperada el detalle no se cierra")
+    void detalle_guiaSinEstimacionMuestraGuionYAclaracion() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.ENVASADO)).thenReturn(estimacion(TipoEtapa.ENVASADO, null)
+                .aclaracion("No se conoce la velocidad estándar de envasado de la configuración de producción").build());
+
+        // Act
+        String sinDato = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-guia");
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.ENVASADO)).thenThrow(new ReglaNegocioException("No se puede estimar"));
+        String rechazada = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-guia");
+        doThrow(new NullPointerException("dato inesperado")).when(loteServicio).estimarEtapa(12L, TipoEtapa.ENVASADO);
+        String fallaInesperada = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-guia");
+
+        // Assert
+        assertThat(texto(fallaInesperada)).contains("Duración estimada -").doesNotContain("dato inesperado");
+        assertThat(texto(sinDato)).contains("Duración estimada - No se conoce la velocidad estándar de envasado de la configuración de producción")
+                .doesNotContain("Fin previsto");
+        assertThat(elementoConAtributo(sinDato, "p", "data-aclaracion-estimacion")).contains("text-slate-500");
+        assertThat(texto(rechazada)).contains("Duración estimada -").doesNotContain("No se puede estimar");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-186: la guía de Envasado muestra el tiempo en su propia fila, antes del volumen: duración estimada con la base del cálculo y fin previsto")
+    void detalle_guiaDeEnvasadoMuestraElTiempoEnSuPropiaFila() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
+        when(envasadoLoteServicio.resumirEnvasado(1006L)).thenReturn(resumen(120.0, 330.0, 210.0, 0.0));
+        when(loteServicio.estimarEtapa(12L, TipoEtapa.ENVASADO)).thenReturn(estimacion(TipoEtapa.ENVASADO, "2 h")
+                .aclaracion("300 L a 150 L/h").fechaFinPrevista(LocalDateTime.of(2027, 7, 5, 10, 0)).build());
+
+        // Act
+        String guiaHtml = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-guia");
+
+        // Assert
+        int finDeLaFilaDeTiempo = guiaHtml.indexOf("</dl>");
+        String filaDeTiempo = texto(guiaHtml.substring(guiaHtml.indexOf("<dl"), finDeLaFilaDeTiempo));
+        assertThat(filaDeTiempo).contains("Duración estimada 2 h 300 L a 150 L/h", "Fin previsto 05/07/2027 10:00").doesNotContain("Volumen objetivo");
+        assertThat(texto(guiaHtml.substring(finDeLaFilaDeTiempo))).contains("Volumen objetivo 300 L", "Envasado hasta ahora 120 L");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-187: el detalle estima solo la etapa que muestra, una vez, con el lote y la etapa del pedido")
+    void detalle_estimaSoloLaEtapaMostrada() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
+
+        // Act
+        detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion");
+
+        // Assert
+        verify(loteServicio, times(1)).estimarEtapa(12L, TipoEtapa.FERMENTACION);
+        for (TipoEtapa otra : TipoEtapa.values()) {
+            if (otra != TipoEtapa.FERMENTACION) {
+                verify(loteServicio, never()).estimarEtapa(12L, otra);
+            }
+        }
+    }
+
+    /** Estimación de la etapa con su duración estimada ya redactada; el resto de los datos se completan en cada caso. */
+    private static EstimacionEtapaResponseDTO.EstimacionEtapaResponseDTOBuilder estimacion(TipoEtapa etapa, String duracionEstimadaTexto) {
+        return EstimacionEtapaResponseDTO.builder().etapa(etapa).duracionEstimadaTexto(duracionEstimadaTexto);
     }
 
     private void stubDetalle(LoteDetalleResponseDTO detalle) {

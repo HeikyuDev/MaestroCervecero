@@ -67,6 +67,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloR
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EstimacionEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
@@ -4569,6 +4570,359 @@ class LoteServicioImplTest {
         olla.setPerdidaPorTrub(4.0);
         lote.getPlanificacionProduccion().getVersionReceta().getDetallesMalta()
                 .forEach(detalle -> detalle.getMalta().setPotencialExtracto(70));
+    }
+
+    // ==================== estimarEtapa ====================
+
+    private static final LocalDateTime INICIO_ETAPA = LocalDateTime.of(2027, 7, 1, 8, 0);
+
+    /**
+     * Arma el lote base (Molienda con el molino de 5 kg/h, malta de 4,3952 kg, 20 L, velocidad de envasado de 10 L/h y
+     * receta de 60 min de maceración, 60 de hervido, 14 días de fermentación y 7 de maduración) con la etapa indicada
+     * en el estado y con las fechas dadas, y lo deja disponible en el repositorio.
+     */
+    private LoteEntity loteParaEstimar(TipoEtapa tipo, EstadoEtapaLote estado, LocalDateTime inicio, LocalDateTime fin) {
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        EtapaLoteEntity etapa = findEtapa(lote, tipo);
+        etapa.setEstado(estado);
+        etapa.setFechaInicio(inicio);
+        etapa.setFechaFinalizacion(fin);
+        mockearConfiguracionYReceta();
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        return lote;
+    }
+
+    @Test
+    @DisplayName("CP-ET-01: estimarEtapa lanza ReglaNegocioException sin consultar nada si no se informó el lote o la etapa")
+    void estimarEtapa_debeLanzarExcepcionSiFaltanDatos() {
+        assertThatThrownBy(() -> loteServicio.estimarEtapa(null, TipoEtapa.MOLIENDA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        assertThatThrownBy(() -> loteServicio.estimarEtapa(1L, null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa es obligatoria");
+        verifyNoInteractions(loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ET-02: estimarEtapa lanza RecursoNoEncontradoException si el lote no existe")
+    void estimarEtapa_debeLanzarExcepcionSiLoteNoExiste() {
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> loteServicio.estimarEtapa(99L, TipoEtapa.MOLIENDA))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 99");
+    }
+
+    @Test
+    @DisplayName("CP-ET-03: estimarEtapa de una Molienda pendiente divide la malta planificada por el rendimiento del molino, sin fin previsto ni duración real, y no modifica nada")
+    void estimarEtapa_molienda_pendienteSoloTieneDuracionEstimada() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, null, null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        // 4,3952 kg / 5 kg/h × 60 = 52,7424 min → 53 min
+        assertThat(resultado.getEtapa()).isEqualTo(TipoEtapa.MOLIENDA);
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(53L);
+        assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("53 min");
+        assertThat(resultado.getAclaracion()).isEqualTo("4,3952 kg a 5 kg/h");
+        assertThat(resultado.getFechaFinPrevista()).isNull();
+        assertThat(resultado.getDuracionRealMinutos()).isNull();
+        assertThat(resultado.getDuracionRealTexto()).isNull();
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ET-04: estimarEtapa de la Molienda usa el rendimiento de la instantánea del escalado aunque después se edite el molino")
+    void estimarEtapa_molienda_conInstantaneaNoCambiaAlEditarElMolino() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, null, null);
+        lote.setEscaladoLote(capturarEscalado(lote));
+        ((MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento()).setRendimientoMolienda(100.0);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(53L);
+        assertThat(resultado.getAclaracion()).isEqualTo("4,3952 kg a 5 kg/h");
+    }
+
+    @Test
+    @DisplayName("CP-ET-05: estimarEtapa de una Molienda en curso suma la duración estimada al inicio real para el fin previsto")
+    void estimarEtapa_molienda_enCursoInformaElFinPrevisto() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(53L);
+        assertThat(resultado.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 1, 8, 53));
+        assertThat(resultado.getDuracionRealMinutos()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-ET-06: estimarEtapa de una Molienda finalizada informa la duración real junto a la estimada y ya no informa fin previsto")
+    void estimarEtapa_molienda_finalizadaInformaLaDuracionReal() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, INICIO_ETAPA, LocalDateTime.of(2027, 7, 1, 9, 10));
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("53 min");
+        assertThat(resultado.getDuracionRealMinutos()).isEqualTo(70L);
+        assertThat(resultado.getDuracionRealTexto()).isEqualTo("1 h 10 min");
+        assertThat(resultado.getFechaFinPrevista()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-ET-07: estimarEtapa de la Molienda con el rendimiento del molino en 0 no estima la duración, no informa fin previsto aunque la etapa esté en curso y aclara el dato que falta")
+    void estimarEtapa_molienda_sinRendimientoNoEstima() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+        ((MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento()).setRendimientoMolienda(0.0);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isNull();
+        assertThat(resultado.getDuracionEstimadaTexto()).isNull();
+        assertThat(resultado.getFechaFinPrevista()).isNull();
+        assertThat(resultado.getAclaracion()).isEqualTo("No se conoce el rendimiento de molienda del molino");
+    }
+
+    @Test
+    @DisplayName("CP-ET-08: estimarEtapa de la Molienda sin instantánea y con un equipamiento que no es un molino no estima la duración")
+    void estimarEtapa_molienda_sinMolinoNoEstima() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, null, null);
+        findEtapa(lote, TipoEtapa.MOLIENDA).setEquipamiento(crearMacerador(9L, 25.0, 5.0, 75.0));
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isNull();
+        assertThat(resultado.getAclaracion()).isEqualTo("No se conoce el rendimiento de molienda del molino");
+    }
+
+    @Test
+    @DisplayName("CP-ET-09: estimarEtapa de la Molienda no estima la duración si la malta del lote no se puede calcular")
+    void estimarEtapa_molienda_sinMaltaNoEstima() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, null, null);
+        lote.getPlanificacionProduccion().getVersionReceta().setDetallesMalta(List.of());
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MOLIENDA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isNull();
+        assertThat(resultado.getAclaracion()).isEqualTo("No se pudo calcular la malta del lote");
+    }
+
+    @Test
+    @DisplayName("CP-ET-10: estimarEtapa de Maceración y de Hervido usa los minutos de la receta; en curso suma al inicio real, sin aclaración")
+    void estimarEtapa_maceracionYHervido_usanLosMinutosDeLaReceta() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+        VersionRecetaEntity version = lote.getPlanificacionProduccion().getVersionReceta();
+        version.setDuracionHervido(90);
+        EtapaLoteEntity hervido = findEtapa(lote, TipoEtapa.HERVIDO);
+        hervido.setEstado(EstadoEtapaLote.EN_CURSO);
+        hervido.setFechaInicio(INICIO_ETAPA);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO maceracion = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
+        EstimacionEtapaResponseDTO hervidoEstimado = loteServicio.estimarEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(maceracion.getDuracionEstimadaMinutos()).isEqualTo(60L);
+        assertThat(maceracion.getDuracionEstimadaTexto()).isEqualTo("1 h");
+        assertThat(maceracion.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 1, 9, 0));
+        assertThat(maceracion.getAclaracion()).isNull();
+        assertThat(hervidoEstimado.getDuracionEstimadaMinutos()).isEqualTo(90L);
+        assertThat(hervidoEstimado.getDuracionEstimadaTexto()).isEqualTo("1 h 30 min");
+        assertThat(hervidoEstimado.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 1, 9, 30));
+    }
+
+    @Test
+    @DisplayName("CP-ET-11: estimarEtapa de Fermentación y de Maduración usa los días de la receta; en curso el fin previsto es el inicio real más esos días")
+    void estimarEtapa_fermentacionYMaduracion_usanLosDiasDeLaReceta() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.FERMENTACION, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+        EtapaLoteEntity maduracion = findEtapa(lote, TipoEtapa.MADURACION);
+        maduracion.setEstado(EstadoEtapaLote.PENDIENTE);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO fermentacion = loteServicio.estimarEtapa(1L, TipoEtapa.FERMENTACION);
+        EstimacionEtapaResponseDTO maduracionEstimada = loteServicio.estimarEtapa(1L, TipoEtapa.MADURACION);
+
+        // === ASSERTS ===
+        assertThat(fermentacion.getDuracionEstimadaMinutos()).isEqualTo(20_160L);
+        assertThat(fermentacion.getDuracionEstimadaTexto()).isEqualTo("14 días");
+        assertThat(fermentacion.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 15, 8, 0));
+        assertThat(maduracionEstimada.getDuracionEstimadaMinutos()).isEqualTo(10_080L);
+        assertThat(maduracionEstimada.getDuracionEstimadaTexto()).isEqualTo("7 días");
+        assertThat(maduracionEstimada.getFechaFinPrevista()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-ET-12: estimarEtapa sin la duración de la receta no estima y aclara cuál falta")
+    void estimarEtapa_recetaSinDuracionNoEstima() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+        VersionRecetaEntity version = lote.getPlanificacionProduccion().getVersionReceta();
+        version.setDuracionMaceracion(null);
+        version.setDuracionHervido(0);
+        version.setDuracionFermentacion(null);
+        version.setDuracionMaduracion(null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO maceracion = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
+        EstimacionEtapaResponseDTO hervido = loteServicio.estimarEtapa(1L, TipoEtapa.HERVIDO);
+        EstimacionEtapaResponseDTO fermentacion = loteServicio.estimarEtapa(1L, TipoEtapa.FERMENTACION);
+        EstimacionEtapaResponseDTO maduracion = loteServicio.estimarEtapa(1L, TipoEtapa.MADURACION);
+
+        // === ASSERTS ===
+        assertThat(maceracion.getDuracionEstimadaMinutos()).isNull();
+        assertThat(maceracion.getFechaFinPrevista()).isNull();
+        assertThat(maceracion.getAclaracion()).isEqualTo("La receta no define la duración de la maceración");
+        assertThat(hervido.getAclaracion()).isEqualTo("La receta no define la duración del hervido");
+        assertThat(fermentacion.getAclaracion()).isEqualTo("La receta no define la duración de la fermentación");
+        assertThat(maduracion.getAclaracion()).isEqualTo("La receta no define la duración de la maduración");
+    }
+
+    @Test
+    @DisplayName("CP-ET-13: estimarEtapa del Envasado divide la capacidad útil del fermentador por la velocidad estándar de envasado; en curso suma la duración al inicio real")
+    void estimarEtapa_envasado_dividePorLaVelocidadDeEnvasado() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, INICIO_ETAPA, null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+
+        // === ASSERTS ===
+        // 20 L / 10 L/h = 2 h
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(120L);
+        assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("2 h");
+        assertThat(resultado.getAclaracion()).isEqualTo("20 L a 10 L/h");
+        assertThat(resultado.getFechaFinPrevista()).isEqualTo(LocalDateTime.of(2027, 7, 1, 10, 0));
+    }
+
+    @Test
+    @DisplayName("CP-ET-14: estimarEtapa del Envasado sin configuración de producción o con velocidad en 0 no estima y aclara el dato que falta")
+    void estimarEtapa_envasado_sinVelocidadNoEstima() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.ENVASADO, EstadoEtapaLote.PENDIENTE, null, null);
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO sinConfiguracion = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID))
+                .thenReturn(Optional.of(ConfiguracionProduccionEntity.builder().id(ConfiguracionProduccionEntity.SINGLETON_ID).velocidadEstandarEnvasado(0.0).build()));
+        EstimacionEtapaResponseDTO velocidadCero = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+
+        // === ASSERTS ===
+        String aclaracion = "No se conoce la velocidad estándar de envasado de la configuración de producción";
+        assertThat(sinConfiguracion.getDuracionEstimadaMinutos()).isNull();
+        assertThat(sinConfiguracion.getAclaracion()).isEqualTo(aclaracion);
+        assertThat(velocidadCero.getDuracionEstimadaMinutos()).isNull();
+        assertThat(velocidadCero.getAclaracion()).isEqualTo(aclaracion);
+    }
+
+    @Test
+    @DisplayName("CP-ET-15: estimarEtapa del Envasado divide la capacidad útil del fermentador (no el volumen objetivo), redondea hacia arriba al minuto y expresa en horas y minutos una duración que no es de horas completas")
+    void estimarEtapa_envasado_redondeaYRedactaHorasYMinutos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.ENVASADO, EstadoEtapaLote.PENDIENTE, null, null);
+        ((FermentadorEntity) findEtapa(lote, TipoEtapa.ENVASADO).getEquipamiento()).setCapacidadUtil(25.0);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+
+        // === ASSERTS ===
+        // 25 L / 10 L/h = 2,5 h
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(150L);
+        assertThat(resultado.getDuracionEstimadaTexto()).isEqualTo("2 h 30 min");
+        assertThat(resultado.getAclaracion()).isEqualTo("25 L a 10 L/h");
+    }
+
+    @Test
+    @DisplayName("CP-ET-18: estimarEtapa del Envasado usa la capacidad útil de la instantánea del escalado aunque se edite el fermentador, y sin fermentador no estima y aclara qué falta")
+    void estimarEtapa_envasado_capacidadUtilDeLaInstantaneaYSinFermentador() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.ENVASADO, EstadoEtapaLote.PENDIENTE, null, null);
+        lote.setEscaladoLote(capturarEscalado(lote));
+        ((FermentadorEntity) findEtapa(lote, TipoEtapa.ENVASADO).getEquipamiento()).setCapacidadUtil(500.0);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO conInstantanea = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+        lote.setEscaladoLote(null);
+        findEtapa(lote, TipoEtapa.ENVASADO).setEquipamiento(crearMolino(9L, 5.0));
+        EstimacionEtapaResponseDTO sinFermentador = loteServicio.estimarEtapa(1L, TipoEtapa.ENVASADO);
+
+        // === ASSERTS ===
+        assertThat(conInstantanea.getDuracionEstimadaMinutos()).isEqualTo(120L);
+        assertThat(conInstantanea.getAclaracion()).isEqualTo("20 L a 10 L/h");
+        assertThat(sinFermentador.getDuracionEstimadaMinutos()).isNull();
+        assertThat(sinFermentador.getAclaracion()).isEqualTo("No se conoce la capacidad útil del fermentador del lote");
+    }
+
+    @Test
+    @DisplayName("CP-ET-16: estimarEtapa de una etapa cancelada informa la duración estimada pero ni fin previsto ni duración real")
+    void estimarEtapa_canceladaSoloTieneDuracionEstimada() {
+        // === PREPARACION DE DATOS ===
+        loteParaEstimar(TipoEtapa.HERVIDO, EstadoEtapaLote.CANCELADA, INICIO_ETAPA, null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isEqualTo(60L);
+        assertThat(resultado.getFechaFinPrevista()).isNull();
+        assertThat(resultado.getDuracionRealMinutos()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-ET-17: estimarEtapa de una etapa finalizada sin fecha de fin o con el fin anterior al inicio no informa duración real")
+    void estimarEtapa_finalizadaConFechasInconsistentesNoInformaDuracionReal() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, INICIO_ETAPA, null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO sinFin = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
+        findEtapa(lote, TipoEtapa.MACERACION).setFechaFinalizacion(INICIO_ETAPA.minusHours(1));
+        EstimacionEtapaResponseDTO finAnterior = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
+
+        // === ASSERTS ===
+        assertThat(sinFin.getDuracionRealMinutos()).isNull();
+        assertThat(sinFin.getDuracionRealTexto()).isNull();
+        assertThat(finAnterior.getDuracionRealMinutos()).isNull();
+        assertThat(finAnterior.getDuracionEstimadaTexto()).isEqualTo("1 h");
+    }
+
+    @Test
+    @DisplayName("CP-ET-19: estimarEtapa de una etapa de receta sin versión de receta informa la duración sin estimar y la aclaración, sin lanzar excepción")
+    void estimarEtapa_sinVersionDeRecetaNoSePuedeEstimar() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = loteParaEstimar(TipoEtapa.MACERACION, EstadoEtapaLote.PENDIENTE, null, null);
+        lote.getPlanificacionProduccion().setVersionReceta(null);
+
+        // === EJECUCION ===
+        EstimacionEtapaResponseDTO resultado = loteServicio.estimarEtapa(1L, TipoEtapa.MACERACION);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDuracionEstimadaMinutos()).isNull();
+        assertThat(resultado.getAclaracion()).isEqualTo("El lote no tiene una versión de receta");
     }
 
     // ==================== listarLotesDePlanificacion ====================

@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrdenDeCamposTest {
 
     private static final Path TEMPLATES = Path.of("").toAbsolutePath().resolve("src/main/resources/templates");
+    private static final String TIEMPO_DE_ETAPA = "lote/lote-guias :: tiempoDeEtapa";
 
     @Test
     @DisplayName("CP-ODC-01 - El detalle del proveedor agrupa identificación, contacto y ubicación, y la dirección va debajo de la ubicación en una fila propia")
@@ -255,11 +256,29 @@ class OrdenDeCamposTest {
 
         // Assert
         assertThat(molino).doesNotContain("Malta a moler");
-        assertThat(macerador).contains(">Duración estimada<").doesNotContain("Malta").doesNotContain("Agua");
+        assertThat(macerador).contains(TIEMPO_DE_ETAPA).doesNotContain("Malta").doesNotContain("Agua");
         assertThat(filaCon(guias, ">Agua de lavado<")).contains(">Agua de lavado<", ">Agua total<").doesNotContain(">Macerador<").doesNotContain(">Malta");
-        assertThat(hervido).contains(">Duración estimada<").doesNotContain("Volumen pre-hervor").doesNotContain("Lúpulos");
+        assertThat(hervido).contains(TIEMPO_DE_ETAPA).doesNotContain("Volumen pre-hervor").doesNotContain("Lúpulos");
         assertThat(fermentacion).contains(">FG objetivo<").doesNotContain("Fermentador").doesNotContain("Levadura");
         assertThat(filaCon(guias, ">Levadura a utilizar<")).doesNotContain("OG objetivo").doesNotContain(">Fermentador<");
+    }
+
+    @Test
+    @DisplayName("CP-ODC-15 - En las seis guías de etapa el tiempo (duración estimada, fin previsto y duración real) va en una fila propia o junto al equipo, nunca junto a los insumos, el agua ni el volumen")
+    void las_guias_muestran_el_tiempo_de_la_etapa_en_su_fila() throws IOException {
+        // Arrange
+        String guias = leer("lote/lote-guias.html");
+        List<String> filasDeTiempo = filas(guias).stream().filter(f -> f.contains(TIEMPO_DE_ETAPA)).toList();
+
+        // Act
+        String fragmento = guias.substring(guias.indexOf("th:fragment=\"tiempoDeEtapa\""), guias.indexOf("th:fragment=\"cantidadesDeInsumos"));
+        String envasado = filasDeTiempo.get(filasDeTiempo.size() - 1);
+
+        // Assert
+        assertThat(filasDeTiempo).hasSize(6);
+        assertThat(fragmento).contains(">Duración estimada<", ">Fin previsto<", ">Duración real<");
+        assertThat(filasDeTiempo).allSatisfy(fila -> assertThat(fila).doesNotContain("Malta").doesNotContain("Agua").doesNotContain("Volumen").doesNotContain("Levadura").doesNotContain("Lúpulos"));
+        assertThat(envasado).doesNotContain("Equipo").doesNotContain("Fermentador").doesNotContain(">Volumen objetivo<");
     }
 
     @Test

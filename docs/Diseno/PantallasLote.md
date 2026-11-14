@@ -243,12 +243,33 @@ Las tablas son compactas (con scroll horizontal solo si hace falta), sin tooltip
 
 Cada dato de la guía es una etiqueta gris chica con su valor destacado debajo, igual que la cabecera del lote. Las cantidades que se piden a los insumos salen del cálculo del escalado.
 
+**Tiempo de la etapa (en las seis guías).** Los datos de tiempo van en la fila del equipo (en Envasado, en una fila propia antes del volumen), nunca junto a los insumos, el agua o el volumen:
+
+- "Duración estimada" se muestra siempre. Se redacta en días cuando son días completos ("1 día", "10 días") y, si no, en minutos u horas y minutos ("45 min", "1 h", "2 h 30 min"). Si no se pudo estimar muestra un guion y, debajo, en gris, el dato que falta ("La receta no define la duración de la maceración"). En Molienda y Envasado, debajo y en gris, va la base del cálculo ("4,3952 kg a 5 kg/h", "330 L a 165 L/h", donde 330 L es la capacidad útil del fermentador).
+- "Fin previsto" (fecha y hora) aparece solo con la etapa En curso: es el inicio real de la etapa más la duración estimada.
+- "Duración real" aparece solo con la etapa Finalizada, junto a la estimada (como la cabecera del lote, que muestra las fechas estimadas y las reales). La franja de estado de la etapa sigue mostrando el inicio y el fin reales.
+- Con la etapa Pendiente o Cancelada solo se muestra la duración estimada.
+
+De dónde sale la duración estimada de cada etapa:
+
+| Etapa | Duración estimada |
+|---|---|
+| Molienda | Malta planificada del lote (escalada a su volumen objetivo) dividida por el rendimiento de molienda del molino del lote (kg/h), redondeada hacia arriba al minuto. El rendimiento es el de la instantánea del escalado del lote y, si no tiene, el vigente del molino de la etapa. |
+| Maceración | Los minutos de maceración de la versión de receta del lote. |
+| Hervido | Los minutos de hervido de la versión de receta del lote. |
+| Fermentación | Los días de fermentación de la versión de receta del lote. |
+| Maduración | Los días de maduración de la versión de receta del lote. |
+| Envasado | Capacidad útil del fermentador del lote dividida por la velocidad estándar de envasado de la configuración de producción (L/h), redondeada hacia arriba al minuto. La capacidad es la de la instantánea del escalado del lote y, si no tiene, la vigente del fermentador de la etapa. Sin fermentador muestra un guion y, en gris, "No se conoce la capacidad útil del fermentador del lote". |
+
 **Molienda**
 
 ```
-Molino            Malta a moler
-M-01              Pilsen: 40 kg
-                  Caramelo 60: 5 kg
+Molino            Duración estimada      Fin previsto (solo en curso)
+M-01              53 min                 01/07/2027 08:53
+                  4,3952 kg a 5 kg/h
+Malta a moler
+Pilsen: 40 kg
+Caramelo 60: 5 kg
 ```
 
 **Maceración** (no consume insumos)
@@ -259,8 +280,8 @@ Pilsen: 16,7131 kg       139 L                  60 L             199 L
 Caramelo 60: 2,0892 kg
 Total: 18,8023 kg
 Requerida por la receta: 20,8914 kg
-Duración estimada        Macerador
-60 min                   MA-01
+Macerador   Duración estimada   Fin previsto (solo en curso)
+MA-01       1 h                 01/07/2027 09:00
 [alertas amarillas con las advertencias del cálculo, si las hay]
 ```
 
@@ -274,8 +295,10 @@ Duración estimada        Macerador
 **Hervido**
 
 ```
-Volumen pre-hervor   Duración estimada   Olla de hervor
-345 L                90 min             OH-01
+Olla de hervor   Duración estimada   Fin previsto (solo en curso)
+OH-01            1 h 30 min          01/07/2027 09:30
+Volumen pre-hervor
+345 L
 Lúpulos a agregar
   Saaz: 215 g, agregar al inicio del hervor
   Saaz: 25 g, agregar cuando falten 15 min para terminar el hervor
@@ -287,8 +310,12 @@ Los lúpulos son líneas de texto, sin tabla, una por adición. Cada línea llev
 **Fermentación**
 
 ```
-Levadura a utilizar   OG objetivo   FG objetivo   Duración estimada   Fermentador
-US-05: 11,5 g         1,050         1,010         10 días             F-01
+Fermentador   Duración estimada   Fin previsto (solo en curso)
+F-01          10 días             11/07/2027 08:00
+OG objetivo   FG objetivo   IBU objetivo
+1,050         1,010         32
+Levadura a utilizar   
+US-05: 11,5 g
 Lúpulos a agregar en seco (si la receta los usa en esta etapa)
   Citra: 40 g
 ```
@@ -296,13 +323,18 @@ Lúpulos a agregar en seco (si la receta los usa en esta etapa)
 **Maduración**
 
 ```
-Duración estimada   Fermentador   Lúpulos a agregar en seco
-4 días              F-01          Citra: 40 g
+Fermentador   Duración estimada   Fin previsto (solo en curso)
+F-01          4 días              05/07/2027 08:00
+Lúpulos a agregar en seco
+Citra: 40 g
 ```
 
 **Envasado** (no consume insumos)
 
 ```
+Duración estimada   Fin previsto (solo en curso)
+2 h                 05/07/2027 10:00
+330 L a 165 L/h
 Volumen objetivo   Envasado hasta ahora   Máximo según la capacidad útil del fermentador F-01
 300 L              120 L                  330 L  quedan 210 L
 [El total envasado supera el volumen objetivo del lote (300 L)]    (aviso informativo, solo si corresponde)

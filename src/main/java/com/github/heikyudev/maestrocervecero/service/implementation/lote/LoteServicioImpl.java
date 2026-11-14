@@ -56,6 +56,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_pr
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EstimacionEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
@@ -68,6 +69,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEtapaLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.method.GeneradorIdentificador;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosEstimacionEtapa;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCronograma;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -1090,6 +1092,143 @@ public class LoteServicioImpl implements ILoteServicio {
                 .mostoExtraido(agua.mostoExtraido())
                 .advertencias(List.copyOf(advertencias))
                 .build();
+    }
+
+    /**
+     * Estima el tiempo de una etapa del lote. Ver {@link ILoteServicio#estimarEtapa(Long, TipoEtapa)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public EstimacionEtapaResponseDTO estimarEtapa(Long idLote, TipoEtapa etapa) {
+        validarLoteInformado(idLote);
+        validarInformado(etapa, "La etapa es obligatoria");
+
+        // 1. Validar que el lote esté registrado y tenga la etapa
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+        EtapaLoteEntity etapaLote = lote.obtenerEtapaPorTipo(etapa);
+        // Sin planificación o sin versión de receta no hay dato de receta: la duración queda sin estimar
+        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion() != null
+                ? lote.getPlanificacionProduccion().getVersionReceta()
+                : null;
+
+        // 2. Estimar la duración según el dato que manda en cada etapa
+        DuracionEstimada duracion = switch (etapa) {
+            case MOLIENDA -> estimarMolienda(lote);
+            case MACERACION -> versionReceta == null ? sinReceta()
+                    : deLaReceta(MetodosEstimacionEtapa.minutosDeReceta(versionReceta.getDuracionMaceracion()), "de la maceración");
+            case HERVIDO -> versionReceta == null ? sinReceta()
+                    : deLaReceta(MetodosEstimacionEtapa.minutosDeReceta(versionReceta.getDuracionHervido()), "del hervido");
+            case FERMENTACION -> versionReceta == null ? sinReceta()
+                    : deLaReceta(MetodosEstimacionEtapa.minutosDeDias(versionReceta.getDuracionFermentacion()), "de la fermentación");
+            case MADURACION -> versionReceta == null ? sinReceta()
+                    : deLaReceta(MetodosEstimacionEtapa.minutosDeDias(versionReceta.getDuracionMaduracion()), "de la maduración");
+            case ENVASADO -> estimarEnvasado(lote);
+        };
+
+        // 3. El fin previsto es solo de la etapa en curso y la duración real solo de la finalizada
+        EstadoEtapaLote estado = etapaLote.getEstado();
+        Long minutosReales = estado == EstadoEtapaLote.FINALIZADA
+                ? MetodosEstimacionEtapa.minutosReales(etapaLote.getFechaInicio(), etapaLote.getFechaFinalizacion())
+                : null;
+        return EstimacionEtapaResponseDTO.builder()
+                .etapa(etapa)
+                .duracionEstimadaMinutos(duracion.minutos())
+                .duracionEstimadaTexto(MetodosEstimacionEtapa.formatearDuracion(duracion.minutos()))
+                .fechaFinPrevista(estado == EstadoEtapaLote.EN_CURSO
+                        ? MetodosEstimacionEtapa.calcularFinPrevisto(etapaLote.getFechaInicio(), duracion.minutos())
+                        : null)
+                .duracionRealMinutos(minutosReales)
+                .duracionRealTexto(MetodosEstimacionEtapa.formatearDuracion(minutosReales))
+                .aclaracion(duracion.aclaracion())
+                .build();
+    }
+
+    /**
+     * La duración estimada de una etapa y su aclaración: la base del cálculo, o el dato que falta si no se pudo estimar.
+     */
+    private record DuracionEstimada(Long minutos, String aclaracion) {
+    }
+
+    private static DuracionEstimada sinEstimar(String aclaracion) {
+        return new DuracionEstimada(null, aclaracion);
+    }
+
+    private static DuracionEstimada sinReceta() {
+        return sinEstimar("El lote no tiene una versión de receta");
+    }
+
+    private static DuracionEstimada deLaReceta(Long minutos, String etapaDeLaReceta) {
+        return minutos != null ? new DuracionEstimada(minutos, null) : sinEstimar("La receta no define la duración " + etapaDeLaReceta);
+    }
+
+    /**
+     * La duración de la Molienda: la malta planificada del lote dividida por el rendimiento de su molino.
+     */
+    private DuracionEstimada estimarMolienda(LoteEntity lote) {
+        Double rendimiento = rendimientoDeMolienda(lote);
+        if (rendimiento == null || !(rendimiento > 0)) {
+            return sinEstimar("No se conoce el rendimiento de molienda del molino");
+        }
+        double masaMalta;
+        try {
+            masaMalta = escaladoInsumoServicio.calcularRequerimientosMalta(lote).stream()
+                    .mapToDouble(RequerimientoInsumo::cantidadRequerida)
+                    .sum();
+        } catch (ReglaNegocioException e) {
+            return sinEstimar("No se pudo calcular la malta del lote");
+        }
+        Long minutos = MetodosEstimacionEtapa.minutosDeMolienda(masaMalta, rendimiento);
+        if (minutos == null) {
+            return sinEstimar("No se pudo calcular la malta del lote");
+        }
+        return new DuracionEstimada(minutos, ValidacionesNumericas.formatearNumero(Redondeo.redondear(masaMalta)) + " kg a "
+                + ValidacionesNumericas.formatearNumero(rendimiento) + " kg/h");
+    }
+
+    /**
+     * El rendimiento de molienda del lote, en kilogramos por hora: el de su instantánea de escalado y, si no la tiene,
+     * el vigente del molino de la etapa de Molienda. Es {@code null} si el lote no tiene un molino asociado.
+     */
+    private static Double rendimientoDeMolienda(LoteEntity lote) {
+        EscaladoLoteEntity escalado = lote.getEscaladoLote();
+        if (escalado != null) {
+            return escalado.getRendimientoMolienda();
+        }
+        Object equipamiento = Hibernate.unproxy(lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA).getEquipamiento());
+        return equipamiento instanceof MolinoEntity molino ? molino.getRendimientoMolienda() : null;
+    }
+
+    /**
+     * La duración del Envasado: la capacidad útil del fermentador del lote dividida por la velocidad estándar de envasado.
+     */
+    private DuracionEstimada estimarEnvasado(LoteEntity lote) {
+        Double capacidadUtil = capacidadUtilDelFermentador(lote);
+        if (capacidadUtil == null || !(capacidadUtil > 0)) {
+            return sinEstimar("No se conoce la capacidad útil del fermentador del lote");
+        }
+        Double velocidad = configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .map(ConfiguracionProduccionEntity::getVelocidadEstandarEnvasado)
+                .orElse(null);
+        Long minutos = MetodosEstimacionEtapa.minutosDeEnvasado(capacidadUtil, velocidad);
+        if (minutos == null) {
+            return sinEstimar("No se conoce la velocidad estándar de envasado de la configuración de producción");
+        }
+        return new DuracionEstimada(minutos, ValidacionesNumericas.formatearNumero(capacidadUtil) + " L a "
+                + ValidacionesNumericas.formatearNumero(velocidad) + " L/h");
+    }
+
+    /**
+     * La capacidad útil del fermentador del lote, en litros: la de su instantánea de escalado y, si no la tiene, la
+     * vigente del fermentador de la etapa de Envasado. Es {@code null} si el lote no tiene un fermentador asociado.
+     */
+    private static Double capacidadUtilDelFermentador(LoteEntity lote) {
+        EscaladoLoteEntity escalado = lote.getEscaladoLote();
+        if (escalado != null) {
+            return escalado.getCapacidadUtilFermentador();
+        }
+        Object equipamiento = Hibernate.unproxy(lote.obtenerEtapaPorTipo(TipoEtapa.ENVASADO).getEquipamiento());
+        return equipamiento instanceof FermentadorEntity fermentador ? fermentador.getCapacidadUtil() : null;
     }
 
     /**
