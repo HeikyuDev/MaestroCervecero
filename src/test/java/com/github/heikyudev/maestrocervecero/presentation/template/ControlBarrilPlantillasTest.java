@@ -25,13 +25,18 @@ class ControlBarrilPlantillasTest {
             "control_barril/control-historial.html", "control_barril/operacion-detalle.html");
 
     @Test
-    @DisplayName("CP-PCB-01: el bloque de información del barril separa en filas la identidad, las medidas con el estado y el mantenimiento")
+    @DisplayName("CP-PCB-01: el bloque de información del barril separa en filas la identidad, las medidas con el estado, la cerveza (solo con contenido, con el enlace al lote por permiso) y el mantenimiento")
     void informacionPorTema() throws IOException {
         List<String> filas = filas(leer("control_barril/barril-informacion.html"));
 
         assertThat(filaCon(filas, ">Identificador<")).contains(">Número de serie<", ">Fabricante<").doesNotContain("Capacidad").doesNotContain("Usos");
         assertThat(filaCon(filas, ">Capacidad (L)<")).contains(">Contenido (L)<", ">Estado operativo<").doesNotContain("Identificador").doesNotContain("Última limpieza");
         assertThat(filaCon(filas, ">Usos desde el último mantenimiento<")).contains(">Última limpieza<", ">Último mantenimiento<").doesNotContain("Capacidad").doesNotContain("Estado operativo");
+        assertThat(filaCon(filas, ">Cerveza<")).contains(">Lote<").doesNotContain("Capacidad").doesNotContain("Usos").doesNotContain("Identificador");
+
+        String html = leer("control_barril/barril-informacion.html");
+        assertThat(html).contains("th:if=\"${barril.contenido != null}\"").contains("sec:authorize=\"hasAuthority('LOTE_CONSULTAR')\" th:href=\"@{/lotes/{id}(id=${barril.contenido.idLote})}\"")
+                .contains("sec:authorize=\"!hasAuthority('LOTE_CONSULTAR')\"");
     }
 
     @Test
@@ -62,14 +67,16 @@ class ControlBarrilPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PCB-04: la lista tiene siete columnas, con Limpiar y Buscar a la derecha de la tarjeta de filtros, el fabricante como selector de entidad y el estado en un desplegable")
-    void listaConSieteColumnas() throws IOException {
+    @DisplayName("CP-PCB-04: la lista tiene ocho columnas, con la cerveza después del estado, Limpiar y Buscar a la derecha de la tarjeta de filtros, el fabricante como selector de entidad y el estado en un desplegable")
+    void listaConOchoColumnas() throws IOException {
         String html = leer("control_barril/control-lista.html");
         String encabezado = html.substring(html.indexOf("<thead"), html.indexOf("</thead>"));
 
-        assertThat(Pattern.compile("<th[ >]").matcher(encabezado).results().count()).isEqualTo(7);
-        assertThat(encabezado).contains("Identificador").contains("Fabricante").contains("Capacidad (L)").contains("Contenido (L)").contains("Estado operativo").contains("Usos").contains("Acciones");
-        assertThat(html).contains("colspan=\"7\"").contains("md:col-span-2 lg:col-span-3 flex items-center justify-end gap-3").contains("fragments/selector-entidad :: selector('idFabricante'")
+        assertThat(Pattern.compile("<th[ >]").matcher(encabezado).results().count()).isEqualTo(8);
+        assertThat(encabezado).contains("Identificador").contains("Fabricante").contains("Capacidad (L)").contains("Contenido (L)").contains("Estado operativo").contains("Cerveza").contains("Usos").contains("Acciones");
+        assertThat(encabezado.indexOf("Estado operativo")).isLessThan(encabezado.indexOf("Cerveza"));
+        assertThat(encabezado.indexOf("Cerveza")).isLessThan(encabezado.indexOf("Usos"));
+        assertThat(html).contains("colspan=\"8\"").contains("md:col-span-2 lg:col-span-3 flex items-center justify-end gap-3").contains("fragments/selector-entidad :: selector('idFabricante'")
                 .contains("barril/estado :: badge(").contains("name=\"estadoOperativo\"").contains("placeholder=\"Ej: BRL-01\"");
     }
 

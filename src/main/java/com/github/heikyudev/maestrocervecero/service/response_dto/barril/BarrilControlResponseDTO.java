@@ -42,4 +42,7 @@ public class BarrilControlResponseDTO {
 
     /** Cantidad máxima de usos antes de requerir mantenimiento preventivo. */
     private Integer usosMaximosAntesMantenimiento;
+
+    /** Cerveza que contiene el barril (lote y receta), o {@code null} si el barril no está Con cerveza. */
+    private ContenidoBarrilResponseDTO contenido;
 }

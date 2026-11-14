@@ -21,6 +21,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ILimpieza
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IMantenimientoBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.cliente.IClienteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResumenResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ContenidoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.OperacionBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cliente.ClienteResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
@@ -320,6 +321,22 @@ class OperacionBarrilControllerTest {
         assertThat(html).contains("Registrar despacho").contains("name=\"idCliente\"").contains("data-buscador-url=\"/clientes/buscador\"").contains("Seleccione cliente")
                 .contains("name=\"fechaDevolucionEstimada\"").contains("Fecha estimada de devolución")
                 .contains("data-alta-url=\"/clientes/nuevo\"").contains("data-selector-menu").contains("Crear nuevo cliente");
+    }
+
+    @Test
+    @DisplayName("CP-OBC-19: el formulario de despacho de un barril Con cerveza muestra la cerveza y el lote que se despacha, como texto sin enlace para el encargado de distribución")
+    void formularioDespachoMuestraLaCerveza() throws Exception {
+        // Arrange
+        when(controlServicio.buscarResumen(5L)).thenReturn(BarrilResumenResponseDTO.builder().id(5L).identificadorInterno("BRL-01").numeroSerie("SN-001")
+                .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(20.0).estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(10)
+                .usosDesdeUltimoMantenimiento(3L).contenido(new ContenidoBarrilResponseDTO(12L, "PALE_ALE-1", "Pale Ale")).build());
+
+        // Act
+        String html = mockMvc.perform(get(BASE + "/despachos/nuevo").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("data-barril-receta").contains(">Pale Ale<").contains("data-barril-lote").contains(">PALE_ALE-1<").doesNotContain("/lotes/12");
     }
 
     @Test

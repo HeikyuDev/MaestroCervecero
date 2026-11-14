@@ -66,6 +66,23 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
     Optional<LocalDateTime> buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
 
     /**
+     * Busca, para un conjunto de barriles, el lote de su último envasado {@code REGISTRADO} (el de mayor
+     * {@code fechaEnvasado}) con el nombre de la receta de su planificación. Es una única consulta para todos los
+     * barriles de una página. Ante igual fecha de envasado aparece primero el de mayor ID; los barriles que nunca fueron
+     * envasados no aparecen en el resultado.
+     *
+     * @param idsBarril Los IDs de los barriles a consultar.
+     * @return Una lista de filas {@code [idBarril (Long), idLote (Long), identificadorInternoLote (String), nombreReceta (String)]}.
+     */
+    @Query("SELECT e.barril.id, l.id, l.identificadorInterno, v.nombre FROM EnvasadoLoteEntity e "
+            + "JOIN e.etapaLote el JOIN el.lote l JOIN l.planificacionProduccion p JOIN p.versionReceta v "
+            + "WHERE e.barril.id IN :idsBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
+            + "AND e.fechaEnvasado = (SELECT MAX(e2.fechaEnvasado) FROM EnvasadoLoteEntity e2 "
+            + "WHERE e2.barril.id = e.barril.id AND e2.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO) "
+            + "ORDER BY e.id DESC")
+    List<Object[]> buscarLoteDelUltimoEnvasadoRegistrado(@Param("idsBarril") Collection<Long> idsBarril);
+
+    /**
      * Suma la cantidad envasada de todos los envasados {@code REGISTRADO} de una etapa de lote
      * puntual (la etapa de Envasado de un lote). Se usa al finalizar el envasado del lote, para
      * calcular sobre cuántos litros efectivamente envasados se aplican los costos directos

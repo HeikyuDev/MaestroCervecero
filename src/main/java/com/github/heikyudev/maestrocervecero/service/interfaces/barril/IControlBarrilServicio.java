@@ -26,7 +26,8 @@ public interface IControlBarrilServicio {
 
     /**
      * Obtiene una página de barriles activos con los datos de control. Un parámetro nulo no restringe por ese criterio.
-     * El orden es natural por identificador interno.
+     * El orden es natural por identificador interno. Los barriles Con cerveza informan su contenido: el lote de su último
+     * envasado registrado y la receta de ese lote; los demás lo informan nulo.
      *
      * @param identificador Texto a buscar dentro del identificador interno, o {@code null}.
      * @param idFabricante ID del fabricante a filtrar, o {@code null}.
@@ -38,7 +39,8 @@ public interface IControlBarrilServicio {
 
     /**
      * Obtiene el resumen de un barril activo: sus datos, sus usos desde el último mantenimiento y las fechas de su
-     * última limpieza y su último mantenimiento registrados.
+     * última limpieza y su último mantenimiento registrados. Si el barril está Con cerveza, también su contenido: el lote
+     * de su último envasado registrado y la receta de ese lote.
      *
      * @param idBarril El ID del barril.
      * @return El resumen del barril.

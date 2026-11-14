@@ -6,7 +6,7 @@
 
 <!--
     Lista de control de barriles: todos los barriles activos en una sola tabla, con su fabricante, su capacidad, su contenido,
-    su estado y sus usos. Quien opera los barriles (operario de producción y encargado de distribución) entra al panel con
+    su estado, la cerveza que contienen (receta y lote, solo los barriles Con cerveza) y sus usos. Quien opera los barriles (operario de producción y encargado de distribución) entra al panel con
     "Abrir"; el gerente de producción, que solo consulta, además ve el historial del barril con el ojo.
 -->
 <div id="control-lista-content" class="space-y-6">
@@ -59,6 +59,7 @@
                 <th class="px-2 py-3 whitespace-nowrap">Capacidad (L)</th>
                 <th class="px-2 py-3 whitespace-nowrap">Contenido (L)</th>
                 <th class="px-2 py-3">Estado operativo</th>
+                <th class="px-2 py-3">Cerveza</th>
                 <th class="px-2 py-3 whitespace-nowrap">Usos</th>
                 <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
             </tr>
@@ -70,6 +71,14 @@
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${b.capacidad})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${b.contenidoActual})}"></th:block></td>
                 <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{barril/estado :: badge(${b.estadoOperativo})}"></span></td>
+                <!-- Solo los barriles Con cerveza informan su contenido: la receta y, debajo, el lote -->
+                <td class="px-2 py-3 text-slate-700" data-barril-cerveza>
+                    <th:block th:if="${b.contenido != null}">
+                        <div class="font-medium text-slate-900 break-words" data-barril-receta th:text="${b.contenido.nombreReceta}">Pale Ale</div>
+                        <div class="text-xs text-slate-500 whitespace-nowrap" data-barril-lote th:text="${b.contenido.codigoLote}">PALE_ALE-1</div>
+                    </th:block>
+                    <span th:if="${b.contenido == null}" class="text-slate-400">-</span>
+                </td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-barril-usos
                     th:text="|${b.usosDesdeUltimoMantenimiento} de ${b.usosMaximosAntesMantenimiento}|">3 de 10</td>
                 <td class="col-acciones px-2 py-3">
@@ -85,7 +94,7 @@
                 </td>
             </tr>
             <tr th:if="${barriles.empty}">
-                <td colspan="7" class="px-4 py-10 text-center text-slate-400">
+                <td colspan="8" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-clipboard-check block text-3xl mb-2"></i>
                     No se encontraron barriles con los criterios indicados
                 </td>

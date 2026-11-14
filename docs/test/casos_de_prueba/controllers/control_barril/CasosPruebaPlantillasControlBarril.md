@@ -4,10 +4,10 @@
 
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
-| **CP-PCB-01** | Bloque de información | Separa en filas la identidad, las medidas con el estado y el mantenimiento. |
+| **CP-PCB-01** | Bloque de información | Separa en filas la identidad, las medidas con el estado, la cerveza (receta y lote, solo si el barril tiene contenido; el lote es un enlace a `/lotes/{id}` con `LOTE_CONSULTAR` y texto sin ese permiso) y el mantenimiento. |
 | **CP-PCB-02** | Formulario por tema | Cantidad, cliente (con el menú de alta contextual de cliente), fechas y observaciones cada uno en su fila, con asterisco y ejemplo; novalidate; la ayuda de la devolución usa el estilo de las ayudas. |
 | **CP-PCB-03** | Lista con Abrir y ojo | Usa el fragmento del botón Abrir, el ojo es solo del gerente con aria-label sin tooltip y ningún dato de la fila es un enlace. |
-| **CP-PCB-04** | Lista de siete columnas | Identificador, Fabricante, Capacidad, Contenido, Estado, Usos y Acciones; Limpiar y Buscar a la derecha; fabricante como selector de entidad. |
+| **CP-PCB-04** | Lista de ocho columnas | Identificador, Fabricante, Capacidad, Contenido, Estado, Cerveza, Usos y Acciones; Limpiar y Buscar a la derecha; fabricante como selector de entidad. |
 | **CP-PCB-05** | Pestañas con ícono | Usan el fragmento de pestañas con el ícono de cada tipo. |
 | **CP-PCB-06** | Barra lateral | Control de Barriles en Operación, con ícono propio, para quien consulta operaciones de barril; la sección Operación la ve el encargado de distribución. |
 | **CP-PCB-07** | Historial | Patrón de las listas: filtros con Limpiar y Buscar a la derecha, tabla estándar, badge del barril y paginación. |

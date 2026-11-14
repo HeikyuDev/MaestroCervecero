@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
 
 <!--
     Información de un barril, siempre igual: la usan el historial, el panel, los formularios de registro y el detalle de una
     operación. Una fila por tema: identidad (identificador, número de serie y fabricante), medidas y estado (capacidad,
-    contenido y estado operativo) y mantenimiento (usos desde el último mantenimiento, última limpieza y último mantenimiento).
+    contenido y estado operativo), cerveza (receta y lote, solo si el barril está Con cerveza) y mantenimiento (usos desde el último mantenimiento, última limpieza y último mantenimiento).
 
     Parámetro: barril (BarrilResumenResponseDTO).
 
@@ -41,6 +41,22 @@
             <div>
                 <dt class="text-xs font-medium text-slate-500">Estado operativo</dt>
                 <dd class="mt-1"><span th:replace="~{barril/estado :: badge(${barril.estadoOperativo})}"></span></dd>
+            </div>
+        </dl>
+        <!-- contenido: la cerveza del barril (solo Con cerveza). El texto lo ve todo el que llega aquí; el enlace al lote, solo quien consulta lotes -->
+        <dl th:if="${barril.contenido != null}" data-barril-cerveza class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Cerveza</dt>
+                <dd class="mt-1 font-medium text-slate-900 break-words" data-barril-receta th:text="${barril.contenido.nombreReceta}">Pale Ale</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Lote</dt>
+                <dd class="mt-1 text-slate-900" data-barril-lote>
+                    <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" th:href="@{/lotes/{id}(id=${barril.contenido.idLote})}"
+                       th:aria-label="'Ver el lote ' + ${barril.contenido.codigoLote}"
+                       class="hover:text-amber-600 hover:underline" th:text="${barril.contenido.codigoLote}">PALE_ALE-1</a>
+                    <span sec:authorize="!hasAuthority('LOTE_CONSULTAR')" th:text="${barril.contenido.codigoLote}">PALE_ALE-1</span>
+                </dd>
             </div>
         </dl>
         <!-- mantenimiento -->

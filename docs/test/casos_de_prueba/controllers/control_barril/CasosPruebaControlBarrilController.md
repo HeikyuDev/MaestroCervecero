@@ -29,3 +29,6 @@
 | **CP-CBC-23** | Detalle de una operación anulada | Muestra la fecha y el motivo de la anulación, sin el usuario que anuló. |
 | **CP-CBC-24** | Operación de otro barril o barril inexistente | Vuelve al origen con alerta de error, sin revelar datos. |
 | **CP-CBC-25** | Dónde aparece Registrado por | Solo en el detalle de la operación; "Responsable" no aparece en ninguna pantalla. |
+| **CP-CBC-26** | Cerveza en la lista | El barril Con cerveza muestra la receta y, debajo, el código del lote, como texto sin enlace; el barril sin contenido muestra un guion. |
+| **CP-CBC-27** | Cerveza en el panel con enlace | El operario y el gerente de producción (con `LOTE_CONSULTAR`) ven la cerveza y el lote con enlace a `/lotes/{id}` y `aria-label`. |
+| **CP-CBC-28** | Cerveza en el panel sin enlace | El encargado de distribución (sin `LOTE_CONSULTAR`) ve la receta y el código del lote como texto; un barril sin contenido no muestra la fila. |

@@ -14,6 +14,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IFabrican
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ActividadBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResumenResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ContenidoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.FabricanteBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.OperacionBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.TipoActividadBarril;
@@ -404,6 +405,65 @@ public class ControlBarrilControllerTest {
         assertThat(detalle).contains("Registrado por").doesNotContain("Responsable");
         assertThat(panel).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
         assertThat(historial).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
+    }
+
+    @Test
+    @DisplayName("CP-CBC-26: la lista muestra la receta y el lote de los barriles Con cerveza, como texto sin enlace, y un guion en los demás")
+    void lista_muestraLaCervezaDelBarril() throws Exception {
+        // Arrange
+        when(servicio.filtrarBarrilesParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                BarrilControlResponseDTO.builder().id(5L).identificadorInterno("BRL-01").fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(30.0)
+                        .estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosDesdeUltimoMantenimiento(3L).usosMaximosAntesMantenimiento(10)
+                        .contenido(new ContenidoBarrilResponseDTO(12L, "PALE_ALE-1", "Pale Ale")).build(),
+                BarrilControlResponseDTO.builder().id(6L).identificadorInterno("BRL-02").fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(0.0)
+                        .estadoOperativo(EstadoOperativoBarril.DISPONIBLE).usosDesdeUltimoMantenimiento(0L).usosMaximosAntesMantenimiento(10).build())));
+
+        // Act
+        String html = html(get("/control-barriles").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_barril/control-lista");
+
+        // Assert
+        assertThat(html).contains(">Cerveza<").contains("data-barril-receta").contains(">Pale Ale<").contains("data-barril-lote").contains(">PALE_ALE-1<")
+                .doesNotContain("/lotes/12");
+        assertThat(count(html, "data-barril-receta")).isEqualTo(1);
+        assertThat(count(html, "<span class=\"text-slate-400\">-</span>")).isEqualTo(1);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_PRODUCCION"})
+    @DisplayName("CP-CBC-27: el panel de un barril Con cerveza muestra la cerveza y el lote con el enlace al lote para quien puede consultar lotes")
+    void panel_conCervezaConEnlaceAlLote(Rol rol) throws Exception {
+        // Arrange
+        configurarBarrilConCerveza();
+
+        // Act
+        String html = html(get("/control-barriles/5").with(como(rol)), "control_barril/control-panel");
+
+        // Assert
+        assertThat(html).contains(">Cerveza<").contains(">Pale Ale<").contains("data-barril-lote").contains("href=\"/lotes/12\"").contains("aria-label=\"Ver el lote PALE_ALE-1\"")
+                .contains(">PALE_ALE-1<");
+    }
+
+    @Test
+    @DisplayName("CP-CBC-28: el encargado de distribución, que no consulta lotes, ve la cerveza y el código del lote como texto sin enlace; sin contenido no aparece la fila")
+    void panel_conCervezaSinEnlaceParaElEncargado() throws Exception {
+        // Arrange
+        configurarBarrilConCerveza();
+
+        // Act
+        String conCerveza = html(get("/control-barriles/5").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)), "control_barril/control-panel");
+        configurarBarril(EstadoOperativoBarril.DISPONIBLE);
+        String sinCerveza = html(get("/control-barriles/5").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)), "control_barril/control-panel");
+
+        // Assert
+        assertThat(conCerveza).contains(">Pale Ale<").contains(">PALE_ALE-1<").doesNotContain("/lotes/12");
+        assertThat(sinCerveza).doesNotContain("data-barril-receta").doesNotContain("data-barril-lote");
+    }
+
+    private void configurarBarrilConCerveza() {
+        when(servicio.buscarResumen(5L)).thenReturn(BarrilResumenResponseDTO.builder().id(5L).identificadorInterno("BRL-01").numeroSerie("SN-001")
+                .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(30.0).estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(10)
+                .usosDesdeUltimoMantenimiento(3L).contenido(new ContenidoBarrilResponseDTO(12L, "PALE_ALE-1", "Pale Ale")).build());
+        when(servicio.listarOperaciones(eq(5L), any())).thenReturn(List.of());
     }
 
     // ==================== Apoyo ====================

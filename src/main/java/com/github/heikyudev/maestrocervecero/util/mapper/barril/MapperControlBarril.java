@@ -13,6 +13,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ActividadBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResumenResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ContenidoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.OperacionBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.TipoActividadBarril;
 
@@ -32,9 +33,10 @@ public class MapperControlBarril {
      *
      * @param barril Barril a convertir, con su fabricante cargado.
      * @param usosDesdeUltimoMantenimiento Cantidad de usos desde el último mantenimiento.
+     * @param contenido Cerveza que contiene el barril, o {@code null} si no está Con cerveza.
      * @return El DTO, o {@code null} si el barril es nulo.
      */
-    public static BarrilControlResponseDTO toControlDTO(BarrilEntity barril, long usosDesdeUltimoMantenimiento) {
+    public static BarrilControlResponseDTO toControlDTO(BarrilEntity barril, long usosDesdeUltimoMantenimiento, ContenidoBarrilResponseDTO contenido) {
         if (barril == null) {
             return null;
         }
@@ -47,15 +49,19 @@ public class MapperControlBarril {
                 .estadoOperativo(barril.getEstadoOperativo())
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
                 .usosMaximosAntesMantenimiento(barril.getUsosMaximosAntesMantenimiento())
+                .contenido(contenido)
                 .build();
     }
 
     /**
-     * Mapea un barril, con sus usos y las fechas de su última limpieza y último mantenimiento, a
-     * {@link BarrilResumenResponseDTO}.
+     * Mapea un barril, con sus usos, las fechas de su última limpieza y último mantenimiento y la cerveza que contiene,
+     * a {@link BarrilResumenResponseDTO}.
+     *
+     * @param contenido Cerveza que contiene el barril, o {@code null} si no está Con cerveza.
      */
     public static BarrilResumenResponseDTO toResumenDTO(BarrilEntity barril, long usosDesdeUltimoMantenimiento,
-                                                        LocalDateTime fechaUltimaLimpieza, LocalDateTime fechaUltimoMantenimiento) {
+                                                        LocalDateTime fechaUltimaLimpieza, LocalDateTime fechaUltimoMantenimiento,
+                                                        ContenidoBarrilResponseDTO contenido) {
         if (barril == null) {
             return null;
         }
@@ -71,6 +77,7 @@ public class MapperControlBarril {
                 .usosMaximosAntesMantenimiento(barril.getUsosMaximosAntesMantenimiento())
                 .fechaUltimaLimpieza(fechaUltimaLimpieza)
                 .fechaUltimoMantenimiento(fechaUltimoMantenimiento)
+                .contenido(contenido)
                 .build();
     }
 

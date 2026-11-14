@@ -50,4 +50,7 @@ public class BarrilResumenResponseDTO {
 
     /** Fecha y hora del último mantenimiento registrado, o {@code null} si no tiene. */
     private LocalDateTime fechaUltimoMantenimiento;
+
+    /** Cerveza que contiene el barril (lote y receta), o {@code null} si el barril no está Con cerveza. */
+    private ContenidoBarrilResponseDTO contenido;
 }

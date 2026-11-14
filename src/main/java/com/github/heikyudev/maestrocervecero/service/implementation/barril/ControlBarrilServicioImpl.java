@@ -21,6 +21,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlB
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ActividadBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResumenResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ContenidoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.OperacionBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.TipoActividadBarril;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperControlBarril;
@@ -47,6 +48,8 @@ import java.util.Map;
  * Es de solo lectura y no toma locks. Cada consulta resuelve todo lo que necesita con un número fijo de consultas, sin
  * importar cuántos barriles u operaciones haya: la lista agrega los usos de la página completa con una consulta (por
  * lista de IDs) y trae el fabricante junto con el barril, y el historial trae los envasados junto con su lote.
+ * La cerveza de un barril Con cerveza (lote y receta) es la del lote de su último envasado registrado; la lista la
+ * resuelve para todos los barriles Con cerveza de la página con una consulta por lista de IDs.
  * </p>
  */
 @Service
@@ -87,7 +90,27 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
                 usosPorBarril.put(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
             }
         }
-        return pagina.map(barril -> MapperControlBarril.toControlDTO(barril, usosPorBarril.getOrDefault(barril.getId(), 0L)));
+        Map<Long, ContenidoBarrilResponseDTO> contenidos = buscarContenidos(pagina.getContent().stream()
+                .filter(barril -> barril.getEstadoOperativo() == EstadoOperativoBarril.CON_CERVEZA)
+                .map(BarrilEntity::getId)
+                .toList());
+        return pagina.map(barril -> MapperControlBarril.toControlDTO(barril, usosPorBarril.getOrDefault(barril.getId(), 0L), contenidos.get(barril.getId())));
+    }
+
+    /**
+     * Resuelve con una sola consulta la cerveza de cada barril indicado: el lote de su último envasado registrado, el
+     * mismo que se exige finalizado para despachar, y la receta de ese lote. Si no hay barriles no consulta.
+     */
+    private Map<Long, ContenidoBarrilResponseDTO> buscarContenidos(List<Long> idsBarrilesConCerveza) {
+        Map<Long, ContenidoBarrilResponseDTO> contenidos = new HashMap<>();
+        if (idsBarrilesConCerveza.isEmpty()) {
+            return contenidos;
+        }
+        for (Object[] fila : envasadoLoteRepository.buscarLoteDelUltimoEnvasadoRegistrado(idsBarrilesConCerveza)) {
+            contenidos.putIfAbsent(((Number) fila[0]).longValue(),
+                    new ContenidoBarrilResponseDTO(((Number) fila[1]).longValue(), (String) fila[2], (String) fila[3]));
+        }
+        return contenidos;
     }
 
     @Override
@@ -100,7 +123,11 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         LocalDateTime fechaUltimaLimpieza = limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null);
         long usos = limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(idBarril, fechaUltimoMantenimiento);
 
-        return MapperControlBarril.toResumenDTO(barril, usos, fechaUltimaLimpieza, fechaUltimoMantenimiento);
+        ContenidoBarrilResponseDTO contenido = barril.getEstadoOperativo() == EstadoOperativoBarril.CON_CERVEZA
+                ? buscarContenidos(List.of(idBarril)).get(idBarril)
+                : null;
+
+        return MapperControlBarril.toResumenDTO(barril, usos, fechaUltimaLimpieza, fechaUltimoMantenimiento, contenido);
     }
 
     @Override

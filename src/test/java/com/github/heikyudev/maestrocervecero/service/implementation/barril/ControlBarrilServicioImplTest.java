@@ -159,6 +159,55 @@ class ControlBarrilServicioImplTest {
         verify(barrilRepository).filtrarBarrilesParaControl(eq("!_"), isNull(), isNull(), any());
     }
 
+    @Test
+    @DisplayName("CP-CBS-23: la lista informa el lote y la receta de los barriles Con cerveza con una sola consulta para toda la página, y nulo en los demás")
+    void filtrar_informaElContenidoDeLosBarrilesConCerveza() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 20);
+        when(barrilRepository.filtrarBarrilesParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA), barril(2L, "BRL-02", EstadoOperativoBarril.DISPONIBLE),
+                barril(3L, "BRL-03", EstadoOperativoBarril.CON_CERVEZA), barril(4L, "BRL-04", EstadoOperativoBarril.CON_CERVEZA))));
+        when(envasadoLoteRepository.buscarLoteDelUltimoEnvasadoRegistrado(List.of(1L, 3L, 4L)))
+                .thenReturn(List.of(new Object[]{1L, 11L, "PALE_ALE-1", "Pale Ale"}, new Object[]{3L, 13L, "STOUT-2", "Stout"}));
+
+        // Act
+        Page<BarrilControlResponseDTO> pagina = servicio.filtrarBarrilesParaControl(null, null, null, pageable);
+
+        // Assert
+        assertThat(pagina.getContent().get(0).getContenido().idLote()).isEqualTo(11L);
+        assertThat(pagina.getContent().get(0).getContenido().codigoLote()).isEqualTo("PALE_ALE-1");
+        assertThat(pagina.getContent().get(0).getContenido().nombreReceta()).isEqualTo("Pale Ale");
+        assertThat(pagina.getContent().get(1).getContenido()).isNull();
+        assertThat(pagina.getContent().get(2).getContenido().codigoLote()).isEqualTo("STOUT-2");
+        assertThat(pagina.getContent().get(3).getContenido()).isNull();
+        verify(envasadoLoteRepository, times(1)).buscarLoteDelUltimoEnvasadoRegistrado(any());
+    }
+
+    @Test
+    @DisplayName("CP-CBS-24: la lista sin barriles Con cerveza no consulta el contenido")
+    void filtrar_sinBarrilesConCervezaNoConsultaElContenido() {
+        when(barrilRepository.filtrarBarrilesParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                barril(1L, "BRL-01", EstadoOperativoBarril.EN_USO), barril(2L, "BRL-02", EstadoOperativoBarril.DISPONIBLE))));
+
+        Page<BarrilControlResponseDTO> pagina = servicio.filtrarBarrilesParaControl(null, null, null, PageRequest.of(0, 20));
+
+        assertThat(pagina.getContent()).allSatisfy(b -> assertThat(b.getContenido()).isNull());
+        verify(envasadoLoteRepository, never()).buscarLoteDelUltimoEnvasadoRegistrado(any());
+    }
+
+    @Test
+    @DisplayName("CP-CBS-27: ante dos envasados con la misma fecha, el contenido es el del primero que devuelve la consulta (el de mayor ID)")
+    void filtrar_conEnvasadosDeIgualFechaGanaElPrimero() {
+        when(barrilRepository.filtrarBarrilesParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA))));
+        when(envasadoLoteRepository.buscarLoteDelUltimoEnvasadoRegistrado(List.of(1L)))
+                .thenReturn(List.of(new Object[]{1L, 12L, "STOUT-1", "Stout"}, new Object[]{1L, 11L, "PALE_ALE-1", "Pale Ale"}));
+
+        Page<BarrilControlResponseDTO> pagina = servicio.filtrarBarrilesParaControl(null, null, null, PageRequest.of(0, 20));
+
+        assertThat(pagina.getContent().get(0).getContenido().codigoLote()).isEqualTo("STOUT-1");
+    }
+
     // ==================== buscarResumen ====================
 
     @Test
@@ -182,6 +231,37 @@ class ControlBarrilServicioImplTest {
         assertThat(resumen.getUsosMaximosAntesMantenimiento()).isEqualTo(10);
         assertThat(resumen.getFechaUltimaLimpieza()).isEqualTo(FECHA);
         assertThat(resumen.getFechaUltimoMantenimiento()).isEqualTo(mantenimiento);
+    }
+
+    @Test
+    @DisplayName("CP-CBS-25: el resumen de un barril Con cerveza informa el lote de su último envasado registrado y la receta")
+    void resumen_conCervezaInformaElContenido() {
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(0L);
+        when(envasadoLoteRepository.buscarLoteDelUltimoEnvasadoRegistrado(List.of(1L)))
+                .thenReturn(Collections.singletonList(new Object[]{1L, 11L, "PALE_ALE-1", "Pale Ale"}));
+
+        BarrilResumenResponseDTO resumen = servicio.buscarResumen(1L);
+
+        assertThat(resumen.getContenido().idLote()).isEqualTo(11L);
+        assertThat(resumen.getContenido().codigoLote()).isEqualTo("PALE_ALE-1");
+        assertThat(resumen.getContenido().nombreReceta()).isEqualTo("Pale Ale");
+    }
+
+    @Test
+    @DisplayName("CP-CBS-26: el resumen de un barril que no está Con cerveza no informa contenido ni lo consulta")
+    void resumen_sinCervezaNoInformaContenido() {
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(0L);
+
+        BarrilResumenResponseDTO resumen = servicio.buscarResumen(1L);
+
+        assertThat(resumen.getContenido()).isNull();
+        verify(envasadoLoteRepository, never()).buscarLoteDelUltimoEnvasadoRegistrado(any());
     }
 
     @Test

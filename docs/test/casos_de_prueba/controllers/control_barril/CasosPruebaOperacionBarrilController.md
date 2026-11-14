@@ -21,4 +21,5 @@
 | **CP-OBC-15** | Estado no permitido por URL | Redirige a la pestaña con el aviso del service; con el barril En uso, avisa que lo ocupa un lote. |
 | **CP-OBC-16** | Sin token CSRF | Es rechazado y no llega al service. |
 | **CP-OBC-17** | `idBarril` en el pedido | Un POST con `idBarril=999` en la ruta del barril 5 | El `@InitBinder` no enlaza el campo; el controller descarta su error de validación y fija el barril de la ruta | El service recibe el barril 5 en las seis operaciones; el pedido no puede inyectar otro barril. |
+| **CP-OBC-19** | Cerveza en el formulario de despacho | El barril Con cerveza informa su contenido (lote 12 "PALE_ALE-1", receta "Pale Ale"); `GET /despachos/nuevo` del encargado de distribución muestra la receta y el código del lote como texto, sin enlace, porque no consulta lotes. |
 | **CP-OBC-18** | Volver de crear un cliente | `GET /despachos/nuevo?idCliente=3&desdeAlta=1` trae elegido al cliente creado (campo oculto `idCliente` y su nombre en el selector). |

@@ -4,7 +4,7 @@
 
 ### 1. `filtrarBarrilesParaControl(identificador, idFabricante, estadoOperativo, pageable)`
 
-Devuelve los barriles activos con su fabricante (cargado junto con el barril), estado y usos desde el último mantenimiento, en orden natural por identificador (lo resuelve el repositorio). Los usos de toda la página se obtienen con una consulta por lista de IDs.
+Devuelve los barriles activos con su fabricante (cargado junto con el barril), estado y usos desde el último mantenimiento, en orden natural por identificador (lo resuelve el repositorio). Los usos de toda la página se obtienen con una consulta por lista de IDs. Los barriles Con cerveza informan además su contenido: el lote de su último envasado registrado (el de mayor fecha de envasado) y el nombre de la receta de ese lote, resueltos para todos los de la página con una consulta por lista de IDs; los demás barriles informan contenido nulo.
 
 |**ID**|**Nombre del Caso**|**Escenario**|**Resultado Esperado**|
 |---|---|---|---|
@@ -12,6 +12,9 @@ Devuelve los barriles activos con su fabricante (cargado junto con el barril), e
 |**CP-CBS-02**|Página vacía|El repositorio devuelve una página sin barriles|Retorna una página vacía y no consulta usos.|
 |**CP-CBS-03**|Normaliza el identificador|`"  brl   01  "` y `"    "`|Consulta con `"BRL 01"` y con `null`.|
 |**CP-CBS-22**|Escapa los comodines del identificador|`"_"`|Consulta con `"!_"` para compararlo de forma literal.|
+|**CP-CBS-23**|Contenido de los barriles Con cerveza|Página con tres barriles Con cerveza y uno Disponible|Los Con cerveza informan el lote (ID y código) y la receta de su último envasado registrado; el Disponible informa contenido nulo. `buscarLoteDelUltimoEnvasadoRegistrado` se invoca una vez, con los IDs de los tres barriles Con cerveza.|
+|**CP-CBS-24**|Sin barriles Con cerveza|Página con un barril En uso y uno Disponible|Todos informan contenido nulo y no se consulta el contenido.|
+|**CP-CBS-27**|Envasados con igual fecha|La consulta devuelve dos filas del mismo barril (mayor ID primero)|Informa el contenido de la primera fila, la del envasado de mayor ID.|
 
 ### 2. `buscarResumen(idBarril)`
 
@@ -19,6 +22,8 @@ Devuelve los barriles activos con su fabricante (cargado junto con el barril), e
 |---|---|---|---|
 |**CP-CBS-04**|Resumen completo|Barril con mantenimiento previo, 4 usos y última limpieza|Informa datos, 4 usos, máximo 10 y las dos fechas.|
 |**CP-CBS-05**|Sin operaciones|Sin limpiezas ni mantenimientos|0 usos, fechas nulas y conteo sin fecha de corte.|
+|**CP-CBS-25**|Contenido de un barril Con cerveza|Barril Con cerveza cuyo último envasado registrado es de un lote de la receta Pale Ale|Informa el ID y el código del lote y el nombre de la receta.|
+|**CP-CBS-26**|Barril que no está Con cerveza|Barril Disponible|Informa contenido nulo y no consulta el contenido.|
 |**CP-CBS-06**|Barril inexistente o de baja|`findById` vacío|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99").|
 
 ### 3. `listarOperaciones(idBarril, tipo)`
