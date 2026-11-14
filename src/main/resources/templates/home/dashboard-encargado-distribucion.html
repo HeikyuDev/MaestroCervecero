@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Panel de control del encargado de distribución en la pantalla de inicio: qué barriles hay que retirar de los clientes, qué
+    clientes tienen barriles en su poder y qué barriles con cerveza están listos para despachar. Es un panel de trabajo: cada
+    barril ofrece el atajo a la operación que corresponde (registrar su devolución o su despacho) y el acceso a la consulta. Se
+    lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila:
+      1. contadores(dashboard): cuatro tarjetas con los barriles en poder de clientes, las devoluciones vencidas, las que vencen
+         hoy y los barriles listos para despachar.
+      2. devolucionesPendientes(dashboard) a la izquierda y clientesConBarriles(dashboard) a la derecha.
+      3. barrilesListos(dashboard) a todo el ancho.
+    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardEncargadoDistribucionResponseDTO que el
+    HomeController carga solo para el rol ENCARGADO_DE_DISTRIBUCION.
+
+    Cada atajo se protege con el mismo permiso que el destino ("Registrar devolución" con DEVOLUCION_BARRIL_REGISTRAR, "Registrar
+    despacho" con DESPACHO_BARRIL_REGISTRAR, "Abrir" un barril con alguno de los permisos de consulta de barril, "Abrir" un
+    cliente con CLIENTE_CONSULTAR); el servidor vuelve a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin
+    tabla ni encabezado de columnas. La columna Acciones va centrada, igual que su encabezado.
+
+    Uso: <th:block th:replace="~{home/dashboard-encargado-distribucion :: panel(${dashboardEncargadoDistribucion})}"></th:block>
+-->
+
+<!-- ===================================================================== PANEL -->
+<div th:fragment="panel(dashboard)" data-dashboard-encargado-distribucion class="space-y-6">
+    <th:block th:replace="~{home/dashboard-encargado-distribucion :: contadores(${dashboard})}"></th:block>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: devolucionesPendientes(${dashboard})}"></th:block>
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: clientesConBarriles(${dashboard})}"></th:block>
+    </div>
+    <th:block th:replace="~{home/dashboard-encargado-distribucion :: barrilesListos(${dashboard})}"></th:block>
+</div>
+
+<!-- ===================================================================== FILA 1: CONTADORES -->
+<div th:fragment="contadores(dashboard)" data-dashboard-contadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Barriles en poder de clientes: toda la tarjeta es un enlace a los barriles Despachados -->
+    <a th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" data-contador="en-poder-de-clientes"
+       th:href="@{/control-barriles(estadoOperativo='DESPACHADO')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('En poder de clientes', ${dashboard.barrilesEnPoderDeClientes}, 'bi-shop', 'bg-sky-50 text-sky-600')}"></th:block>
+    </a>
+    <div th:unless="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" data-contador="en-poder-de-clientes" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('En poder de clientes', ${dashboard.barrilesEnPoderDeClientes}, 'bi-shop', 'bg-sky-50 text-sky-600')}"></th:block>
+    </div>
+
+    <!-- Devoluciones vencidas: los despachados con fecha de devolución estimada anterior a hoy -->
+    <div data-contador="devoluciones-vencidas" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('Devoluciones vencidas', ${dashboard.devolucionesVencidas}, 'bi-exclamation-triangle', ${dashboard.devolucionesVencidas > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'})}"></th:block>
+    </div>
+
+    <!-- Devoluciones que vencen hoy -->
+    <div data-contador="devoluciones-de-hoy" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('Vencen hoy', ${dashboard.devolucionesQueVencenHoy}, 'bi-calendar-event', 'bg-amber-50 text-amber-600')}"></th:block>
+    </div>
+
+    <!-- Barriles listos para despachar: los Con cerveza -->
+    <a th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" data-contador="listos-para-despachar"
+       th:href="@{/control-barriles(estadoOperativo='CON_CERVEZA')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('Listos para despachar', ${dashboard.barrilesListos.total}, 'bi-box-arrow-up-right', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </a>
+    <div th:unless="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" data-contador="listos-para-despachar" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: contenidoContador('Listos para despachar', ${dashboard.barrilesListos.total}, 'bi-box-arrow-up-right', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </div>
+</div>
+
+<!-- Interior de una tarjeta contadora: título en mayúsculas pequeñas, ícono y el número grande -->
+<th:block th:fragment="contenidoContador(titulo, total, icono, colores)">
+    <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="${titulo}">En poder de clientes</span>
+        <span class="p-2 rounded-lg" th:classappend="${colores}"><i th:class="'bi ' + ${icono}" aria-hidden="true"></i></span>
+    </div>
+    <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
+</th:block>
+
+<!-- ===================================================================== FILA 2, IZQUIERDA: DEVOLUCIONES PENDIENTES -->
+<section th:fragment="devolucionesPendientes(dashboard)" data-bloque="devoluciones-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Devoluciones de hoy y vencidas</h2>
+
+    <div data-subbloque="devoluciones-pendientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: encabezado('Barriles a retirar', ${dashboard.devolucionesPendientes.total}, 'barriles', @{/control-barriles(estadoOperativo='DESPACHADO')}, 'Ver todos los barriles en poder de clientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.devolucionesPendientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Cliente</th>
+                    <th class="px-2 py-3">Barril</th>
+                    <th class="px-2 py-3">Devolución</th>
+                    <th class="px-2 py-3">Días de atraso</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="d : ${dashboard.devolucionesPendientes.filas}" class="hover:bg-slate-50 align-top" data-fila-devolucion>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-cliente-nombre th:text="${d.nombreCliente}">Bar Don Jorge</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-barril-identificador th:text="${d.identificadorInterno}">BRL-01</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-devolucion><th:block th:replace="~{planificacion_produccion/formato :: fecha(${d.fechaDevolucionEstimada})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-dias-de-atraso>
+                        <th:block th:if="${d.diasDeAtraso > 0}"><th:block th:replace="~{lote/formato :: duracion(${d.diasDeAtraso}, 'día', 'días')}"></th:block></th:block>
+                        <th:block th:if="${d.diasDeAtraso == 0}">-</th:block>
+                    </td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('DEVOLUCION_BARRIL_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-barriles/{id}/devoluciones/nueva(id=${d.idBarril})}, 'Registrar devolución', 'bi-box-arrow-in-down-left', 'Registrar devolución de ' + ${d.identificadorInterno})}"></th:block>
+                            </th:block>
+                            <th:block th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/control-barriles/{id}(id=${d.idBarril})}, 'Abrir ' + ${d.identificadorInterno})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.devolucionesPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay devoluciones vencidas ni que venzan hoy</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 2, DERECHA: CLIENTES CON BARRILES -->
+<section th:fragment="clientesConBarriles(dashboard)" data-bloque="clientes-con-barriles" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Clientes con barriles en poder</h2>
+
+    <div data-subbloque="clientes-con-barriles" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: encabezado('Clientes', ${dashboard.clientesConBarriles.total}, 'clientes', @{/clientes}, 'Ver todos los clientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.clientesConBarriles.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Cliente</th>
+                    <th class="px-2 py-3 text-right">Barriles</th>
+                    <th class="px-2 py-3">Próxima devolución</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="c : ${dashboard.clientesConBarriles.filas}" class="hover:bg-slate-50 align-top" data-fila-cliente>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-cliente-nombre th:text="${c.nombre}">Bar Don Jorge</td>
+                    <td class="px-2 py-3 text-slate-900 text-right font-medium whitespace-nowrap" data-cliente-barriles th:text="${c.cantidadBarriles}">2</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-cliente-proxima-devolucion><th:block th:replace="~{planificacion_produccion/formato :: fecha(${c.proximaFechaDevolucion})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('CLIENTE_CONSULTAR')">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/clientes(nombre=${c.nombre})}, 'Abrir ' + ${c.nombre})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.clientesConBarriles.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay clientes con barriles en su poder</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3: BARRILES LISTOS PARA DESPACHAR -->
+<section th:fragment="barrilesListos(dashboard)" data-bloque="barriles-listos" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Barriles listos para despachar</h2>
+
+    <div data-subbloque="barriles-listos" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: encabezado('Con cerveza', ${dashboard.barrilesListos.total}, 'barriles', @{/control-barriles(estadoOperativo='CON_CERVEZA')}, 'Ver todos los barriles con cerveza')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.barrilesListos.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Barril</th>
+                    <th class="px-2 py-3">Cerveza</th>
+                    <th class="px-2 py-3 text-right">Contenido</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="b : ${dashboard.barrilesListos.filas}" class="hover:bg-slate-50 align-top" data-fila-barril-listo>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-barril-identificador th:text="${b.identificadorInterno}">BRL-01</td>
+                    <td class="px-2 py-3">
+                        <th:block th:if="${b.nombreReceta != null}">
+                            <div class="font-medium text-slate-900 break-words" data-barril-receta th:text="${b.nombreReceta}">Pale Ale</div>
+                            <div class="text-xs text-slate-500 whitespace-nowrap" data-barril-lote th:text="${b.codigoLote}">PALE_ALE-1</div>
+                        </th:block>
+                        <span th:if="${b.nombreReceta == null}" class="text-slate-400">-</span>
+                    </td>
+                    <td class="px-2 py-3 text-slate-700 text-right whitespace-nowrap" data-barril-contenido><th:block th:replace="~{receta/formato :: medida(${b.contenidoActual}, 'L')}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('DESPACHO_BARRIL_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-barriles/{id}/despachos/nuevo(id=${b.id})}, 'Registrar despacho', 'bi-box-arrow-up-right', 'Registrar despacho de ' + ${b.identificadorInterno})}"></th:block>
+                            </th:block>
+                            <th:block th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/control-barriles/{id}(id=${b.id})}, 'Abrir ' + ${b.identificadorInterno})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.barrilesListos.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay barriles con cerveza listos para despachar</p>
+    </div>
+</section>
+
+<!-- ===================================================================== PIEZAS COMPARTIDAS -->
+
+<!--
+    Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
+    ('barriles' o 'clientes') decide el permiso del enlace, que sin él no se muestra.
+-->
+<div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-800" th:text="${titulo}">Barriles a retirar</h3>
+        <span class="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600" data-bloque-total th:text="${total}">3</span>
+    </div>
+    <th:block th:if="${lista == 'barriles'}">
+        <a th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}"
+           data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+    <th:block th:if="${lista == 'clientes'}">
+        <a sec:authorize="hasAuthority('CLIENTE_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+</div>
+
+</html>

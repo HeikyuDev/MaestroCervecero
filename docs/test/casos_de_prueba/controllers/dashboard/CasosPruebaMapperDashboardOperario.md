@@ -4,8 +4,8 @@
 
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
-| **CP-MDO-01** | Lote del día | Lleva los datos del lote del listado (código, receta, etapa, fermentador, fechas estimadas) y el atraso y la falta de consumo recibidos. |
-| **CP-MDO-02** | Lote del día de un lote pendiente | Conserva la etapa y el fermentador nulos, con atraso `0` y falta de consumo `false`. |
+| **CP-MDO-01** | Lote del día | Lleva los datos del lote del listado (código, receta, etapa, fermentador, fechas estimadas). |
+| **CP-MDO-02** | Lote del día de un lote pendiente | Conserva la etapa y el fermentador nulos. |
 | **CP-MDO-03** | Lote, equipo o barril nulo | Cada mapeo devuelve nulo. |
 | **CP-MDO-04** | Equipo pendiente | Lleva su ID, su identificador, su tipo y la causa recibida (nula si no se informa). |
 | **CP-MDO-05** | Barril pendiente | Lleva su ID, su identificador, su fabricante y la causa recibida (nula si no se informa). |

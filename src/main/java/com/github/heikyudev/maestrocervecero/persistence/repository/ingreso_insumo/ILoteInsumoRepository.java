@@ -240,4 +240,20 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      */
     @Query("SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE li.id = :id AND i.estado = 'ACTIVO'")
     Optional<LoteInsumoEntity> buscarConInsumoActivoPorId(@Param("id") Long id);
+
+    /**
+     * Obtiene una página con los lotes de insumo vencidos que conservan cantidad, de insumos activos, con el insumo
+     * cargado, por fecha de vencimiento ascendente (el que venció antes primero) y, ante igual fecha, por ID ascendente.
+     * Un lote está vencido cuando su fecha de vencimiento es anterior a {@code hoy}. El total de la página es la
+     * cantidad de lotes vencidos con cantidad.
+     *
+     * @param hoy La fecha contra la que se decide si un lote está vencido.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los lotes vencidos con cantidad de la página.
+     */
+    @Query(value = "SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE i.estado = 'ACTIVO' "
+            + "AND li.fechaVencimiento < :hoy AND li.cantidadActual > 0.00005 ORDER BY li.fechaVencimiento ASC, li.id ASC",
+            countQuery = "SELECT COUNT(li) FROM LoteInsumoEntity li JOIN li.insumo i WHERE i.estado = 'ACTIVO' "
+                    + "AND li.fechaVencimiento < :hoy AND li.cantidadActual > 0.00005")
+    Page<LoteInsumoEntity> buscarVencidosConCantidadParaPanel(@Param("hoy") LocalDate hoy, Pageable pageable);
 }

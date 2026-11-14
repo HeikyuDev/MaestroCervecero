@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 /**
  * DTO de respuesta con los datos de un lote del panel del operario ("En ejecución" y "A iniciar"): lo necesario para
- * identificarlo, ubicarlo en el tiempo, saber si va atrasado o le falta consumo y armar el enlace a su panel de trabajo.
+ * identificarlo, ubicarlo en el tiempo y armar el enlace a su panel de trabajo.
  */
 @Getter
 @Builder
@@ -47,16 +47,4 @@ public class LoteDelDiaResponseDTO {
 
     /** Fecha estimada de finalización del lote. */
     private LocalDate fechaFinalizacionEstimada;
-
-    /**
-     * Días de atraso, en días: los transcurridos desde la fecha de finalización estimada hasta hoy. Es {@code 0}
-     * salvo en un lote En ejecución cuya fecha estimada ya pasó. Nunca es negativo.
-     */
-    private int diasDeAtraso;
-
-    /**
-     * {@code true} si la etapa en curso no alcanza el porcentaje mínimo de consumo de insumos para poder finalizar.
-     * Es siempre {@code false} en un lote Pendiente.
-     */
-    private boolean faltaConsumo;
 }

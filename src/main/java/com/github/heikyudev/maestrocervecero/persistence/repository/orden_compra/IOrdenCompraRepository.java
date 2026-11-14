@@ -115,4 +115,41 @@ public interface IOrdenCompraRepository extends JpaRepository<OrdenCompraEntity,
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM OrdenCompraEntity o WHERE o.id = :id")
     Optional<OrdenCompraEntity> buscarPorIdParaCambiarEstado(@Param("id") Long id);
+
+    /**
+     * Obtiene una página con las órdenes de compra PENDIENTE del panel del encargado de depósito, con su versión de
+     * proveedor cargada, por fecha de entrega estimada ascendente (la más vencida primero) y, ante igual fecha, por ID
+     * ascendente. El total de la página es la cantidad de órdenes pendientes.
+     *
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Las órdenes pendientes de la página.
+     */
+    @Query(value = "SELECT o FROM OrdenCompraEntity o JOIN FETCH o.versionProveedor WHERE o.estado = 'PENDIENTE' "
+            + "ORDER BY o.fechaEntregaEstimada ASC, o.id ASC",
+            countQuery = "SELECT COUNT(o) FROM OrdenCompraEntity o WHERE o.estado = 'PENDIENTE'")
+    Page<OrdenCompraEntity> buscarPendientesParaPanel(Pageable pageable);
+
+    /**
+     * Cuenta las órdenes de compra PENDIENTE con entrega vencida: las de fecha de entrega estimada anterior a la indicada.
+     *
+     * @param hoy Fecha de referencia; en el panel, la fecha de hoy.
+     * @return La cantidad de órdenes pendientes con fecha de entrega estimada anterior a {@code hoy}.
+     */
+    @Query("SELECT COUNT(o) FROM OrdenCompraEntity o WHERE o.estado = 'PENDIENTE' AND o.fechaEntregaEstimada < :hoy")
+    long contarPendientesConEntregaVencida(@Param("hoy") LocalDate hoy);
+
+    /**
+     * Obtiene una página con las órdenes de compra FINALIZADA del panel del gerente de compras cuya fecha de finalización
+     * es la indicada o posterior, con su versión de proveedor cargada, por fecha de finalización descendente (la más
+     * reciente primero) y, ante igual fecha, por ID descendente. El total de la página es la cantidad de órdenes
+     * finalizadas en ese período.
+     *
+     * @param desde Fecha y hora mínima de finalización (inclusive).
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Las órdenes finalizadas de la página.
+     */
+    @Query(value = "SELECT o FROM OrdenCompraEntity o JOIN FETCH o.versionProveedor WHERE o.estado = 'FINALIZADA' "
+            + "AND o.fechaFinalizacion >= :desde ORDER BY o.fechaFinalizacion DESC, o.id DESC",
+            countQuery = "SELECT COUNT(o) FROM OrdenCompraEntity o WHERE o.estado = 'FINALIZADA' AND o.fechaFinalizacion >= :desde")
+    Page<OrdenCompraEntity> buscarFinalizadasDesdeParaPanel(@Param("desde") java.time.LocalDateTime desde, Pageable pageable);
 }

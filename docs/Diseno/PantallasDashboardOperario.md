@@ -10,7 +10,7 @@ El panel responde a una pregunta: qué hay que hacer hoy en la planta. "Hoy" inc
 
 | Acción | Permiso | Operario de producción | Gerente de producción | Demás roles |
 | --- | --- | --- | --- | --- |
-| Ver el panel del operario | Rol `OPERARIO_DE_PRODUCCION` | Sí | No (ve las tarjetas de resumen) | No (ven las tarjetas de resumen) |
+| Ver el panel del operario | Rol `OPERARIO_DE_PRODUCCION` | Sí | No (ve su propio panel, descrito en `PantallasDashboardGerente.md`) | No (cada rol ve su propio panel) |
 | Abrir un lote y recorrer la lista de lotes ("Ver todos", contadores de lotes) | `LOTE_CONSULTAR` | Sí | No ve el panel | No |
 | Ver el identificador de un equipo como enlace a su detalle | `EQUIPAMIENTO_CONSULTAR` | Sí | No ve el panel | No (texto plano) |
 | Recorrer la lista de equipos ("Ver todos", contadores de equipos) | `LIMPIEZA_EQUIPAMIENTO_CONSULTAR` | Sí | No ve el panel | No |
@@ -23,7 +23,7 @@ El panel responde a una pregunta: qué hay que hacer hoy en la planta. "Hoy" inc
 - El panel se muestra con `sec:authorize="hasRole('OPERARIO_DE_PRODUCCION')"` y el `HomeController` carga sus datos solo para ese rol: los demás roles no reciben el modelo del panel, de modo que ningún dato de planta llega a una vista que no lo muestra.
 - Cada contador, enlace "Ver todos" y botón de fila lleva `sec:authorize="hasAuthority(...)"` con el permiso de la tabla. Es la misma condición que el `@PreAuthorize` del método de destino, que sigue siendo la fuente de verdad: un acceso no autorizado no devuelve un 403, el `ControllerAdvices` redirige con la alerta `danger` "No tiene permisos para realizar esta acción".
 - El panel no tiene entrada propia en el menú: es el contenido de "Panel de Control" (ícono `bi-speedometer2`, clave activa `dashboard`), que todos los roles ven. El título de la pestaña del navegador no cambia.
-- El gerente de producción consulta lotes, equipos y barriles desde sus pantallas habituales; no ve este panel porque no registra ni opera, y su vista de inicio conserva las tarjetas de resumen.
+- El gerente de producción no ve este panel porque no registra ni opera: su pantalla de inicio muestra el panel de solo lectura descrito en `docs/Diseno/PantallasDashboardGerente.md`.
 
 ## 2. Inventario de pantallas y rutas
 
@@ -54,8 +54,6 @@ Un formulario de registro cuyo equipo o barril ya no está en el estado que la o
 - **Hoy.** El panel muestra lo que corresponde a hoy, todo lo atrasado y todo lo que está en curso. Ningún elemento desaparece porque su fecha pasó.
 - **Lotes en ejecución.** Entran todos los lotes en estado En ejecución. Se ordenan por fecha de finalización estimada ascendente (el más atrasado arriba) y, ante igual fecha, por ID.
 - **Lotes a iniciar.** Entran los lotes en estado Pendiente cuya fecha de inicio estimada es hoy o anterior. Se ordenan por fecha de inicio estimada ascendente y, ante igual fecha, por ID. Iniciar un lote sigue las reglas de siempre (stock suficiente de cada insumo y equipos disponibles): si un lote listado no puede iniciarse todavía, por ejemplo porque su fermentador sigue ocupado por un lote atrasado, el panel de trabajo del lote muestra el motivo del rechazo.
-- **Atraso.** Es la cantidad de días entre la fecha de finalización estimada de un lote En ejecución y hoy, cuando esa fecha es anterior a hoy; vale 0 en cualquier otro caso. Es la misma regla del cronograma de producción. La fecha estimada guardada no se modifica: el valor se calcula al consultar. Solo los lotes En ejecución tienen atraso.
-- **Falta consumo.** Un lote En ejecución muestra el indicador "Falta consumo" cuando su etapa en curso no alcanza el porcentaje mínimo de consumo de insumos configurado (`cumpleMinimo` falso en el avance de la etapa), es decir, cuando el service rechazaría finalizar esa etapa por consumo insuficiente. Con mínimo 0, o en una etapa sin insumos, el indicador no se muestra.
 - **Limpieza pendiente.** La limpieza solo se registra con el equipo o el barril en estado En limpieza. Por eso "pendiente de limpieza" significa "está en limpieza ahora": entran los equipos activos y los barriles activos en estado En limpieza. Un equipo o un barril En uso por un lote no entra.
 - **Mantenimiento pendiente.** Un equipo o un barril pasa a En mantenimiento al registrar una falla o al registrar una limpieza que alcanza el máximo de usos antes del mantenimiento. El mantenimiento solo se registra con el equipo o el barril en ese estado. Entran los equipos activos y los barriles activos en estado En mantenimiento.
 - **Causa del mantenimiento.** Se deriva de la última operación registrada del equipo o del barril (la de mayor fecha y, ante igual fecha, la de mayor ID; las anuladas no cuentan): una falla indica "Falla" y una limpieza que dejó el estado En mantenimiento (`estadoOperativoResultante`) indica "Preventivo". Si no hay operación que lo explique, la causa se muestra como "-". Anular un mantenimiento devuelve al equipo a En mantenimiento y la causa vuelve a ser la de la operación anterior.
@@ -65,9 +63,9 @@ Un formulario de registro cuyo equipo o barril ya no está en el estado que la o
 
 ## 4. Descripción de cada pantalla
 
-**Pantalla de inicio del operario.** Conserva el título "Panel de Control" y el subtítulo de bienvenida. Debajo, tres filas que se leen de izquierda a derecha y de arriba abajo, con un tema por fila: los contadores, el trabajo de lotes junto a las limpiezas, y el mantenimiento. Las tarjetas de resumen generales no se muestran al operario. Cada bloque es una tarjeta (`bg-white border border-slate-200 rounded-xl shadow-sm`) con su título, su contador y su enlace "Ver todos" en el encabezado; la tabla del bloque usa el mismo estilo compacto de las listas (`px-2 py-3`, encabezado gris suave en mayúsculas).
+**Pantalla de inicio del operario.** Conserva el título "Panel de Control" y el subtítulo de bienvenida. Debajo, tres filas que se leen de izquierda a derecha y de arriba abajo, con un tema por fila: los contadores, el trabajo de lotes junto a las limpiezas, y el mantenimiento. Cada bloque es una tarjeta (`bg-white border border-slate-200 rounded-xl shadow-sm`) con su título, su contador y su enlace "Ver todos" en el encabezado; la tabla del bloque usa el mismo estilo compacto de las listas (`px-2 py-3`, encabezado gris suave en mayúsculas).
 
-**Fila 1: contadores.** Una banda horizontal de cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`), con el título en mayúsculas pequeñas, el número grande y un ícono, como las tarjetas de resumen de la pantalla de inicio:
+**Fila 1: contadores.** Una banda horizontal de cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`), con el título en mayúsculas pequeñas, el número grande y un ícono, como las tarjetas de los demás paneles:
 
 1. **Lotes en ejecución** (`bi-play-circle`): toda la tarjeta es un enlace a `/lotes?estado=EN_EJECUCION`.
 2. **Lotes a iniciar** (`bi-hourglass-split`): toda la tarjeta es un enlace a `/lotes?estado=PENDIENTE`. El número cuenta solo los lotes cuya fecha de inicio estimada es hoy o anterior.
@@ -82,7 +80,6 @@ Un contador en 0 se muestra igual, con el número 0. Los enlaces sin permiso se 
   - **Lote.** El código (`identificadorInterno`) y, debajo, el nombre de la receta.
   - **Etapa en curso.** El nombre de la etapa.
   - **Fermentador.** El identificador con `fragments/enlace-equipo :: enlace(id, identificador)`.
-  - **Situación.** Si el atraso es mayor a 0, una etiqueta rosa "Atrasado N días" (la cantidad con `lote/formato :: duracion(valor, 'día', 'días')`); si falta consumo, una etiqueta ámbar "Falta consumo" con ícono `bi-exclamation-circle`, enfocable, con `data-tooltip` "La etapa en curso no alcanzó el consumo mínimo de insumos para finalizar". Un lote sin atraso y con el consumo completo deja la celda vacía.
   - **Acciones.** El botón estándar "Abrir" (`fragments/boton-abrir :: abrir(url, etiquetaAccesible)`) a `/lotes/{id}?etapa=<etapa en curso>`, con `aria-label` "Abrir LOT-R1-02".
 - **A iniciar.** Título "A iniciar", contador y "Ver todos" (a `/lotes?estado=PENDIENTE`). Hasta el tope de filas del bloque con el mismo estilo: Lote (código y receta), Fermentador, Inicio estimado (`planificacion_produccion/formato :: fecha`) y Acciones con "Abrir" a `/lotes/{id}`, donde el operario inicia el lote.
 
@@ -145,15 +142,13 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
   - `identificadorInternoFermentador` (`String`)
   - `fechaInicioEstimada` (`LocalDate`)
   - `fechaFinalizacionEstimada` (`LocalDate`)
-  - `diasDeAtraso` (`int`, 0 salvo en un lote En ejecución atrasado)
-  - `faltaConsumo` (`boolean`, siempre falso en un lote Pendiente)
 - `EquipoPendienteResponseDTO`. Campos: `id`, `identificadorInterno`, `tipo` (`TipoEquipamiento`) y `causaMantenimiento` (`CausaMantenimiento`, nula en los bloques de limpieza y cuando no se puede derivar).
 - `BarrilPendienteResponseDTO`. Campos: `id`, `identificadorInterno`, `fabricante` (`String`) y `causaMantenimiento` (`CausaMantenimiento`, con la misma regla).
 - `CausaMantenimiento` (enum del mismo paquete, con `etiqueta`): `FALLA` ("Falla") y `PREVENTIVO` ("Preventivo").
 
 **Mapper** (`util/mapper/dashboard/MapperDashboardOperario`):
 
-- De un lote del listado a `LoteDelDiaResponseDTO`, recibiendo el atraso y `faltaConsumo` ya calculados por el service.
+- De un lote del listado a `LoteDelDiaResponseDTO`.
 - De `EquipamientoControlResponseDTO` y de `BarrilControlResponseDTO` a `EquipoPendienteResponseDTO` y `BarrilPendienteResponseDTO`, recibiendo la causa.
 - De la última operación registrada de un equipo o de un barril a `CausaMantenimiento`: una falla da `FALLA`; una limpieza cuyo `estadoOperativoResultante` es En mantenimiento da `PREVENTIVO`; cualquier otra operación, o ninguna, da nulo.
 
@@ -165,8 +160,6 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
 
 - `IControlEquipamientoServicio.filtrarEquipamientosParaControl(null, null, estadoOperativo, tope)` con `EN_LIMPIEZA` y con `EN_MANTENIMIENTO`, donde `tope` es la primera página de `LimitesTecnicos.PANEL_OPERARIO_FILAS_POR_BLOQUE` filas: devuelve las filas (orden natural por identificador) y el total (`getTotalElements`) en una sola llamada.
 - `IControlBarrilServicio.filtrarBarrilesParaControl(null, null, estadoOperativo, tope)` con `EN_LIMPIEZA` y con `EN_MANTENIMIENTO`: lo mismo para los barriles.
-- `ILoteServicio.obtenerPorcentajeMinimoConsumoParaAvanzarEtapa()`: lee el porcentaje mínimo de consumo de la configuración de producción una sola vez por panel.
-- `ILoteServicio.calcularAvanceDeEtapa(idLote, etapaActual, porcentajeMinimo)`: `cumpleMinimo` falso es "Falta consumo". Se llama solo para los lotes En ejecución de las filas visibles, con el porcentaje ya leído; la versión sin porcentaje, que lo lee por su cuenta, sirve a las pantallas de consumo.
 
 **Consultas** (en los repositorios):
 
@@ -177,28 +170,26 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
 
 Los índices de estas consultas los crea la migración `V20__indices_consultas_panel_y_ciclo_de_vida.sql`. Los contadores no usan consultas de conteo aparte: salen de los `total` de las páginas.
 
-**Atraso.** El atraso de un lote En ejecución depende solo de sus propias fechas: el service del panel lo calcula con `MetodosCronograma.calcularDiasDeAtraso` (días entre la fecha de finalización estimada y hoy cuando es anterior a hoy), el mismo método que usa el cronograma, de modo que ambos muestran siempre el mismo valor.
 
-**Costo de `cumpleMinimo`.** `calcularAvanceDeEtapa` trabaja lote por lote: carga el lote, la etapa, los requerimientos escalados de insumos, los consumos registrados y el saldo reservado. La configuración de producción se lee una sola vez para todo el panel. Con el tope por bloque el costo es acotado, corre en la misma transacción de lectura y solo lo paga el operario al abrir la pantalla de inicio. El cálculo de un lote que falla (por ejemplo, un lote sin la etapa indicada) deja a ese lote sin "Falta consumo" y registra una advertencia en el log, sin quitar el resto del panel; si no se puede leer la configuración, ningún lote muestra "Falta consumo".
 
 **Controller.** `HomeController` recibe `IDashboardOperarioServicio` y, solo si el usuario autenticado tiene la autoridad `ROLE_OPERARIO_DE_PRODUCCION`, agrega al modelo `dashboardOperario` con `obtenerDashboardOperario()`. Para los demás roles no consulta nada. Los ID de los atajos salen del DTO; el Controller no recibe parámetros nuevos.
 
 **Plantillas.**
 
-- `home.html`: el contenedor de tarjetas de resumen se muestra con `sec:authorize="!hasRole('OPERARIO_DE_PRODUCCION')"` y su contenido no cambia; el panel se incluye con `sec:authorize="hasRole('OPERARIO_DE_PRODUCCION')"` y `~{home/dashboard-operario :: panel(${dashboardOperario})}`. Un fragmento por rol: por ahora solo existe el del operario.
+- `home.html`: no tiene tarjetas de resumen. Incluye el panel de cada uno de los seis roles con `sec:authorize="hasRole('...')"` y su fragmento `panel`; el de este rol se incluye con `sec:authorize="hasRole('OPERARIO_DE_PRODUCCION')"`.
 - `home/dashboard-operario.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `lotesDeHoy(dashboard)`, `limpiezasPendientes(dashboard)` y `pendientesDeMantenimiento(dashboard)`, uno por fila o bloque.
 - `fragments/boton-registrar.html`: fragmento `registrar(url, texto, icono, etiquetaAccesible)` descrito en la sección 4.
 - Reutiliza `fragments/boton-abrir`, `fragments/enlace-equipo`, `fragments/tooltip` (`data-tooltip`), `lote/formato :: duracion`, `planificacion_produccion/formato :: fecha` y los mismos estilos de tarjeta y de tabla de las listas. `fragments/pestanas` no se usa: el panel no tiene pestañas.
 
 **Estándares.** `docs/EstandaresUI.md` suma un apartado "Botón de registro en la fila" con el contrato de `fragments/boton-registrar` (cuándo se usa frente a "Abrir", texto, ícono, `aria-label`, ubicación en `col-acciones`) y su prueba de plantilla.
 
-**Pruebas y casos de prueba.** `docs/test/casos_de_prueba/services/dashboard/` y `docs/test/casos_de_prueba/controllers/dashboard/` documentan los casos con los mismos IDs de los tests: `DashboardOperarioServicioImplTest` (orden y tope de 5, totales, atraso, `faltaConsumo`, causa de mantenimiento, bloques vacíos), `HomeControllerTest` (el modelo del panel solo para el operario) y una prueba de plantilla del panel (permisos de cada atajo, estados vacíos, botón "Abrir" frente a "Registrar").
+**Pruebas y casos de prueba.** `docs/test/casos_de_prueba/services/dashboard/` y `docs/test/casos_de_prueba/controllers/dashboard/` documentan los casos con los mismos IDs de los tests: `DashboardOperarioServicioImplTest` (orden y tope de 5, totales, causa de mantenimiento, bloques vacíos), `HomeControllerTest` (el modelo del panel solo para el operario) y una prueba de plantilla del panel (permisos de cada atajo, estados vacíos, botón "Abrir" frente a "Registrar").
 
 ## 6. Recorridos
 
 | Objetivo | Rol | Recorrido | Clics |
 | --- | --- | --- | --- |
-| Ver qué lotes están atrasados o con consumo pendiente | Operario de producción | Pantalla de inicio | 0 |
+| Ver qué lotes están en ejecución | Operario de producción | Pantalla de inicio | 0 |
 | Entrar al lote que hay que atender ahora | Operario de producción | Pantalla de inicio, "Abrir" del lote en ejecución | 1 |
 | Iniciar un lote que corresponde a hoy | Operario de producción | Pantalla de inicio, "Abrir" del lote en "A iniciar", "Iniciar lote", confirmar | 3 |
 | Registrar el consumo que falta en la etapa en curso | Operario de producción | Pantalla de inicio, "Abrir" del lote, "Gestionar consumos", "Nuevo consumo reservado" | 3 más el formulario |

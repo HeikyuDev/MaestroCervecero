@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MapperDashboardOperarioTest {
 
     @Test
-    @DisplayName("CP-MDO-01: el lote del día lleva los datos del lote del listado y el atraso y la falta de consumo recibidos")
+    @DisplayName("CP-MDO-01: el lote del día lleva los datos del lote del listado")
     void toLoteDelDiaDTO_llevaLosDatosDelLoteYLosValoresCalculados() {
         // Arrange
         LoteCronogramaResponseDTO lote = LoteCronogramaResponseDTO.builder()
@@ -37,7 +37,7 @@ class MapperDashboardOperarioTest {
                 .build();
 
         // Act
-        LoteDelDiaResponseDTO dto = MapperDashboardOperario.toLoteDelDiaDTO(lote, 3, true);
+        LoteDelDiaResponseDTO dto = MapperDashboardOperario.toLoteDelDiaDTO(lote);
 
         // Assert
         assertThat(dto.getId()).isEqualTo(12L);
@@ -48,12 +48,10 @@ class MapperDashboardOperarioTest {
         assertThat(dto.getIdentificadorInternoFermentador()).isEqualTo("FER-01");
         assertThat(dto.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 1));
         assertThat(dto.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.of(2026, 11, 20));
-        assertThat(dto.getDiasDeAtraso()).isEqualTo(3);
-        assertThat(dto.isFaltaConsumo()).isTrue();
     }
 
     @Test
-    @DisplayName("CP-MDO-02: el lote del día de un lote pendiente conserva la etapa y el fermentador nulos, y el atraso en 0")
+    @DisplayName("CP-MDO-02: el lote del día de un lote pendiente conserva la etapa y el fermentador nulos")
     void toLoteDelDiaDTO_conservaLosNulosDeUnLotePendiente() {
         // Arrange
         LoteCronogramaResponseDTO lote = LoteCronogramaResponseDTO.builder()
@@ -61,21 +59,19 @@ class MapperDashboardOperarioTest {
                 .fechaInicioEstimada(LocalDate.of(2026, 11, 13)).build();
 
         // Act
-        LoteDelDiaResponseDTO dto = MapperDashboardOperario.toLoteDelDiaDTO(lote, 0, false);
+        LoteDelDiaResponseDTO dto = MapperDashboardOperario.toLoteDelDiaDTO(lote);
 
         // Assert
         assertThat(dto.getEtapaActual()).isNull();
         assertThat(dto.getIdFermentador()).isNull();
         assertThat(dto.getIdentificadorInternoFermentador()).isNull();
-        assertThat(dto.getDiasDeAtraso()).isZero();
-        assertThat(dto.isFaltaConsumo()).isFalse();
     }
 
     @Test
     @DisplayName("CP-MDO-03: un lote, un equipo o un barril nulo se mapean a nulo")
     void mapeoDeNulos_devuelveNulo() {
         // Act y Assert
-        assertThat(MapperDashboardOperario.toLoteDelDiaDTO(null, 0, false)).isNull();
+        assertThat(MapperDashboardOperario.toLoteDelDiaDTO(null)).isNull();
         assertThat(MapperDashboardOperario.toEquipoPendienteDTO(null, CausaMantenimiento.FALLA)).isNull();
         assertThat(MapperDashboardOperario.toBarrilPendienteDTO(null, CausaMantenimiento.FALLA)).isNull();
     }

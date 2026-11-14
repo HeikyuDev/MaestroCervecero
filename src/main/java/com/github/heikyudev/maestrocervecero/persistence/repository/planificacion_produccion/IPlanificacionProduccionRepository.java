@@ -150,4 +150,20 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
             + "JOIN p.versionReceta v JOIN v.detallesLevadura d "
             + "WHERE d.levadura.id = :idLevadura AND p.estado = 'PENDIENTE'")
     boolean existsByDetalleLevaduraEnPlanificacionPendiente(@Param("idLevadura") Long idLevadura);
+
+    /**
+     * Obtiene una página con las planificaciones PENDIENTE del panel del gerente de compras que todavía no tienen ninguna
+     * orden de compra vigente (Pendiente o Finalizada; las anuladas no cuentan), con su versión de receta cargada, por
+     * fecha de inicio estimada ascendente (la que arranca antes primero) y, ante igual fecha, por ID ascendente. El total
+     * de la página es la cantidad de planificaciones sin orden de compra.
+     *
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Las planificaciones pendientes sin orden de compra de la página.
+     */
+    @Query(value = "SELECT p FROM PlanificacionProduccionEntity p JOIN FETCH p.versionReceta WHERE p.estado = 'PENDIENTE' "
+            + "AND NOT EXISTS (SELECT 1 FROM OrdenCompraEntity o WHERE o.planificacionProduccion = p AND o.estado <> 'ANULADA') "
+            + "ORDER BY p.fechaInicioEstimada ASC, p.id ASC",
+            countQuery = "SELECT COUNT(p) FROM PlanificacionProduccionEntity p WHERE p.estado = 'PENDIENTE' "
+                    + "AND NOT EXISTS (SELECT 1 FROM OrdenCompraEntity o WHERE o.planificacionProduccion = p AND o.estado <> 'ANULADA')")
+    Page<PlanificacionProduccionEntity> buscarPendientesSinOrdenDeCompraParaPanel(Pageable pageable);
 }

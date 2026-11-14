@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Panel de control del encargado de depósito en la pantalla de inicio: qué hay que atender hoy en el depósito. Es un panel de
+    trabajo: cada fila ofrece el atajo a la operación que corresponde (registrar el ingreso de una orden de compra, registrar el
+    ajuste de un lote de insumo vencido) y el acceso a la pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo
+    en tres filas, con un tema por fila:
+      1. contadores(dashboard): cuatro tarjetas con las órdenes de compra pendientes, las órdenes con entrega vencida, los lotes
+         de insumo vencidos con cantidad y los insumos sin stock disponible.
+      2. ordenesPendientes(dashboard) a la izquierda e insumosSinStock(dashboard) a la derecha.
+      3. lotesVencidos(dashboard) a todo el ancho.
+    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardEncargadoDepositoResponseDTO que el HomeController
+    carga solo para el rol ENCARGADO_DE_DEPOSITO.
+
+    Cada atajo se protege con el mismo permiso que el destino ("Registrar ingreso" con INGRESO_INSUMO_REGISTRAR, "Registrar ajuste"
+    con AJUSTE_INSUMO_REGISTRAR, etc.); el servidor vuelve a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin
+    tabla ni encabezado de columnas. La columna Acciones va centrada, igual que su encabezado.
+
+    Uso: <th:block th:replace="~{home/dashboard-encargado-deposito :: panel(${dashboardEncargadoDeposito})}"></th:block>
+-->
+
+<!-- ===================================================================== PANEL -->
+<div th:fragment="panel(dashboard)" data-dashboard-encargado-deposito class="space-y-6">
+    <th:block th:replace="~{home/dashboard-encargado-deposito :: contadores(${dashboard})}"></th:block>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: ordenesPendientes(${dashboard})}"></th:block>
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: insumosSinStock(${dashboard})}"></th:block>
+    </div>
+    <th:block th:replace="~{home/dashboard-encargado-deposito :: lotesVencidos(${dashboard})}"></th:block>
+</div>
+
+<!-- ===================================================================== FILA 1: CONTADORES -->
+<div th:fragment="contadores(dashboard)" data-dashboard-contadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Órdenes de compra pendientes: toda la tarjeta es un enlace a la lista filtrada -->
+    <a sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-pendientes" th:href="@{/ordenes-compra(estado='PENDIENTE')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Órdenes pendientes', ${dashboard.ordenesPendientes.total}, 'bi-cart3', 'bg-sky-50 text-sky-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-pendientes" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Órdenes pendientes', ${dashboard.ordenesPendientes.total}, 'bi-cart3', 'bg-sky-50 text-sky-600')}"></th:block>
+    </div>
+
+    <!-- Órdenes con entrega vencida: las pendientes con fecha de entrega estimada anterior a hoy -->
+    <div data-contador="ordenes-entrega-vencida" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Entregas vencidas', ${dashboard.ordenesConEntregaVencida}, 'bi-clock-history', ${dashboard.ordenesConEntregaVencida > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'})}"></th:block>
+    </div>
+
+    <!-- Lotes de insumo vencidos con cantidad -->
+    <div data-contador="lotes-vencidos" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Lotes vencidos', ${dashboard.lotesVencidos.total}, 'bi-calendar-x', 'bg-amber-50 text-amber-600')}"></th:block>
+    </div>
+
+    <!-- Insumos sin stock disponible -->
+    <a sec:authorize="hasAuthority('STOCK_INSUMO_CONSULTAR')" data-contador="insumos-sin-stock" th:href="@{/stock-insumos(situacionStock='SIN_STOCK_DISPONIBLE')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Insumos sin stock', ${dashboard.insumosSinStock.total}, 'bi-box-seam', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('STOCK_INSUMO_CONSULTAR')" data-contador="insumos-sin-stock" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: contenidoContador('Insumos sin stock', ${dashboard.insumosSinStock.total}, 'bi-box-seam', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </div>
+</div>
+
+<!-- Interior de una tarjeta contadora: título en mayúsculas pequeñas, ícono y el número grande -->
+<th:block th:fragment="contenidoContador(titulo, total, icono, colores)">
+    <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="${titulo}">Órdenes pendientes</span>
+        <span class="p-2 rounded-lg" th:classappend="${colores}"><i th:class="'bi ' + ${icono}" aria-hidden="true"></i></span>
+    </div>
+    <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
+</th:block>
+
+<!-- ===================================================================== FILA 2, IZQUIERDA: ÓRDENES PENDIENTES -->
+<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Órdenes de compra pendientes</h2>
+
+    <div data-subbloque="ordenes-pendientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: encabezado('Pendientes de ingreso', ${dashboard.ordenesPendientes.total}, 'ordenes', @{/ordenes-compra(estado='PENDIENTE')}, 'Ver todas las órdenes de compra pendientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.ordenesPendientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Orden</th>
+                    <th class="px-2 py-3">Proveedor</th>
+                    <th class="px-2 py-3">Entrega estimada</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="o : ${dashboard.ordenesPendientes.filas}" class="hover:bg-slate-50 align-top" data-fila-orden-pendiente>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-orden-codigo th:text="|Orden de compra #${o.id}|">Orden de compra #7</td>
+                    <td class="px-2 py-3 text-slate-700 break-words" data-orden-proveedor th:text="${o.proveedor}">Malterías del Sur S.A.</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-entrega-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('INGRESO_INSUMO_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/ingresos-insumo/compra/nuevo(idOrdenCompra=${o.id})}, 'Registrar ingreso', 'bi-box-arrow-in-down', 'Registrar ingreso de la orden de compra #' + ${o.id})}"></th:block>
+                            </th:block>
+                            <th:block sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')">
+                                <a data-ver-orden th:href="@{/ordenes-compra/{id}(id=${o.id})}" th:attr="aria-label='Ver orden de compra #' + ${o.id}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.ordenesPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay órdenes de compra pendientes</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 2, DERECHA: INSUMOS SIN STOCK -->
+<section th:fragment="insumosSinStock(dashboard)" data-bloque="insumos-sin-stock" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Insumos sin stock disponible</h2>
+
+    <div data-subbloque="insumos-sin-stock" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: encabezado('Sin stock', ${dashboard.insumosSinStock.total}, 'stock', @{/stock-insumos(situacionStock='SIN_STOCK_DISPONIBLE')}, 'Ver todos los insumos sin stock disponible')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.insumosSinStock.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Insumo</th>
+                    <th class="px-2 py-3">Tipo</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="i : ${dashboard.insumosSinStock.filas}" class="hover:bg-slate-50 align-top" data-fila-insumo-sin-stock>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-insumo-nombre th:text="${i.nombre}">Malta Pilsen</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-insumo-tipo><th:block th:replace="~{stock_insumo/formato :: tipoInsumo(${i.tipo})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('STOCK_INSUMO_CONSULTAR')">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/stock-insumos/{id}(id=${i.id})}, 'Abrir ' + ${i.nombre})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.insumosSinStock.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay insumos sin stock disponible</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3: LOTES DE INSUMO VENCIDOS -->
+<section th:fragment="lotesVencidos(dashboard)" data-bloque="lotes-vencidos" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Lotes de insumo vencidos</h2>
+
+    <div data-subbloque="lotes-vencidos" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-deposito :: encabezado('Vencidos con cantidad', ${dashboard.lotesVencidos.total}, 'stock', @{/stock-insumos(situacionStock='CON_VENCIDOS')}, 'Ver todos los insumos con lotes vencidos')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.lotesVencidos.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Insumo</th>
+                    <th class="px-2 py-3">Lote del proveedor</th>
+                    <th class="px-2 py-3">Vencimiento</th>
+                    <th class="px-2 py-3 text-right">Cantidad actual</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="l : ${dashboard.lotesVencidos.filas}" class="hover:bg-slate-50 align-top" data-fila-lote-vencido>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-insumo-nombre th:text="${l.nombreInsumo}">Malta Pilsen</td>
+                    <td class="px-2 py-3 text-slate-700 break-words" data-lote-identificacion th:text="${l.identificacionLoteProveedor}">L-125</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-vencimiento><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaVencimiento})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-900 text-right font-medium whitespace-nowrap" data-cantidad-actual><th:block th:replace="~{receta/formato :: medida(${l.cantidadActual}, ${l.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('AJUSTE_INSUMO_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/ajustes-insumo/nuevo(idLoteInsumo=${l.id})}, 'Registrar ajuste', 'bi-sliders2', 'Registrar ajuste del lote ' + ${l.identificacionLoteProveedor})}"></th:block>
+                            </th:block>
+                            <th:block sec:authorize="hasAuthority('STOCK_INSUMO_CONSULTAR')">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/stock-insumos/lotes/{id}(id=${l.id})}, 'Abrir lote ' + ${l.identificacionLoteProveedor})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.lotesVencidos.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay lotes de insumo vencidos con cantidad</p>
+    </div>
+</section>
+
+<!-- ===================================================================== PIEZAS COMPARTIDAS -->
+
+<!--
+    Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
+    ('ordenes' o 'stock') decide el permiso del enlace, que sin él no se muestra.
+-->
+<div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-800" th:text="${titulo}">Pendientes de ingreso</h3>
+        <span class="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600" data-bloque-total th:text="${total}">3</span>
+    </div>
+    <th:block th:if="${lista == 'ordenes'}">
+        <a sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todas</a>
+    </th:block>
+    <th:block th:if="${lista == 'stock'}">
+        <a sec:authorize="hasAuthority('STOCK_INSUMO_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+</div>
+
+</html>

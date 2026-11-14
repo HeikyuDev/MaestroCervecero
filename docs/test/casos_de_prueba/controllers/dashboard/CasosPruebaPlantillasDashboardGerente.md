@@ -1,0 +1,16 @@
+## Casos de prueba de las plantillas del panel del gerente
+
+**Tipo de prueba:** guardas de plantilla (lectura de los archivos HTML). Clase `DashboardGerentePlantillasTest`.
+
+| **ID** | **Nombre del Caso** | **Resultado Esperado** |
+| --- | --- | --- |
+| **CP-PDG-01** | Integración en la pantalla de inicio | `home.html` incluye `home/dashboard-gerente :: panel(${dashboardGerente})` dentro de un bloque `hasRole('GERENTE_DE_PRODUCCION')`, tiene un panel por cada uno de los seis roles y no tiene tarjetas de resumen ni condiciones `hasAnyRole`. |
+| **CP-PDG-02** | Fragmentos y filas | `home/dashboard-gerente.html` define `panel`, `contadores`, `produccionEnCurso`, `colaDeFermentadores`, `equipamientoYBarriles` y `planificacionesPendientes`; el panel los arma en ese orden, con la grilla de tres columnas de la fila 2 y la de cuatro tarjetas de los contadores. No usa pestañas. |
+| **CP-PDG-03** | Enlaces a las listas filtradas | Los contadores y las fichas llevan a `/lotes?estado=EN_EJECUCION`, `/control-equipamiento?tipo=FERMENTADOR`, `/control-equipamiento` y `/control-barriles` con `estadoOperativo`, `/planificaciones-produccion?estado=PENDIENTE`, los lotes por etapa con `etapaActual` y `/cronograma-produccion`. Los cuatro contadores tienen su título y el de fermentadores muestra "ocupados / total". Hay siete elementos `data-contador`. No hay enlaces a lotes a iniciar. "Lotes atrasados" es una tarjeta sin enlace. |
+| **CP-PDG-04** | Permisos de los enlaces | Cada enlace se protege con el permiso de su destino (`LOTE_CONSULTAR`, `LIMPIEZA_EQUIPAMIENTO_CONSULTAR`, consulta de barriles, `PLANIFICACION_PRODUCCION_CONSULTAR`) y sin él los contadores y las fichas quedan como texto plano. Los lotes se abren con el fragmento "Abrir" en dos lugares. |
+| **CP-PDG-05** | Solo lectura | El panel no usa el botón de registro, no enlaza a formularios de alta y no tiene formularios ni botones. |
+| **CP-PDG-06** | Indicadores de las filas | La tabla de producción en curso tiene cinco columnas (Lote, Fermentador, Prioridad, Fin estimado y Acciones), sin columna Situación, sin etiquetas de atraso ni "En plazo"; la cola de fermentadores muestra "Atrasado" en rosa con la duración junto al lote en ejecución atrasado; la prioridad usa el fragmento de las planificaciones en la producción en curso y en las planificaciones, y el fermentador se muestra con el fragmento de enlace de equipo. |
+| **CP-PDG-07** | Estados vacíos | Cada subgrupo sin filas muestra una sola línea de texto gris: "No hay lotes en ejecución", "No hay fermentadores registrados", "No hay planificaciones pendientes". |
+| **CP-PDG-08** | Sin emojis ni punto final | El panel no tiene emojis y ningún mensaje termina en punto. |
+| **CP-PDG-09** | Encabezados de los bloques | Cada bloque es una tarjeta con su título; los subgrupos llevan el total real del bloque y el enlace "Ver todos" o "Ver cronograma" protegido por el permiso de su lista. |
+| **CP-PDG-10** | Alineación de la columna Acciones | En las tablas del panel del gerente y del panel del operario, cada encabezado `col-acciones` lleva `text-center` y `px-2 py-3`, cada celda lleva `px-2 py-3` y el contenedor del botón lleva `justify-center`, sin `text-right` ni `justify-end`; hay un encabezado por cada celda de acciones. |

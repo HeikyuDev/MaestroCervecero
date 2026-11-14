@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,62 @@ import java.util.Optional;
  */
 @Repository
 public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilEntity, Long> {
+
+    /**
+     * Condición de un despacho vigente: registrado, de un barril activo que sigue Despachado y que no tiene una operación
+     * registrada posterior (la última operación registrada del barril es ese despacho). Es el despacho que tiene al barril
+     * en poder de su cliente.
+     */
+    String DESPACHO_VIGENTE = "d.estado = 'REGISTRADO' AND d.barril.estadoOperativo = 'DESPACHADO' AND d.barril.estado = 'ACTIVO' "
+            + "AND NOT EXISTS (SELECT 1 FROM OperacionCicloVidaBarril p WHERE p.barril.id = d.barril.id AND p.estado = 'REGISTRADO' "
+            + "AND (p.fecha > d.fecha OR (p.fecha = d.fecha AND p.id > d.id)))";
+
+    /**
+     * Obtiene una página con los despachos vigentes del panel del encargado de distribución cuya fecha de devolución
+     * estimada es la indicada o anterior, con el barril y el cliente cargados, por fecha de devolución estimada
+     * ascendente (la más vencida primero) y, ante igual fecha, por ID ascendente. El total de la página es la cantidad de
+     * devoluciones vencidas o que vencen ese día.
+     *
+     * @param hasta Fecha de devolución estimada máxima (inclusive); en el panel, la fecha de hoy.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los despachos vigentes de la página.
+     */
+    @Query(value = "SELECT d FROM DespachoBarrilEntity d JOIN FETCH d.barril JOIN FETCH d.cliente WHERE " + DESPACHO_VIGENTE
+            + " AND d.fechaDevolucionEstimada <= :hasta ORDER BY d.fechaDevolucionEstimada ASC, d.id ASC",
+            countQuery = "SELECT COUNT(d) FROM DespachoBarrilEntity d WHERE " + DESPACHO_VIGENTE + " AND d.fechaDevolucionEstimada <= :hasta")
+    Page<DespachoBarrilEntity> buscarVigentesConDevolucionHastaParaPanel(@Param("hasta") LocalDate hasta, Pageable pageable);
+
+    /**
+     * Cuenta los despachos vigentes cuya fecha de devolución estimada es anterior a la indicada.
+     *
+     * @param fecha Fecha de referencia; en el panel, la fecha de hoy.
+     * @return La cantidad de devoluciones vencidas.
+     */
+    @Query("SELECT COUNT(d) FROM DespachoBarrilEntity d WHERE " + DESPACHO_VIGENTE + " AND d.fechaDevolucionEstimada < :fecha")
+    long contarVigentesConDevolucionAnteriorA(@Param("fecha") LocalDate fecha);
+
+    /**
+     * Cuenta los despachos vigentes cuya fecha de devolución estimada es la indicada.
+     *
+     * @param fecha Fecha de referencia; en el panel, la fecha de hoy.
+     * @return La cantidad de devoluciones que vencen ese día.
+     */
+    @Query("SELECT COUNT(d) FROM DespachoBarrilEntity d WHERE " + DESPACHO_VIGENTE + " AND d.fechaDevolucionEstimada = :fecha")
+    long contarVigentesConDevolucionEn(@Param("fecha") LocalDate fecha);
+
+    /**
+     * Obtiene una página con los clientes que tienen barriles en su poder, una fila por cliente: {@code [idCliente, nombre,
+     * cantidad de barriles en poder, próxima fecha de devolución estimada]}. Se ordena por la próxima fecha de devolución
+     * ascendente (el cliente con la devolución más urgente primero) y, ante igual fecha, por nombre. El total de la página
+     * es la cantidad de clientes con barriles en poder.
+     *
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Las filas de la página.
+     */
+    @Query(value = "SELECT c.id, c.nombre, COUNT(d), MIN(d.fechaDevolucionEstimada) FROM DespachoBarrilEntity d JOIN d.cliente c WHERE "
+            + DESPACHO_VIGENTE + " GROUP BY c.id, c.nombre ORDER BY MIN(d.fechaDevolucionEstimada) ASC, c.nombre ASC",
+            countQuery = "SELECT COUNT(DISTINCT c.id) FROM DespachoBarrilEntity d JOIN d.cliente c WHERE " + DESPACHO_VIGENTE)
+    Page<Object[]> buscarClientesConBarrilesEnPoderParaPanel(Pageable pageable);
 
     /**
      * Filtra los despachos de barril, opcionalmente por estado, barril, cliente y/o rango de

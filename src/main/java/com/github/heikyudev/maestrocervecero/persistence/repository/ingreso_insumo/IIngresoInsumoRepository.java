@@ -110,4 +110,13 @@ public interface IIngresoInsumoRepository extends JpaRepository<IngresoInsumoEnt
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM IngresoInsumoEntity i WHERE i.id = :id")
     Optional<IngresoInsumoEntity> buscarPorIdParaAnular(@Param("id") Long id);
+
+    /**
+     * Busca, en una sola consulta, los ingresos de insumo en estado REGISTRADO de los ítems de compra indicados.
+     *
+     * @param idsDetalles Los IDs de los ítems de detalle de compra (no vacío).
+     * @return Los ingresos registrados de esos ítems.
+     */
+    @Query("SELECT i FROM IngresoInsumoEntity i WHERE i.detalleCompra.id IN :idsDetalles AND i.estado = 'REGISTRADO'")
+    List<IngresoInsumoEntity> buscarRegistradosDeDetalles(@Param("idsDetalles") java.util.Collection<Long> idsDetalles);
 }

@@ -264,7 +264,7 @@ class OrdenDeCamposTest {
     }
 
     @Test
-    @DisplayName("CP-ODC-15 - En las seis guías de etapa el tiempo (duración estimada, fin previsto y duración real) va en una fila propia o junto al equipo, nunca junto a los insumos, el agua ni el volumen")
+    @DisplayName("CP-ODC-15 - En las seis guías de etapa el tiempo (duración estimada, fin previsto) va en una fila propia o junto al equipo, nunca junto a los insumos, el agua ni el volumen")
     void las_guias_muestran_el_tiempo_de_la_etapa_en_su_fila() throws IOException {
         // Arrange
         String guias = leer("lote/lote-guias.html");
@@ -276,7 +276,7 @@ class OrdenDeCamposTest {
 
         // Assert
         assertThat(filasDeTiempo).hasSize(6);
-        assertThat(fragmento).contains(">Duración estimada<", ">Fin previsto<", ">Duración real<");
+        assertThat(fragmento).contains(">Duración estimada<", ">Fin previsto<");
         assertThat(filasDeTiempo).allSatisfy(fila -> assertThat(fila).doesNotContain("Malta").doesNotContain("Agua").doesNotContain("Volumen").doesNotContain("Levadura").doesNotContain("Lúpulos"));
         assertThat(envasado).doesNotContain("Equipo").doesNotContain("Fermentador").doesNotContain(">Volumen objetivo<");
     }

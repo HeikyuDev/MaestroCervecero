@@ -32,7 +32,7 @@ Es la acción de una fila que lleva al formulario de alta de una operación conc
 
 ## Panel de control del operario
 
-La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashboard-operario` en lugar de las tarjetas de resumen, que siguen igual para los demás roles. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashboard-operario`. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con título en mayúsculas pequeñas, ícono y número grande. Cada contador lleva al listado filtrado correspondiente y sin el permiso de la lista queda como texto plano.
 - **Fila 2, trabajo de planta:** "Lotes de hoy" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Limpiezas pendientes" a la derecha.
@@ -42,6 +42,67 @@ La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashb
 - **Estado vacío:** un bloque sin filas muestra una sola línea de texto gris centrada ("No hay equipos en limpieza"), sin tabla, sin encabezado de columnas y sin tarjeta vacía.
 - **Permisos:** cada atajo se protege con `sec:authorize` sobre el permiso de su destino, el mismo del `@PreAuthorize` del método al que lleva.
 - Lo protegen `DashboardOperarioPlantillasTest` y `HomeControllerTest`.
+
+## Panel de control del gerente de producción
+
+La pantalla de inicio del GERENTE_DE_PRODUCCION muestra el panel de `home/dashboard-gerente`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo en cuatro filas, con un tema por fila.
+
+- **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las del operario: lotes en ejecución, lotes atrasados (ícono rosa si hay atrasados; tarjeta sin enlace), fermentadores ocupados sobre el total ("3 / 5") y equipos y barriles fuera de servicio.
+- **Fila 2, producción:** "Producción en curso" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`), con un subgrupo por etapa, y "Cola de fermentadores" a la derecha.
+- **Fila 3, estado de la planta:** "Equipamiento y barriles por estado" a todo el ancho. Cada estado es una ficha con su nombre y su número, que es un enlace a la lista filtrada con el permiso de esa lista y una tarjeta plana sin él.
+- **Fila 4, planificaciones:** "Planificaciones pendientes" a todo el ancho.
+- **Filas de lotes:** la producción en curso muestra lote, fermentador, prioridad (insignia de las planificaciones), fin estimado y acciones. El atraso se informa en el contador y en la cola de fermentadores ("Atrasado 3 días" en rosa). Los lotes se abren con "Abrir" y las planificaciones con el ojo "Ver".
+- **Columna Acciones:** con un solo botón por celda, la hoja de estilos lo centra, por lo que el encabezado "Acciones" y el contenedor del botón van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`. Vale para los paneles del gerente y del operario.
+- **Estado vacío, subgrupos apilados y permisos:** las mismas reglas del panel del operario: una sola línea de texto gris sin tabla, los subgrupos de un bloque uno debajo del otro y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
+- Lo protegen `DashboardGerentePlantillasTest` y `HomeControllerTest`.
+
+## Panel de control del encargado de depósito
+
+La pantalla de inicio del ENCARGADO_DE_DEPOSITO muestra el panel de `home/dashboard-encargado-deposito`. Es un panel de trabajo: cada fila ofrece el atajo a la operación que corresponde y el acceso a la consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+
+- **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: órdenes pendientes, entregas vencidas (ícono rosa si hay vencidas; tarjeta sin enlace), lotes vencidos (tarjeta sin enlace) e insumos sin stock.
+- **Fila 2:** "Órdenes de compra pendientes" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) e "Insumos sin stock disponible" a la derecha.
+- **Fila 3:** "Lotes de insumo vencidos" a todo el ancho.
+- **Acciones de fila:** el ingreso de una orden y el ajuste de un lote se registran con el botón de registro ("Registrar ingreso" con `bi-box-arrow-in-down`, "Registrar ajuste" con `bi-sliders2`); la orden se consulta con el ojo "Ver" y el lote o el insumo con "Abrir". Cuando una celda tiene más de un botón se agrupan centrados.
+- **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
+- **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
+- Lo protegen `DashboardEncargadoDepositoPlantillasTest` y `HomeControllerTest`.
+
+## Panel de control del administrador
+
+La pantalla de inicio del ADMINISTRADOR muestra el panel de `home/dashboard-administrador`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+
+- **Fila 1, contadores:** dos tarjetas (`grid grid-cols-1 sm:grid-cols-2 gap-4`) con el mismo estilo que las de los otros paneles: usuarios activos y eventos de hoy.
+- **Fila 2:** "Usuarios activos por rol" a todo el ancho, con una ficha por rol (nombre y cantidad) que es un enlace a la lista de usuarios de ese rol con el permiso de la lista y una tarjeta plana sin él.
+- **Fila 3:** "Usuarios" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Actividad reciente" a la derecha (`xl:col-span-2`).
+- **Acciones de fila:** los usuarios se abren con "Abrir" y las entradas de la bitácora con el ojo "Ver", solo las que tienen detalle.
+- **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
+- **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
+- Lo protegen `DashboardAdministradorPlantillasTest` y `HomeControllerTest`.
+
+## Panel de control del gerente de compras
+
+La pantalla de inicio del GERENTE_DE_COMPRAS muestra el panel de `home/dashboard-gerente-compras`. Es un panel de trabajo: la planificación sin orden de compra ofrece el atajo para registrarla y el resto de las filas llevan a la consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+
+- **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: planificaciones sin orden (tarjeta sin enlace), órdenes pendientes, entregas vencidas (ícono rosa si hay vencidas; tarjeta sin enlace) y órdenes finalizadas, cuyo título dice la ventana de días ("Finalizadas, últimos 30 días").
+- **Fila 2:** "Planificaciones por comprar" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Órdenes de compra pendientes" a la derecha (`xl:col-span-2`), con la columna "Recibido" que muestra el avance de la recepción en porcentaje.
+- **Fila 3:** "Órdenes de compra finalizadas" a todo el ancho, con la columna "Cierre" (Automático o Manual).
+- **Acciones de fila:** la orden de una planificación se registra con el botón de registro ("Registrar orden" con `bi-cart-plus`); las planificaciones y las órdenes se consultan con el ojo "Ver".
+- **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
+- **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
+- Lo protegen `DashboardGerenteComprasPlantillasTest` y `HomeControllerTest`.
+
+## Panel de control del encargado de distribución
+
+La pantalla de inicio del ENCARGADO_DE_DISTRIBUCION muestra el panel de `home/dashboard-encargado-distribucion`. Es un panel de trabajo: cada barril ofrece el atajo a la operación que corresponde y el acceso a la consulta. Con este panel los seis roles tienen el suyo y la pantalla de inicio no tiene tarjetas de resumen genéricas. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+
+- **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: barriles en poder de clientes, devoluciones vencidas (ícono rosa si hay vencidas; tarjeta sin enlace), devoluciones que vencen hoy (tarjeta sin enlace) y barriles listos para despachar.
+- **Fila 2:** "Devoluciones de hoy y vencidas" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`), con la columna "Días de atraso", y "Clientes con barriles en poder" a la derecha, con un cliente por fila y la cantidad de sus barriles.
+- **Fila 3:** "Barriles listos para despachar" a todo el ancho, con la receta y el lote de la cerveza.
+- **Acciones de fila:** la devolución y el despacho de un barril se registran con el botón de registro ("Registrar devolución" con `bi-box-arrow-in-down-left`, "Registrar despacho" con `bi-box-arrow-up-right`); el barril y el cliente se abren con "Abrir". Cuando una celda tiene más de un botón se agrupan centrados.
+- **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
+- **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido sobre el permiso de su destino.
+- Lo protegen `DashboardEncargadoDistribucionPlantillasTest` y `HomeControllerTest`.
 
 ## Ícono del ojo "Ver ..."
 

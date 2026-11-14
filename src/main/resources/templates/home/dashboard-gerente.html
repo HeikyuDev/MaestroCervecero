@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Panel de control del gerente de producción en la pantalla de inicio: el estado de la fábrica. Es solo de lectura: no registra
+    nada y cada elemento lleva a la pantalla de consulta correspondiente. Se lee de izquierda a derecha y de arriba abajo en cuatro
+    filas, con un tema por fila:
+      1. contadores(dashboard): cuatro tarjetas con los lotes en ejecución, los lotes atrasados, los fermentadores ocupados sobre el
+         total y los equipos y barriles fuera de servicio.
+      2. produccionEnCurso(dashboard) a la izquierda y colaDeFermentadores(dashboard) a la derecha.
+      3. equipamientoYBarriles(dashboard) a todo el ancho.
+      4. planificacionesPendientes(dashboard) a todo el ancho.
+    panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardGerenteResponseDTO que el HomeController carga
+    solo para el rol GERENTE_DE_PRODUCCION.
+
+    Cada enlace se protege con el mismo permiso que el destino ("Abrir" un lote con LOTE_CONSULTAR, la lista de equipos con
+    LIMPIEZA_EQUIPAMIENTO_CONSULTAR, etc.); el servidor vuelve a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto,
+    sin tabla ni encabezado de columnas.
+
+    Uso: <th:block th:replace="~{home/dashboard-gerente :: panel(${dashboardGerente})}"></th:block>
+-->
+
+<!-- ===================================================================== PANEL -->
+<div th:fragment="panel(dashboard)" data-dashboard-gerente class="space-y-6">
+    <th:block th:replace="~{home/dashboard-gerente :: contadores(${dashboard})}"></th:block>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <th:block th:replace="~{home/dashboard-gerente :: produccionEnCurso(${dashboard})}"></th:block>
+        <th:block th:replace="~{home/dashboard-gerente :: colaDeFermentadores(${dashboard})}"></th:block>
+    </div>
+    <th:block th:replace="~{home/dashboard-gerente :: equipamientoYBarriles(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-gerente :: planificacionesPendientes(${dashboard})}"></th:block>
+</div>
+
+<!-- ===================================================================== FILA 1: CONTADORES -->
+<div th:fragment="contadores(dashboard)" data-dashboard-contadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Lotes en ejecución: toda la tarjeta es un enlace a la lista filtrada -->
+    <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" data-contador="lotes-en-ejecucion" th:href="@{/lotes(estado='EN_EJECUCION')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Lotes en ejecución', ${dashboard.lotesEnEjecucion}, 'bi-play-circle', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('LOTE_CONSULTAR')" data-contador="lotes-en-ejecucion" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Lotes en ejecución', ${dashboard.lotesEnEjecucion}, 'bi-play-circle', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </div>
+
+    <!-- Lotes atrasados: los en ejecución con fecha de finalización estimada anterior a hoy; tarjeta sin enlace, los lotes están en el bloque de producción en curso -->
+    <div data-contador="lotes-atrasados" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Lotes atrasados', ${dashboard.lotesAtrasados}, 'bi-exclamation-triangle', ${dashboard.lotesAtrasados > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'})}"></th:block>
+    </div>
+
+    <!-- Fermentadores ocupados sobre el total de fermentadores activos -->
+    <a sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" data-contador="fermentadores-ocupados" th:href="@{/control-equipamiento(tipo='FERMENTADOR')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Fermentadores ocupados', |${dashboard.fermentadoresOcupados} / ${dashboard.fermentadoresTotal}|, 'bi-droplet-half', 'bg-sky-50 text-sky-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" data-contador="fermentadores-ocupados" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Fermentadores ocupados', |${dashboard.fermentadoresOcupados} / ${dashboard.fermentadoresTotal}|, 'bi-droplet-half', 'bg-sky-50 text-sky-600')}"></th:block>
+    </div>
+
+    <!-- Fuera de servicio: suma de equipos y barriles En limpieza o En mantenimiento; el detalle está en la tarjeta de equipamiento y barriles -->
+    <div data-contador="fuera-de-servicio" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Fuera de servicio', ${dashboard.fueraDeServicio}, 'bi-wrench', 'bg-amber-50 text-amber-600')}"></th:block>
+        <p class="mt-2 text-xs text-slate-500">Equipos y barriles en limpieza o en mantenimiento</p>
+    </div>
+</div>
+
+<!-- Interior de una tarjeta contadora: título en mayúsculas pequeñas, ícono y el número grande -->
+<th:block th:fragment="contenidoContador(titulo, total, icono, colores)">
+    <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="${titulo}">Lotes en ejecución</span>
+        <span class="p-2 rounded-lg" th:classappend="${colores}"><i th:class="'bi ' + ${icono}" aria-hidden="true"></i></span>
+    </div>
+    <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
+</th:block>
+
+<!-- ===================================================================== FILA 2, IZQUIERDA: PRODUCCIÓN EN CURSO -->
+<section th:fragment="produccionEnCurso(dashboard)" data-bloque="produccion-en-curso" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Producción en curso</h2>
+
+    <!-- Una sección por etapa con lotes en ejecución -->
+    <div th:each="e, estado : ${dashboard.produccionEnCurso}" data-subbloque="etapa" th:attr="data-etapa=${e.etapa.name()}"
+         class="p-4 min-w-0" th:classappend="${estado.first} ? '' : 'border-t border-slate-200'">
+        <th:block th:replace="~{home/dashboard-gerente :: encabezado(${e.etapa.etiqueta}, ${e.lotes.total}, 'lotes', @{/lotes(estado='EN_EJECUCION', etapaActual=${e.etapa.name()})}, 'Ver todos los lotes en ' + ${e.etapa.etiqueta})}"></th:block>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Lote</th>
+                    <th class="px-2 py-3">Fermentador</th>
+                    <th class="px-2 py-3">Prioridad</th>
+                    <th class="px-2 py-3">Fin estimado</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="l : ${e.lotes.filas}" class="hover:bg-slate-50 align-top" data-fila-lote-en-curso>
+                    <td class="px-2 py-3 min-w-[9rem]">
+                        <div class="font-medium text-slate-900 whitespace-nowrap" data-lote-codigo th:text="${l.identificadorInterno}">LOT-R7-03</div>
+                        <div class="mt-0.5 text-xs text-slate-600 break-words" data-lote-receta th:text="${l.nombreReceta}">Pale Ale</div>
+                    </td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-lote-fermentador><th:block th:replace="~{fragments/enlace-equipo :: enlace(${l.idFermentador}, ${l.identificadorInternoFermentador})}"></th:block></td>
+                    <td class="px-2 py-3" data-lote-prioridad><span th:replace="~{planificacion_produccion/formato :: prioridadPlanificacion(${l.prioridad})}"></span></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-fin-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id}, etapa=${l.etapaActual.name().toLowerCase()})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p th:if="${dashboard.produccionEnCurso.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay lotes en ejecución</p>
+</section>
+
+<!-- ===================================================================== FILA 2, DERECHA: COLA DE FERMENTADORES -->
+<section th:fragment="colaDeFermentadores(dashboard)" data-bloque="cola-de-fermentadores" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Cola de fermentadores</h2>
+
+    <div data-subbloque="fermentadores" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-gerente :: encabezado('Fermentadores', ${dashboard.colaDeFermentadores.total}, 'cronograma', @{/cronograma-produccion}, 'Ver el cronograma de producción')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.colaDeFermentadores.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Fermentador</th>
+                    <th class="px-2 py-3">En ejecución</th>
+                    <th class="px-2 py-3">Próximo</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="f : ${dashboard.colaDeFermentadores.filas}" class="hover:bg-slate-50 align-top" data-fila-fermentador>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-fermentador-identificador>
+                        <th:block th:replace="~{fragments/enlace-equipo :: enlace(${f.id}, ${f.identificadorInterno})}"></th:block>
+                        <div class="mt-0.5 text-xs font-normal text-slate-500" data-fermentador-estado th:text="${f.estadoOperativo.etiqueta}">En uso</div>
+                    </td>
+                    <td class="px-2 py-3 text-slate-700" data-cola-en-ejecucion>
+                        <th:block th:if="${f.loteEnEjecucion != null}">
+                            <div class="font-medium text-slate-900 break-words" th:text="${f.loteEnEjecucion.identificadorInterno}">LOT-R7-03</div>
+                            <div class="mt-0.5 text-xs text-slate-600 break-words" th:text="${f.loteEnEjecucion.nombreReceta}">Pale Ale</div>
+                            <span th:if="${f.loteEnEjecucion.diasDeAtraso > 0}" data-atraso
+                                  class="mt-1 inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-rose-50 text-rose-700">Atrasado <th:block th:replace="~{lote/formato :: duracion(${f.loteEnEjecucion.diasDeAtraso}, 'día', 'días')}"></th:block></span>
+                        </th:block>
+                        <th:block th:if="${f.loteEnEjecucion == null}">-</th:block>
+                    </td>
+                    <td class="px-2 py-3 text-slate-700" data-cola-proximo>
+                        <th:block th:if="${f.proximoLote != null}">
+                            <div class="font-medium text-slate-900 break-words" th:text="${f.proximoLote.identificadorInterno}">LOT-R7-04</div>
+                            <div class="mt-0.5 text-xs text-slate-600">Inicio <th:block th:replace="~{planificacion_produccion/formato :: fecha(${f.proximoLote.fechaInicioEstimada})}"></th:block></div>
+                            <div class="mt-0.5 text-xs text-slate-500" data-lotes-pendientes th:text="|${f.lotesPendientes} ${f.lotesPendientes == 1 ? 'lote pendiente' : 'lotes pendientes'}|">2 lotes pendientes</div>
+                        </th:block>
+                        <th:block th:if="${f.proximoLote == null}">-</th:block>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.colaDeFermentadores.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay fermentadores registrados</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3: EQUIPAMIENTO Y BARRILES POR ESTADO -->
+<section th:fragment="equipamientoYBarriles(dashboard)" data-bloque="equipamiento-y-barriles" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Equipamiento y barriles por estado</h2>
+
+    <!-- Equipos -->
+    <div data-subbloque="equipos-por-estado" class="p-4 min-w-0">
+        <h3 class="mb-3 text-sm font-semibold text-slate-800">Equipos</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <th:block th:each="c : ${dashboard.equiposPorEstado}">
+                <th:block th:replace="~{home/dashboard-gerente :: ficha('equipos', @{/control-equipamiento(estadoOperativo=${c.codigo})}, ${c.etiqueta}, ${c.total}, ${c.codigo})}"></th:block>
+            </th:block>
+        </div>
+    </div>
+
+    <!-- Barriles -->
+    <div data-subbloque="barriles-por-estado" class="p-4 min-w-0 border-t border-slate-200">
+        <h3 class="mb-3 text-sm font-semibold text-slate-800">Barriles</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <th:block th:each="c : ${dashboard.barrilesPorEstado}">
+                <th:block th:replace="~{home/dashboard-gerente :: ficha('barriles', @{/control-barriles(estadoOperativo=${c.codigo})}, ${c.etiqueta}, ${c.total}, ${c.codigo})}"></th:block>
+            </th:block>
+        </div>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 4: PLANIFICACIONES Y LOTES POR INICIAR -->
+<section th:fragment="planificacionesPendientes(dashboard)" data-bloque="planificaciones-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Planificaciones pendientes</h2>
+
+    <!-- Planificaciones pendientes -->
+    <div data-subbloque="planificaciones-pendientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-gerente :: encabezado('Pendientes', ${dashboard.planificacionesPendientes.total}, 'planificaciones', @{/planificaciones-produccion(estado='PENDIENTE')}, 'Ver todas las planificaciones pendientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.planificacionesPendientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Planificación</th>
+                    <th class="px-2 py-3">Prioridad</th>
+                    <th class="px-2 py-3">Inicio estimado</th>
+                    <th class="px-2 py-3">Fin estimado</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="p : ${dashboard.planificacionesPendientes.filas}" class="hover:bg-slate-50 align-top" data-fila-planificacion-pendiente>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-planificacion-etiqueta th:text="${p.etiqueta}">Plan #7 - Pale Ale</td>
+                    <td class="px-2 py-3" data-planificacion-prioridad><span th:replace="~{planificacion_produccion/formato :: prioridadPlanificacion(${p.prioridad})}"></span></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-inicio-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-fin-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaFinalizacionEstimada})}"></th:block></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')">
+                                <a data-ver-planificacion th:href="@{/planificaciones-produccion/{id}(id=${p.id})}" th:attr="aria-label='Ver ' + ${p.etiqueta}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.planificacionesPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay planificaciones pendientes</p>
+    </div>
+</section>
+
+<!-- ===================================================================== PIEZAS COMPARTIDAS -->
+
+<!--
+    Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
+    ('lotes', 'cronograma', 'planificaciones') decide el permiso del enlace, que sin él no se muestra.
+-->
+<div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-800" th:text="${titulo}">En ejecución</h3>
+        <span class="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600" data-bloque-total th:text="${total}">3</span>
+    </div>
+    <th:block th:if="${lista == 'lotes'}">
+        <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+    <th:block th:if="${lista == 'cronograma'}">
+        <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" data-ver-cronograma th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver cronograma</a>
+    </th:block>
+    <th:block th:if="${lista == 'planificaciones'}">
+        <a sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todas</a>
+    </th:block>
+</div>
+
+<!-- Ficha de un conteo (estado de equipos o de barriles): enlace a la lista filtrada con el permiso de la lista, y tarjeta plana sin él -->
+<th:block th:fragment="ficha(lista, url, etiqueta, total, codigo)">
+    <th:block th:if="${lista == 'equipos'}">
+        <a sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" th:attr="data-conteo=${codigo}" th:href="${url}"
+           class="block p-3 border border-slate-200 rounded-lg hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
+        </a>
+        <div sec:authorize="!hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" th:attr="data-conteo=${codigo}" class="p-3 border border-slate-200 rounded-lg">
+            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
+        </div>
+    </th:block>
+    <th:block th:if="${lista == 'barriles'}">
+        <a th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" th:attr="data-conteo=${codigo}" th:href="${url}"
+           class="block p-3 border border-slate-200 rounded-lg hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
+        </a>
+        <div th:unless="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" th:attr="data-conteo=${codigo}" class="p-3 border border-slate-200 rounded-lg">
+            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
+        </div>
+    </th:block>
+</th:block>
+
+<th:block th:fragment="contenidoFicha(etiqueta, total)">
+    <p class="text-xs font-medium text-slate-500" data-conteo-etiqueta th:text="${etiqueta}">En limpieza</p>
+    <p class="mt-1 text-2xl font-bold text-slate-800" data-conteo-total th:text="${total}">3</p>
+</th:block>
+
+</html>

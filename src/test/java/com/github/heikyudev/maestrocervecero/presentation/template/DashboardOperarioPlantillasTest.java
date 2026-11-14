@@ -22,17 +22,15 @@ class DashboardOperarioPlantillasTest {
     private static final String PANEL = "home/dashboard-operario.html";
 
     @Test
-    @DisplayName("CP-PDO-01: la pantalla de inicio muestra el panel solo al OPERARIO_DE_PRODUCCION y oculta para ese rol las tarjetas de resumen, que no cambian para los demás")
+    @DisplayName("CP-PDO-01: la pantalla de inicio muestra el panel solo al OPERARIO_DE_PRODUCCION y no tiene tarjetas de resumen: cada rol ve su propio panel")
     void integracionEnLaPantallaDeInicio() throws IOException {
         String html = leer("home.html");
         int panel = html.indexOf("home/dashboard-operario :: panel(${dashboardOperario})");
-        int tarjetas = html.indexOf("sec:authorize=\"!hasRole('OPERARIO_DE_PRODUCCION')\"");
 
         assertThat(panel).isPositive();
         assertThat(html.substring(html.lastIndexOf("<th:block sec:authorize", panel), panel)).contains("hasRole('OPERARIO_DE_PRODUCCION')");
-        assertThat(tarjetas).isGreaterThan(panel);
-        assertThat(html.substring(html.lastIndexOf("<div", tarjetas), tarjetas + 80)).contains("<div sec:authorize=\"!hasRole('OPERARIO_DE_PRODUCCION')\" class=\"grid");
-        assertThat(html).contains("Estado del sistema").contains("Usuarios activos").contains("Órdenes de compra").contains("Auditoría").contains("'dashboard')");
+        assertThat(count(html, "<th:block th:replace=\"~{home/dashboard-")).as("un panel por rol").isEqualTo(6);
+        assertThat(html).doesNotContain("Estado del sistema").doesNotContain("hasAnyRole").doesNotContain("Usuarios activos");
     }
 
     @Test
@@ -106,20 +104,19 @@ class DashboardOperarioPlantillasTest {
         String limpiezasYMantenimientos = html.substring(html.indexOf("th:fragment=\"limpiezasPendientes(dashboard)\""), html.indexOf("PIEZAS COMPARTIDAS"));
         assertThat(limpiezasYMantenimientos).doesNotContain("boton-abrir");
         // Cada fila termina en la celda col-acciones y la tabla tiene el encabezado Acciones fijo
-        assertThat(count(html, "<th class=\"col-acciones px-2 py-3 text-right whitespace-nowrap\">Acciones</th>")).isEqualTo(6);
+        assertThat(count(html, "<th class=\"col-acciones px-2 py-3 text-center whitespace-nowrap\">Acciones</th>")).isEqualTo(6);
         assertThat(count(html, "<td class=\"col-acciones px-2 py-3\">")).isEqualTo(6);
         assertThat(count(html, "<table class=\"w-full text-sm text-left\">")).isEqualTo(6);
         assertThat(count(html, "<div class=\"overflow-x-auto\"")).isEqualTo(6);
     }
 
     @Test
-    @DisplayName("CP-PDO-06: la fila de un lote en ejecución muestra el atraso en rosa con la duración, el indicador Falta consumo enfocable con su tooltip, y la causa de un mantenimiento como etiqueta Falla, Preventivo o guion")
+    @DisplayName("CP-PDO-06: la tabla de lotes en ejecución no tiene columna Situación ni indicadores de atraso o de falta de consumo, y la causa de un mantenimiento es una etiqueta Falla, Preventivo o guion")
     void indicadoresDeLasFilas() throws IOException {
         String html = leer(PANEL);
 
-        assertThat(html).contains("th:if=\"${l.diasDeAtraso > 0}\"").contains("bg-rose-50 text-rose-700\">Atrasado <th:block th:replace=\"~{lote/formato :: duracion(${l.diasDeAtraso}, 'día', 'días')}\"")
-                .contains("th:if=\"${l.faltaConsumo}\"").contains("tabindex=\"0\"").contains("data-tooltip=\"La etapa en curso no alcanzó el consumo mínimo de insumos para finalizar\"")
-                .contains("bi-exclamation-circle").contains("bg-amber-50 text-amber-700");
+        assertThat(html).doesNotContain("Situación").doesNotContain("diasDeAtraso").doesNotContain("faltaConsumo").doesNotContain("data-atraso")
+                .doesNotContain("data-falta-consumo").doesNotContain("Falta consumo").doesNotContain("bi-exclamation-circle");
         assertThat(html).contains("th:fragment=\"causa(causa)\"").contains("'bg-rose-50 text-rose-700' : 'bg-sky-50 text-sky-700'").contains("<th:block th:if=\"${causa == null}\">-</th:block>");
         assertThat(count(html, "home/dashboard-operario :: causa(")).isEqualTo(2);
         assertThat(html).contains("fragments/enlace-equipo :: enlace(${l.idFermentador}, ${l.identificadorInternoFermentador})")

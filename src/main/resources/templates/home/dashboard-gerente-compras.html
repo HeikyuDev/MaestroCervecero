@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Panel de control del gerente de compras en la pantalla de inicio: qué hay que comprar, cómo van las órdenes de compra
+    pendientes y qué órdenes se finalizaron hace poco. Es un panel de trabajo: cada planificación sin orden ofrece el atajo
+    para registrar su orden de compra y cada fila el acceso a la consulta. Se lee de izquierda a derecha y de arriba abajo en
+    tres filas, con un tema por fila:
+      1. contadores(dashboard): cuatro tarjetas con las planificaciones sin orden de compra, las órdenes pendientes, las órdenes
+         con entrega vencida y las órdenes finalizadas en los últimos días.
+      2. planificacionesSinOrden(dashboard) a la izquierda y ordenesPendientes(dashboard) a la derecha.
+      3. ordenesFinalizadas(dashboard) a todo el ancho.
+    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardGerenteComprasResponseDTO que el HomeController
+    carga solo para el rol GERENTE_DE_COMPRAS.
+
+    Cada atajo se protege con el mismo permiso que el destino ("Registrar orden" con ORDEN_COMPRA_REGISTRAR, el ojo de una
+    planificación con PLANIFICACION_PRODUCCION_CONSULTAR, el de una orden con ORDEN_COMPRA_CONSULTAR); el servidor vuelve a
+    exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin tabla ni encabezado de columnas. La columna Acciones
+    va centrada, igual que su encabezado.
+
+    Uso: <th:block th:replace="~{home/dashboard-gerente-compras :: panel(${dashboardGerenteCompras})}"></th:block>
+-->
+
+<!-- ===================================================================== PANEL -->
+<div th:fragment="panel(dashboard)" data-dashboard-gerente-compras class="space-y-6">
+    <th:block th:replace="~{home/dashboard-gerente-compras :: contadores(${dashboard})}"></th:block>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: planificacionesSinOrden(${dashboard})}"></th:block>
+        <th:block th:replace="~{home/dashboard-gerente-compras :: ordenesPendientes(${dashboard})}"></th:block>
+    </div>
+    <th:block th:replace="~{home/dashboard-gerente-compras :: ordenesFinalizadas(${dashboard})}"></th:block>
+</div>
+
+<!-- ===================================================================== FILA 1: CONTADORES -->
+<div th:fragment="contadores(dashboard)" data-dashboard-contadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Planificaciones pendientes sin orden de compra: tarjeta sin enlace; la lista está en el bloque inferior -->
+    <div data-contador="planificaciones-sin-orden" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador('Planificaciones sin orden', ${dashboard.planificacionesSinOrden.total}, 'bi-calendar3', 'bg-amber-50 text-amber-600')}"></th:block>
+    </div>
+
+    <!-- Órdenes de compra pendientes -->
+    <a sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-pendientes" th:href="@{/ordenes-compra(estado='PENDIENTE')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador('Órdenes pendientes', ${dashboard.ordenesPendientes.total}, 'bi-cart3', 'bg-sky-50 text-sky-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-pendientes" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador('Órdenes pendientes', ${dashboard.ordenesPendientes.total}, 'bi-cart3', 'bg-sky-50 text-sky-600')}"></th:block>
+    </div>
+
+    <!-- Órdenes con entrega vencida: las pendientes con fecha de entrega estimada anterior a hoy -->
+    <div data-contador="ordenes-entrega-vencida" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador('Entregas vencidas', ${dashboard.ordenesConEntregaVencida}, 'bi-clock-history', ${dashboard.ordenesConEntregaVencida > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'})}"></th:block>
+    </div>
+
+    <!-- Órdenes de compra finalizadas en los últimos días: el título dice la ventana -->
+    <a sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-finalizadas" th:href="@{/ordenes-compra(estado='FINALIZADA')}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador(|Finalizadas, últimos ${dashboard.diasDeOrdenesFinalizadas} días|, ${dashboard.ordenesFinalizadas.total}, 'bi-check-circle', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-contador="ordenes-finalizadas" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: contenidoContador(|Finalizadas, últimos ${dashboard.diasDeOrdenesFinalizadas} días|, ${dashboard.ordenesFinalizadas.total}, 'bi-check-circle', 'bg-emerald-50 text-emerald-600')}"></th:block>
+    </div>
+</div>
+
+<!-- Interior de una tarjeta contadora: título en mayúsculas pequeñas, ícono y el número grande -->
+<th:block th:fragment="contenidoContador(titulo, total, icono, colores)">
+    <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="${titulo}">Órdenes pendientes</span>
+        <span class="p-2 rounded-lg" th:classappend="${colores}"><i th:class="'bi ' + ${icono}" aria-hidden="true"></i></span>
+    </div>
+    <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
+</th:block>
+
+<!-- ===================================================================== FILA 2, IZQUIERDA: PLANIFICACIONES SIN ORDEN -->
+<section th:fragment="planificacionesSinOrden(dashboard)" data-bloque="planificaciones-sin-orden" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Planificaciones por comprar</h2>
+
+    <div data-subbloque="planificaciones-sin-orden" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: encabezado('Sin orden de compra', ${dashboard.planificacionesSinOrden.total}, 'planificaciones', @{/planificaciones-produccion(estado='PENDIENTE')}, 'Ver todas las planificaciones pendientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.planificacionesSinOrden.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Planificación</th>
+                    <th class="px-2 py-3">Inicio estimado</th>
+                    <th class="px-2 py-3">Prioridad</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="p : ${dashboard.planificacionesSinOrden.filas}" class="hover:bg-slate-50 align-top" data-fila-planificacion>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-planificacion-etiqueta th:text="${p.etiqueta}">Plan #7 - Pale Ale</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-inicio-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
+                    <td class="px-2 py-3" data-planificacion-prioridad><span th:replace="~{planificacion_produccion/formato :: prioridadPlanificacion(${p.prioridad})}"></span></td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('ORDEN_COMPRA_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/ordenes-compra/nuevo(idPlanificacion=${p.id})}, 'Registrar orden', 'bi-cart-plus', 'Registrar orden de compra de ' + ${p.etiqueta})}"></th:block>
+                            </th:block>
+                            <th:block sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')">
+                                <a data-ver-planificacion th:href="@{/planificaciones-produccion/{id}(id=${p.id})}" th:attr="aria-label='Ver ' + ${p.etiqueta}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.planificacionesSinOrden.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay planificaciones pendientes sin orden de compra</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 2, DERECHA: ÓRDENES PENDIENTES -->
+<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Órdenes de compra pendientes</h2>
+
+    <div data-subbloque="ordenes-pendientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: encabezado('Pendientes de recepción', ${dashboard.ordenesPendientes.total}, 'ordenes', @{/ordenes-compra(estado='PENDIENTE')}, 'Ver todas las órdenes de compra pendientes')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.ordenesPendientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Orden</th>
+                    <th class="px-2 py-3">Proveedor</th>
+                    <th class="px-2 py-3">Entrega estimada</th>
+                    <th class="px-2 py-3">Recibido</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="o : ${dashboard.ordenesPendientes.filas}" class="hover:bg-slate-50 align-top" data-fila-orden-pendiente>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-orden-codigo th:text="|Orden de compra #${o.id}|">Orden de compra #7</td>
+                    <td class="px-2 py-3 text-slate-700 break-words" data-orden-proveedor th:text="${o.proveedor}">Malterías del Sur S.A.</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-entrega-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-orden-avance th:text="|${o.avanceRecepcion} %|">40 %</td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')">
+                                <a data-ver-orden th:href="@{/ordenes-compra/{id}(id=${o.id})}" th:attr="aria-label='Ver orden de compra #' + ${o.id}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.ordenesPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay órdenes de compra pendientes</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3: ÓRDENES FINALIZADAS -->
+<section th:fragment="ordenesFinalizadas(dashboard)" data-bloque="ordenes-finalizadas" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900" th:text="|Órdenes de compra finalizadas, últimos ${dashboard.diasDeOrdenesFinalizadas} días|">Órdenes de compra finalizadas, últimos 30 días</h2>
+
+    <div data-subbloque="ordenes-finalizadas" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-gerente-compras :: encabezado('Finalizadas', ${dashboard.ordenesFinalizadas.total}, 'ordenes', @{/ordenes-compra(estado='FINALIZADA')}, 'Ver todas las órdenes de compra finalizadas')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.ordenesFinalizadas.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Orden</th>
+                    <th class="px-2 py-3">Proveedor</th>
+                    <th class="px-2 py-3">Finalización</th>
+                    <th class="px-2 py-3">Cierre</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="o : ${dashboard.ordenesFinalizadas.filas}" class="hover:bg-slate-50 align-top" data-fila-orden-finalizada>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-orden-codigo th:text="|Orden de compra #${o.id}|">Orden de compra #7</td>
+                    <td class="px-2 py-3 text-slate-700 break-words" data-orden-proveedor th:text="${o.proveedor}">Malterías del Sur S.A.</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-finalizacion><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${o.fechaFinalizacion})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-orden-cierre th:text="${o.cierreManual} ? 'Manual' : 'Automático'">Automático</td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')">
+                                <a data-ver-orden th:href="@{/ordenes-compra/{id}(id=${o.id})}" th:attr="aria-label='Ver orden de compra #' + ${o.id}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.ordenesFinalizadas.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay órdenes de compra finalizadas en el período</p>
+    </div>
+</section>
+
+<!-- ===================================================================== PIEZAS COMPARTIDAS -->
+
+<!--
+    Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
+    ('planificaciones' u 'ordenes') decide el permiso del enlace, que sin él no se muestra.
+-->
+<div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-800" th:text="${titulo}">Pendientes de recepción</h3>
+        <span class="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600" data-bloque-total th:text="${total}">3</span>
+    </div>
+    <th:block th:if="${lista == 'planificaciones'}">
+        <a sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todas</a>
+    </th:block>
+    <th:block th:if="${lista == 'ordenes'}">
+        <a sec:authorize="hasAuthority('ORDEN_COMPRA_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todas</a>
+    </th:block>
+</div>
+
+</html>

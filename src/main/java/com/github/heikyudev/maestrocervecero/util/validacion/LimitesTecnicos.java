@@ -1,5 +1,8 @@
 package com.github.heikyudev.maestrocervecero.util.validacion;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 /**
  * Techos técnicos compartidos por las validaciones de los módulos.
  * <p>
@@ -110,6 +113,30 @@ public final class LimitesTecnicos {
 
     /** Cantidad máxima de filas que muestra cada bloque del panel del operario. */
     public static final int PANEL_OPERARIO_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad máxima de filas que muestra cada bloque del panel del gerente de producción. */
+    public static final int PANEL_GERENTE_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad máxima de filas que muestra cada bloque del panel del encargado de depósito. */
+    public static final int PANEL_ENCARGADO_DEPOSITO_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad máxima de filas que muestra cada bloque del panel del administrador. */
+    public static final int PANEL_ADMINISTRADOR_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad máxima de filas que muestra cada bloque del panel del gerente de compras. */
+    public static final int PANEL_GERENTE_COMPRAS_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad de días hacia atrás que abarcan las órdenes de compra finalizadas del panel del gerente de compras. */
+    public static final int PANEL_GERENTE_COMPRAS_DIAS_ORDENES_FINALIZADAS = 30;
+
+    /** Cantidad máxima de filas que muestra cada bloque del panel del encargado de distribución. */
+    public static final int PANEL_ENCARGADO_DISTRIBUCION_FILAS_POR_BLOQUE = 5;
+
+    /** Cantidad de filas de la página que se pide solo para leer el total real de una lista en los paneles. */
+    public static final int PANEL_FILAS_SOLO_PARA_EL_TOTAL = 1;
+
+    /** Página de un registro que se pide solo para leer el total real de una lista en los paneles. */
+    public static final Pageable PANEL_SOLO_EL_TOTAL = PageRequest.of(0, PANEL_FILAS_SOLO_PARA_EL_TOTAL);
 
     /** Cantidad máxima de unidades de la presentación comercial que se puede solicitar en un ítem de una orden de compra. */
     public static final int CANTIDAD_COMPRA_MAXIMA = 1_000_000;

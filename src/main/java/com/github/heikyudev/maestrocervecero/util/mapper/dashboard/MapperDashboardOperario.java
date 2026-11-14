@@ -18,8 +18,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 
 /**
  * Mapea los DTO del listado de lotes y de las pantallas de control, y las últimas operaciones del ciclo de vida, a los
- * DTO de respuesta del panel del operario. No ejecuta consultas: los valores que requieren un service (atraso, falta
- * de consumo) o una consulta (la última operación) llegan ya resueltos.
+ * DTO de respuesta del panel del operario. No ejecuta consultas: el valor que requiere una consulta (la última operación) llega ya resuelto.
  */
 public class MapperDashboardOperario {
 
@@ -30,11 +29,9 @@ public class MapperDashboardOperario {
      * Mapea un lote del listado a {@link LoteDelDiaResponseDTO}.
      *
      * @param lote Lote del listado a convertir.
-     * @param diasDeAtraso Días de atraso ya calculados (0 si el lote no está En ejecución o no pasó su fecha estimada).
-     * @param faltaConsumo {@code true} si la etapa en curso no alcanza el consumo mínimo (siempre {@code false} en un lote Pendiente).
      * @return El DTO, o {@code null} si el lote es nulo.
      */
-    public static LoteDelDiaResponseDTO toLoteDelDiaDTO(LoteCronogramaResponseDTO lote, int diasDeAtraso, boolean faltaConsumo) {
+    public static LoteDelDiaResponseDTO toLoteDelDiaDTO(LoteCronogramaResponseDTO lote) {
         if (lote == null) {
             return null;
         }
@@ -47,8 +44,6 @@ public class MapperDashboardOperario {
                 .identificadorInternoFermentador(lote.getIdentificadorInternoFermentador())
                 .fechaInicioEstimada(lote.getFechaInicioEstimada())
                 .fechaFinalizacionEstimada(lote.getFechaFinalizacionEstimada())
-                .diasDeAtraso(diasDeAtraso)
-                .faltaConsumo(faltaConsumo)
                 .build();
     }
 

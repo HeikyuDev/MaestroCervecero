@@ -22,7 +22,6 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRe
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
-import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.BarrilPendienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.CausaMantenimiento;
@@ -30,7 +29,6 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.Dash
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.EquipoPendienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteDelDiaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -66,9 +63,6 @@ class DashboardOperarioServicioImplTest {
 
     @Mock
     private ILoteRepository loteRepository;
-
-    @Mock
-    private ILoteServicio loteServicio;
 
     @Mock
     private IControlEquipamientoServicio controlEquipamientoServicio;
@@ -110,7 +104,6 @@ class DashboardOperarioServicioImplTest {
         assertThat(resultado.getBarrilesEnMantenimiento().getTotal()).isZero();
         assertThat(resultado.getBarrilesEnMantenimiento().getFilas()).isEmpty();
         verify(loteRepository, never()).buscarParaListadoPorIds(anyCollection());
-        verify(loteServicio, never()).calcularAvanceDeEtapa(any(), any(), anyDouble());
         verify(operacionCicloVidaEquipamientoRepository, never()).buscarUltimasOperacionesRegistradas(anyCollection());
         verify(operacionCicloVidaBarrilRepository, never()).buscarUltimasOperacionesRegistradas(anyCollection());
     }
@@ -126,7 +119,6 @@ class DashboardOperarioServicioImplTest {
                 lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(10), hoy.plusDays(2), TipoEtapa.FERMENTACION),
                 lote(2L, EstadoLote.EN_EJECUCION, hoy.minusDays(20), hoy.minusDays(1), TipoEtapa.HERVIDO),
                 lote(3L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(9), TipoEtapa.MACERACION)));
-        lenient().when(loteServicio.calcularAvanceDeEtapa(any(), any(), anyDouble())).thenReturn(avance(true));
 
         // === EJECUCION ===
         DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
@@ -144,7 +136,7 @@ class DashboardOperarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-DOP-03: los lotes en ejecución con más de 5 muestran 5 filas y el total real, y el consumo se calcula solo para las filas visibles")
+    @DisplayName("CP-DOP-03: los lotes en ejecución con más de 5 muestran 5 filas y el total real")
     void obtener_debeTopearLasFilasDeLotesEnEjecucionYConservarElTotal() {
         // === PREPARACION DE DATOS ===
         prepararSistemaVacio();
@@ -152,7 +144,6 @@ class DashboardOperarioServicioImplTest {
         List<Long> ids = List.of(1L, 2L, 3L, 4L, 5L);
         when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(ids, TOPE, 8));
         when(loteRepository.buscarParaListadoPorIds(ids)).thenReturn(lotesEnEjecucion(ids, hoy.plusDays(1)));
-        when(loteServicio.calcularAvanceDeEtapa(any(), any(), anyDouble())).thenReturn(avance(true));
 
         // === EJECUCION ===
         DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
@@ -161,127 +152,6 @@ class DashboardOperarioServicioImplTest {
         assertThat(resultado.getLotesEnEjecucion().getTotal()).isEqualTo(8);
         assertThat(resultado.getLotesEnEjecucion().getFilas()).hasSize(5);
         verify(loteRepository).buscarIdsDeLotesEnEjecucionParaPanel(PageRequest.of(0, 5));
-        verify(loteServicio, times(5)).calcularAvanceDeEtapa(any(), any(), anyDouble());
-    }
-
-    @Test
-    @DisplayName("CP-DOP-04: el atraso de un lote en ejecución son los días desde su fecha de finalización estimada hasta hoy, y 0 si la fecha es de hoy o posterior")
-    void obtener_debeCalcularElAtrasoDeLosLotesEnEjecucion() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(1L, 2L, 3L), TOPE, 3));
-        when(loteRepository.buscarParaListadoPorIds(List.of(1L, 2L, 3L))).thenReturn(List.of(
-                lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(20), hoy.minusDays(3), TipoEtapa.HERVIDO),
-                lote(2L, EstadoLote.EN_EJECUCION, hoy.minusDays(20), hoy, TipoEtapa.HERVIDO),
-                lote(3L, EstadoLote.EN_EJECUCION, hoy.minusDays(20), hoy.plusDays(2), TipoEtapa.HERVIDO)));
-        when(loteServicio.calcularAvanceDeEtapa(any(), any(), anyDouble())).thenReturn(avance(true));
-
-        // === EJECUCION ===
-        DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        assertThat(resultado.getLotesEnEjecucion().getFilas()).extracting(LoteDelDiaResponseDTO::getDiasDeAtraso).containsExactly(3, 0, 0);
-    }
-
-    @Test
-    @DisplayName("CP-DOP-05: un lote en ejecución muestra falta de consumo solo si su etapa en curso no alcanza el mínimo")
-    void obtener_debeMarcarLaFaltaDeConsumoSegunElAvanceDeLaEtapaEnCurso() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(1L, 2L), TOPE, 2));
-        when(loteRepository.buscarParaListadoPorIds(List.of(1L, 2L))).thenReturn(List.of(
-                lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), TipoEtapa.MOLIENDA),
-                lote(2L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), TipoEtapa.HERVIDO)));
-        when(loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.MOLIENDA, 80.0)).thenReturn(avance(false));
-        when(loteServicio.calcularAvanceDeEtapa(2L, TipoEtapa.HERVIDO, 80.0)).thenReturn(avance(true));
-
-        // === EJECUCION ===
-        DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        assertThat(resultado.getLotesEnEjecucion().getFilas()).extracting(LoteDelDiaResponseDTO::isFaltaConsumo).containsExactly(true, false);
-    }
-
-    @Test
-    @DisplayName("CP-DOP-06: un lote en ejecución sin etapa en curso no calcula el consumo y no muestra falta de consumo")
-    void obtener_noDebeCalcularElConsumoDeUnLoteSinEtapaEnCurso() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(1L), TOPE, 1));
-        when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(
-                lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), null)));
-
-        // === EJECUCION ===
-        DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        assertThat(resultado.getLotesEnEjecucion().getFilas().get(0).isFaltaConsumo()).isFalse();
-        verify(loteServicio, never()).calcularAvanceDeEtapa(any(), any(), anyDouble());
-    }
-
-    @Test
-    @DisplayName("CP-DOP-07: si el cálculo del consumo de un lote falla, ese lote se muestra sin falta de consumo y el resto del panel se conserva")
-    void obtener_noDebeQuitarElPanelSiFallaElCalculoDeUnLote() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(1L, 2L), TOPE, 2));
-        when(loteRepository.buscarParaListadoPorIds(List.of(1L, 2L))).thenReturn(List.of(
-                lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), TipoEtapa.HERVIDO),
-                lote(2L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), TipoEtapa.MOLIENDA)));
-        when(loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO, 80.0))
-                .thenThrow(new RecursoNoEncontradoException("El lote no tiene la etapa"));
-        when(loteServicio.calcularAvanceDeEtapa(2L, TipoEtapa.MOLIENDA, 80.0)).thenReturn(avance(false));
-
-        // === EJECUCION ===
-        DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        assertThat(resultado.getLotesEnEjecucion().getFilas()).extracting(LoteDelDiaResponseDTO::getId).containsExactly(1L, 2L);
-        assertThat(resultado.getLotesEnEjecucion().getFilas()).extracting(LoteDelDiaResponseDTO::isFaltaConsumo).containsExactly(false, true);
-    }
-
-    @Test
-    @DisplayName("CP-DOP-17: la configuración se lee una sola vez para todos los lotes en ejecución")
-    void obtener_debeLeerLaConfiguracionUnaSolaVez() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        List<Long> ids = List.of(1L, 2L, 3L, 4L, 5L);
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(ids, TOPE, 5));
-        when(loteRepository.buscarParaListadoPorIds(ids)).thenReturn(lotesEnEjecucion(ids, hoy.plusDays(1)));
-        when(loteServicio.calcularAvanceDeEtapa(any(), any(), anyDouble())).thenReturn(avance(true));
-
-        // === EJECUCION ===
-        dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        verify(loteServicio, times(1)).obtenerPorcentajeMinimoConsumoParaAvanzarEtapa();
-        verify(loteServicio, times(5)).calcularAvanceDeEtapa(any(), any(), anyDouble());
-    }
-
-    @Test
-    @DisplayName("CP-DOP-18: si no se puede leer la configuración, los lotes en ejecución se muestran sin falta de consumo")
-    void obtener_debeMostrarLosLotesSinFaltaDeConsumoSiFallaLaConfiguracion() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(1L), TOPE, 1));
-        when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(
-                lote(1L, EstadoLote.EN_EJECUCION, hoy.minusDays(5), hoy.plusDays(5), TipoEtapa.HERVIDO)));
-        when(loteServicio.obtenerPorcentajeMinimoConsumoParaAvanzarEtapa())
-                .thenThrow(new RecursoNoEncontradoException("No se encontró la configuración de producción"));
-
-        // === EJECUCION ===
-        DashboardOperarioResponseDTO resultado = dashboardOperarioServicio.obtenerDashboardOperario();
-
-        // === ASSERTS ===
-        assertThat(resultado.getLotesEnEjecucion().getFilas()).hasSize(1);
-        assertThat(resultado.getLotesEnEjecucion().getFilas().get(0).isFaltaConsumo()).isFalse();
-        verify(loteServicio, never()).calcularAvanceDeEtapa(any(), any(), anyDouble());
     }
 
     @Test
@@ -303,7 +173,7 @@ class DashboardOperarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-DOP-08: los lotes a iniciar se piden con la fecha de hoy como límite, sin atraso ni falta de consumo ni cálculo de consumo")
+    @DisplayName("CP-DOP-08: los lotes a iniciar se piden con la fecha de hoy como límite, con etapa en curso nula")
     void obtener_debeMostrarLosLotesAIniciarConLaFechaDeHoyComoLimite() {
         // === PREPARACION DE DATOS ===
         prepararSistemaVacio();
@@ -319,11 +189,8 @@ class DashboardOperarioServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getLotesAIniciar().getTotal()).isEqualTo(2);
         assertThat(resultado.getLotesAIniciar().getFilas()).extracting(LoteDelDiaResponseDTO::getId).containsExactly(7L, 8L);
-        assertThat(resultado.getLotesAIniciar().getFilas()).extracting(LoteDelDiaResponseDTO::getDiasDeAtraso).containsOnly(0);
-        assertThat(resultado.getLotesAIniciar().getFilas()).extracting(LoteDelDiaResponseDTO::isFaltaConsumo).containsOnly(false);
         assertThat(resultado.getLotesAIniciar().getFilas().get(0).getEtapaActual()).isNull();
         verify(loteRepository).buscarIdsDeLotesAIniciarParaPanel(hoy, PageRequest.of(0, 5));
-        verify(loteServicio, never()).calcularAvanceDeEtapa(any(), any(), anyDouble());
     }
 
     @Test
@@ -494,15 +361,10 @@ class DashboardOperarioServicioImplTest {
 
     /** Deja los seis bloques vacíos; cada test pisa solo el bloque que ejercita. */
     private void prepararSistemaVacio() {
-        lenient().when(loteServicio.obtenerPorcentajeMinimoConsumoParaAvanzarEtapa()).thenReturn(80.0);
         lenient().when(loteRepository.buscarIdsDeLotesEnEjecucionParaPanel(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), TOPE, 0));
         lenient().when(loteRepository.buscarIdsDeLotesAIniciarParaPanel(any(LocalDate.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), TOPE, 0));
         lenient().when(controlEquipamientoServicio.filtrarEquipamientosParaControl(any(), any(), any(), any(Pageable.class))).thenReturn(Page.empty(TOPE));
         lenient().when(controlBarrilServicio.filtrarBarrilesParaControl(any(), any(), any(), any(Pageable.class))).thenReturn(Page.empty(TOPE));
-    }
-
-    private static AvanceEtapaResponseDTO avance(boolean cumpleMinimo) {
-        return AvanceEtapaResponseDTO.builder().cumpleMinimo(cumpleMinimo).build();
     }
 
     private static List<LoteEntity> lotesEnEjecucion(List<Long> ids, LocalDate fin) {

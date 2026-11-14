@@ -35,4 +35,15 @@ public interface IDetalleCompraRepository extends JpaRepository<DetalleCompraEnt
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM DetalleCompraEntity d WHERE d.id = :id")
     Optional<DetalleCompraEntity> buscarPorIdParaIngresar(@Param("id") Long id);
+
+    /**
+     * Carga, en una sola consulta, los ítems de las órdenes de compra indicadas con su ítem de catálogo, la presentación
+     * comercial y el insumo, que hacen falta para convertir las cantidades recibidas a presentaciones.
+     *
+     * @param idsOrdenes Los IDs de las órdenes de compra (no vacío).
+     * @return Los ítems de esas órdenes con sus relaciones cargadas.
+     */
+    @Query("SELECT d FROM DetalleCompraEntity d JOIN FETCH d.catalogoProveedor c JOIN FETCH c.presentacionComercial JOIN FETCH c.insumo "
+            + "WHERE d.ordenCompra.id IN :idsOrdenes")
+    java.util.List<DetalleCompraEntity> buscarConPresentacionDeOrdenes(@Param("idsOrdenes") java.util.Collection<Long> idsOrdenes);
 }

@@ -335,6 +335,32 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     Page<Long> buscarIdsDeLotesAIniciarParaPanel(@Param("hasta") LocalDate hasta, Pageable pageable);
 
     /**
+     * Obtiene una página con los IDs de los lotes EN_EJECUCION del panel del gerente cuya etapa en curso es la indicada,
+     * por fecha de finalización estimada ascendente (el más atrasado primero) y, ante igual fecha, por ID ascendente. El
+     * total de la página es la cantidad de lotes en ejecución en esa etapa. Los lotes de la página se cargan con
+     * {@link #buscarParaListadoPorIds(Collection)}.
+     *
+     * @param etapa Tipo de la etapa en curso de los lotes.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los IDs de la página.
+     */
+    @Query(value = "SELECT l.id FROM LoteEntity l WHERE l.estado = 'EN_EJECUCION' "
+            + "AND EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapa) "
+            + "ORDER BY l.fechaFinalizacionEstimada ASC, l.id ASC",
+            countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE l.estado = 'EN_EJECUCION' "
+                    + "AND EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapa)")
+    Page<Long> buscarIdsDeLotesEnEjecucionDeEtapaParaPanel(@Param("etapa") TipoEtapa etapa, Pageable pageable);
+
+    /**
+     * Cuenta los lotes EN_EJECUCION atrasados: los de fecha de finalización estimada anterior a la indicada.
+     *
+     * @param hoy Fecha de referencia; en el panel, la fecha de hoy.
+     * @return La cantidad de lotes en ejecución con fecha de finalización estimada anterior a {@code hoy}.
+     */
+    @Query("SELECT COUNT(l) FROM LoteEntity l WHERE l.estado = 'EN_EJECUCION' AND l.fechaFinalizacionEstimada < :hoy")
+    long contarLotesEnEjecucionAtrasados(@Param("hoy") LocalDate hoy);
+
+    /**
      * Carga, en una sola consulta, los lotes del listado con la planificación, su versión de receta y las etapas con su
      * equipamiento. No garantiza el orden de los resultados.
      *

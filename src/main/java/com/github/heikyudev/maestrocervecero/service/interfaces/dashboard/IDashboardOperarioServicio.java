@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.dashboard;
 
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardOperarioResponseDTO;
 
 /**
@@ -18,10 +17,9 @@ public interface IDashboardOperarioServicio {
      * sus registros:
      * <ul>
      *   <li>Lotes en ejecución: todos los lotes En ejecución, por fecha de finalización estimada ascendente (el más
-     *   atrasado primero) y, a igualdad, por ID. Cada fila informa sus días de atraso (0 si su fecha estimada no es
-     *   anterior a hoy) y si le falta consumo (la etapa en curso no alcanza el mínimo configurado).</li>
+     *   atrasado primero) y, a igualdad, por ID.</li>
      *   <li>Lotes a iniciar: los lotes Pendiente con fecha de inicio estimada de hoy o anterior, por fecha de inicio
-     *   estimada ascendente y, a igualdad, por ID. Sus atrasos y su falta de consumo son 0 y falso.</li>
+     *   estimada ascendente y, a igualdad, por ID.</li>
      *   <li>Equipos y barriles en limpieza: los activos En limpieza, por identificador interno, sin causa.</li>
      *   <li>Equipos y barriles en mantenimiento: los activos En mantenimiento, por identificador interno, con la
      *   causa derivada de su última operación registrada (nula si no se puede derivar).</li>
@@ -33,14 +31,11 @@ public interface IDashboardOperarioServicio {
      * <p>
      * Postcondiciones: no modifica ningún dato. Cada bloque informa en {@code total} la cantidad real de registros que
      * cumplen su criterio y en {@code filas} hasta 5 de ellos, en el orden indicado; el {@code total} nunca es menor que
-     * la cantidad de filas. Las operaciones anuladas no cuentan para derivar la causa de un mantenimiento. El consumo
-     * de la etapa en curso se calcula solo para las filas visibles de los lotes en ejecución.
+     * la cantidad de filas. Las operaciones anuladas no cuentan para derivar la causa de un mantenimiento.
      * </p>
      *
      * @return El panel del operario, con sus seis bloques siempre informados (con lista de filas vacía y total 0 si no
      *         hay registros).
-     * @throws RecursoNoEncontradoException Si no se encuentra la configuración de producción al calcular el consumo
-     *                                      de un lote en ejecución.
      */
     DashboardOperarioResponseDTO obtenerDashboardOperario();
 }

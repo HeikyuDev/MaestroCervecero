@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Panel de control del administrador en la pantalla de inicio: los usuarios activos del sistema y la actividad reciente de la
+    bitácora de auditoría. Es de solo lectura: no registra nada y cada elemento lleva a la pantalla de consulta correspondiente.
+    Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila:
+      1. contadores(dashboard): dos tarjetas con los usuarios activos y los eventos de auditoría de hoy.
+      2. usuariosPorRol(dashboard) a todo el ancho: los usuarios activos de cada rol.
+      3. usuariosRecientes(dashboard) a la izquierda y actividadReciente(dashboard) a la derecha.
+    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardAdministradorResponseDTO que el HomeController
+    carga solo para el rol ADMINISTRADOR.
+
+    "Usuarios activos" son las cuentas en estado Activo: el sistema no registra sesiones abiertas. Cada enlace se protege con el
+    mismo permiso que el destino (USUARIO_CONSULTAR para los usuarios, el rol ADMINISTRADOR para la bitácora); el servidor vuelve
+    a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin tabla ni encabezado de columnas. La columna Acciones
+    va centrada, igual que su encabezado.
+
+    Uso: <th:block th:replace="~{home/dashboard-administrador :: panel(${dashboardAdministrador})}"></th:block>
+-->
+
+<!-- ===================================================================== PANEL -->
+<div th:fragment="panel(dashboard)" data-dashboard-administrador class="space-y-6">
+    <th:block th:replace="~{home/dashboard-administrador :: contadores(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-administrador :: usuariosPorRol(${dashboard})}"></th:block>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <th:block th:replace="~{home/dashboard-administrador :: usuariosRecientes(${dashboard})}"></th:block>
+        <th:block th:replace="~{home/dashboard-administrador :: actividadReciente(${dashboard})}"></th:block>
+    </div>
+</div>
+
+<!-- ===================================================================== FILA 1: CONTADORES -->
+<div th:fragment="contadores(dashboard)" data-dashboard-contadores class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+    <!-- Usuarios activos: toda la tarjeta es un enlace a la lista de usuarios -->
+    <a sec:authorize="hasAuthority('USUARIO_CONSULTAR')" data-contador="usuarios-activos" th:href="@{/usuarios}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-administrador :: contenidoContador('Usuarios activos', ${dashboard.usuariosActivos}, 'bi-people', 'bg-blue-50 text-blue-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasAuthority('USUARIO_CONSULTAR')" data-contador="usuarios-activos" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-administrador :: contenidoContador('Usuarios activos', ${dashboard.usuariosActivos}, 'bi-people', 'bg-blue-50 text-blue-600')}"></th:block>
+    </div>
+
+    <!-- Eventos de auditoría de hoy: la bitácora se lista con la entrada más reciente arriba -->
+    <a sec:authorize="hasRole('ADMINISTRADOR')" data-contador="eventos-de-hoy" th:href="@{/auditoria(fechaDesde=${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}, fechaHasta=${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')})}"
+       class="block p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+        <th:block th:replace="~{home/dashboard-administrador :: contenidoContador('Eventos de hoy', ${dashboard.eventosDeHoy}, 'bi-shield-check', 'bg-slate-100 text-slate-600')}"></th:block>
+    </a>
+    <div sec:authorize="!hasRole('ADMINISTRADOR')" data-contador="eventos-de-hoy" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <th:block th:replace="~{home/dashboard-administrador :: contenidoContador('Eventos de hoy', ${dashboard.eventosDeHoy}, 'bi-shield-check', 'bg-slate-100 text-slate-600')}"></th:block>
+    </div>
+</div>
+
+<!-- Interior de una tarjeta contadora: título en mayúsculas pequeñas, ícono y el número grande -->
+<th:block th:fragment="contenidoContador(titulo, total, icono, colores)">
+    <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider" th:text="${titulo}">Usuarios activos</span>
+        <span class="p-2 rounded-lg" th:classappend="${colores}"><i th:class="'bi ' + ${icono}" aria-hidden="true"></i></span>
+    </div>
+    <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
+</th:block>
+
+<!-- ===================================================================== FILA 2: USUARIOS ACTIVOS POR ROL -->
+<section th:fragment="usuariosPorRol(dashboard)" data-bloque="usuarios-por-rol" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Usuarios activos por rol</h2>
+
+    <div data-subbloque="usuarios-por-rol" class="p-4 min-w-0">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <th:block th:each="c : ${dashboard.usuariosPorRol}">
+                <a sec:authorize="hasAuthority('USUARIO_CONSULTAR')" th:attr="data-conteo=${c.codigo}" th:href="@{/usuarios(rol=${c.codigo})}"
+                   class="block p-3 border border-slate-200 rounded-lg hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+                    <th:block th:replace="~{home/dashboard-administrador :: contenidoFicha(${c.etiqueta}, ${c.total})}"></th:block>
+                </a>
+                <div sec:authorize="!hasAuthority('USUARIO_CONSULTAR')" th:attr="data-conteo=${c.codigo}" class="p-3 border border-slate-200 rounded-lg">
+                    <th:block th:replace="~{home/dashboard-administrador :: contenidoFicha(${c.etiqueta}, ${c.total})}"></th:block>
+                </div>
+            </th:block>
+        </div>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3, IZQUIERDA: USUARIOS RECIENTES -->
+<section th:fragment="usuariosRecientes(dashboard)" data-bloque="usuarios-recientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Usuarios</h2>
+
+    <div data-subbloque="usuarios-recientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-administrador :: encabezado('Modificados recientemente', ${dashboard.usuariosRecientes.total}, 'usuarios', @{/usuarios}, 'Ver todos los usuarios')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.usuariosRecientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Usuario</th>
+                    <th class="px-2 py-3">Rol</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="u : ${dashboard.usuariosRecientes.filas}" class="hover:bg-slate-50 align-top" data-fila-usuario>
+                    <td class="px-2 py-3 min-w-[9rem]">
+                        <div class="font-medium text-slate-900 break-words" data-usuario-username th:text="${u.username}">jperez</div>
+                        <div class="mt-0.5 text-xs text-slate-600 break-words" data-usuario-nombre th:text="${u.nombreCompleto}">Juan Pérez</div>
+                    </td>
+                    <td class="px-2 py-3 text-slate-700" data-usuario-rol th:text="${u.rol.etiqueta}">Operario de Producción</td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('USUARIO_CONSULTAR')">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/usuarios(username=${u.username})}, 'Abrir ' + ${u.username})}"></th:block>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.usuariosRecientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay usuarios activos</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 3, DERECHA: ACTIVIDAD RECIENTE -->
+<section th:fragment="actividadReciente(dashboard)" data-bloque="actividad-reciente" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Actividad reciente</h2>
+
+    <div data-subbloque="actividad-reciente" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-administrador :: encabezado('Últimos eventos', ${dashboard.actividadReciente.total}, 'auditoria', @{/auditoria}, 'Ver toda la bitácora de auditoría')}"></th:block>
+        <div class="overflow-x-auto" th:if="${!dashboard.actividadReciente.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Fecha y hora</th>
+                    <th class="px-2 py-3">Usuario</th>
+                    <th class="px-2 py-3">Acción</th>
+                    <th class="px-2 py-3">Módulo</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="e : ${dashboard.actividadReciente.filas}" class="hover:bg-slate-50 align-top" data-fila-evento>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-evento-fecha><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaHora})}"></th:block></td>
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-evento-usuario th:text="${e.username}">admin</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-evento-accion th:text="${e.accion.etiqueta}">Alta</td>
+                    <td class="px-2 py-3 text-slate-700 break-words" data-evento-modulo th:text="${e.concepto.etiqueta}">Malta</td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasRole('ADMINISTRADOR')">
+                                <a th:if="${e.tieneDetalle}" data-ver-auditoria th:href="@{/auditoria/{id}(id=${e.id})}" th:attr="aria-label='Ver detalle de la entrada ' + ${e.id}"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                                </a>
+                            </th:block>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.actividadReciente.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay eventos registrados en la bitácora</p>
+    </div>
+</section>
+
+<!-- ===================================================================== PIEZAS COMPARTIDAS -->
+
+<!--
+    Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
+    ('usuarios' o 'auditoria') decide el permiso del enlace, que sin él no se muestra.
+-->
+<div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-800" th:text="${titulo}">Modificados recientemente</h3>
+        <span class="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-600" data-bloque-total th:text="${total}">3</span>
+    </div>
+    <th:block th:if="${lista == 'usuarios'}">
+        <a sec:authorize="hasAuthority('USUARIO_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+    <th:block th:if="${lista == 'auditoria'}">
+        <a sec:authorize="hasRole('ADMINISTRADOR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+</div>
+
+<th:block th:fragment="contenidoFicha(etiqueta, total)">
+    <p class="text-xs font-medium text-slate-500" data-conteo-etiqueta th:text="${etiqueta}">Administrador</p>
+    <p class="mt-1 text-2xl font-bold text-slate-800" data-conteo-total th:text="${total}">3</p>
+</th:block>
+
+</html>

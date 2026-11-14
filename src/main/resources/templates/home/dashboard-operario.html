@@ -108,8 +108,7 @@
                     <th class="px-2 py-3">Lote</th>
                     <th class="px-2 py-3">Etapa en curso</th>
                     <th class="px-2 py-3">Fermentador</th>
-                    <th class="px-2 py-3">Situación</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -120,16 +119,8 @@
                     </td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-etapa-actual th:text="${l.etapaActual != null} ? ${l.etapaActual.etiqueta} : '-'">Hervido</td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-lote-fermentador><th:block th:replace="~{fragments/enlace-equipo :: enlace(${l.idFermentador}, ${l.identificadorInternoFermentador})}"></th:block></td>
-                    <td class="px-2 py-3">
-                        <div class="flex flex-wrap items-center gap-1">
-                            <span th:if="${l.diasDeAtraso > 0}" data-atraso
-                                  class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-rose-50 text-rose-700">Atrasado <th:block th:replace="~{lote/formato :: duracion(${l.diasDeAtraso}, 'día', 'días')}"></th:block></span>
-                            <span th:if="${l.faltaConsumo}" data-falta-consumo tabindex="0" data-tooltip="La etapa en curso no alcanzó el consumo mínimo de insumos para finalizar"
-                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-amber-50 text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/40"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Falta consumo</span>
-                        </div>
-                    </td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
                                 <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id}, etapa=${l.etapaActual.name().toLowerCase()})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
                             </th:block>
@@ -152,7 +143,7 @@
                     <th class="px-2 py-3">Lote</th>
                     <th class="px-2 py-3">Fermentador</th>
                     <th class="px-2 py-3">Inicio estimado</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -164,7 +155,7 @@
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-lote-fermentador><th:block th:replace="~{fragments/enlace-equipo :: enlace(${l.idFermentador}, ${l.identificadorInternoFermentador})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-fecha-inicio-estimada><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicioEstimada})}"></th:block></td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
                                 <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
                             </th:block>
@@ -191,7 +182,7 @@
                 <tr>
                     <th class="px-2 py-3">Equipo</th>
                     <th class="px-2 py-3">Tipo</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -199,7 +190,7 @@
                     <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-equipo-identificador><th:block th:replace="~{fragments/enlace-equipo :: enlace(${e.id}, ${e.identificadorInterno})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-equipo-tipo th:text="${e.tipo.etiqueta}">Fermentador</td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_REGISTRAR')">
                                 <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-equipamiento/{id}/limpiezas/nueva(id=${e.id})}, 'Registrar limpieza', 'bi-stars', 'Registrar limpieza de ' + ${e.identificadorInterno})}"></th:block>
                             </th:block>
@@ -221,7 +212,7 @@
                 <tr>
                     <th class="px-2 py-3">Barril</th>
                     <th class="px-2 py-3">Fabricante</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -229,7 +220,7 @@
                     <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-barril-identificador th:text="${b.identificadorInterno}">BRL-01</td>
                     <td class="px-2 py-3 text-slate-700 break-words" data-barril-fabricante th:text="${b.fabricante}">Barrilitos SA</td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('LIMPIEZA_BARRIL_REGISTRAR')">
                                 <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-barriles/{id}/limpiezas/nueva(id=${b.id})}, 'Registrar limpieza', 'bi-stars', 'Registrar limpieza de ' + ${b.identificadorInterno})}"></th:block>
                             </th:block>
@@ -257,7 +248,7 @@
                     <th class="px-2 py-3">Equipo</th>
                     <th class="px-2 py-3">Tipo</th>
                     <th class="px-2 py-3">Causa</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -266,7 +257,7 @@
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-equipo-tipo th:text="${e.tipo.etiqueta}">Fermentador</td>
                     <td class="px-2 py-3 whitespace-nowrap" data-causa><th:block th:replace="~{home/dashboard-operario :: causa(${e.causaMantenimiento})}"></th:block></td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR')">
                                 <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-equipamiento/{id}/mantenimientos/nuevo(id=${e.id})}, 'Registrar mantenimiento', 'bi-wrench', 'Registrar mantenimiento de ' + ${e.identificadorInterno})}"></th:block>
                             </th:block>
@@ -289,7 +280,7 @@
                     <th class="px-2 py-3">Barril</th>
                     <th class="px-2 py-3">Fabricante</th>
                     <th class="px-2 py-3">Causa</th>
-                    <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -298,7 +289,7 @@
                     <td class="px-2 py-3 text-slate-700 break-words" data-barril-fabricante th:text="${b.fabricante}">Barrilitos SA</td>
                     <td class="px-2 py-3 whitespace-nowrap" data-causa><th:block th:replace="~{home/dashboard-operario :: causa(${b.causaMantenimiento})}"></th:block></td>
                     <td class="col-acciones px-2 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-center gap-1">
                             <th:block sec:authorize="hasAuthority('MANTENIMIENTO_BARRIL_REGISTRAR')">
                                 <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-barriles/{id}/mantenimientos/nuevo(id=${b.id})}, 'Registrar mantenimiento', 'bi-wrench', 'Registrar mantenimiento de ' + ${b.identificadorInterno})}"></th:block>
                             </th:block>
