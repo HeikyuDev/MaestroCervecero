@@ -5,12 +5,13 @@
     Panel de control del encargado de distribución en la pantalla de inicio: qué barriles hay que retirar de los clientes, qué
     clientes tienen barriles en su poder y qué barriles con cerveza están listos para despachar. Es un panel de trabajo: cada
     barril ofrece el atajo a la operación que corresponde (registrar su devolución o su despacho) y el acceso a la consulta. Se
-    lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila:
+    lee de arriba abajo en cuatro filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con los barriles en poder de clientes, las devoluciones vencidas, las que vencen
          hoy y los barriles listos para despachar.
-      2. devolucionesPendientes(dashboard) a la izquierda y clientesConBarriles(dashboard) a la derecha.
-      3. barrilesListos(dashboard) a todo el ancho.
-    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardEncargadoDistribucionResponseDTO que el
+      2. devolucionesPendientes(dashboard).
+      3. clientesConBarriles(dashboard).
+      4. barrilesListos(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardEncargadoDistribucionResponseDTO que el
     HomeController carga solo para el rol ENCARGADO_DE_DISTRIBUCION.
 
     Cada atajo se protege con el mismo permiso que el destino ("Registrar devolución" con DEVOLUCION_BARRIL_REGISTRAR, "Registrar
@@ -24,10 +25,8 @@
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-encargado-distribucion class="space-y-6">
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: contadores(${dashboard})}"></th:block>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <th:block th:replace="~{home/dashboard-encargado-distribucion :: devolucionesPendientes(${dashboard})}"></th:block>
-        <th:block th:replace="~{home/dashboard-encargado-distribucion :: clientesConBarriles(${dashboard})}"></th:block>
-    </div>
+    <th:block th:replace="~{home/dashboard-encargado-distribucion :: devolucionesPendientes(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-encargado-distribucion :: clientesConBarriles(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: barrilesListos(${dashboard})}"></th:block>
 </div>
 
@@ -74,8 +73,8 @@
     <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
 </th:block>
 
-<!-- ===================================================================== FILA 2, IZQUIERDA: DEVOLUCIONES PENDIENTES -->
-<section th:fragment="devolucionesPendientes(dashboard)" data-bloque="devoluciones-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<!-- ===================================================================== FILA 2: DEVOLUCIONES PENDIENTES -->
+<section th:fragment="devolucionesPendientes(dashboard)" data-bloque="devoluciones-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Devoluciones de hoy y vencidas</h2>
 
     <div data-subbloque="devoluciones-pendientes" class="p-4 min-w-0">
@@ -118,7 +117,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 2, DERECHA: CLIENTES CON BARRILES -->
+<!-- ===================================================================== FILA 3: CLIENTES CON BARRILES -->
 <section th:fragment="clientesConBarriles(dashboard)" data-bloque="clientes-con-barriles" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Clientes con barriles en poder</h2>
 
@@ -154,7 +153,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 3: BARRILES LISTOS PARA DESPACHAR -->
+<!-- ===================================================================== FILA 4: BARRILES LISTOS PARA DESPACHAR -->
 <section th:fragment="barrilesListos(dashboard)" data-bloque="barriles-listos" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Barriles listos para despachar</h2>
 

@@ -4,13 +4,14 @@
 <!--
     Panel de control del gerente de compras en la pantalla de inicio: qué hay que comprar, cómo van las órdenes de compra
     pendientes y qué órdenes se finalizaron hace poco. Es un panel de trabajo: cada planificación sin orden ofrece el atajo
-    para registrar su orden de compra y cada fila el acceso a la consulta. Se lee de izquierda a derecha y de arriba abajo en
-    tres filas, con un tema por fila:
+    para registrar su orden de compra y cada fila el acceso a la consulta. Se lee de arriba abajo en
+    cuatro filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con las planificaciones sin orden de compra, las órdenes pendientes, las órdenes
          con entrega vencida y las órdenes finalizadas en los últimos días.
-      2. planificacionesSinOrden(dashboard) a la izquierda y ordenesPendientes(dashboard) a la derecha.
-      3. ordenesFinalizadas(dashboard) a todo el ancho.
-    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardGerenteComprasResponseDTO que el HomeController
+      2. planificacionesSinOrden(dashboard).
+      3. ordenesPendientes(dashboard).
+      4. ordenesFinalizadas(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardGerenteComprasResponseDTO que el HomeController
     carga solo para el rol GERENTE_DE_COMPRAS.
 
     Cada atajo se protege con el mismo permiso que el destino ("Registrar orden" con ORDEN_COMPRA_REGISTRAR, el ojo de una
@@ -24,10 +25,8 @@
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-gerente-compras class="space-y-6">
     <th:block th:replace="~{home/dashboard-gerente-compras :: contadores(${dashboard})}"></th:block>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <th:block th:replace="~{home/dashboard-gerente-compras :: planificacionesSinOrden(${dashboard})}"></th:block>
-        <th:block th:replace="~{home/dashboard-gerente-compras :: ordenesPendientes(${dashboard})}"></th:block>
-    </div>
+    <th:block th:replace="~{home/dashboard-gerente-compras :: planificacionesSinOrden(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-gerente-compras :: ordenesPendientes(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-gerente-compras :: ordenesFinalizadas(${dashboard})}"></th:block>
 </div>
 
@@ -72,7 +71,7 @@
     <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
 </th:block>
 
-<!-- ===================================================================== FILA 2, IZQUIERDA: PLANIFICACIONES SIN ORDEN -->
+<!-- ===================================================================== FILA 2: PLANIFICACIONES SIN ORDEN -->
 <section th:fragment="planificacionesSinOrden(dashboard)" data-bloque="planificaciones-sin-orden" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Planificaciones por comprar</h2>
 
@@ -114,8 +113,8 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 2, DERECHA: ÓRDENES PENDIENTES -->
-<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<!-- ===================================================================== FILA 3: ÓRDENES PENDIENTES -->
+<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Órdenes de compra pendientes</h2>
 
     <div data-subbloque="ordenes-pendientes" class="p-4 min-w-0">
@@ -155,7 +154,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 3: ÓRDENES FINALIZADAS -->
+<!-- ===================================================================== FILA 4: ÓRDENES FINALIZADAS -->
 <section th:fragment="ordenesFinalizadas(dashboard)" data-bloque="ordenes-finalizadas" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900" th:text="|Órdenes de compra finalizadas, últimos ${dashboard.diasDeOrdenesFinalizadas} días|">Órdenes de compra finalizadas, últimos 30 días</h2>
 

@@ -18,7 +18,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlB
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ConteoDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardGerenteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.EtapaEnCursoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
@@ -73,7 +72,7 @@ class DashboardGerenteServicioImplTest {
     // ==================== obtenerDashboardGerente ====================
 
     @Test
-    @DisplayName("CP-DGE-01: obtenerDashboardGerente con el sistema vacío devuelve contadores en cero, conteos por estado en cero y bloques sin filas")
+    @DisplayName("CP-DGE-01: obtenerDashboardGerente con el sistema vacío devuelve contadores en cero y bloques sin filas")
     void obtener_debeDevolverElPanelEnCeroConElSistemaVacio() {
         // === PREPARACION DE DATOS ===
         prepararSistemaVacio();
@@ -92,8 +91,6 @@ class DashboardGerenteServicioImplTest {
         assertThat(resultado.getColaDeFermentadores().getFilas()).isEmpty();
         assertThat(resultado.getPlanificacionesPendientes().getTotal()).isZero();
         assertThat(resultado.getPlanificacionesPendientes().getFilas()).isEmpty();
-        assertThat(resultado.getEquiposPorEstado()).hasSize(4).allMatch(c -> c.getTotal() == 0);
-        assertThat(resultado.getBarrilesPorEstado()).hasSize(6).allMatch(c -> c.getTotal() == 0);
         verify(loteRepository, never()).buscarParaListadoPorIds(anyCollection());
         verify(loteRepository, never()).buscarVivosDeFermentadores(anyCollection());
     }
@@ -210,43 +207,6 @@ class DashboardGerenteServicioImplTest {
         assertThat(cola.getLoteEnEjecucion()).isNull();
         assertThat(cola.getProximoLote()).isNull();
         assertThat(cola.getLotesPendientes()).isZero();
-    }
-
-    @Test
-    @DisplayName("CP-DGE-06: los equipos se cuentan por estado operativo, siempre los cuatro estados y en el orden Disponible, En uso, En limpieza y En mantenimiento")
-    void obtener_debeContarLosEquiposPorEstado() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        when(controlEquipamientoServicio.filtrarEquipamientosParaControl(isNull(), isNull(), eq(EstadoOperativo.DISPONIBLE), eq(SOLO_EL_TOTAL))).thenReturn(paginaConTotal(6));
-        when(controlEquipamientoServicio.filtrarEquipamientosParaControl(isNull(), isNull(), eq(EstadoOperativo.EN_USO), eq(SOLO_EL_TOTAL))).thenReturn(paginaConTotal(3));
-
-        // === EJECUCION ===
-        DashboardGerenteResponseDTO resultado = dashboardGerenteServicio.obtenerDashboardGerente();
-
-        // === ASSERTS ===
-        assertThat(resultado.getEquiposPorEstado()).extracting(ConteoDashboardResponseDTO::getCodigo)
-                .containsExactly("DISPONIBLE", "EN_USO", "EN_LIMPIEZA", "EN_MANTENIMIENTO");
-        assertThat(resultado.getEquiposPorEstado()).extracting(ConteoDashboardResponseDTO::getEtiqueta)
-                .containsExactly("Disponible", "En uso", "En limpieza", "En mantenimiento");
-        assertThat(resultado.getEquiposPorEstado()).extracting(ConteoDashboardResponseDTO::getTotal).containsExactly(6L, 3L, 0L, 0L);
-    }
-
-    @Test
-    @DisplayName("CP-DGE-07: los barriles se cuentan por estado operativo, siempre los seis estados y en el orden Disponible, En uso, Con cerveza, Despachado, En limpieza y En mantenimiento")
-    void obtener_debeContarLosBarrilesPorEstado() {
-        // === PREPARACION DE DATOS ===
-        prepararSistemaVacio();
-        when(controlBarrilServicio.filtrarBarrilesParaControl(isNull(), isNull(), eq(EstadoOperativoBarril.CON_CERVEZA), eq(SOLO_EL_TOTAL))).thenReturn(paginaDeBarrilesConTotal(8));
-        when(controlBarrilServicio.filtrarBarrilesParaControl(isNull(), isNull(), eq(EstadoOperativoBarril.DESPACHADO), eq(SOLO_EL_TOTAL))).thenReturn(paginaDeBarrilesConTotal(2));
-
-        // === EJECUCION ===
-        DashboardGerenteResponseDTO resultado = dashboardGerenteServicio.obtenerDashboardGerente();
-
-        // === ASSERTS ===
-        assertThat(resultado.getBarrilesPorEstado()).extracting(ConteoDashboardResponseDTO::getCodigo)
-                .containsExactly("DISPONIBLE", "EN_USO", "CON_CERVEZA", "DESPACHADO", "EN_LIMPIEZA", "EN_MANTENIMIENTO");
-        assertThat(resultado.getBarrilesPorEstado()).extracting(ConteoDashboardResponseDTO::getTotal).containsExactly(0L, 0L, 8L, 2L, 0L, 0L);
-        assertThat(resultado.getBarrilesPorEstado().get(2).getEtiqueta()).isEqualTo("Con cerveza");
     }
 
     @Test

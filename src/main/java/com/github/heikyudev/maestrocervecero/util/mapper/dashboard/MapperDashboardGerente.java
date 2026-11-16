@@ -1,7 +1,6 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.dashboard;
 
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ConteoDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.PlanificacionPendienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
@@ -85,22 +84,6 @@ public class MapperDashboardGerente {
                 .prioridad(planificacion.getPrioridad())
                 .fechaInicioEstimada(planificacion.getFechaInicioEstimada())
                 .fechaFinalizacionEstimada(planificacion.getFechaFinalizacionEstimada())
-                .build();
-    }
-
-    /**
-     * Arma el conteo de un estado o de una situación.
-     *
-     * @param codigo Nombre del valor del enum.
-     * @param etiqueta Nombre para mostrar en pantalla.
-     * @param total Cantidad de registros.
-     * @return El DTO con los tres datos recibidos.
-     */
-    public static ConteoDashboardResponseDTO toConteoDTO(String codigo, String etiqueta, long total) {
-        return ConteoDashboardResponseDTO.builder()
-                .codigo(codigo)
-                .etiqueta(etiqueta)
-                .total(total)
                 .build();
     }
 }

@@ -5,7 +5,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ConteoDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.PlanificacionPendienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
@@ -113,17 +112,5 @@ class MapperDashboardGerenteTest {
         assertThat(dto.getPrioridad()).isEqualTo(PrioridadPlanificacion.ALTA);
         assertThat(dto.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2027, 8, 1));
         assertThat(dto.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.of(2027, 8, 20));
-    }
-
-    @Test
-    @DisplayName("CP-MDG-06: el conteo lleva el código, la etiqueta y el total recibidos")
-    void toConteoDTO_llevaLosTresDatos() {
-        // Act
-        ConteoDashboardResponseDTO dto = MapperDashboardGerente.toConteoDTO("EN_LIMPIEZA", "En limpieza", 4);
-
-        // Assert
-        assertThat(dto.getCodigo()).isEqualTo("EN_LIMPIEZA");
-        assertThat(dto.getEtiqueta()).isEqualTo("En limpieza");
-        assertThat(dto.getTotal()).isEqualTo(4);
     }
 }

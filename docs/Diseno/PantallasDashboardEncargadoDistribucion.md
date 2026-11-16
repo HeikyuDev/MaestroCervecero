@@ -57,11 +57,12 @@ El identificador del barril va en la ruta del formulario: no forma parte del for
 
 ## 5. Descripción de la pantalla
 
-La pantalla se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`): "En poder de clientes", "Devoluciones vencidas" (ícono rosa si hay vencidas), "Vencen hoy" y "Listos para despachar". "Devoluciones vencidas" y "Vencen hoy" son tarjetas sin enlace; "En poder de clientes" y "Listos para despachar" llevan a la lista de barriles que corresponde y sin el permiso quedan como texto plano.
-- **Fila 2:** "Devoluciones de hoy y vencidas" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Clientes con barriles en poder" a la derecha.
-- **Fila 3:** "Barriles listos para despachar" a todo el ancho.
+- **Fila 2:** "Devoluciones de hoy y vencidas" a todo el ancho.
+- **Fila 3:** "Clientes con barriles en poder" a todo el ancho.
+- **Fila 4:** "Barriles listos para despachar" a todo el ancho.
 - **Devoluciones.** Columnas: Cliente, Barril, Devolución, Días de atraso y Acciones. En Acciones, "Registrar devolución" (botón de registro, ícono `bi-box-arrow-in-down-left`) y "Abrir" hacia el panel del barril.
 - **Clientes.** Columnas: Cliente, Barriles (alineada a la derecha), Próxima devolución y Acciones, con "Abrir".
 - **Barriles listos.** Columnas: Barril, Cerveza (receta y, debajo, lote), Contenido (alineada a la derecha) y Acciones. En Acciones, "Registrar despacho" (botón de registro, ícono `bi-box-arrow-up-right`) y "Abrir".

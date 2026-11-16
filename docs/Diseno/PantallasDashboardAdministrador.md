@@ -45,11 +45,12 @@ El panel no tiene rutas propias: es un fragmento de la pantalla de inicio. Sus e
 
 ## 4. Descripción de la pantalla
 
-La pantalla se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** dos tarjetas (`grid grid-cols-1 sm:grid-cols-2 gap-4`) con título en mayúsculas pequeñas, ícono y número grande: "Usuarios activos" y "Eventos de hoy". Cada una lleva a su lista y sin el permiso queda como texto plano.
 - **Fila 2, "Usuarios activos por rol":** una tarjeta a todo el ancho con una ficha por rol (nombre del rol y cantidad), en una grilla de hasta seis columnas.
-- **Fila 3:** "Usuarios" a la izquierda (grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Actividad reciente" a la derecha (`xl:col-span-2`).
+- **Fila 3:** "Usuarios" a todo el ancho.
+- **Fila 4:** "Actividad reciente" a todo el ancho.
 - **Usuarios.** Columnas: Usuario (nombre de usuario y, debajo, nombre completo), Rol y Acciones, con "Abrir". El sub-bloque se llama "Modificados recientemente" y lleva su contador y "Ver todos".
 - **Actividad reciente.** Columnas: Fecha y hora, Usuario, Acción, Módulo y Acciones, con el ojo "Ver". El sub-bloque se llama "Últimos eventos" y lleva su contador y "Ver todos". No se muestra la dirección IP ni el identificador del registro afectado.
 - **Columna Acciones.** El encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo relleno `px-2 py-3`.

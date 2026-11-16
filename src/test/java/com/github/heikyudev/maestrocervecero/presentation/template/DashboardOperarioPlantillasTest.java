@@ -34,7 +34,7 @@ class DashboardOperarioPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDO-02: el panel define los fragmentos panel, contadores, lotesDeHoy, limpiezasPendientes y pendientesDeMantenimiento, y los arma en tres filas que se leen de izquierda a derecha y de arriba abajo")
+    @DisplayName("CP-PDO-02: el panel define los fragmentos panel, contadores, lotesDeHoy, limpiezasPendientes y pendientesDeMantenimiento, y los arma uno debajo de otro, cada bloque en una fila entera")
     void fragmentosYFilas() throws IOException {
         String html = leer(PANEL);
 
@@ -45,8 +45,10 @@ class DashboardOperarioPlantillasTest {
         assertThat(panel.indexOf(":: contadores(")).isLessThan(panel.indexOf(":: lotesDeHoy("));
         assertThat(panel.indexOf(":: lotesDeHoy(")).isLessThan(panel.indexOf(":: limpiezasPendientes("));
         assertThat(panel.indexOf(":: limpiezasPendientes(")).isLessThan(panel.indexOf(":: pendientesDeMantenimiento("));
-        assertThat(panel).contains("grid grid-cols-1 xl:grid-cols-3 gap-6");
-        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4").contains("xl:col-span-2");
+        assertThat(panel.substring(0, panel.indexOf("</div>"))).as("los bloques son hijos directos del panel, cada uno en su propia fila: ninguna grilla ni envoltorio de varias columnas").doesNotContain("grid").doesNotContain("<div");
+        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(3);
+        assertThat(html).doesNotContain("col-span").doesNotContain("xl:grid-cols");
+        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4");
         // Los subgrupos de un bloque van apilados: ningún bloque de limpieza ni de mantenimiento los pone lado a lado
         String mantenimiento = html.substring(html.indexOf("th:fragment=\"pendientesDeMantenimiento(dashboard)\""), html.indexOf("PIEZAS COMPARTIDAS"));
         assertThat(mantenimiento).doesNotContain("grid").doesNotContain("md:grid-cols-2");

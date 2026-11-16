@@ -63,7 +63,7 @@ Un formulario de registro cuyo equipo o barril ya no está en el estado que la o
 
 ## 4. Descripción de cada pantalla
 
-**Pantalla de inicio del operario.** Conserva el título "Panel de Control" y el subtítulo de bienvenida. Debajo, tres filas que se leen de izquierda a derecha y de arriba abajo, con un tema por fila: los contadores, el trabajo de lotes junto a las limpiezas, y el mantenimiento. Cada bloque es una tarjeta (`bg-white border border-slate-200 rounded-xl shadow-sm`) con su título, su contador y su enlace "Ver todos" en el encabezado; la tabla del bloque usa el mismo estilo compacto de las listas (`px-2 py-3`, encabezado gris suave en mayúsculas).
+**Pantalla de inicio del operario.** Conserva el título "Panel de Control" y el subtítulo de bienvenida. Debajo, cuatro filas que se leen de arriba abajo: los contadores, los lotes de hoy, las limpiezas y el mantenimiento. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila. Cada bloque es una tarjeta (`bg-white border border-slate-200 rounded-xl shadow-sm`) con su título, su contador y su enlace "Ver todos" en el encabezado; la tabla del bloque usa el mismo estilo compacto de las listas (`px-2 py-3`, encabezado gris suave en mayúsculas).
 
 **Fila 1: contadores.** Una banda horizontal de cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`), con el título en mayúsculas pequeñas, el número grande y un ícono, como las tarjetas de los demás paneles:
 
@@ -74,7 +74,7 @@ Un formulario de registro cuyo equipo o barril ya no está en el estado que la o
 
 Un contador en 0 se muestra igual, con el número 0. Los enlaces sin permiso se muestran como texto plano.
 
-**Fila 2, izquierda: "Lotes de hoy".** Un bloque ancho (`xl:col-span-2` en una grilla de tres columnas, `grid grid-cols-1 xl:grid-cols-3 gap-6`) con dos sub-bloques, uno debajo del otro:
+**Fila 2: "Lotes de hoy".** Un bloque a todo el ancho con dos sub-bloques, uno debajo del otro:
 
 - **En ejecución.** Título "En ejecución", contador y "Ver todos" (a `/lotes?estado=EN_EJECUCION`). Hasta el tope de filas del bloque, con las columnas:
   - **Lote.** El código (`identificadorInterno`) y, debajo, el nombre de la receta.
@@ -83,14 +83,14 @@ Un contador en 0 se muestra igual, con el número 0. Los enlaces sin permiso se 
   - **Acciones.** El botón estándar "Abrir" (`fragments/boton-abrir :: abrir(url, etiquetaAccesible)`) a `/lotes/{id}?etapa=<etapa en curso>`, con `aria-label` "Abrir LOT-R1-02".
 - **A iniciar.** Título "A iniciar", contador y "Ver todos" (a `/lotes?estado=PENDIENTE`). Hasta el tope de filas del bloque con el mismo estilo: Lote (código y receta), Fermentador, Inicio estimado (`planificacion_produccion/formato :: fecha`) y Acciones con "Abrir" a `/lotes/{id}`, donde el operario inicia el lote.
 
-**Fila 2, derecha: "Limpiezas pendientes".** Un bloque de una columna con dos sub-bloques separados, cada uno con su contador y su "Ver todos":
+**Fila 3: "Limpiezas pendientes".** Un bloque a todo el ancho con dos sub-bloques separados, cada uno con su contador y su "Ver todos":
 
 - **Equipos.** Hasta el tope de filas del bloque: identificador con `fragments/enlace-equipo`, tipo del equipo (Molino, Macerador, Olla de hervor, Fermentador) y la acción. "Ver todos" lleva a `/control-equipamiento?estadoOperativo=EN_LIMPIEZA`.
 - **Barriles.** Hasta el tope de filas del bloque: identificador (texto) y fabricante, y la acción. "Ver todos" lleva a `/control-barriles?estadoOperativo=EN_LIMPIEZA`.
 
 **Acción de fila de las limpiezas y los mantenimientos.** El botón "Abrir" es, según `docs/EstandaresUI.md`, la entrada a la pantalla donde se trabaja con el registro (el panel del lote, del equipo o del barril); el formulario de una operación es otra cosa: es la pantalla de alta de una operación concreta. Por eso estas filas no usan "Abrir": llevan un botón de registro propio, `fragments/boton-registrar :: registrar(url, texto, icono, etiquetaAccesible)`, con el mismo aspecto suave ámbar del botón "Abrir" (borde y fondo ámbar suave, `text-xs font-semibold`), el ícono de la operación a la izquierda (`bi-stars` para la limpieza, `bi-wrench` para el mantenimiento, los mismos de las pestañas del panel del equipo) y sin flecha, de modo que no se confunda con una entrada a un panel. Textos: "Registrar limpieza" y "Registrar mantenimiento". Sin tooltip; lleva `aria-label` con la fila ("Registrar limpieza de FER-01"). Va dentro de la celda `col-acciones` de la fila, a la derecha. Destinos: `/control-equipamiento/{id}/limpiezas/nueva`, `/control-barriles/{id}/limpiezas/nueva`, `/control-equipamiento/{id}/mantenimientos/nuevo` y `/control-barriles/{id}/mantenimientos/nuevo`. El botón se muestra solo con el permiso de registro correspondiente; si no, la celda queda vacía (la columna Acciones existe siempre).
 
-**Fila 3: "Pendientes de mantenimiento".** Un bloque a todo el ancho con dos subgrupos apilados, Equipos y debajo Barriles, separados por una línea y con el mismo subencabezado y estilo de tabla que "Limpiezas pendientes", cada uno con su contador y su "Ver todos":
+**Fila 4: "Pendientes de mantenimiento".** Un bloque a todo el ancho con dos subgrupos apilados, Equipos y debajo Barriles, separados por una línea y con el mismo subencabezado y estilo de tabla que "Limpiezas pendientes", cada uno con su contador y su "Ver todos":
 
 - **Equipos.** Hasta el tope de filas del bloque: identificador con `fragments/enlace-equipo`, tipo, causa y la acción "Registrar mantenimiento". "Ver todos" lleva a `/control-equipamiento?estadoOperativo=EN_MANTENIMIENTO`.
 - **Barriles.** Hasta el tope de filas del bloque: identificador (texto), fabricante, causa y la acción "Registrar mantenimiento". "Ver todos" lleva a `/control-barriles?estadoOperativo=EN_MANTENIMIENTO`.
@@ -108,7 +108,7 @@ La causa se muestra como etiqueta: "Falla" (rosa) o "Preventivo" (celeste), o "-
 
 Cuando todo el panel está en 0, los cuatro contadores muestran 0 y cada sub-bloque muestra su texto.
 
-**Accesibilidad y pantallas chicas.** Los contadores, los enlaces y los botones son enfocables y llevan `aria-label` cuando su texto no identifica la fila. En pantallas chicas las grillas pasan a una sola columna en el mismo orden de lectura; las tablas se desplazan horizontalmente dentro de su tarjeta (`overflow-x-auto`) con la columna Acciones fija a la derecha (`col-acciones`).
+**Accesibilidad y pantallas chicas.** Los contadores, los enlaces y los botones son enfocables y llevan `aria-label` cuando su texto no identifica la fila. En pantallas chicas la grilla de contadores pasa a una sola columna; las tablas se desplazan horizontalmente dentro de su tarjeta (`overflow-x-auto`) con la columna Acciones fija a la derecha (`col-acciones`).
 
 **Fuera del alcance.** Quedan en el backlog, sin pantalla ni indicador en este panel:
 
@@ -177,7 +177,7 @@ Los índices de estas consultas los crea la migración `V20__indices_consultas_p
 **Plantillas.**
 
 - `home.html`: no tiene tarjetas de resumen. Incluye el panel de cada uno de los seis roles con `sec:authorize="hasRole('...')"` y su fragmento `panel`; el de este rol se incluye con `sec:authorize="hasRole('OPERARIO_DE_PRODUCCION')"`.
-- `home/dashboard-operario.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `lotesDeHoy(dashboard)`, `limpiezasPendientes(dashboard)` y `pendientesDeMantenimiento(dashboard)`, uno por fila o bloque.
+- `home/dashboard-operario.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `lotesDeHoy(dashboard)`, `limpiezasPendientes(dashboard)` y `pendientesDeMantenimiento(dashboard)`, un bloque por fila.
 - `fragments/boton-registrar.html`: fragmento `registrar(url, texto, icono, etiquetaAccesible)` descrito en la sección 4.
 - Reutiliza `fragments/boton-abrir`, `fragments/enlace-equipo`, `fragments/tooltip` (`data-tooltip`), `lote/formato :: duracion`, `planificacion_produccion/formato :: fecha` y los mismos estilos de tarjeta y de tabla de las listas. `fragments/pestanas` no se usa: el panel no tiene pestañas.
 

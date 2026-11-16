@@ -288,7 +288,7 @@ class HomeControllerTest {
         verify(dashboardGerenteServicio).obtenerDashboardGerente();
         verifyNoInteractions(dashboardOperarioServicio);
         assertThat(html).contains("Panel de Control").contains("data-dashboard-gerente").contains("data-dashboard-contadores")
-                .contains("data-bloque=\"produccion-en-curso\"").contains("data-bloque=\"cola-de-fermentadores\"").contains("data-bloque=\"equipamiento-y-barriles\"")
+                .contains("data-bloque=\"produccion-en-curso\"").contains("data-bloque=\"cola-de-fermentadores\"")
                 .contains("data-bloque=\"planificaciones-pendientes\"");
         assertThat(html).doesNotContain("Estado del sistema").doesNotContain("data-dashboard-operario");
     }
@@ -327,7 +327,7 @@ class HomeControllerTest {
     }
 
     @Test
-    @DisplayName("CP-HCT-13: el panel del gerente muestra la producción por etapa con atraso y prioridad, la cola de fermentadores, los conteos por estado con sus enlaces, y las planificaciones y lotes por iniciar")
+    @DisplayName("CP-HCT-13: el panel del gerente muestra la producción por etapa con atraso y prioridad, la cola de fermentadores y las planificaciones pendientes")
     void home_debeMostrarLosBloquesDelPanelDelGerente() throws Exception {
         // Arrange
         when(dashboardGerenteServicio.obtenerDashboardGerente()).thenReturn(panelGerenteConDatos());
@@ -341,7 +341,6 @@ class HomeControllerTest {
         assertThat(html).contains("data-etapa=\"FERMENTACION\"").contains("href=\"/lotes?estado=EN_EJECUCION&amp;etapaActual=FERMENTACION\"")
                 .contains("href=\"/lotes/12?etapa=fermentacion\"").contains("aria-label=\"Abrir LOT-R7-03\"").contains("Atrasado 3 días").contains("Alta")
                 .contains("data-cola-en-ejecucion").contains("data-cola-proximo").contains("LOT-R7-04").contains("2 lotes pendientes").contains("href=\"/cronograma-produccion\"")
-                .contains("data-conteo=\"EN_LIMPIEZA\"").contains("href=\"/control-equipamiento?estadoOperativo=EN_LIMPIEZA\"").contains("href=\"/control-barriles?estadoOperativo=CON_CERVEZA\"")
                 .contains("Plan #7 - Pale Ale").contains("href=\"/planificaciones-produccion/7\"").contains("aria-label=\"Ver Plan #7 - Pale Ale\"").contains("href=\"/planificaciones-produccion?estado=PENDIENTE\"")
                 .contains("href=\"/lotes/12?etapa=fermentacion\"");
         assertThat(html).doesNotContain("No hay lotes en ejecución").doesNotContain("data-boton-registrar");
@@ -970,9 +969,6 @@ class HomeControllerTest {
                 .lotesEnEjecucion(7).lotesAtrasados(2).fermentadoresOcupados(3).fermentadoresTotal(5).fueraDeServicio(9)
                 .produccionEnCurso(List.of(EtapaEnCursoResponseDTO.builder().etapa(TipoEtapa.FERMENTACION).lotes(bloque(4, enEjecucion)).build()))
                 .colaDeFermentadores(bloque(5, cola))
-                .equiposPorEstado(List.of(conteo("DISPONIBLE", "Disponible", 4), conteo("EN_USO", "En uso", 3), conteo("EN_LIMPIEZA", "En limpieza", 2), conteo("EN_MANTENIMIENTO", "En mantenimiento", 1)))
-                .barrilesPorEstado(List.of(conteo("DISPONIBLE", "Disponible", 4), conteo("EN_USO", "En uso", 1), conteo("CON_CERVEZA", "Con cerveza", 6),
-                        conteo("DESPACHADO", "Despachado", 2), conteo("EN_LIMPIEZA", "En limpieza", 3), conteo("EN_MANTENIMIENTO", "En mantenimiento", 3)))
                 .planificacionesPendientes(bloque(3, planificacion))
                 .build();
     }
@@ -980,7 +976,6 @@ class HomeControllerTest {
     private static DashboardGerenteResponseDTO panelGerenteVacio() {
         return DashboardGerenteResponseDTO.builder()
                 .produccionEnCurso(List.of()).colaDeFermentadores(bloque(0))
-                .equiposPorEstado(List.of()).barrilesPorEstado(List.of())
                 .planificacionesPendientes(bloque(0))
                 .build();
     }

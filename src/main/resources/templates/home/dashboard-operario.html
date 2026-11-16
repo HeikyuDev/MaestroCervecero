@@ -3,13 +3,14 @@
 
 <!--
     Panel de control del operario de producción en la pantalla de inicio: qué hay que hacer hoy en la planta. Es informativo y de
-    atajos: no registra nada, cada elemento lleva a la pantalla de trabajo correspondiente. Se lee de izquierda a derecha y de
-    arriba abajo en tres filas, con un tema por fila:
+    atajos: no registra nada, cada elemento lleva a la pantalla de trabajo correspondiente. Se lee de arriba abajo en cuatro
+    filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con el total de lotes en ejecución, lotes a iniciar, equipos y barriles en limpieza
          y equipos y barriles pendientes de mantenimiento.
-      2. lotesDeHoy(dashboard) a la izquierda y limpiezasPendientes(dashboard) a la derecha.
-      3. pendientesDeMantenimiento(dashboard) a todo el ancho.
-    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardOperarioResponseDTO que el HomeController carga
+      2. lotesDeHoy(dashboard).
+      3. limpiezasPendientes(dashboard).
+      4. pendientesDeMantenimiento(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardOperarioResponseDTO que el HomeController carga
     solo para el rol OPERARIO_DE_PRODUCCION.
 
     Cada atajo se protege con el mismo permiso que el destino ("Abrir" un lote con LOTE_CONSULTAR, "Registrar limpieza" con
@@ -22,10 +23,8 @@
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-operario class="space-y-6">
     <th:block th:replace="~{home/dashboard-operario :: contadores(${dashboard})}"></th:block>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <th:block th:replace="~{home/dashboard-operario :: lotesDeHoy(${dashboard})}"></th:block>
-        <th:block th:replace="~{home/dashboard-operario :: limpiezasPendientes(${dashboard})}"></th:block>
-    </div>
+    <th:block th:replace="~{home/dashboard-operario :: lotesDeHoy(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-operario :: limpiezasPendientes(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-operario :: pendientesDeMantenimiento(${dashboard})}"></th:block>
 </div>
 
@@ -94,8 +93,8 @@
           data-contador-barriles th:text="|${total} ${total == 1 ? 'barril' : 'barriles'}|">1 barril</span>
 </th:block>
 
-<!-- ===================================================================== FILA 2, IZQUIERDA: LOTES DE HOY -->
-<section th:fragment="lotesDeHoy(dashboard)" data-bloque="lotes-de-hoy" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<!-- ===================================================================== FILA 2: LOTES DE HOY -->
+<section th:fragment="lotesDeHoy(dashboard)" data-bloque="lotes-de-hoy" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Lotes de hoy</h2>
 
     <!-- En ejecución -->
@@ -169,7 +168,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 2, DERECHA: LIMPIEZAS PENDIENTES -->
+<!-- ===================================================================== FILA 3: LIMPIEZAS PENDIENTES -->
 <section th:fragment="limpiezasPendientes(dashboard)" data-bloque="limpiezas-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Limpiezas pendientes</h2>
 
@@ -234,7 +233,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 3: PENDIENTES DE MANTENIMIENTO -->
+<!-- ===================================================================== FILA 4: PENDIENTES DE MANTENIMIENTO -->
 <section th:fragment="pendientesDeMantenimiento(dashboard)" data-bloque="pendientes-de-mantenimiento" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Pendientes de mantenimiento</h2>
 

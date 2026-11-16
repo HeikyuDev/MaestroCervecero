@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * DTO de respuesta con el panel del gerente de producción: el estado de la fábrica. Reúne cuatro contadores y cuatro
- * tarjetas (producción en curso, cola de fermentadores, equipamiento y barriles por estado y planificaciones pendientes).
+ * DTO de respuesta con el panel del gerente de producción: el estado de la fábrica. Reúne cuatro contadores y tres
+ * tarjetas (producción en curso, cola de fermentadores y planificaciones pendientes).
  */
 @Getter
 @Builder
@@ -37,12 +37,6 @@ public class DashboardGerenteResponseDTO {
 
     /** Fermentadores activos, con el total real y hasta 5 filas, cada una con su lote en ejecución y su próximo lote. */
     private BloqueDashboardResponseDTO<ColaFermentadorResponseDTO> colaDeFermentadores;
-
-    /** Equipos activos por estado operativo: Disponible, En uso, En limpieza y En mantenimiento, en ese orden. */
-    private List<ConteoDashboardResponseDTO> equiposPorEstado;
-
-    /** Barriles activos por estado operativo: Disponible, En uso, Con cerveza, Despachado, En limpieza y En mantenimiento, en ese orden. */
-    private List<ConteoDashboardResponseDTO> barrilesPorEstado;
 
     /** Planificaciones de producción Pendiente, con su total real y hasta 5 filas. */
     private BloqueDashboardResponseDTO<PlanificacionPendienteResponseDTO> planificacionesPendientes;

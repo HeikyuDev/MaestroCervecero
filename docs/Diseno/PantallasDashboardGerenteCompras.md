@@ -54,11 +54,12 @@ El identificador de la planificación (`idPlanificacion`) es un parámetro apart
 
 ## 5. Descripción de la pantalla
 
-La pantalla se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`): "Planificaciones sin orden", "Órdenes pendientes", "Entregas vencidas" (ícono rosa si hay vencidas) y "Finalizadas, últimos 30 días". "Planificaciones sin orden" y "Entregas vencidas" son tarjetas sin enlace; las otras dos llevan a su lista y sin el permiso quedan como texto plano.
-- **Fila 2:** "Planificaciones por comprar" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Órdenes de compra pendientes" a la derecha (`xl:col-span-2`).
-- **Fila 3:** "Órdenes de compra finalizadas, últimos 30 días" a todo el ancho.
+- **Fila 2:** "Planificaciones por comprar" a todo el ancho.
+- **Fila 3:** "Órdenes de compra pendientes" a todo el ancho.
+- **Fila 4:** "Órdenes de compra finalizadas, últimos 30 días" a todo el ancho.
 - **Planificaciones por comprar.** Columnas: Planificación ("Plan #7 - Pale Ale"), Inicio estimado, Prioridad y Acciones. En Acciones, "Registrar orden" (botón de registro, ícono `bi-cart-plus`) lleva al formulario de la orden con la planificación elegida, y el ojo "Ver" abre su estado.
 - **Órdenes pendientes.** Columnas: Orden ("Orden de compra #7"), Proveedor, Entrega estimada, Recibido ("40 %") y Acciones, con el ojo "Ver".
 - **Órdenes finalizadas.** Columnas: Orden, Proveedor, Finalización (fecha y hora), Cierre (Automático o Manual) y Acciones, con el ojo "Ver".

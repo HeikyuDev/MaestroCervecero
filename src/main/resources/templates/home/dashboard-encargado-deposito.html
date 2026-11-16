@@ -4,13 +4,14 @@
 <!--
     Panel de control del encargado de depósito en la pantalla de inicio: qué hay que atender hoy en el depósito. Es un panel de
     trabajo: cada fila ofrece el atajo a la operación que corresponde (registrar el ingreso de una orden de compra, registrar el
-    ajuste de un lote de insumo vencido) y el acceso a la pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo
-    en tres filas, con un tema por fila:
+    ajuste de un lote de insumo vencido) y el acceso a la pantalla de consulta. Se lee de arriba abajo
+    en cuatro filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con las órdenes de compra pendientes, las órdenes con entrega vencida, los lotes
          de insumo vencidos con cantidad y los insumos sin stock disponible.
-      2. ordenesPendientes(dashboard) a la izquierda e insumosSinStock(dashboard) a la derecha.
-      3. lotesVencidos(dashboard) a todo el ancho.
-    panel(dashboard) arma las tres filas. El parámetro dashboard es el DashboardEncargadoDepositoResponseDTO que el HomeController
+      2. ordenesPendientes(dashboard).
+      3. insumosSinStock(dashboard).
+      4. lotesVencidos(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardEncargadoDepositoResponseDTO que el HomeController
     carga solo para el rol ENCARGADO_DE_DEPOSITO.
 
     Cada atajo se protege con el mismo permiso que el destino ("Registrar ingreso" con INGRESO_INSUMO_REGISTRAR, "Registrar ajuste"
@@ -23,10 +24,8 @@
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-encargado-deposito class="space-y-6">
     <th:block th:replace="~{home/dashboard-encargado-deposito :: contadores(${dashboard})}"></th:block>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <th:block th:replace="~{home/dashboard-encargado-deposito :: ordenesPendientes(${dashboard})}"></th:block>
-        <th:block th:replace="~{home/dashboard-encargado-deposito :: insumosSinStock(${dashboard})}"></th:block>
-    </div>
+    <th:block th:replace="~{home/dashboard-encargado-deposito :: ordenesPendientes(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-encargado-deposito :: insumosSinStock(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-encargado-deposito :: lotesVencidos(${dashboard})}"></th:block>
 </div>
 
@@ -71,8 +70,8 @@
     <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
 </th:block>
 
-<!-- ===================================================================== FILA 2, IZQUIERDA: ÓRDENES PENDIENTES -->
-<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<!-- ===================================================================== FILA 2: ÓRDENES PENDIENTES -->
+<section th:fragment="ordenesPendientes(dashboard)" data-bloque="ordenes-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Órdenes de compra pendientes</h2>
 
     <div data-subbloque="ordenes-pendientes" class="p-4 min-w-0">
@@ -113,7 +112,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 2, DERECHA: INSUMOS SIN STOCK -->
+<!-- ===================================================================== FILA 3: INSUMOS SIN STOCK -->
 <section th:fragment="insumosSinStock(dashboard)" data-bloque="insumos-sin-stock" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Insumos sin stock disponible</h2>
 
@@ -147,7 +146,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 3: LOTES DE INSUMO VENCIDOS -->
+<!-- ===================================================================== FILA 4: LOTES DE INSUMO VENCIDOS -->
 <section th:fragment="lotesVencidos(dashboard)" data-bloque="lotes-vencidos" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Lotes de insumo vencidos</h2>
 

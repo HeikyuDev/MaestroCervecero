@@ -14,7 +14,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.ICo
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.BloqueDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ConteoDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardGerenteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.EtapaEnCursoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
@@ -57,10 +56,6 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
 
     private static final Pageable TOPE_DE_FILAS = PageRequest.of(0, LimitesTecnicos.PANEL_GERENTE_FILAS_POR_BLOQUE);
 
-    private static final List<EstadoOperativoBarril> ESTADOS_DE_BARRIL_EN_ORDEN = List.of(
-            EstadoOperativoBarril.DISPONIBLE, EstadoOperativoBarril.EN_USO, EstadoOperativoBarril.CON_CERVEZA,
-            EstadoOperativoBarril.DESPACHADO, EstadoOperativoBarril.EN_LIMPIEZA, EstadoOperativoBarril.EN_MANTENIMIENTO);
-
     private final ILoteRepository loteRepository;
     private final IControlEquipamientoServicio controlEquipamientoServicio;
     private final IControlBarrilServicio controlBarrilServicio;
@@ -71,8 +66,6 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
     public DashboardGerenteResponseDTO obtenerDashboardGerente() {
         LocalDate hoy = LocalDate.now();
 
-        List<ConteoDashboardResponseDTO> equiposPorEstado = contarEquiposPorEstado();
-        List<ConteoDashboardResponseDTO> barrilesPorEstado = contarBarrilesPorEstado();
         Page<EquipamientoControlResponseDTO> fermentadores =
                 controlEquipamientoServicio.filtrarEquipamientosParaControl(null, TipoEquipamiento.FERMENTADOR, null, TOPE_DE_FILAS);
 
@@ -82,12 +75,9 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
                 .fermentadoresOcupados(controlEquipamientoServicio
                         .filtrarEquipamientosParaControl(null, TipoEquipamiento.FERMENTADOR, EstadoOperativo.EN_USO, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements())
                 .fermentadoresTotal(fermentadores.getTotalElements())
-                .fueraDeServicio(totalDe(equiposPorEstado, EstadoOperativo.EN_LIMPIEZA.name()) + totalDe(equiposPorEstado, EstadoOperativo.EN_MANTENIMIENTO.name())
-                        + totalDe(barrilesPorEstado, EstadoOperativoBarril.EN_LIMPIEZA.name()) + totalDe(barrilesPorEstado, EstadoOperativoBarril.EN_MANTENIMIENTO.name()))
+                .fueraDeServicio(contarEquiposFueraDeServicio() + contarBarrilesFueraDeServicio())
                 .produccionEnCurso(armarProduccionEnCurso(hoy))
                 .colaDeFermentadores(armarColaDeFermentadores(fermentadores, hoy))
-                .equiposPorEstado(equiposPorEstado)
-                .barrilesPorEstado(barrilesPorEstado)
                 .planificacionesPendientes(armarBloqueDePlanificaciones())
                 .build();
     }
@@ -178,25 +168,13 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
                 MapperDashboardGerente::toPlanificacionPendienteDTO);
     }
 
-    private List<ConteoDashboardResponseDTO> contarEquiposPorEstado() {
-        List<ConteoDashboardResponseDTO> conteos = new ArrayList<>();
-        for (EstadoOperativo estado : EstadoOperativo.values()) {
-            conteos.add(MapperDashboardGerente.toConteoDTO(estado.name(), estado.getEtiqueta(),
-                    controlEquipamientoServicio.filtrarEquipamientosParaControl(null, null, estado, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements()));
-        }
-        return conteos;
+    private long contarEquiposFueraDeServicio() {
+        return controlEquipamientoServicio.filtrarEquipamientosParaControl(null, null, EstadoOperativo.EN_LIMPIEZA, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements()
+                + controlEquipamientoServicio.filtrarEquipamientosParaControl(null, null, EstadoOperativo.EN_MANTENIMIENTO, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements();
     }
 
-    private List<ConteoDashboardResponseDTO> contarBarrilesPorEstado() {
-        List<ConteoDashboardResponseDTO> conteos = new ArrayList<>();
-        for (EstadoOperativoBarril estado : ESTADOS_DE_BARRIL_EN_ORDEN) {
-            conteos.add(MapperDashboardGerente.toConteoDTO(estado.name(), estado.getEtiqueta(),
-                    controlBarrilServicio.filtrarBarrilesParaControl(null, null, estado, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements()));
-        }
-        return conteos;
-    }
-
-    private static long totalDe(List<ConteoDashboardResponseDTO> conteos, String codigo) {
-        return conteos.stream().filter(c -> c.getCodigo().equals(codigo)).mapToLong(ConteoDashboardResponseDTO::getTotal).sum();
+    private long contarBarrilesFueraDeServicio() {
+        return controlBarrilServicio.filtrarBarrilesParaControl(null, null, EstadoOperativoBarril.EN_LIMPIEZA, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements()
+                + controlBarrilServicio.filtrarBarrilesParaControl(null, null, EstadoOperativoBarril.EN_MANTENIMIENTO, LimitesTecnicos.PANEL_SOLO_EL_TOTAL).getTotalElements();
     }
 }

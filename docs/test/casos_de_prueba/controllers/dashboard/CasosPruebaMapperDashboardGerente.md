@@ -9,4 +9,3 @@
 | **CP-MDG-03** | Entrada nula | El lote, el fermentador y la planificación nulos se mapean a nulo. |
 | **CP-MDG-04** | Cola de un fermentador | Lleva el ID, el identificador y el estado operativo del fermentador, el lote en ejecución, el próximo lote y la cantidad de pendientes recibidos. |
 | **CP-MDG-05** | Planificación pendiente | Lleva su ID, su etiqueta, su prioridad y sus fechas estimadas de inicio y de finalización. |
-| **CP-MDG-06** | Conteo | Lleva el código, la etiqueta y el total recibidos. |

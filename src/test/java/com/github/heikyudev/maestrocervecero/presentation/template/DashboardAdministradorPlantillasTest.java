@@ -36,7 +36,7 @@ class DashboardAdministradorPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDA-02: el panel define los fragmentos panel, contadores, usuariosPorRol, usuariosRecientes y actividadReciente, y los arma en tres filas que se leen de izquierda a derecha y de arriba abajo")
+    @DisplayName("CP-PDA-02: el panel define los fragmentos panel, contadores, usuariosPorRol, usuariosRecientes y actividadReciente, y los arma uno debajo de otro, cada bloque en una fila entera")
     void fragmentosYFilas() throws IOException {
         String html = leer(PANEL);
 
@@ -48,8 +48,9 @@ class DashboardAdministradorPlantillasTest {
         for (int i = 1; i < orden.size(); i++) {
             assertThat(panel.indexOf(orden.get(i - 1))).as(orden.get(i - 1)).isNotNegative().isLessThan(panel.indexOf(orden.get(i)));
         }
-        assertThat(panel).contains("grid grid-cols-1 xl:grid-cols-3 gap-6");
-        assertThat(html).contains("xl:col-span-2");
+        assertThat(panel.substring(0, panel.indexOf("</div>"))).as("los bloques son hijos directos del panel, cada uno en su propia fila: ninguna grilla ni envoltorio de varias columnas").doesNotContain("grid").doesNotContain("<div");
+        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(3);
+        assertThat(html).doesNotContain("col-span").doesNotContain("xl:grid-cols");
         assertThat(count(html, "data-contador=\"")).isEqualTo(4);
     }
 

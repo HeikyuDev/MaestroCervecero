@@ -49,11 +49,12 @@ El identificador de la orden (`idOrdenCompra`) y el del lote (`idLoteInsumo`) so
 
 ## 4. Descripción de la pantalla
 
-La pantalla se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con título en mayúsculas pequeñas, ícono y número grande: "Órdenes pendientes", "Entregas vencidas" (ícono rosa si hay vencidas), "Lotes vencidos" e "Insumos sin stock". "Entregas vencidas" y "Lotes vencidos" son tarjetas sin enlace; las otras dos llevan a su lista y sin el permiso quedan como texto plano.
-- **Fila 2:** "Órdenes de compra pendientes" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) e "Insumos sin stock disponible" a la derecha.
-- **Fila 3:** "Lotes de insumo vencidos" a todo el ancho.
+- **Fila 2:** "Órdenes de compra pendientes" a todo el ancho.
+- **Fila 3:** "Insumos sin stock disponible" a todo el ancho.
+- **Fila 4:** "Lotes de insumo vencidos" a todo el ancho.
 - **Órdenes pendientes.** Columnas: Orden ("Orden de compra #7"), Proveedor, Entrega estimada y Acciones. En Acciones, "Registrar ingreso" (botón de registro, ícono `bi-box-arrow-in-down`) lleva al formulario de ingreso por compra con la orden elegida, y el ojo "Ver" abre el detalle de la orden.
 - **Lotes vencidos.** Columnas: Insumo, Lote del proveedor, Vencimiento, Cantidad actual (con la unidad del insumo, alineada a la derecha) y Acciones. En Acciones, "Registrar ajuste" (botón de registro, ícono `bi-sliders2`) lleva al formulario de ajuste con el lote elegido, y "Abrir" lleva al detalle del lote.
 - **Insumos sin stock.** Columnas: Insumo, Tipo y Acciones, con "Abrir" hacia el detalle del insumo.

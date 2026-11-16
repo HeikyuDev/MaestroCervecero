@@ -34,31 +34,32 @@ class DashboardGerentePlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDG-02: el panel define los fragmentos panel, contadores, produccionEnCurso, colaDeFermentadores, equipamientoYBarriles y planificacionesPendientes, y los arma en cuatro filas que se leen de izquierda a derecha y de arriba abajo")
+    @DisplayName("CP-PDG-02: el panel define los fragmentos panel, contadores, produccionEnCurso, colaDeFermentadores y planificacionesPendientes, y los arma uno debajo de otro, cada bloque en una fila entera")
     void fragmentosYFilas() throws IOException {
         String html = leer(PANEL);
 
         for (String fragmento : List.of("panel(dashboard)", "contadores(dashboard)", "produccionEnCurso(dashboard)", "colaDeFermentadores(dashboard)",
-                "equipamientoYBarriles(dashboard)", "planificacionesPendientes(dashboard)")) {
+                "planificacionesPendientes(dashboard)")) {
             assertThat(html).as(fragmento).contains("th:fragment=\"" + fragmento + "\"");
         }
         String panel = html.substring(html.indexOf("th:fragment=\"panel(dashboard)\""), html.indexOf("th:fragment=\"contadores(dashboard)\""));
-        List<String> orden = List.of(":: contadores(", ":: produccionEnCurso(", ":: colaDeFermentadores(", ":: equipamientoYBarriles(", ":: planificacionesPendientes(");
+        List<String> orden = List.of(":: contadores(", ":: produccionEnCurso(", ":: colaDeFermentadores(", ":: planificacionesPendientes(");
         for (int i = 1; i < orden.size(); i++) {
             assertThat(panel.indexOf(orden.get(i - 1))).as(orden.get(i - 1)).isNotNegative().isLessThan(panel.indexOf(orden.get(i)));
         }
-        assertThat(panel).contains("grid grid-cols-1 xl:grid-cols-3 gap-6");
-        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4").contains("xl:col-span-2");
+        assertThat(panel.substring(0, panel.indexOf("</div>"))).as("los bloques son hijos directos del panel, cada uno en su propia fila: ninguna grilla ni envoltorio de varias columnas").doesNotContain("grid").doesNotContain("<div");
+        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(3);
+        assertThat(html).doesNotContain("col-span").doesNotContain("xl:grid-cols");
+        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4");
         assertThat(html).doesNotContain("fragments/pestanas");
     }
 
     @Test
-    @DisplayName("CP-PDG-03: los contadores llevan a las listas filtradas: lotes en ejecución, fermentadores y, en las tarjetas de conteo, equipos, barriles y planificaciones")
+    @DisplayName("CP-PDG-03: los contadores llevan a las listas filtradas: lotes en ejecución, fermentadores, producción por etapa, cronograma y planificaciones")
     void contadoresYConteosConEnlaces() throws IOException {
         String html = leer(PANEL);
 
         assertThat(html).contains("@{/lotes(estado='EN_EJECUCION')}").contains("@{/control-equipamiento(tipo='FERMENTADOR')}")
-                .contains("@{/control-equipamiento(estadoOperativo=${c.codigo})}").contains("@{/control-barriles(estadoOperativo=${c.codigo})}")
                 .contains("@{/planificaciones-produccion(estado='PENDIENTE')}")
                 .contains("@{/lotes(estado='EN_EJECUCION', etapaActual=${e.etapa.name()})}").contains("@{/cronograma-produccion}");
         for (String titulo : List.of("'Lotes en ejecución'", "'Lotes atrasados'", "'Fuera de servicio'")) {
@@ -71,16 +72,13 @@ class DashboardGerentePlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDG-04: cada enlace se protege con el permiso real de su destino y sin él los contadores y las fichas quedan como texto plano")
+    @DisplayName("CP-PDG-04: cada enlace se protege con el permiso real de su destino y sin él los contadores quedan como texto plano")
     void permisosDeLosEnlaces() throws IOException {
         String html = leer(PANEL);
 
         assertThat(count(html, "sec:authorize=\"hasAuthority('LOTE_CONSULTAR')\"")).as("un contador de lotes, Ver todos, Ver cronograma y el botón Abrir de lotes").isEqualTo(4);
         assertThat(count(html, "sec:authorize=\"!hasAuthority('LOTE_CONSULTAR')\"")).isEqualTo(1);
-        assertThat(html).contains("sec:authorize=\"hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')\"").contains("sec:authorize=\"!hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')\"")
-                .contains("sec:authorize=\"hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')\"")
-                .contains("th:if=\"${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}\"")
-                .contains("th:unless=\"${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}\"");
+        assertThat(html).contains("sec:authorize=\"hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')\"");
         assertThat(count(html, "fragments/boton-abrir :: abrir(")).as("los lotes se abren con Abrir").isEqualTo(1);
         assertThat(html).as("la planificación se consulta con el ojo Ver").contains("data-ver-planificacion").contains("bi bi-eye");
     }
@@ -99,7 +97,7 @@ class DashboardGerentePlantillasTest {
     void indicadoresDeLasFilas() throws IOException {
         String html = leer(PANEL);
         String produccion = html.substring(html.indexOf("th:fragment=\"produccionEnCurso(dashboard)\""), html.indexOf("th:fragment=\"colaDeFermentadores(dashboard)\""));
-        String cola = html.substring(html.indexOf("th:fragment=\"colaDeFermentadores(dashboard)\""), html.indexOf("th:fragment=\"equipamientoYBarriles(dashboard)\""));
+        String cola = html.substring(html.indexOf("th:fragment=\"colaDeFermentadores(dashboard)\""), html.indexOf("th:fragment=\"planificacionesPendientes(dashboard)\""));
 
         assertThat(produccion).doesNotContain("Situación").doesNotContain("data-atraso").doesNotContain("En plazo").doesNotContain("diasDeAtraso").doesNotContain("bg-rose-50");
         assertThat(count(produccion, "<th class=\"")).as("Lote, Fermentador, Prioridad, Fin estimado y Acciones").isEqualTo(5);
@@ -137,7 +135,7 @@ class DashboardGerentePlantillasTest {
     void encabezadosDeLosBloques() throws IOException {
         String html = leer(PANEL);
 
-        for (String titulo : List.of("Producción en curso", "Cola de fermentadores", "Equipamiento y barriles por estado", ">Planificaciones pendientes</h2>")) {
+        for (String titulo : List.of("Producción en curso", "Cola de fermentadores", ">Planificaciones pendientes</h2>")) {
             assertThat(html).as(titulo).contains(titulo);
         }
         assertThat(html).contains("th:fragment=\"encabezado(titulo, total, lista, url, etiquetaAccesible)\"").contains("data-ver-todos").contains("data-ver-cronograma")

@@ -3,14 +3,14 @@
 
 <!--
     Panel de control del gerente de producción en la pantalla de inicio: el estado de la fábrica. Es solo de lectura: no registra
-    nada y cada elemento lleva a la pantalla de consulta correspondiente. Se lee de izquierda a derecha y de arriba abajo en cuatro
-    filas, con un tema por fila:
+    nada y cada elemento lleva a la pantalla de consulta correspondiente. Se lee de arriba abajo en cuatro
+    filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con los lotes en ejecución, los lotes atrasados, los fermentadores ocupados sobre el
          total y los equipos y barriles fuera de servicio.
-      2. produccionEnCurso(dashboard) a la izquierda y colaDeFermentadores(dashboard) a la derecha.
-      3. equipamientoYBarriles(dashboard) a todo el ancho.
-      4. planificacionesPendientes(dashboard) a todo el ancho.
-    panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardGerenteResponseDTO que el HomeController carga
+      2. produccionEnCurso(dashboard).
+      3. colaDeFermentadores(dashboard).
+      4. planificacionesPendientes(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardGerenteResponseDTO que el HomeController carga
     solo para el rol GERENTE_DE_PRODUCCION.
 
     Cada enlace se protege con el mismo permiso que el destino ("Abrir" un lote con LOTE_CONSULTAR, la lista de equipos con
@@ -23,11 +23,8 @@
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-gerente class="space-y-6">
     <th:block th:replace="~{home/dashboard-gerente :: contadores(${dashboard})}"></th:block>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <th:block th:replace="~{home/dashboard-gerente :: produccionEnCurso(${dashboard})}"></th:block>
-        <th:block th:replace="~{home/dashboard-gerente :: colaDeFermentadores(${dashboard})}"></th:block>
-    </div>
-    <th:block th:replace="~{home/dashboard-gerente :: equipamientoYBarriles(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-gerente :: produccionEnCurso(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-gerente :: colaDeFermentadores(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-gerente :: planificacionesPendientes(${dashboard})}"></th:block>
 </div>
 
@@ -57,7 +54,7 @@
         <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Fermentadores ocupados', |${dashboard.fermentadoresOcupados} / ${dashboard.fermentadoresTotal}|, 'bi-droplet-half', 'bg-sky-50 text-sky-600')}"></th:block>
     </div>
 
-    <!-- Fuera de servicio: suma de equipos y barriles En limpieza o En mantenimiento; el detalle está en la tarjeta de equipamiento y barriles -->
+    <!-- Fuera de servicio: suma de equipos y barriles En limpieza o En mantenimiento -->
     <div data-contador="fuera-de-servicio" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
         <th:block th:replace="~{home/dashboard-gerente :: contenidoContador('Fuera de servicio', ${dashboard.fueraDeServicio}, 'bi-wrench', 'bg-amber-50 text-amber-600')}"></th:block>
         <p class="mt-2 text-xs text-slate-500">Equipos y barriles en limpieza o en mantenimiento</p>
@@ -73,8 +70,8 @@
     <p class="text-3xl font-bold text-slate-800" data-contador-total th:text="${total}">0</p>
 </th:block>
 
-<!-- ===================================================================== FILA 2, IZQUIERDA: PRODUCCIÓN EN CURSO -->
-<section th:fragment="produccionEnCurso(dashboard)" data-bloque="produccion-en-curso" class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<!-- ===================================================================== FILA 2: PRODUCCIÓN EN CURSO -->
+<section th:fragment="produccionEnCurso(dashboard)" data-bloque="produccion-en-curso" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Producción en curso</h2>
 
     <!-- Una sección por etapa con lotes en ejecución -->
@@ -116,7 +113,7 @@
     <p th:if="${dashboard.produccionEnCurso.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay lotes en ejecución</p>
 </section>
 
-<!-- ===================================================================== FILA 2, DERECHA: COLA DE FERMENTADORES -->
+<!-- ===================================================================== FILA 3: COLA DE FERMENTADORES -->
 <section th:fragment="colaDeFermentadores(dashboard)" data-bloque="cola-de-fermentadores" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Cola de fermentadores</h2>
 
@@ -159,31 +156,6 @@
             </table>
         </div>
         <p th:if="${dashboard.colaDeFermentadores.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay fermentadores registrados</p>
-    </div>
-</section>
-
-<!-- ===================================================================== FILA 3: EQUIPAMIENTO Y BARRILES POR ESTADO -->
-<section th:fragment="equipamientoYBarriles(dashboard)" data-bloque="equipamiento-y-barriles" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Equipamiento y barriles por estado</h2>
-
-    <!-- Equipos -->
-    <div data-subbloque="equipos-por-estado" class="p-4 min-w-0">
-        <h3 class="mb-3 text-sm font-semibold text-slate-800">Equipos</h3>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <th:block th:each="c : ${dashboard.equiposPorEstado}">
-                <th:block th:replace="~{home/dashboard-gerente :: ficha('equipos', @{/control-equipamiento(estadoOperativo=${c.codigo})}, ${c.etiqueta}, ${c.total}, ${c.codigo})}"></th:block>
-            </th:block>
-        </div>
-    </div>
-
-    <!-- Barriles -->
-    <div data-subbloque="barriles-por-estado" class="p-4 min-w-0 border-t border-slate-200">
-        <h3 class="mb-3 text-sm font-semibold text-slate-800">Barriles</h3>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <th:block th:each="c : ${dashboard.barrilesPorEstado}">
-                <th:block th:replace="~{home/dashboard-gerente :: ficha('barriles', @{/control-barriles(estadoOperativo=${c.codigo})}, ${c.etiqueta}, ${c.total}, ${c.codigo})}"></th:block>
-            </th:block>
-        </div>
     </div>
 </section>
 
@@ -254,31 +226,5 @@
     </th:block>
 </div>
 
-<!-- Ficha de un conteo (estado de equipos o de barriles): enlace a la lista filtrada con el permiso de la lista, y tarjeta plana sin él -->
-<th:block th:fragment="ficha(lista, url, etiqueta, total, codigo)">
-    <th:block th:if="${lista == 'equipos'}">
-        <a sec:authorize="hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" th:attr="data-conteo=${codigo}" th:href="${url}"
-           class="block p-3 border border-slate-200 rounded-lg hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
-            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
-        </a>
-        <div sec:authorize="!hasAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR')" th:attr="data-conteo=${codigo}" class="p-3 border border-slate-200 rounded-lg">
-            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
-        </div>
-    </th:block>
-    <th:block th:if="${lista == 'barriles'}">
-        <a th:if="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" th:attr="data-conteo=${codigo}" th:href="${url}"
-           class="block p-3 border border-slate-200 rounded-lg hover:border-amber-400 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40">
-            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
-        </a>
-        <div th:unless="${#authorization.expression(T(com.github.heikyudev.maestrocervecero.util.PermisosPlantilla).CONSULTA_BARRIL)}" th:attr="data-conteo=${codigo}" class="p-3 border border-slate-200 rounded-lg">
-            <th:block th:replace="~{home/dashboard-gerente :: contenidoFicha(${etiqueta}, ${total})}"></th:block>
-        </div>
-    </th:block>
-</th:block>
-
-<th:block th:fragment="contenidoFicha(etiqueta, total)">
-    <p class="text-xs font-medium text-slate-500" data-conteo-etiqueta th:text="${etiqueta}">En limpieza</p>
-    <p class="mt-1 text-2xl font-bold text-slate-800" data-conteo-total th:text="${total}">3</p>
-</th:block>
 
 </html>

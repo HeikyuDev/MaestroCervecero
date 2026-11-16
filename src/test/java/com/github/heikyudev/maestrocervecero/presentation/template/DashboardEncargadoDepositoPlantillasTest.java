@@ -35,7 +35,7 @@ class DashboardEncargadoDepositoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDD-02: el panel define los fragmentos panel, contadores, ordenesPendientes, insumosSinStock y lotesVencidos, y los arma en tres filas que se leen de izquierda a derecha y de arriba abajo")
+    @DisplayName("CP-PDD-02: el panel define los fragmentos panel, contadores, ordenesPendientes, insumosSinStock y lotesVencidos, y los arma uno debajo de otro, cada bloque en una fila entera")
     void fragmentosYFilas() throws IOException {
         String html = leer(PANEL);
 
@@ -47,8 +47,10 @@ class DashboardEncargadoDepositoPlantillasTest {
         for (int i = 1; i < orden.size(); i++) {
             assertThat(panel.indexOf(orden.get(i - 1))).as(orden.get(i - 1)).isNotNegative().isLessThan(panel.indexOf(orden.get(i)));
         }
-        assertThat(panel).contains("grid grid-cols-1 xl:grid-cols-3 gap-6");
-        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4").contains("xl:col-span-2");
+        assertThat(panel.substring(0, panel.indexOf("</div>"))).as("los bloques son hijos directos del panel, cada uno en su propia fila: ninguna grilla ni envoltorio de varias columnas").doesNotContain("grid").doesNotContain("<div");
+        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(3);
+        assertThat(html).doesNotContain("col-span").doesNotContain("xl:grid-cols");
+        assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4");
         assertThat(count(html, "data-contador=\"")).isEqualTo(6);
         assertThat(html).as("Entregas vencidas y Lotes vencidos son tarjetas sin enlace: su lista está en el bloque de abajo")
                 .doesNotContain("data-contador=\"ordenes-entrega-vencida\" th:href").doesNotContain("data-contador=\"lotes-vencidos\" th:href");
