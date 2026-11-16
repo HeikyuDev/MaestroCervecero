@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Piezas de la pantalla "Estadísticas". Una sola estructura para cualquier pestaña: la arma el
+    ReporteEstadisticoResponseDTO que devuelve el Service, sin piezas propias de cada reporte. En orden:
+
+    filtros(pestana, campos, desde, hasta, urlLimpiar): formulario de filtros con la grilla de las listas (formulario GET
+    con novalidate: la validación es solo del servidor). "Desde" y "Hasta" son obligatorios (asterisco rojo); siguen los
+    criterios propios de la pestaña (CampoFiltro: lista simple con "Todos"/"Todas" o selector con buscador en modal),
+    con su ancho normal de columna. "Limpiar" (vuelve al período por defecto y quita los criterios) y "Filtrar" van en su
+    propia fila debajo de los campos, a la derecha, como en el resto de las listas.
+    resultados(desde, hasta, urlPdf): encabezado de los resultados, debajo de los filtros y solo si hay reporte:
+    "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) a la izquierda y, en la misma línea a la derecha, el
+    botón secundario (con borde, sin relleno) "Exportar PDF", que abre el PDF en otra pestaña con los mismos criterios.
+    indicadores(indicadores): hasta cuatro tarjetas (IndicadorResponseDTO) en una sola fila, con el nombre, el valor
+    grande (algo más chico si es largo, como un importe de siete cifras, para que no se parta), una aclaración de una línea y, si el indicador tiene definición, el tooltip de ayuda junto al nombre.
+    grafico(grafico): tarjeta con el único gráfico (GraficoBarras), debajo de los indicadores y a todo el ancho.
+    tabla(tabla, urlAnterior, urlSiguiente): la única tabla (TablaReporteResponseDTO), con cada columna alineada según su
+    tipo, el botón "Abrir" o "Ver" en la columna de acciones (protegido por el permiso de la columna; sin botón si la
+    celda no tiene ID), la fila de totales del
+    período, la línea "Sin resultados para los criterios indicados" sin filas y la paginación estándar.
+    sinReporte: tarjeta que reemplaza a los indicadores, el gráfico y la tabla cuando los criterios no son válidos.
+-->
+
+<!-- ===================================================================== FILTROS -->
+<form th:fragment="filtros(pestana, campos, desde, hasta, urlLimpiar)" th:action="@{/estadisticas}" method="get" novalidate data-filtros
+      class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+    <input type="hidden" name="pestana" th:value="${pestana.clave}">
+    <div>
+        <label for="desde" class="block text-xs font-medium text-slate-500 mb-1">Desde <span class="text-rose-600" title="Obligatorio">*</span></label>
+        <input type="date" id="desde" name="desde" th:value="${desde}" autocomplete="off" placeholder="Ej: 01/07/2027"
+               class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+    </div>
+    <div>
+        <label for="hasta" class="block text-xs font-medium text-slate-500 mb-1">Hasta <span class="text-rose-600" title="Obligatorio">*</span></label>
+        <input type="date" id="hasta" name="hasta" th:value="${hasta}" autocomplete="off" placeholder="Ej: 31/07/2027"
+               class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+    </div>
+    <div th:each="c : ${campos}" th:attr="data-campo=${c.nombre}">
+        <th:block th:if="${c.buscador}">
+            <span class="block text-xs font-medium text-slate-500 mb-1" th:text="${c.etiqueta}">Receta</span>
+            <div th:replace="~{fragments/selector-entidad :: selector(${c.nombre}, ${c.valor}, ${c.texto}, @{${c.urlBuscador}}, null, null, true, false, ${c.placeholder})}"></div>
+        </th:block>
+        <th:block th:unless="${c.buscador}">
+            <label th:for="${c.nombre}" class="block text-xs font-medium text-slate-500 mb-1" th:text="${c.etiqueta}">Estado</label>
+            <select th:id="${c.nombre}" th:name="${c.nombre}"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="" th:text="${c.textoTodos}">Todos</option>
+                <option th:each="o : ${c.opciones}" th:value="${o.valor}" th:selected="${o.valor == c.valor}" th:text="${o.etiqueta}">Pendiente</option>
+            </select>
+        </th:block>
+    </div>
+    <div class="col-span-full flex items-center justify-end gap-3">
+        <a th:href="@{${urlLimpiar}}" data-limpiar-filtros
+           class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+        <button type="submit"
+                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+            <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+        </button>
+    </div>
+</form>
+
+<!-- ===================================================================== ENCABEZADO DE RESULTADOS -->
+<div th:fragment="resultados(desde, hasta, urlPdf)" data-resultados class="flex flex-wrap items-center justify-between gap-3">
+    <h2 class="text-base font-semibold text-slate-900"
+        th:text="|Resultados del ${#temporals.format(desde, 'dd/MM/yyyy')} al ${#temporals.format(hasta, 'dd/MM/yyyy')}|">Resultados del 01/11/2026 al 15/11/2026</h2>
+    <a th:href="@{${urlPdf}}" data-exportar-pdf target="_blank" rel="noopener"
+       class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-colors">
+        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Exportar PDF
+    </a>
+</div>
+
+<!-- ===================================================================== INDICADORES -->
+<div th:fragment="indicadores(indicadores)" data-indicadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div th:each="i : ${indicadores}" th:attr="data-indicador=${i.clave}" class="p-5 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div class="flex h-5 items-center gap-1.5">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider" th:text="${i.nombre}">Lotes del período</span>
+            <th:block th:if="${i.ayuda != null}">
+                <th:block th:replace="~{fragments/tooltip :: ayuda('Qué mide ' + ${i.nombre}, 'ayuda-indicador-' + ${i.clave})}"></th:block>
+                <div th:id="'ayuda-indicador-' + ${i.clave}" hidden th:text="${i.ayuda}">Definición</div>
+            </th:block>
+        </div>
+        <p class="mt-2 font-bold text-slate-800 whitespace-nowrap" th:classappend="${#strings.length(i.valor) > 9} ? 'text-2xl' : 'text-3xl'" data-indicador-valor th:text="${i.valor}">0</p>
+        <p th:if="${i.aclaracion != null}" class="mt-1 text-xs text-slate-500 truncate" data-indicador-aclaracion th:text="${i.aclaracion}">Aclaración</p>
+    </div>
+</div>
+
+<!-- ===================================================================== GRÁFICO -->
+<section th:fragment="grafico(grafico)" data-grafico class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900" th:text="${grafico.titulo}">Lotes por estado</h2>
+    <div class="px-4 py-3">
+        <th:block th:replace="~{estadisticas/fragments/grafico :: grafico(${grafico})}"></th:block>
+    </div>
+</section>
+
+<!-- ===================================================================== TABLA -->
+<section th:fragment="tabla(tabla, urlAnterior, urlSiguiente)" data-tabla-reporte class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th th:each="col, colStat : ${tabla.columnas}" class="px-4 py-3 whitespace-nowrap"
+                    th:classappend="|${col.tipo.claseAlineacion} ${col.tipo.name() == 'ENLACE' ? 'col-acciones' : ''}|"
+                    >
+                    <span th:text="${col.titulo}">Lote</span>
+                    <th:block th:if="${col.ayuda != null}">
+                        <th:block th:replace="~{fragments/tooltip :: ayuda('Qué mide ' + ${col.titulo}, 'ayuda-columna-' + ${colStat.index})}"></th:block>
+                        <span th:id="'ayuda-columna-' + ${colStat.index}" hidden th:text="${col.ayuda}">Definición</span>
+                    </th:block>
+                </th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="fila : ${tabla.filas.content}" class="hover:bg-slate-50" data-fila-reporte>
+                <th:block th:each="celda, it : ${fila.celdas}" th:with="col=${tabla.columnas[it.index]}">
+                    <td th:if="${col.tipo.name() != 'ENLACE'}" class="px-4 py-3 text-slate-700"
+                        th:classappend="|${col.tipo.claseAlineacion} ${col.tipo.name() == 'TEXTO' ? '' : 'whitespace-nowrap'}|">
+                        <div th:classappend="${it.first} ? 'font-medium text-slate-900'" th:text="${celda.texto}">LOT-R7-03</div>
+                        <div th:if="${celda.detalle != null}" class="mt-0.5 text-xs text-slate-500" data-celda-detalle th:text="${celda.detalle}">Pale Ale</div>
+                    </td>
+                    <td th:if="${col.tipo.name() == 'ENLACE'}" class="col-acciones px-4 py-3 text-center">
+                        <th:block th:if="${celda.id != null and (col.permiso == null or #authorization.expression('hasAuthority(''' + col.permiso + ''')'))}">
+                            <th:block th:unless="${col.ver}">
+                                <th:block th:replace="~{fragments/boton-abrir :: abrir(@{__${col.ruta}__(id=${celda.id})}, ${celda.texto})}"></th:block>
+                            </th:block>
+                            <a th:if="${col.ver}" th:href="@{__${col.ruta}__(id=${celda.id})}" title="Ver detalle" th:aria-label="${celda.texto}" data-boton-ver
+                               class="inline-flex p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+                            </a>
+                        </th:block>
+                    </td>
+                </th:block>
+            </tr>
+            <tr th:if="${tabla.filas.empty}">
+                <td th:colspan="${#lists.size(tabla.columnas)}" class="px-4 py-10 text-center text-slate-400" data-sin-resultados>
+                    Sin resultados para los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+            <!-- Totales de todo el período, no solo de la página -->
+            <tfoot th:if="${tabla.totales != null}">
+            <tr data-fila-totales class="bg-white border-t-2 border-slate-300 font-semibold">
+                <td th:each="celda, it : ${tabla.totales.celdas}" class="px-4 py-3 text-slate-900 whitespace-nowrap"
+                    th:classappend="${tabla.columnas[it.index].tipo.claseAlineacion}" th:text="${celda.texto}">Totales del período</td>
+            </tr>
+            </tfoot>
+        </table>
+    </div>
+    <div th:replace="~{fragments/paginacion :: paginacion(${tabla.filas}, ${tabla.etiquetaFilas},
+            ${urlAnterior != null} ? @{${urlAnterior}} : null, ${urlSiguiente != null} ? @{${urlSiguiente}} : null, false)}"></div>
+</section>
+
+<!-- ===================================================================== SIN REPORTE -->
+<section th:fragment="sinReporte" data-sin-reporte class="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-10 text-center text-slate-400">
+    <i class="bi bi-bar-chart block text-3xl mb-2" aria-hidden="true"></i>
+    Indique un período válido y presione Filtrar para ver el reporte
+</section>
+
+</html>

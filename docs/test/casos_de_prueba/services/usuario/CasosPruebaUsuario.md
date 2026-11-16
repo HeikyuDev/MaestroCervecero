@@ -21,6 +21,15 @@
 
 ---
 
+### 2.1. `buscarPorUsername(String username)`
+
+Identifica, con nombre y apellido, a quien emite un reporte impreso.
+
+| ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
+| --- | --- | --- | --- | --- |
+| **CP-BU-01** | Usuario activo existente | `username: "juan"` | `findUserEntityByUsername("juan")` $\rightarrow$ **Optional con el usuario** | Retorna el `UsuarioResponseDTO` con los datos del usuario. |
+| **CP-BU-02** | Usuario inexistente o dado de baja | `username: "nadie"` | `findUserEntityByUsername("nadie")` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con el mensaje "No se encontró el usuario nadie". |
+
 ### 3. `altaUsuario(UsuarioFormDTO usuarioFormDTO)`
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |

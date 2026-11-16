@@ -160,6 +160,16 @@
             </th:block>
         </th:block>
 
+        <!--
+            REPORTES: una sola entrada, "Estadísticas", con una pestaña por reporte. La ve quien tiene alguno de los
+            permisos de estadísticas (ESTADISTICA_PRODUCCION_CONSULTAR o ESTADISTICA_COMPRAS_CONSULTAR); dentro, cada
+            pestaña se muestra según su propio permiso.
+        -->
+        <th:block sec:authorize="hasAnyAuthority('ESTADISTICA_PRODUCCION_CONSULTAR', 'ESTADISTICA_COMPRAS_CONSULTAR')">
+            <p th:replace="~{fragments/sidebar ::seccion('Reportes')}"></p>
+            <a th:replace="~{fragments/sidebar ::enlace('/estadisticas', ${opcionActiva}, 'estadisticas', 'bi-bar-chart', 'Estadísticas')}"></a>
+        </th:block>
+
         <!-- CONFIGURACIÓN: parámetros del sistema que ajusta el Gerente de Producción -->
         <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
             <p th:replace="~{fragments/sidebar ::seccion('Configuración')}"></p>

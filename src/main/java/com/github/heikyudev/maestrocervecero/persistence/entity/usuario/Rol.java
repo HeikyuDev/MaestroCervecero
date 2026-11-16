@@ -65,7 +65,8 @@ public enum Rol {
             Permiso.MOTIVO_AJUSTE_ELIMINAR,
             Permiso.MOTIVO_AJUSTE_CONSULTAR,
             Permiso.AJUSTE_INSUMO_CONSULTAR,
-            Permiso.STOCK_INSUMO_CONSULTAR
+            Permiso.STOCK_INSUMO_CONSULTAR,
+            Permiso.ESTADISTICA_PRODUCCION_CONSULTAR
     )),
 
     OPERARIO_DE_PRODUCCION("Operario de Producción", Set.of(
@@ -126,7 +127,8 @@ public enum Rol {
             Permiso.ORDEN_COMPRA_FINALIZAR,
             Permiso.ORDEN_COMPRA_CONSULTAR,
             Permiso.PLANIFICACION_PRODUCCION_CONSULTAR,
-            Permiso.STOCK_INSUMO_CONSULTAR
+            Permiso.STOCK_INSUMO_CONSULTAR,
+            Permiso.ESTADISTICA_COMPRAS_CONSULTAR
     )),
 
     ENCARGADO_DE_DEPOSITO("Encargado de Depósito", Set.of(

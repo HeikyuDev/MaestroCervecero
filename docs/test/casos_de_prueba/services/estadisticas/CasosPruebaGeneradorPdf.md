@@ -1,0 +1,11 @@
+Casos de prueba del reporte impreso de las estadísticas (`GeneradorPdfServicioImplTest`): se genera de verdad el PDF con la plantilla única `estadisticas/pdf/reporte` y se lee con PDFBox.
+
+| ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
+| --- | --- | --- | --- | --- |
+| **CP-GPDF-01** | PDF válido en A4 vertical | Reporte "Lotes" con 3 filas | Documento $\rightarrow$ **PDF A4 vertical** | Empieza con `%PDF-`, tiene una página y la hoja mide 595 x 842 pt. |
+| **CP-GPDF-02** | Elementos estándar | Reporte "Lotes" con 3 filas, emitido por "gerente (Ana Pérez)" el 14/11/2026 09:30 | Texto $\rightarrow$ **Encabezado, emisión, cuerpo y pie** | Contiene "Maestro Cervecero", "Estadísticas: Lotes", "Emitido por", "Fecha de emisión", "Terminal" con "pc-gerencia (192.168.0.20)", "Período" con las fechas, "Criterios de filtro" con "Receta: Todas" y "Estado: Finalizado", la pregunta, los indicadores con la definición de "Terminados en plazo", el título del gráfico, la tabla sin la columna Acciones con "Totales del período" y "Página 1 de 1". No dice "Abrir". |
+| **CP-GPDF-03** | Varias páginas | Reporte con 150 filas | Cada página desde la segunda $\rightarrow$ **Repite** | Encabezado del sistema, título, encabezado de la tabla y "Página N de M"; los datos de emisión solo en la primera y los totales al final. |
+| **CP-GPDF-04** | Sin resultados | Reporte sin filas ni valores en el gráfico | Texto $\rightarrow$ **Leyendas** | "Sin resultados para los criterios indicados" y "Sin datos para graficar"; sin tabla ni totales. |
+| **CP-GPDF-05** | Tope técnico de filas | Página de 3 filas de un total de 5000 | Aviso $\rightarrow$ **Se informa** | "La tabla muestra los primeros 3 de 5000 lotes del período: se alcanzó el máximo de filas de un reporte impreso". |
+| **CP-GPDF-06** | Plantilla inexistente | Nombre de plantilla que no existe | Generación $\rightarrow$ **Rechazo** | Se lanza una excepción y no se devuelve un PDF. |
+| **CP-GPDF-07** | Reporte de otra pestaña | Reporte "Precios" con importes, variaciones con barras negativas, columna "Ver" y la terminal del emisor | PDF $\rightarrow$ **Misma plantilla** | A4 vertical (595 x 842 pt) con "Terminal", los criterios de ese reporte, "+20 %" y "-20 %", los importes y "Página 1 de 1"; la columna "Orden" no se imprime. |

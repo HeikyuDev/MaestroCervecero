@@ -32,11 +32,12 @@ Es la acción de una fila que lleva al formulario de alta de una operación conc
 
 ## Panel de control del operario
 
-La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashboard-operario`. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashboard-operario`. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con título en mayúsculas pequeñas, ícono y número grande. Cada contador lleva al listado filtrado correspondiente y sin el permiso de la lista queda como texto plano.
-- **Fila 2, trabajo de planta:** "Lotes de hoy" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Limpiezas pendientes" a la derecha.
-- **Fila 3, mantenimiento:** "Pendientes de mantenimiento" a todo el ancho, con Equipos y debajo Barriles, igual que "Limpiezas pendientes".
+- **Fila 2:** "Lotes de hoy" a todo el ancho.
+- **Fila 3:** "Limpiezas pendientes" a todo el ancho, con Equipos y debajo Barriles.
+- **Fila 4, mantenimiento:** "Pendientes de mantenimiento" a todo el ancho, con Equipos y debajo Barriles, igual que "Limpiezas pendientes".
 - **Bloques:** cada bloque es una tarjeta con su título, el contador del total real de sus registros y su enlace "Ver todos" en el encabezado; muestra hasta `LimitesTecnicos.PANEL_OPERARIO_FILAS_POR_BLOQUE` filas en la tabla compacta de las listas. Los lotes se abren con "Abrir" y las limpiezas y los mantenimientos se registran con el botón de registro.
 - **Subgrupos apilados:** los subgrupos de un mismo bloque (Equipos y Barriles en las limpiezas y en el mantenimiento, En ejecución y A iniciar en los lotes) van uno debajo del otro, el de equipos primero, separados por una línea y con el mismo subencabezado y estilo de tabla; ningún par de subgrupos de un bloque va lado a lado.
 - **Estado vacío:** un bloque sin filas muestra una sola línea de texto gris centrada ("No hay equipos en limpieza"), sin tabla, sin encabezado de columnas y sin tarjeta vacía.
@@ -45,11 +46,11 @@ La pantalla de inicio del OPERARIO_DE_PRODUCCION muestra el panel de `home/dashb
 
 ## Panel de control del gerente de producción
 
-La pantalla de inicio del GERENTE_DE_PRODUCCION muestra el panel de `home/dashboard-gerente`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo en cuatro filas, con un tema por fila.
+La pantalla de inicio del GERENTE_DE_PRODUCCION muestra el panel de `home/dashboard-gerente`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las del operario: lotes en ejecución, lotes atrasados (ícono rosa si hay atrasados; tarjeta sin enlace), fermentadores ocupados sobre el total ("3 / 5") y equipos y barriles fuera de servicio.
-- **Fila 2, producción:** "Producción en curso" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`), con un subgrupo por etapa, y "Cola de fermentadores" a la derecha.
-- **Fila 3, estado de la planta:** "Equipamiento y barriles por estado" a todo el ancho. Cada estado es una ficha con su nombre y su número, que es un enlace a la lista filtrada con el permiso de esa lista y una tarjeta plana sin él.
+- **Fila 2, producción:** "Producción en curso" a todo el ancho, con un subgrupo por etapa.
+- **Fila 3:** "Cola de fermentadores" a todo el ancho.
 - **Fila 4, planificaciones:** "Planificaciones pendientes" a todo el ancho.
 - **Filas de lotes:** la producción en curso muestra lote, fermentador, prioridad (insignia de las planificaciones), fin estimado y acciones. El atraso se informa en el contador y en la cola de fermentadores ("Atrasado 3 días" en rosa). Los lotes se abren con "Abrir" y las planificaciones con el ojo "Ver".
 - **Columna Acciones:** con un solo botón por celda, la hoja de estilos lo centra, por lo que el encabezado "Acciones" y el contenedor del botón van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`. Vale para los paneles del gerente y del operario.
@@ -58,11 +59,12 @@ La pantalla de inicio del GERENTE_DE_PRODUCCION muestra el panel de `home/dashbo
 
 ## Panel de control del encargado de depósito
 
-La pantalla de inicio del ENCARGADO_DE_DEPOSITO muestra el panel de `home/dashboard-encargado-deposito`. Es un panel de trabajo: cada fila ofrece el atajo a la operación que corresponde y el acceso a la consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del ENCARGADO_DE_DEPOSITO muestra el panel de `home/dashboard-encargado-deposito`. Es un panel de trabajo: cada fila ofrece el atajo a la operación que corresponde y el acceso a la consulta. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: órdenes pendientes, entregas vencidas (ícono rosa si hay vencidas; tarjeta sin enlace), lotes vencidos (tarjeta sin enlace) e insumos sin stock.
-- **Fila 2:** "Órdenes de compra pendientes" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`) e "Insumos sin stock disponible" a la derecha.
-- **Fila 3:** "Lotes de insumo vencidos" a todo el ancho.
+- **Fila 2:** "Órdenes de compra pendientes" a todo el ancho.
+- **Fila 3:** "Insumos sin stock disponible" a todo el ancho.
+- **Fila 4:** "Lotes de insumo vencidos" a todo el ancho.
 - **Acciones de fila:** el ingreso de una orden y el ajuste de un lote se registran con el botón de registro ("Registrar ingreso" con `bi-box-arrow-in-down`, "Registrar ajuste" con `bi-sliders2`); la orden se consulta con el ojo "Ver" y el lote o el insumo con "Abrir". Cuando una celda tiene más de un botón se agrupan centrados.
 - **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
 - **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
@@ -70,11 +72,12 @@ La pantalla de inicio del ENCARGADO_DE_DEPOSITO muestra el panel de `home/dashbo
 
 ## Panel de control del administrador
 
-La pantalla de inicio del ADMINISTRADOR muestra el panel de `home/dashboard-administrador`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del ADMINISTRADOR muestra el panel de `home/dashboard-administrador`. Es de solo lectura: no tiene botones de registro y cada elemento lleva a una pantalla de consulta. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** dos tarjetas (`grid grid-cols-1 sm:grid-cols-2 gap-4`) con el mismo estilo que las de los otros paneles: usuarios activos y eventos de hoy.
 - **Fila 2:** "Usuarios activos por rol" a todo el ancho, con una ficha por rol (nombre y cantidad) que es un enlace a la lista de usuarios de ese rol con el permiso de la lista y una tarjeta plana sin él.
-- **Fila 3:** "Usuarios" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Actividad reciente" a la derecha (`xl:col-span-2`).
+- **Fila 3:** "Usuarios" a todo el ancho.
+- **Fila 4:** "Actividad reciente" a todo el ancho.
 - **Acciones de fila:** los usuarios se abren con "Abrir" y las entradas de la bitácora con el ojo "Ver", solo las que tienen detalle.
 - **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
 - **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
@@ -82,11 +85,12 @@ La pantalla de inicio del ADMINISTRADOR muestra el panel de `home/dashboard-admi
 
 ## Panel de control del gerente de compras
 
-La pantalla de inicio del GERENTE_DE_COMPRAS muestra el panel de `home/dashboard-gerente-compras`. Es un panel de trabajo: la planificación sin orden de compra ofrece el atajo para registrarla y el resto de las filas llevan a la consulta. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del GERENTE_DE_COMPRAS muestra el panel de `home/dashboard-gerente-compras`. Es un panel de trabajo: la planificación sin orden de compra ofrece el atajo para registrarla y el resto de las filas llevan a la consulta. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: planificaciones sin orden (tarjeta sin enlace), órdenes pendientes, entregas vencidas (ícono rosa si hay vencidas; tarjeta sin enlace) y órdenes finalizadas, cuyo título dice la ventana de días ("Finalizadas, últimos 30 días").
-- **Fila 2:** "Planificaciones por comprar" a la izquierda (`grid grid-cols-1 xl:grid-cols-3 gap-6`) y "Órdenes de compra pendientes" a la derecha (`xl:col-span-2`), con la columna "Recibido" que muestra el avance de la recepción en porcentaje.
-- **Fila 3:** "Órdenes de compra finalizadas" a todo el ancho, con la columna "Cierre" (Automático o Manual).
+- **Fila 2:** "Planificaciones por comprar" a todo el ancho.
+- **Fila 3:** "Órdenes de compra pendientes" a todo el ancho, con la columna "Recibido" que muestra el avance de la recepción en porcentaje.
+- **Fila 4:** "Órdenes de compra finalizadas" a todo el ancho, con la columna "Cierre" (Automático o Manual).
 - **Acciones de fila:** la orden de una planificación se registra con el botón de registro ("Registrar orden" con `bi-cart-plus`); las planificaciones y las órdenes se consultan con el ojo "Ver".
 - **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
 - **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido con `sec:authorize` sobre el permiso de su destino.
@@ -94,11 +98,12 @@ La pantalla de inicio del GERENTE_DE_COMPRAS muestra el panel de `home/dashboard
 
 ## Panel de control del encargado de distribución
 
-La pantalla de inicio del ENCARGADO_DE_DISTRIBUCION muestra el panel de `home/dashboard-encargado-distribucion`. Es un panel de trabajo: cada barril ofrece el atajo a la operación que corresponde y el acceso a la consulta. Con este panel los seis roles tienen el suyo y la pantalla de inicio no tiene tarjetas de resumen genéricas. Se lee de izquierda a derecha y de arriba abajo en tres filas, con un tema por fila.
+La pantalla de inicio del ENCARGADO_DE_DISTRIBUCION muestra el panel de `home/dashboard-encargado-distribucion`. Es un panel de trabajo: cada barril ofrece el atajo a la operación que corresponde y el acceso a la consulta. Con este panel los seis roles tienen el suyo y la pantalla de inicio no tiene tarjetas de resumen genéricas. Se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con el mismo estilo que las de los otros paneles: barriles en poder de clientes, devoluciones vencidas (ícono rosa si hay vencidas; tarjeta sin enlace), devoluciones que vencen hoy (tarjeta sin enlace) y barriles listos para despachar.
-- **Fila 2:** "Devoluciones de hoy y vencidas" a la izquierda (`xl:col-span-2` de una grilla `grid grid-cols-1 xl:grid-cols-3 gap-6`), con la columna "Días de atraso", y "Clientes con barriles en poder" a la derecha, con un cliente por fila y la cantidad de sus barriles.
-- **Fila 3:** "Barriles listos para despachar" a todo el ancho, con la receta y el lote de la cerveza.
+- **Fila 2:** "Devoluciones de hoy y vencidas" a todo el ancho, con la columna "Días de atraso".
+- **Fila 3:** "Clientes con barriles en poder" a todo el ancho, con un cliente por fila y la cantidad de sus barriles.
+- **Fila 4:** "Barriles listos para despachar" a todo el ancho, con la receta y el lote de la cerveza.
 - **Acciones de fila:** la devolución y el despacho de un barril se registran con el botón de registro ("Registrar devolución" con `bi-box-arrow-in-down-left`, "Registrar despacho" con `bi-box-arrow-up-right`); el barril y el cliente se abren con "Abrir". Cuando una celda tiene más de un botón se agrupan centrados.
 - **Columna Acciones:** el encabezado "Acciones" y el contenedor de los botones van centrados (`text-center` y `justify-center`), con el mismo `px-2 py-3`.
 - **Estado vacío, subgrupos apilados y permisos:** las mismas reglas de los otros paneles: una sola línea de texto gris sin tabla y cada enlace protegido sobre el permiso de su destino.
@@ -177,3 +182,48 @@ En todos los formularios y los detalles de solo lectura los datos se agrupan por
 - Los encabezados y etiquetas de valores mostrados no repiten la unidad ("Subtotal", no "Subtotal ($)"). En los campos de formulario la unidad va en el sufijo `campo-unidad` ("$", "$ por litro", "$ / kg").
 - Protegido por `ImporteConSimboloTest`.
 
+
+## Estadísticas y reportes impresos
+
+Todas las estadísticas viven en una sola pantalla, "Estadísticas" (`/estadisticas`), con una pestaña por reporte. Todo reporte tiene la misma estructura, la muestra la misma plantilla en pantalla y la misma plantilla en PDF: agregar un reporte no agrega plantillas.
+
+**Menú y permisos.** Una sola entrada "Estadísticas" (`bi-bar-chart`, clave activa `estadisticas`) en la sección "Reportes", debajo de Administración, visible con `ESTADISTICA_PRODUCCION_CONSULTAR` o `ESTADISTICA_COMPRAS_CONSULTAR`. Cada pestaña declara su permiso y solo la ve quien lo tiene; sin pestaña indicada se muestra la primera que el usuario puede ver. La pantalla y el PDF llevan el mismo `@PreAuthorize` con los dos permisos.
+
+**Estructura única** (`ReporteEstadisticoResponseDTO`, en `service/response_dto/estadisticas`):
+
+- `titulo` y `descripcion`: la pregunta que responde el reporte, en palabras simples y sin punto final (por ejemplo, "Cuántos lotes se planificaron en el período y cómo terminaron").
+- `desde`, `hasta` y `criterios` (`CriterioAplicadoResponseDTO`: etiqueta y valor, con "Todos" o "Todas" si no se indicó).
+- `indicadores` (`IndicadorResponseDTO`, como máximo 4): un nombre corto, el valor ya formateado ("-" si no se puede calcular), una aclaración opcional de una línea y una definición opcional que se muestra con el tooltip del proyecto.
+- `grafico` (`GraficoReporteResponseDTO`): un único gráfico de barras horizontales simples, con su título, una barra por categoría (`DatoGraficoResponseDTO`), la unidad y la forma de escribir el valor: cantidad con su unidad, importe (`moneda`, "$ 15,20 / L") o variación con signo (`variacion`, "+12 %"; sus barras negativas usan el azul del sistema y el largo es proporcional al valor absoluto). Un gráfico de valores que se suman muestra las ocho categorías mayores y "Otros"; uno de razones o porcentajes, solo las ocho mayores.
+- `tabla` (`TablaReporteResponseDTO`, como máximo 6 columnas): las columnas (`ColumnaReporteResponseDTO` con su `TipoColumna`: `TEXTO`, `NUMERO`, `PORCENTAJE`, `MONEDA`, `FECHA` o `ENLACE`, que define la alineación), una página de filas (`FilaReporteResponseDTO` con una `CeldaReporteResponseDTO` por columna, ya formateada; una celda puede llevar un texto secundario debajo) y la fila de totales del período completo. La columna `ENLACE` es "Acciones", centrada, con el botón "Abrir" (`ColumnaReporteResponseDTO.enlace`, hacia una pantalla de trabajo, por ejemplo `/lotes/{id}`) o el ojo "Ver" (`ColumnaReporteResponseDTO.ver`, hacia un detalle de solo lectura, por ejemplo `/ordenes-compra/{id}`), protegido por el permiso de la columna; una celda sin ID no muestra el botón. No se imprime.
+
+Los topes se validan al construir la estructura: un reporte con más de 4 indicadores o una tabla con más de 6 columnas no se arma.
+
+**Pantalla** (`estadisticas/estadisticas.html` con las piezas de `estadisticas/fragments/reporte.html`): pestañas (`fragments/pestanas`, con ícono), la línea de la pregunta y, en este orden:
+
+1. Filtros: formulario GET con `novalidate` y la misma grilla que los filtros de las listas (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end`), con cada campo a su ancho normal de columna: "Desde" y "Hasta" obligatorios, con asterisco rojo y placeholder (sin parámetros, del primer día del mes en curso a hoy), y hasta dos criterios propios (`CampoFiltro`: lista simple con "Todos"/"Todas", o selector de entidad con su buscador en modal). "Limpiar" y "Filtrar" van en su propia fila debajo de los campos, a la derecha (`col-span-full flex items-center justify-end gap-3`), igual que en el resto de las listas.
+2. Encabezado de resultados (`resultados`), solo si los criterios son válidos: "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) a la izquierda y, en la misma línea a la derecha, el botón secundario "Exportar PDF" (con borde, sin relleno, `bi-file-earmark-pdf`), que abre el PDF en otra pestaña con los mismos criterios. No va arriba a la derecha junto al título: ese lugar es de las altas ("+ Nuevo").
+3. Los indicadores, todos en una fila (hasta cuatro tarjetas, como en los paneles de control y en el PDF).
+4. Debajo, a todo el ancho, el gráfico (`fragments/grafico.html`): barras horizontales dibujadas en el servidor con HTML y CSS a partir de `GraficoBarras`, una fila por categoría con la etiqueta, la barra (su largo es un porcentaje del ancho de la tarjeta; la más larga, el 75 %) y el valor escrito a continuación, al tamaño del texto de las tablas y sin espacio vacío. Lleva `role="img"` con todos los valores en `aria-label`. Sin valores dice "Sin datos para graficar".
+5. La tabla, paginada con `fragments/paginacion` (de a 20), con la fila de totales con estilo propio y, sin filas, "Sin resultados para los criterios indicados".
+
+**Validación.** Solo en el servidor. El Service valida el período con `PeriodoEstadistica.validar`: los dos extremos obligatorios, la fecha hasta no anterior a la desde y hasta `LimitesTecnicos.RANGO_MAXIMO_ESTADISTICAS_DIAS` (366) días contando ambos extremos. Un rechazo se muestra con la alerta amarilla del layout, se conservan los criterios y en lugar del reporte se pide un período válido. Una fecha que no existe se informa con "La fecha desde no es válida" o "La fecha hasta no es válida". Un valor de lista inexistente no filtra y se avisa; una entidad que el buscador no ofrece no filtra. Si el PDF no se puede generar por los criterios, su ruta vuelve a la pantalla con los mismos parámetros, que muestra el motivo. Si el documento falla al armarse, o ya hay `LimitesTecnicos.REPORTE_IMPRESO_SIMULTANEOS_MAXIMO` (3) reportes en generación y no se libera un lugar en `LimitesTecnicos.REPORTE_IMPRESO_ESPERA_MAXIMA_MS` (2 segundos), la ruta vuelve a la pantalla con la alerta amarilla "No se pudo generar el reporte impreso" o "Hay otros reportes en generación, intente nuevamente en unos instantes"; la falla se registra en el log con la pestaña y el período, sin datos personales.
+
+**Reporte impreso** (`/estadisticas/pdf`, plantilla única `estadisticas/pdf/reporte.html`, generada con `IGeneradorPdfServicio`):
+
+- Siempre en hoja A4 vertical, con la fuente Liberation Sans incrustada.
+- Encabezado en cada página: "Maestro Cervecero", el título del reporte y una línea.
+- Datos de emisión en la primera página: "Emitido por" (usuario y, entre paréntesis, nombre y apellido), "Fecha de emisión" (dd/MM/yyyy HH:mm), "Terminal" (el equipo desde el que se pidió el reporte: la dirección es la de la conexión que pidió el reporte, sin tener en cuenta los encabezados que escribe el cliente, como `X-Forwarded-For`; una dirección de loopback se reemplaza por el nombre y la dirección del servidor; el nombre del equipo se resuelve por DNS inverso solo para direcciones IP, con un tiempo máximo de 300 ms y en un grupo reducido de hilos propio, el resultado (también cuando no hay nombre) se conserva 10 minutos por dirección y se muestra `nombre-de-equipo (IP)`, o solo la IP si no se resuelve), "Período" y "Criterios de filtro" con todos los criterios.
+- Cuerpo: la pregunta, los mismos indicadores (con sus definiciones escritas debajo), el mismo gráfico (170 mm de ancho) y la tabla completa sin paginar y sin la columna de acciones, hasta `LimitesTecnicos.REPORTE_IMPRESO_MAXIMO_FILAS` filas (si el período tiene más, se avisa antes de la tabla). El encabezado de la tabla se repite en cada página, ninguna fila se parte y los totales van al final.
+- Pie en cada página: la fecha de emisión, "Maestro Cervecero" y "Página X de Y".
+- Respuesta `application/pdf` en línea con el nombre `estadisticas-<pestaña>_<desde>_<hasta>.pdf`.
+
+La plantilla del PDF es XHTML bien formado y no usa enlaces `@{/...}` ni atributos de seguridad: se procesa fuera de la petición web.
+
+**Agregar un reporte.**
+
+1. Un método en el Service de estadísticas de su área que valida el período con `PeriodoEstadistica.validar` y devuelve un `ReporteEstadisticoResponseDTO` para la página pedida de la tabla, con sus consultas agregadas en el repositorio de estadísticas (sin consultas por fila).
+2. Una constante en `PestanaEstadistica` (en `service/interfaces/estadisticas`) con su clave, texto, ícono, pregunta y permiso. La pregunta se escribe solo ahí: el Service la toma de esa constante para el reporte y la pantalla la muestra de la misma constante.
+3. Un componente `ReporteDePestana` (como `ReporteLotes`) que declara sus criterios propios (`CampoFiltro`, como máximo dos), los interpreta y llama al método del Service. `CamposDeReporte` ya resuelve los criterios que se repiten: receta, proveedor, tipo de insumo, etapa y tipo de equipo. Un criterio nuevo con buscador en modal agrega su ruta de buscador, protegida con el permiso de la pestaña.
+
+La pantalla, el PDF, los permisos, el período, la paginación y el menú no cambian.

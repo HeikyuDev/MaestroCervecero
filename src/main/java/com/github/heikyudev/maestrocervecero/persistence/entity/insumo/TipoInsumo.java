@@ -11,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TipoInsumo {
-    MALTA(MaltaEntity.class),
-    LUPULO(LupuloEntity.class),
-    LEVADURA(LevaduraEntity.class);
+    MALTA(MaltaEntity.class, "Malta"),
+    LUPULO(LupuloEntity.class, "Lúpulo"),
+    LEVADURA(LevaduraEntity.class, "Levadura");
 
     private final Class<? extends InsumoEntity> entityClass;
+
+    /** Nombre del tipo con el que se muestra en pantallas y reportes. */
+    private final String etiqueta;
 }

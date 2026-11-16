@@ -142,7 +142,34 @@ class RolTest {
                 Permiso.COSTO_FIJO_CREAR, Permiso.COSTO_FIJO_MODIFICAR, Permiso.COSTO_FIJO_ELIMINAR, Permiso.COSTO_FIJO_CONSULTAR,
                 Permiso.MOTIVO_AJUSTE_CREAR, Permiso.MOTIVO_AJUSTE_MODIFICAR, Permiso.MOTIVO_AJUSTE_ELIMINAR, Permiso.MOTIVO_AJUSTE_CONSULTAR,
                 Permiso.AJUSTE_INSUMO_CONSULTAR,
-                Permiso.STOCK_INSUMO_CONSULTAR);
+                Permiso.STOCK_INSUMO_CONSULTAR,
+                Permiso.ESTADISTICA_PRODUCCION_CONSULTAR);
+    }
+
+    // ==================== permisos de estadísticas ====================
+
+    @Test
+    @DisplayName("CP-RO-15: solo el Gerente de Producción consulta las estadísticas de producción")
+    void permisos_soloElGerenteDeProduccionConsultaLasEstadisticasDeProduccion() {
+        for (Rol rol : Rol.values()) {
+            if (rol == Rol.GERENTE_DE_PRODUCCION) {
+                assertThat(rol.getPermisos()).contains(Permiso.ESTADISTICA_PRODUCCION_CONSULTAR);
+            } else {
+                assertThat(rol.getPermisos()).as(rol.name()).doesNotContain(Permiso.ESTADISTICA_PRODUCCION_CONSULTAR);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("CP-RO-16: solo el Gerente de Compras consulta las estadísticas de compras")
+    void permisos_soloElGerenteDeComprasConsultaLasEstadisticasDeCompras() {
+        for (Rol rol : Rol.values()) {
+            if (rol == Rol.GERENTE_DE_COMPRAS) {
+                assertThat(rol.getPermisos()).contains(Permiso.ESTADISTICA_COMPRAS_CONSULTAR);
+            } else {
+                assertThat(rol.getPermisos()).as(rol.name()).doesNotContain(Permiso.ESTADISTICA_COMPRAS_CONSULTAR);
+            }
+        }
     }
 
     @Test

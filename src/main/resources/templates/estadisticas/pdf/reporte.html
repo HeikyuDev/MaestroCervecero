@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+    Reporte impreso (PDF) de cualquier pestaña de "Estadísticas": una sola plantilla para todos los reportes, armada con
+    el ReporteEstadisticoResponseDTO. La convierte a PDF GeneradorPdfServicioImpl, por eso todo el archivo es XHTML bien
+    formado (toda etiqueta cerrada) y no usa enlaces @{...} ni atributos sec:.
+
+    Modelo: reporte (ReporteEstadisticoResponseDTO, con la tabla completa hasta el tope técnico de filas), grafico
+    (GraficoBarras), encabezado (EncabezadoReporte: emisor, fecha de emisión y terminal) y fuente (la familia incrustada).
+
+    Elementos estándar:
+      - Hoja A4 vertical con márgenes fijos y la fuente Liberation Sans incrustada.
+      - Encabezado repetido en cada página: "Maestro Cervecero", el título del reporte y una línea.
+      - Datos de emisión, solo en la primera página: "Emitido por", "Fecha de emisión", "Terminal" (el equipo desde
+        el que se pidió), "Período" y "Criterios de filtro"
+        (todos los criterios, con "Todos" o "Todas" en los que no se indicaron).
+      - Cuerpo: la pregunta que responde, los mismos indicadores (con sus definiciones debajo), el mismo gráfico y la
+        tabla completa sin la columna de acciones: el encabezado de columnas se repite en cada página, ninguna fila se
+        parte entre dos páginas y la fila de totales va al final. Si se alcanzó el tope técnico de filas, se avisa antes
+        de la tabla; sin filas se dice "Sin resultados para los criterios indicados".
+      - Pie repetido en cada página: fecha de emisión, nombre del sistema y "Página X de Y".
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${reporte.titulo} - Maestro Cervecero|">Reporte - Maestro Cervecero</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 24mm 14mm 18mm 14mm;
+            @top-center { content: element(encabezado); }
+            @bottom-center { content: element(pie); }
+        }
+        body { margin: 0; font-family: 'Liberation Sans', sans-serif; font-size: 9pt; color: #1e293b; }
+        table { border-collapse: collapse; }
+
+        /* Encabezado y pie repetidos en cada página */
+        #encabezado-pagina { position: running(encabezado); }
+        #pie-pagina { position: running(pie); }
+        #encabezado-pagina table, #pie-pagina table { width: 100%; }
+        #encabezado-pagina td { padding: 0 0 2mm 0; border-bottom: 1.5pt solid #1e293b; vertical-align: bottom; }
+        #encabezado-pagina .sistema { font-size: 13pt; font-weight: bold; }
+        #encabezado-pagina .titulo { font-size: 11pt; font-weight: bold; text-align: right; }
+        #pie-pagina td { padding: 2mm 0 0 0; border-top: 0.75pt solid #94a3b8; font-size: 8pt; color: #475569; width: 33%; }
+        #pie-pagina .centro { text-align: center; }
+        #pie-pagina .derecha { text-align: right; }
+        .numero-pagina:before { content: counter(page); }
+        .total-paginas:before { content: counter(pages); }
+
+        /* Datos de emisión */
+        .emision { width: 100%; margin: 0 0 4mm 0; border: 0.75pt solid #cbd5e1; }
+        .emision th { width: 32mm; padding: 1.5mm 3mm; text-align: left; vertical-align: top; font-weight: bold; color: #475569; background-color: #f1f5f9; }
+        .emision td { padding: 1.5mm 3mm; vertical-align: top; }
+        .emision .criterio { display: block; }
+
+        .pregunta { margin: 0 0 4mm 0; font-size: 10pt; }
+        h2 { margin: 0 0 2mm 0; font-size: 10.5pt; }
+        .bloque { margin: 0 0 5mm 0; page-break-inside: avoid; }
+
+        /* Indicadores */
+        .indicadores { width: 100%; table-layout: fixed; }
+        .indicadores td { padding: 2mm 2.5mm; border: 0.75pt solid #cbd5e1; vertical-align: top; }
+        .indicadores .nombre { font-size: 7pt; font-weight: bold; color: #64748b; text-transform: uppercase; }
+        .indicadores .valor { margin-top: 1mm; font-size: 14pt; font-weight: bold; }
+        .indicadores .aclaracion { margin-top: 1mm; font-size: 7pt; color: #64748b; }
+        .nota { margin: 1.5mm 0 0 0; font-size: 7.5pt; color: #64748b; }
+        .grafico { width: 170mm; font-size: 9pt; }
+        .grafico-vacio { color: #64748b; }
+
+        /* Tabla */
+        table.detalle { width: 100%; -fs-table-paginate: paginate; }
+        table.detalle thead { display: table-header-group; }
+        table.detalle tr { page-break-inside: avoid; }
+        table.detalle th { padding: 1.5mm 2mm; border-bottom: 1pt solid #1e293b; background-color: #f1f5f9; font-size: 8pt; }
+        table.detalle td { padding: 1.5mm 2mm; border-bottom: 0.5pt solid #cbd5e1; font-size: 8.5pt; vertical-align: top; }
+        table.detalle .detalle-celda { font-size: 7.5pt; color: #64748b; }
+        table.detalle tr.totales td { border-top: 1.5pt solid #1e293b; border-bottom: none; font-weight: bold; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; white-space: nowrap; }
+        .text-center { text-align: center; }
+        .aviso { margin: 0 0 3mm 0; padding: 2mm 3mm; border: 0.75pt solid #d97706; color: #92400e; }
+        .sin-resultados { padding: 8mm 0; text-align: center; color: #64748b; }
+    </style>
+</head>
+<body>
+
+<!-- Encabezado de cada página -->
+<div id="encabezado-pagina">
+    <table>
+        <tr>
+            <td class="sistema">Maestro Cervecero</td>
+            <td class="titulo" th:text="|Estadísticas: ${reporte.titulo}|">Estadísticas: Lotes</td>
+        </tr>
+    </table>
+</div>
+
+<!-- Pie de cada página -->
+<div id="pie-pagina">
+    <table>
+        <tr>
+            <td th:text="|Emitido el ${#temporals.format(encabezado.fechaEmision, 'dd/MM/yyyy HH:mm')}|">Emitido el 01/07/2027 08:00</td>
+            <td class="centro">Maestro Cervecero</td>
+            <td class="derecha">Página <span class="numero-pagina"></span> de <span class="total-paginas"></span></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Datos de emisión, en la primera página -->
+<table class="emision">
+    <tr>
+        <th>Emitido por</th>
+        <td th:text="${encabezado.emitidoPor}">gerente (Ana Pérez)</td>
+    </tr>
+    <tr>
+        <th>Fecha de emisión</th>
+        <td th:text="${#temporals.format(encabezado.fechaEmision, 'dd/MM/yyyy HH:mm')}">01/07/2027 08:00</td>
+    </tr>
+    <tr>
+        <th>Terminal</th>
+        <td th:text="${encabezado.terminal}">pc-gerencia (192.168.0.20)</td>
+    </tr>
+    <tr>
+        <th>Período</th>
+        <td th:text="|Desde ${#temporals.format(reporte.desde, 'dd/MM/yyyy')} hasta ${#temporals.format(reporte.hasta, 'dd/MM/yyyy')}|">Desde 01/07/2027 hasta 31/07/2027</td>
+    </tr>
+    <tr>
+        <th>Criterios de filtro</th>
+        <td>
+            <span class="criterio" th:each="c : ${reporte.criterios}" th:text="|${c.etiqueta}: ${c.valor}|">Receta: Todas</span>
+        </td>
+    </tr>
+</table>
+
+<p class="pregunta" th:text="${reporte.descripcion}">Cuántos lotes se planificaron en el período y cómo terminaron</p>
+
+<!-- Indicadores -->
+<div class="bloque">
+    <table class="indicadores">
+        <tr>
+            <td th:each="i : ${reporte.indicadores}">
+                <div class="nombre" th:text="${i.nombre}">Lotes del período</div>
+                <div class="valor" th:text="${i.valor}">0</div>
+                <div class="aclaracion" th:if="${i.aclaracion != null}" th:text="${i.aclaracion}">Aclaración</div>
+            </td>
+        </tr>
+    </table>
+    <p class="nota" th:each="i : ${reporte.indicadores}" th:if="${i.ayuda != null}" th:text="|${i.nombre}: ${i.ayuda}|">Definición</p>
+</div>
+
+<!-- Gráfico -->
+<div class="bloque">
+    <h2 th:text="${grafico.titulo}">Lotes por estado</h2>
+    <div class="grafico"><th:block th:replace="~{estadisticas/fragments/grafico :: grafico(${grafico})}"></th:block></div>
+</div>
+
+<!-- Tabla completa, sin paginar -->
+<th:block th:with="tabla=${reporte.tabla}">
+    <p class="aviso" th:if="${tabla.truncada}"
+       th:text="|La tabla muestra los primeros ${tabla.filas.numberOfElements} de ${tabla.filas.totalElements} ${tabla.nombrePlural} del período: se alcanzó el máximo de filas de un reporte impreso|">Aviso</p>
+
+    <p class="sin-resultados" th:if="${tabla.filas.empty}">Sin resultados para los criterios indicados</p>
+
+    <p class="nota" th:each="col : ${tabla.columnasImprimibles}" th:if="${col.ayuda != null and !tabla.filas.empty}" th:text="|${col.titulo}: ${col.ayuda}|">Definición</p>
+
+    <table class="detalle" th:unless="${tabla.filas.empty}">
+        <thead>
+        <tr>
+            <th th:each="col : ${tabla.columnasImprimibles}" th:class="${col.tipo.claseAlineacion}" th:text="${col.titulo}">Lote</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="f : ${tabla.filas.content}">
+            <td th:each="celda, it : ${tabla.celdasImprimibles(f)}" th:class="${tabla.columnasImprimibles[it.index].tipo.claseAlineacion}">
+                <div th:text="${celda.texto}">LOT-R7-03</div>
+                <div class="detalle-celda" th:if="${celda.detalle != null}" th:text="${celda.detalle}">Pale Ale</div>
+            </td>
+        </tr>
+        <tr class="totales" th:if="${tabla.totales != null}">
+            <td th:each="celda, it : ${tabla.celdasImprimibles(tabla.totales)}" th:class="${tabla.columnasImprimibles[it.index].tipo.claseAlineacion}"
+                th:text="${celda.texto}">Totales del período</td>
+        </tr>
+        </tbody>
+    </table>
+</th:block>
+
+</body>
+</html>

@@ -81,6 +81,14 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
                 orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id)));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UsuarioResponseDTO buscarPorUsername(String username) {
+        // 1. Obtengo el usuario activo con ese nombre de usuario y devuelvo el DTO correspondiente
+        return MapperUsuario.toDTO(usuarioRepository.findUserEntityByUsername(username)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario " + username)));
+    }
+
 
     /**
      * Registra un nuevo usuario en el sistema.

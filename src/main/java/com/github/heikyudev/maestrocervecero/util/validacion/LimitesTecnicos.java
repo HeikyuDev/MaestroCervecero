@@ -162,6 +162,20 @@ public final class LimitesTecnicos {
      */
     public static final int ESCALA_CANTIDADES = 4;
 
+    /**
+     * Cantidad máxima de días, contando ambos extremos, del período de una estadística (un año bisiesto completo).
+     */
+    public static final int RANGO_MAXIMO_ESTADISTICAS_DIAS = 366;
+
+    /** Cantidad máxima de filas de la tabla de un reporte impreso; si el período tiene más, el reporte lo informa. */
+    public static final int REPORTE_IMPRESO_MAXIMO_FILAS = 2_000;
+
+    /** Cantidad máxima de reportes impresos que se generan al mismo tiempo; los demás esperan o se rechazan. */
+    public static final int REPORTE_IMPRESO_SIMULTANEOS_MAXIMO = 3;
+
+    /** Tiempo máximo, en milisegundos, que una petición espera su turno para generar un reporte impreso. */
+    public static final long REPORTE_IMPRESO_ESPERA_MAXIMA_MS = 2_000;
+
     private LimitesTecnicos() {
     }
 }

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::#estadisticas-content}, 'estadisticas')}">
+<body>
+
+<!--
+    Pantalla "Estadísticas": una pestaña por reporte (PestanaEstadistica), las que permiten los permisos del usuario. Toda
+    pestaña muestra lo mismo y en el mismo orden, con las piezas de estadisticas/fragments/reporte: la línea que dice qué
+    pregunta responde, la barra de filtros, el encabezado de resultados (período aplicado y "Exportar PDF"), hasta cuatro
+    indicadores en una fila, el gráfico a todo el ancho y una tabla paginada. Si los criterios no
+    son válidos, la alerta del layout dice por qué y en lugar del reporte se muestra una tarjeta que pide un período
+    válido.
+-->
+<div id="estadisticas-content" class="space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Estadísticas</h1>
+    </div>
+
+    <section th:if="${#lists.isEmpty(pestanas)}" data-sin-pestanas class="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-10 text-center text-slate-400">
+        <i class="bi bi-bar-chart block text-3xl mb-2" aria-hidden="true"></i>
+        No hay reportes disponibles para su usuario
+    </section>
+
+    <th:block th:unless="${#lists.isEmpty(pestanas)}">
+        <div>
+            <th:block th:replace="~{fragments/pestanas :: pestanas('Reportes de estadísticas', 'estadisticas', ~{::enlaces})}">
+                <th:block th:fragment="enlaces">
+                    <th:block th:each="p : ${pestanas}">
+                        <a th:replace="~{fragments/pestanas :: pestana(@{/estadisticas(pestana=${p.clave})}, ${pestanaActiva == p}, ${p.clave}, ~{fragments/pestanas :: bi(${p.icono})}, ${p.etiqueta})}"></a>
+                    </th:block>
+                </th:block>
+            </th:block>
+            <p class="mt-3 text-sm text-slate-600" data-pregunta th:text="${pestanaActiva.descripcion}">Cuántos lotes se planificaron en el período y cómo terminaron</p>
+        </div>
+
+        <form th:replace="~{estadisticas/fragments/reporte :: filtros(${pestanaActiva}, ${campos}, ${filtroDesde}, ${filtroHasta}, ${urlLimpiar})}"></form>
+
+        <th:block th:if="${reporte == null}">
+            <section th:replace="~{estadisticas/fragments/reporte :: sinReporte}"></section>
+        </th:block>
+
+        <th:block th:if="${reporte != null}">
+            <div th:replace="~{estadisticas/fragments/reporte :: resultados(${reporte.desde}, ${reporte.hasta}, ${urlPdf})}"></div>
+            <div th:replace="~{estadisticas/fragments/reporte :: indicadores(${reporte.indicadores})}"></div>
+            <section th:replace="~{estadisticas/fragments/reporte :: grafico(${grafico})}"></section>
+            <section th:replace="~{estadisticas/fragments/reporte :: tabla(${reporte.tabla}, ${urlAnterior}, ${urlSiguiente})}"></section>
+        </th:block>
+    </th:block>
+</div>
+
+</body>
+</html>

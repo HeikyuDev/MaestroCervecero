@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Gráfico de un reporte de estadísticas, dibujado en el servidor con HTML y CSS (sin JavaScript ni librerías). Lo
+    comparten la pantalla y el reporte impreso, por eso todo el archivo es XHTML bien formado y los estilos van en línea
+    (el PDF no usa Tailwind).
+
+    grafico(grafico): barras horizontales simples a partir de un GraficoBarras ya calculado. Es una tabla de dos
+    columnas: la etiqueta de la categoría a la izquierda y, a la derecha, la barra con el valor escrito a continuación.
+    El largo de cada barra es un porcentaje del ancho disponible (la más larga, el 75 %), de modo que el gráfico ocupa
+    el ancho de su tarjeta sin espacio vacío y el texto se lee al tamaño del de las tablas. La tabla lleva role="img" y
+    aria-label con todos los valores para los lectores de pantalla. Si el gráfico no tiene valores se muestra
+    "Sin datos para graficar".
+
+    Uso: <th:block th:replace="~{estadisticas/fragments/grafico :: grafico(${grafico})}"></th:block>
+-->
+<th:block th:fragment="grafico(grafico)">
+    <p th:if="${grafico.vacio}" data-grafico-vacio="true" class="grafico-vacio py-4 text-center text-sm text-slate-400">Sin datos para graficar</p>
+    <table th:unless="${grafico.vacio}" data-grafico-barras="true" role="img" class="text-sm"
+           th:attr="aria-label=|${grafico.titulo}: ${grafico.descripcion}|"
+           style="width: 100%; border-collapse: collapse;">
+        <tr th:each="b : ${grafico.barras}" data-barra="true" th:title="|${b.etiqueta}: ${b.valorTexto}|">
+            <td style="width: 1%; padding: 4px 10px 4px 0; text-align: right; white-space: nowrap; color: #334155;"
+                th:text="${b.etiquetaCorta}">Pendiente</td>
+            <td style="padding: 4px 0; white-space: nowrap; border-left: 1px solid #94a3b8;">
+                <span th:if="${b.porcentaje > 0}"
+                      th:style="|display: inline-block; vertical-align: middle; width: ${b.porcentaje}%; height: 18px; background-color: ${b.color}; border-radius: 0 2px 2px 0;|"></span>
+                <span data-valor-barra="true" style="vertical-align: middle; margin-left: 6px; font-weight: bold; color: #0f172a;"
+                      th:text="${b.valorTexto}">2</span>
+            </td>
+        </tr>
+    </table>
+</th:block>
+
+</html>

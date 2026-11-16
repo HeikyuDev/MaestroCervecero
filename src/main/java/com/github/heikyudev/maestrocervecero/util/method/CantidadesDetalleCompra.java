@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.I
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 
@@ -66,8 +67,21 @@ public final class CantidadesDetalleCompra {
     public static double calcularCantidadPorPresentacion(DetalleCompraEntity detalleCompraEntity) {
         PresentacionComercialEntity presentacionComercial = detalleCompraEntity.getCatalogoProveedor().getPresentacionComercial();
         InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
-        return insumo.getUnidadDeMedida()
-                .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
+        return calcularCantidadPorPresentacion(presentacionComercial.getCantidad(), presentacionComercial.getUnidadDeMedida(),
+                insumo.getUnidadDeMedida());
+    }
+
+    /**
+     * Igual que {@link #calcularCantidadPorPresentacion(DetalleCompraEntity)} a partir de los datos sueltos de la
+     * presentación y del insumo, sin cargar entidades (lo usan las estadísticas de compras).
+     *
+     * @param cantidadPresentacion Cantidad que trae la presentación, en su propia unidad.
+     * @param unidadPresentacion Unidad de medida de la presentación.
+     * @param unidadInsumo Unidad de medida del insumo.
+     * @return Cantidad de insumo por unidad de presentación, en la unidad de medida del insumo.
+     */
+    public static double calcularCantidadPorPresentacion(double cantidadPresentacion, UnidadDeMedida unidadPresentacion, UnidadDeMedida unidadInsumo) {
+        return unidadInsumo.desdeGramos(unidadPresentacion.aGramos(cantidadPresentacion));
     }
 
     /**

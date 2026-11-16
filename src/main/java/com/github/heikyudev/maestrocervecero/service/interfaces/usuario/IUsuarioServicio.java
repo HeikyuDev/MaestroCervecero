@@ -35,6 +35,23 @@ public interface IUsuarioServicio {
     UsuarioResponseDTO buscarPorId(Long id);
 
     /**
+     * Obtiene un usuario activo por su nombre de usuario. Se usa para identificar, con nombre y apellido, a quien emite
+     * un reporte impreso.
+     * <p>
+     * Precondiciones: existe un usuario activo con ese nombre de usuario.
+     * </p>
+     * <p>
+     * Postcondiciones: devuelve los datos del usuario; no modifica ningún dato.
+     * </p>
+     *
+     * @param username El nombre de usuario, tal como quedó registrado.
+     * @return El usuario correspondiente.
+     * @throws com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException Si no existe un
+     *         usuario activo con ese nombre de usuario.
+     */
+    UsuarioResponseDTO buscarPorUsername(String username);
+
+    /**
      * Registra un nuevo usuario.
      *
      * @param usuarioFormDTO Los datos del usuario a registrar.

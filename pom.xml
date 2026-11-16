@@ -28,6 +28,7 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <openhtmltopdf.version>1.1.113</openhtmltopdf.version>
     </properties>
     <dependencies>
         <dependency>
@@ -65,6 +66,18 @@
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+        </dependency>
+
+        <!-- Reportes impresos: convierte a PDF el HTML que arma Thymeleaf (con los graficos SVG) -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>${openhtmltopdf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-svg-support</artifactId>
+            <version>${openhtmltopdf.version}</version>
         </dependency>
 
         <dependency>

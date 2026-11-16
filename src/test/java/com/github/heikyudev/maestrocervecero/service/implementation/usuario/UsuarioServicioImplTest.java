@@ -135,6 +135,34 @@ class UsuarioServicioImplTest {
         verify(usuarioRepository).findById(99L);
     }
 
+    // ==================== buscarPorUsername ====================
+
+    @Test
+    @DisplayName("CP-BU-01: buscarPorUsername retorna el DTO del usuario activo con ese nombre de usuario")
+    void buscarPorUsername_debeRetornarUsuarioExistente() {
+        // === PREPARACION DE DATOS ===
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.GERENTE_DE_PRODUCCION);
+        when(usuarioRepository.findUserEntityByUsername("juan")).thenReturn(Optional.of(usuarioEntity));
+
+        // === EJECUCION ===
+        UsuarioResponseDTO resultado = usuarioServicio.buscarPorUsername("juan");
+
+        // === VERIFICACION ===
+        assertUsuarioDTO(usuarioEntity, resultado);
+        verify(usuarioRepository).findUserEntityByUsername("juan");
+    }
+
+    @Test
+    @DisplayName("CP-BU-02: buscarPorUsername lanza RecursoNoEncontradoException cuando no hay un usuario activo con ese nombre de usuario")
+    void buscarPorUsername_debeLanzarExcepcionSiNoExiste() {
+        when(usuarioRepository.findUserEntityByUsername("nadie")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> usuarioServicio.buscarPorUsername("nadie"))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el usuario nadie");
+        verify(usuarioRepository).findUserEntityByUsername("nadie");
+    }
+
     // ==================== altaUsuario ====================
 
     @Test
