@@ -19,7 +19,7 @@
 
 Maestro Cervecero es una aplicación monolítica (Spring Boot, MVC y Thymeleaf) que reemplaza las planillas de una cervecería artesanal por un único sistema. Permite planificar y ejecutar lotes de producción, controlar el stock de insumos, administrar el equipamiento y los barriles, y consultar estadísticas.
 
-Es un trabajo final académico, desarrollado con una metodología basada en el Proceso Unificado.
+Fue desarrollado con una metodología basada en el Proceso Unificado.
 
 Cada usuario tiene uno de seis roles, con permisos definidos en código:
 
@@ -159,4 +159,4 @@ El proyecto sigue un enfoque basado en el Proceso Unificado (carpeta `docs/Metod
 
 ## Autor
 
-Theisen Nahuel. Trabajo final, proyecto escolar.
+Theisen Nahuel
