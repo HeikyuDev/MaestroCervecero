@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** guarda de consistencia (JUnit 5 plano, clase `ConservarScrollTest`). Lee del sistema de archivos el layout, el sidebar, las pestañas y el script `conservar-scroll.js`.
 
-**Objetivo:** el sidebar no vuelve al inicio al navegar y, al cambiar de pestaña, la página conserva su posición (regla "Scroll conservado" de `docs/EstandaresUI.md`).
+**Objetivo:** el sidebar no vuelve al inicio al navegar y, al cambiar de pestaña, la página conserva su posición (regla "Scroll conservado" de `../../../../Tecnico/EstandaresUI.md`).
 
 ---
 

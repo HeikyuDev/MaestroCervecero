@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** guarda de consistencia (JUnit 5 plano, clase `ImporteConSimboloTest`). Lee las plantillas y el JS de `src/main/resources`.
 
-**Objetivo:** todo importe que se muestra lleva el símbolo "$" delante (regla "Importes" de `docs/EstandaresUI.md`).
+**Objetivo:** todo importe que se muestra lleva el símbolo "$" delante (regla "Importes" de `../../../../Tecnico/EstandaresUI.md`).
 
 ---
 
