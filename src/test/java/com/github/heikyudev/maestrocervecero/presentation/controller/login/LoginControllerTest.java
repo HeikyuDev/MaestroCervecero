@@ -116,4 +116,18 @@ class LoginControllerTest {
                 .andExpect(content().string(containsString("Cambió su nombre de usuario: inicie sesión nuevamente")))
                 .andExpect(content().string(not(containsString("Su sesión venció por inactividad"))));
     }
+
+    @Test
+    @DisplayName("CP-LGC-09: la pantalla de login ofrece el enlace para recuperar la contraseña y el botón del ojo en el campo de contraseña")
+    void login_ofreceRecuperarContrasenaYMostrarContrasena() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/recuperar-contrasena\"")))
+                .andExpect(content().string(containsString("¿Olvidó su contraseña?")))
+                .andExpect(content().string(containsString("data-alternar-contrasena=\"password\"")))
+                .andExpect(content().string(containsString("aria-label=\"Mostrar contraseña\"")))
+                .andExpect(content().string(containsString("src=\"/js/mostrar-contrasena.js\"")));
+
+        mockMvc.perform(get("/js/mostrar-contrasena.js")).andExpect(status().isOk());
+    }
 }

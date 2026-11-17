@@ -49,6 +49,9 @@ public class SecurityConfig {
                         // si no se genera un loop infinito (pide login para ver el login)
                         .requestMatchers("/login", "/error").permitAll()
 
+                        // El restablecimiento de la contraseña olvidada lo usa quien no puede iniciar sesión
+                        .requestMatchers("/recuperar-contrasena", "/restablecer-contrasena").permitAll()
+
                         // Todo lo demás exige estar autenticado
                         .anyRequest().authenticated()
                 )

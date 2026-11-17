@@ -415,6 +415,20 @@ unicidad «udx_usuarios_username»`). La misma lectura sirve para restricciones 
 únicos parciales o por expresión (`udx_...`). Por eso el driver `postgresql` se declara con alcance de compilación en
 el `../../pom.xml`.
 
+### Enlaces para restablecer la contraseña
+
+`V27__token_restablecimiento_contrasena.sql` crea la tabla de los enlaces de un solo uso que recibe por correo el usuario que olvidó su contraseña (`TokenRestablecimientoContrasenaEntity`):
+
+| Tabla y columna | Contenido |
+|---|---|
+| `token_restablecimiento_contrasena.usuario_id` | Usuario cuya contraseña se restablece (`fk_token_restablecimiento_contrasena_usuario_id`) |
+| `token_restablecimiento_contrasena.token_hash` | Hash SHA-256 del token, en hexadecimal (`varchar(64)`, único por `uk_token_restablecimiento_contrasena_token_hash`). El token en sí viaja solo en el enlace del correo y nunca se guarda |
+| `token_restablecimiento_contrasena.fecha_expiracion` | Momento a partir del cual el enlace deja de servir (30 minutos después de enviarlo). Al enviar un enlace nuevo o restablecer la contraseña, los enlaces sin usar del usuario pasan a vencer en ese momento |
+| `token_restablecimiento_contrasena.fecha_uso` | Momento en que se restableció la contraseña con el enlace; `NULL` mientras no se usó |
+| `token_restablecimiento_contrasena.created_date` | Momento en que se envió el enlace. El índice `idx_token_restablecimiento_contrasena_usuario_id_created_date` acelera saber si al usuario se le envió un enlace en los últimos 2 minutos, en cuyo caso no se le envía otro |
+
+La restricción `ck_audit_log_accion` admite además `SOLICITUD_RESTABLECIMIENTO_CONTRASENA` y `RESTABLECIMIENTO_CONTRASENA`, que la bitácora registra con el concepto `SESION`.
+
 ## Auditoría y transacciones
 
 `AuditAspect` registra la bitácora solo después de que la operación se confirma:
