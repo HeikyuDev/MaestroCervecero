@@ -831,7 +831,7 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString("data-motivo-nombre=\"Orden de compra #9\"")))
                 .andExpect(content().string(matchesPattern("(?s).*<dialog id=\"dialogo-finalizar\".*name=\"_csrf\".*</dialog>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<dialog id=\"dialogo-anular\".*name=\"_csrf\".*</dialog>.*")))
-                .andExpect(content().string(containsString("no se podrá reabrir")))
+                .andExpect(content().string(containsString("Esta acción no se puede deshacer: la orden no se podrá reabrir ni se podrán anular sus ingresos de insumo")))
                 .andExpect(content().string(containsString("Solo procede si ya tiene un ingreso de insumo registrado")))
                 .andExpect(content().string(containsString("Requiere que no tenga ingresos de insumo registrados")))
                 .andExpect(content().string(containsString("El motivo admite hasta 255 caracteres")))

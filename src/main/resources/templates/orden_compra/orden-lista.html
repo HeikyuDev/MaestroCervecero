@@ -124,7 +124,7 @@
 
     <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar orden de compra',
-                'Se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado.',
+                'Se cierra de forma manual y queda registrado el motivo. Esta acción no se puede deshacer: la orden no se podrá reabrir ni se podrán anular sus ingresos de insumo. Solo procede si ya tiene un ingreso de insumo registrado.',
                 'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
                 'El proveedor no puede entregar el resto de los ítems')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular orden de compra',
