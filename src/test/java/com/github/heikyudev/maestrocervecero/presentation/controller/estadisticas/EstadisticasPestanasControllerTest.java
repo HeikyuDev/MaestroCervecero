@@ -66,10 +66,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Las pestañas de producción y de compras de la pantalla "Estadísticas": permisos, pestaña por defecto, criterios propios
  * de cada una y reporte impreso. Todas se arman con la misma pantalla y la misma plantilla del PDF. Se habilita la pestaña
- * "Tiempos" (deshabilitada por defecto) para verificar su reporte.
+ * "Tiempos" y "Recepción" (deshabilitadas por defecto) para verificar sus reportes.
  */
 @WebMvcTest(EstadisticasController.class)
-@TestPropertySource(properties = "estadisticas.tiempos.habilitada=true")
+@TestPropertySource(properties = {"estadisticas.tiempos.habilitada=true", "estadisticas.recepcion.habilitada=true"})
 @Import({SecurityConfig.class, ControllerAdvices.class, ReporteLotes.class, ReporteCostos.class, ReporteTiempos.class, ReporteInsumos.class,
         ReporteEquipamiento.class, ReporteCompras.class, ReporteProveedores.class, ReportePrecios.class, ReporteRecepcion.class,
         BuscadoresEstadisticasController.class})

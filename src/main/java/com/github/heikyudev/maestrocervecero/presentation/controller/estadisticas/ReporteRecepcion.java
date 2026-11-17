@@ -11,12 +11,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * Pestaña "Recepción" de las estadísticas de compras. Criterios propios: el proveedor (selector con buscador) y el tipo de ingreso (lista simple).
+ * <p>
+ * Solo se registra con {@code estadisticas.recepcion.habilitada=true} (en {@code application.properties} está en {@code false}): sin
+ * este reporte la pantalla no muestra la pestaña y su dirección, incluido el PDF, cae en la primera pestaña del usuario.
  */
 @Component
+@ConditionalOnProperty(name = "estadisticas.recepcion.habilitada", havingValue = "true")
 @RequiredArgsConstructor
 public class ReporteRecepcion implements ReporteDePestana {
 

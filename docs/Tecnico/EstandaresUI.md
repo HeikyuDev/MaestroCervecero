@@ -187,7 +187,7 @@ En todos los formularios y los detalles de solo lectura los datos se agrupan por
 
 Todas las estadísticas viven en una sola pantalla, "Estadísticas" (`/estadisticas`), con una pestaña por reporte. Todo reporte tiene la misma estructura, la muestra la misma plantilla en pantalla y la misma plantilla en PDF: agregar un reporte no agrega plantillas.
 
-**Menú y permisos.** Una sola entrada "Estadísticas" (`bi-bar-chart`, clave activa `estadisticas`) en la sección "Reportes", debajo de Administración, visible con `ESTADISTICA_PRODUCCION_CONSULTAR` o `ESTADISTICA_COMPRAS_CONSULTAR`. Cada pestaña declara su permiso y solo la ve quien lo tiene; sin pestaña indicada se muestra la primera que el usuario puede ver. La pantalla y el PDF llevan el mismo `@PreAuthorize` con los dos permisos.
+**Menú y permisos.** Una sola entrada "Estadísticas" (`bi-bar-chart`, clave activa `estadisticas`) en la sección "Reportes", debajo de Administración, visible con `ESTADISTICA_PRODUCCION_CONSULTAR` o `ESTADISTICA_COMPRAS_CONSULTAR`. Cada pestaña declara su permiso y solo la ve quien lo tiene (las pestañas Tiempos y Recepción, además, solo con `estadisticas.tiempos.habilitada=true` y `estadisticas.recepcion.habilitada=true`: su `ReporteDePestana` lleva `@ConditionalOnProperty` y sin él la clave cae en la primera pestaña del usuario); sin pestaña indicada se muestra la primera que el usuario puede ver. La pantalla y el PDF llevan el mismo `@PreAuthorize` con los dos permisos.
 
 **Estructura única** (`ReporteEstadisticoResponseDTO`, en `service/response_dto/estadisticas`):
 

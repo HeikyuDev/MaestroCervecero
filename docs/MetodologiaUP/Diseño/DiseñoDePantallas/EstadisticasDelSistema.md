@@ -7,7 +7,7 @@ Este documento describe las estadísticas que ofrece el sistema para apoyar las 
 - Se encuentran en la opción **Estadísticas** del menú lateral, dentro de la sección **Reportes**. Cada estadística es una pestaña.
 - Cada rol ve únicamente las pestañas que le corresponden:
   - **Gerente de Producción:** Lotes, Costos, Insumos y Equipamiento (la pestaña Tiempos se ofrece solo con la propiedad `estadisticas.tiempos.habilitada=true`).
-  - **Gerente de Compras:** Compras, Proveedores, Precios y Recepción.
+  - **Gerente de Compras:** Compras, Proveedores y Precios (la pestaña Recepción se ofrece solo con la propiedad `estadisticas.recepcion.habilitada=true`).
 - Todas se consultan para un período **Desde – Hasta** (obligatorio, hasta 366 días) y admiten hasta dos criterios de filtro adicionales.
 - Todas muestran lo mismo, en el mismo orden: hasta cuatro indicadores, un gráfico y una tabla de detalle (Costos muestra una tabla por receta, una debajo de la otra).
 - Debajo del período, cada una aclara con qué fecha decide qué registros entran: por ejemplo, los lotes por su inicio estimado, los costos por el fin del envasado o las órdenes de compra por su fecha de emisión.
@@ -96,7 +96,7 @@ Se ofrece solo con la propiedad `estadisticas.tiempos.habilitada=true`.
 
 **Importancia:** Una entrega tardía o incompleta puede frenar la producción. Esta estadística respalda la elección del proveedor y la negociación de plazos.
 
-**Explicación sencilla:** Califica a cada proveedor: qué porcentaje de sus entregas llegó a tiempo, cuántos días tarda en promedio y qué parte de lo pedido entregó realmente. Cuanto mejores esos números, más confiable es el proveedor. Fecha considerada: órdenes de compra no anuladas emitidas dentro del período.
+**Explicación sencilla:** Califica a los proveedores por sus entregas: qué porcentaje de las órdenes completas llegó a tiempo y qué porcentaje llegó fuera de plazo (los dos suman el total de las órdenes completas). La tabla agrega, por proveedor, cuántos días tarda en promedio y qué parte de lo pedido entregó realmente. Cuanto mejores esos números, más confiable es el proveedor. Fecha considerada: órdenes de compra no anuladas emitidas dentro del período; los porcentajes de entrega cuentan solo las órdenes con todo lo pedido recibido (no las pendientes, las recibidas en parte ni las cerradas a mano sin todo recibido).
 
 ## 8. Precios
 
@@ -106,9 +106,11 @@ Se ofrece solo con la propiedad `estadisticas.tiempos.habilitada=true`.
 
 **Importancia:** Anticipa el impacto de los aumentos en el costo de producción y ayuda a elegir cuándo y a quién comprar. Es la contraparte de la estadística de Costos.
 
-**Explicación sencilla:** Compara el precio por unidad (por ejemplo, por kilo) de cada insumo al principio y al final del período, para saber cuáles subieron o bajaron y cuánto. Como cada proveedor vende en presentaciones distintas, todos los precios se llevan a la misma unidad para que sean comparables. Fecha considerada: ítems de órdenes de compra no anuladas emitidas dentro del período.
+**Explicación sencilla:** Compara el precio por unidad (por ejemplo, por kilo) de cada insumo al principio y al final del período, para saber cuáles subieron o bajaron y cuánto. Las tarjetas cuentan cuántos insumos se compraron y cuántos subieron y cuántos bajaron de precio. Como cada proveedor vende en presentaciones distintas, todos los precios se llevan a la misma unidad para que sean comparables. Fecha considerada: ítems de órdenes de compra no anuladas emitidas dentro del período.
 
 ## 9. Recepción
+
+Se ofrece solo con la propiedad `estadisticas.recepcion.habilitada=true`.
 
 **Pregunta que resuelve:** ¿Qué se recibió en el período y qué falta recibir?
 

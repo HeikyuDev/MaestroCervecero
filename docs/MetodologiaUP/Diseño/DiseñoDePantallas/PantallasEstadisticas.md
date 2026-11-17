@@ -10,9 +10,9 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página
 | --- | --- | --- | --- | --- |
 | Entrar a "Estadísticas" | `ESTADISTICA_PRODUCCION_CONSULTAR` o `ESTADISTICA_COMPRAS_CONSULTAR` | Sí | Sí | No |
 | Ver las pestañas de producción y su PDF (Lotes, Costos, Insumos y Equipamiento) | `ESTADISTICA_PRODUCCION_CONSULTAR` | Sí | No | No |
-| Ver las pestañas de compras y su PDF (Compras, Proveedores, Precios y Recepción) | `ESTADISTICA_COMPRAS_CONSULTAR` | No | Sí | No |
+| Ver las pestañas de compras y su PDF (Compras, Proveedores y Precios) | `ESTADISTICA_COMPRAS_CONSULTAR` | No | Sí | No |
 | "Abrir" un lote desde la tabla de Lotes | `LOTE_CONSULTAR` | Sí | No | No |
-| "Ver" una orden de compra desde la tabla de Recepción | `ORDEN_COMPRA_CONSULTAR` | No | Sí | No |
+| "Ver" una orden de compra desde la tabla de Recepción (solo con la pestaña habilitada) | `ORDEN_COMPRA_CONSULTAR` | No | Sí | No |
 
 - La ruta de la pantalla y la del PDF llevan `@PreAuthorize("hasAnyAuthority('ESTADISTICA_PRODUCCION_CONSULTAR', 'ESTADISTICA_COMPRAS_CONSULTAR')")`; dentro, cada pestaña se muestra solo con su propio permiso. Un acceso sin permiso no devuelve un 403: el `ControllerAdvices` redirige con la alerta `danger` "No tiene permisos para realizar esta acción".
 - El menú tiene una sola entrada, "Estadísticas" (`bi-bar-chart`), en la sección "Reportes", debajo de Administración.
@@ -35,11 +35,13 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página
 | Compras | `compras` | `bi-cart3` | `ESTADISTICA_COMPRAS_CONSULTAR` | Cuánto se compró y a qué proveedores |
 | Proveedores | `proveedores` | `bi-truck` | `ESTADISTICA_COMPRAS_CONSULTAR` | Qué proveedores entregan lo pedido y en fecha |
 | Precios | `precios` | `bi-graph-up-arrow` | `ESTADISTICA_COMPRAS_CONSULTAR` | Cómo variaron los precios de los insumos comprados |
-| Recepción | `recepcion` | `bi-box-arrow-in-down` | `ESTADISTICA_COMPRAS_CONSULTAR` | Qué se recibió en el período y qué falta recibir |
+| Recepción (solo con la propiedad habilitada, ver abajo) | `recepcion` | `bi-box-arrow-in-down` | `ESTADISTICA_COMPRAS_CONSULTAR` | Qué se recibió en el período y qué falta recibir |
 
 Sin `pestana`, o con una que el usuario no puede ver o que no existe, se muestra la primera pestaña que el usuario puede ver. Cada pestaña es la misma URL con otro `?pestana=`.
 
 La pestaña "Tiempos" se ofrece solo con `estadisticas.tiempos.habilitada=true` (en `application.properties` está en `false`): sin la propiedad no aparece entre las pestañas y su clave, en la pantalla y en el PDF, se trata como una clave inexistente. Las demás pestañas no dependen de ella.
+
+La pestaña "Recepción" se ofrece solo con `estadisticas.recepcion.habilitada=true` (en `application.properties` está en `false`) y se comporta igual que Tiempos: sin la propiedad no aparece entre las pestañas y su clave, en la pantalla y en el PDF, se trata como una clave inexistente, por lo que el gerente de compras ve tres pestañas (Compras, Proveedores y Precios). El reporte, su Service y sus tests se conservan.
 
 ## 3. Pantalla
 
@@ -48,7 +50,7 @@ De arriba abajo: el título "Estadísticas", las pestañas (componente `fragment
 1. La línea con la pregunta que responde la pestaña.
 2. Los filtros, con la grilla de las listas y cada campo a su ancho normal: "Desde" y "Hasta" (obligatorios, asterisco rojo; sin parámetros, del primer día del mes en curso a hoy), los criterios propios de la pestaña (como máximo dos). Debajo, en su propia fila y a la derecha, "Limpiar" (vuelve a la pestaña sin criterios) y "Filtrar", como en el resto de las listas.
 3. El encabezado de resultados: "Resultados del dd/MM/yyyy al dd/MM/yyyy" a la izquierda, con una línea debajo que dice qué fecha decide qué registros entran en el período (por ejemplo, "Lotes con inicio estimado dentro del período"), y, a la derecha, el botón secundario "Exportar PDF" (abre el PDF en otra pestaña con los mismos criterios).
-4. Hasta cuatro indicadores, todos en una fila que ocupa todo el ancho: la grilla toma tantas columnas como tarjetas (2, 3 o 4) y, con menos de cuatro, las tarjetas son más amplias y su valor más grande. Tarjetas por pestaña: Lotes 4, Costos 3, Tiempos 4, Insumos 4, Equipamiento 3, Compras 4, Proveedores 4, Precios 4 y Recepción 4.
+4. Hasta cuatro indicadores, todos en una fila que ocupa todo el ancho: la grilla toma tantas columnas como tarjetas (2, 3 o 4) y, con menos de cuatro, las tarjetas son más amplias y su valor más grande. Tarjetas por pestaña: Lotes 4, Costos 3, Tiempos 4, Insumos 4, Equipamiento 3, Compras 4, Proveedores 2, Precios 3 y Recepción 4 (esta última, solo con la pestaña habilitada).
 5. Debajo, a todo el ancho, un gráfico de barras horizontales compacto, con el valor escrito a continuación de cada barra.
 6. Una tabla paginada de hasta siete columnas, con fila de totales cuando corresponde. Costos muestra una tabla por receta, con título, una debajo de la otra y sin paginación.
 
@@ -192,7 +194,7 @@ Se ofrece solo con `estadisticas.tiempos.habilitada=true`.
 
 ## 11. Pestaña "Proveedores"
 
-**Universo.** Los ítems de las órdenes no anuladas emitidas en el período, agrupados por orden y por proveedor. Con un tipo de insumo, solo cuentan esos ítems. Fecha considerada, escrita debajo del período: "Órdenes de compra no anuladas emitidas dentro del período".
+**Universo.** Los ítems de las órdenes no anuladas emitidas en el período, agrupados por orden y por proveedor. Con un tipo de insumo, solo cuentan esos ítems. Fecha considerada, escrita debajo del período: "Órdenes de compra no anuladas emitidas dentro del período". Los porcentajes de entrega (las dos tarjetas, la columna "A tiempo" y el gráfico) consideran solo órdenes completas: las pendientes, las recibidas en parte y las cerradas a mano sin todo lo pedido recibido no se cuentan.
 
 **Criterios propios.** Proveedor (selector) y Tipo de insumo (lista).
 
@@ -201,19 +203,19 @@ Se ofrece solo con `estadisticas.tiempos.habilitada=true`.
 - Una orden está **completa** si de cada ítem se recibió al menos lo pedido (los ingresos registrados, convertidos a presentaciones) y tiene al menos un ingreso.
 - Una orden llegó **a tiempo** si está completa y la fecha de su último ingreso no es posterior a su fecha de entrega estimada.
 - El **plazo de entrega** de una orden completa son los días desde su fecha de emisión hasta la fecha de su último ingreso.
-- Lo **recibido sobre lo pedido** se mide en presentaciones, sin pasar de lo pedido en cada ítem, igual que el avance del panel del gerente de compras.
-- Un **cierre manual** es una orden finalizada por el gerente con un motivo, sin esperar a recibir todo.
+- Una orden llegó **fuera de plazo** si está completa y no llegó a tiempo: la fecha de su último ingreso es posterior a su fecha de entrega estimada (o no tiene fecha estimada). Las entregas a tiempo y fuera de plazo suman las órdenes completas.
+- Lo **recibido sobre lo pedido** (columna "Recibido" de la tabla) se mide en presentaciones, sin pasar de lo pedido en cada ítem, igual que el avance del panel del gerente de compras.
 
 | Indicador | Valor |
 | --- | --- |
 | Entregas a tiempo | Porcentaje de las órdenes completas que llegaron a tiempo; "-" sin órdenes completas. Tooltip |
-| Plazo promedio de entrega | Promedio del plazo de las órdenes completas, en días; "-" sin órdenes completas. Tooltip |
-| Recibido sobre lo pedido | Porcentaje en presentaciones de las órdenes del universo; "-" sin pedido. Tooltip |
-| Cierres manuales | Cantidad de órdenes del universo cerradas a mano. Tooltip |
+| Entregas fuera de plazo | Porcentaje de las órdenes completas que no llegaron a tiempo; "-" sin órdenes completas (aclaración "N de M órdenes completas" o "Sin órdenes completas"). Tooltip |
+
+Son dos tarjetas, por lo que la grilla de indicadores usa dos columnas con tarjetas más amplias.
 
 **Gráfico.** Porcentaje de entregas a tiempo por proveedor (los ocho con más órdenes completas; sin "Otros").
 
-**Tabla** (ranking por monto): Proveedor, Órdenes, Monto, A tiempo (%), Plazo promedio (días) y Recibido (%). Totales del período.
+**Tabla** (ranking por monto): Proveedor, Órdenes, Monto, A tiempo (%), Plazo promedio (días) y Recibido (%); el plazo promedio y lo recibido se muestran solo por proveedor. Totales del período.
 
 ## 12. Pestaña "Precios"
 
@@ -227,8 +229,7 @@ Se ofrece solo con `estadisticas.tiempos.habilitada=true`.
 | --- | --- |
 | Insumos comprados | Cantidad de insumos del universo |
 | Insumos con suba | Cantidad con variación positiva (aclaración: de cuántos con más de una compra). Tooltip |
-| Mayor suba | Su porcentaje con signo y el insumo en la aclaración; "-" si ninguno subió |
-| Mayor baja | Su porcentaje con signo y el insumo en la aclaración; "-" si ninguno bajó |
+| Insumos con baja | Cantidad con variación negativa (aclaración: de cuántos con más de una compra). Tooltip |
 
 **Gráfico.** Variación porcentual por insumo (los ocho de mayor variación absoluta). Las subas usan el ámbar y las bajas el azul, con el signo escrito en cada barra.
 

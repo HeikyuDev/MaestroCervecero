@@ -54,7 +54,7 @@ import java.util.Map;
 public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServicio {
 
     static final String AYUDA_A_TIEMPO = "Porcentaje de las órdenes completas (se recibió todo lo pedido de cada ítem) cuyo último ingreso es de una fecha no posterior a su fecha de entrega estimada";
-    static final String AYUDA_PLAZO = "Días desde la emisión de la orden hasta su último ingreso, en promedio de las órdenes completas";
+    static final String AYUDA_FUERA_DE_PLAZO = "Porcentaje de las órdenes completas (se recibió todo lo pedido de cada ítem) cuyo último ingreso es de una fecha posterior a su fecha de entrega estimada; junto con las entregas a tiempo suma el total de las órdenes completas";
     static final String SIN_ORDEN = "Sin orden de compra";
     private static final Map<TipoIngreso, String> ETIQUETAS_TIPO_INGRESO = Map.of(TipoIngreso.COMPRA, "Compra", TipoIngreso.DIRECTO, "Directo");
 
@@ -162,8 +162,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
     }
 
     /** El desempeño de una orden de compra en el reporte "Proveedores". */
-    private record Entrega(BigDecimal monto, double pedidas, double recibidas, boolean completa, boolean aTiempo, Long plazo,
-                           boolean cierreManual) {
+    private record Entrega(BigDecimal monto, double pedidas, double recibidas, boolean completa, boolean aTiempo, Long plazo) {
     }
 
     /** El desempeño acumulado de un proveedor. */
@@ -203,6 +202,14 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
             return completas > 0 ? SoporteReportes.redondear((double) plazoTotal / completas) : null;
         }
 
+        private long fueraDePlazo() {
+            return completas - aTiempo;
+        }
+
+        private Double porcentajeFueraDePlazo() {
+            return SoporteReportes.porcentaje(fueraDePlazo(), completas);
+        }
+
         private Double porcentajeRecibido() {
             return SoporteReportes.porcentaje(recibidas, pedidas);
         }
@@ -229,15 +236,11 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         items.forEach(i -> itemsPorOrden.computeIfAbsent(i.idOrden(), k -> new ArrayList<>()).add(i));
         Map<Long, Desempeno> porProveedor = new LinkedHashMap<>();
         Desempeno total = new Desempeno(SoporteReportes.TOTALES);
-        long cierresManuales = 0;
         for (List<Item> deLaOrden : itemsPorOrden.values()) {
             Item primero = deLaOrden.get(0);
             Entrega entrega = entregaDe(deLaOrden, recibidoPorItem, ultimoIngresoPorItem);
             porProveedor.computeIfAbsent(primero.idProveedor(), k -> new Desempeno(primero.proveedor())).sumar(entrega);
             total.sumar(entrega);
-            if (entrega.cierreManual()) {
-                cierresManuales++;
-            }
         }
         List<Desempeno> ranking = new ArrayList<>(porProveedor.values());
         ranking.sort(Comparator.comparing((Desempeno d) -> d.monto).reversed().thenComparing(d -> d.proveedor, String.CASE_INSENSITIVE_ORDER));
@@ -261,13 +264,9 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
                         new IndicadorResponseDTO("entregas-a-tiempo", "Entregas a tiempo", SoporteReportes.textoPorcentaje(total.porcentajeATiempo()),
                                 total.completas == 0 ? "Sin órdenes completas" : total.aTiempo + " de " + total.completas + (total.completas == 1 ? " orden completa" : " órdenes completas"),
                                 AYUDA_A_TIEMPO),
-                        new IndicadorResponseDTO("plazo-promedio", "Plazo promedio de entrega",
-                                total.plazoPromedio() == null ? CeldaReporteResponseDTO.SIN_DATO : FormatoCantidad.conUnidad(total.plazoPromedio(), "días"),
-                                "De las órdenes completas", AYUDA_PLAZO),
-                        new IndicadorResponseDTO("recibido-sobre-pedido", "Recibido sobre lo pedido", SoporteReportes.textoPorcentaje(total.porcentajeRecibido()),
-                                "En presentaciones", "Presentaciones recibidas (sin pasar de lo pedido en cada ítem) sobre las pedidas, de las órdenes no anuladas del período"),
-                        new IndicadorResponseDTO("cierres-manuales", "Cierres manuales", FormatoCantidad.formatear(cierresManuales),
-                                "Órdenes finalizadas a mano", "Órdenes finalizadas por el gerente de compras con un motivo, sin esperar a recibir todo lo pedido")))
+                        new IndicadorResponseDTO("entregas-fuera-de-plazo", "Entregas fuera de plazo", SoporteReportes.textoPorcentaje(total.porcentajeFueraDePlazo()),
+                                total.completas == 0 ? "Sin órdenes completas" : total.fueraDePlazo() + " de " + total.completas + (total.completas == 1 ? " orden completa" : " órdenes completas"),
+                                AYUDA_FUERA_DE_PLAZO)))
                 .grafico(new GraficoReporteResponseDTO("Entregas a tiempo por proveedor", SoporteReportes.principales(datos, null), "%"))
                 .tabla(new TablaReporteResponseDTO(List.of(
                         ColumnaReporteResponseDTO.de("Proveedor", TipoColumna.TEXTO),
@@ -318,8 +317,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         completa &= ultimoIngreso != null;
         boolean aTiempo = completa && orden.entregaEstimada() != null && !ultimoIngreso.isAfter(orden.entregaEstimada());
         Long plazo = completa ? Math.max(0L, ChronoUnit.DAYS.between(orden.emision().toLocalDate(), ultimoIngreso)) : null;
-        boolean cierreManual = orden.estado() == EstadoSolicitud.FINALIZADA && orden.motivoFinalizacion() != null && !orden.motivoFinalizacion().isBlank();
-        return new Entrega(monto, pedidas, recibidas, completa, aTiempo, plazo, cierreManual);
+        return new Entrega(monto, pedidas, recibidas, completa, aTiempo, plazo);
     }
 
     // ==================== Precios ====================
@@ -363,8 +361,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
 
         List<PrecioInsumo> conVariacion = precios.stream().filter(p -> p.variacion() != null).toList();
         long conSuba = conVariacion.stream().filter(p -> p.variacion() > 0).count();
-        PrecioInsumo mayorSuba = conVariacion.stream().filter(p -> p.variacion() > 0).max(Comparator.comparingDouble(PrecioInsumo::variacion)).orElse(null);
-        PrecioInsumo mayorBaja = conVariacion.stream().filter(p -> p.variacion() < 0).min(Comparator.comparingDouble(PrecioInsumo::variacion)).orElse(null);
+        long conBaja = conVariacion.stream().filter(p -> p.variacion() < 0).count();
 
         List<DatoGraficoResponseDTO> datos = conVariacion.stream()
                 .sorted(Comparator.comparingDouble((PrecioInsumo p) -> Math.abs(p.variacion())).reversed().thenComparing(PrecioInsumo::insumo))
@@ -393,10 +390,9 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
                         new IndicadorResponseDTO("insumos-con-suba", "Insumos con suba", FormatoCantidad.formatear(conSuba),
                                 "De " + conVariacion.size() + " con más de una compra",
                                 "Insumos cuyo último precio del período es mayor que el primero, por fecha de emisión de la orden"),
-                        new IndicadorResponseDTO("mayor-suba", "Mayor suba", mayorSuba == null ? CeldaReporteResponseDTO.SIN_DATO : SoporteReportes.textoVariacion(mayorSuba.variacion()),
-                                mayorSuba == null ? null : mayorSuba.insumo(), null),
-                        new IndicadorResponseDTO("mayor-baja", "Mayor baja", mayorBaja == null ? CeldaReporteResponseDTO.SIN_DATO : SoporteReportes.textoVariacion(mayorBaja.variacion()),
-                                mayorBaja == null ? null : mayorBaja.insumo(), null)))
+                        new IndicadorResponseDTO("insumos-con-baja", "Insumos con baja", FormatoCantidad.formatear(conBaja),
+                                "De " + conVariacion.size() + " con más de una compra",
+                                "Insumos cuyo último precio del período es menor que el primero, por fecha de emisión de la orden")))
                 .grafico(GraficoReporteResponseDTO.variacion("Variación del precio por insumo", SoporteReportes.principales(datos, null)))
                 .tabla(new TablaReporteResponseDTO(List.of(
                         ColumnaReporteResponseDTO.de("Insumo", TipoColumna.TEXTO),

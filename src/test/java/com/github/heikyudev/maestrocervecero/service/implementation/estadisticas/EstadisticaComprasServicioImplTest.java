@@ -154,7 +154,7 @@ class EstadisticaComprasServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ESC-05: Proveedores calcula las entregas a tiempo, el plazo promedio, lo recibido sobre lo pedido y los cierres manuales por orden y por proveedor")
+    @DisplayName("CP-ESC-05: Proveedores calcula las entregas a tiempo y fuera de plazo (complementarias sobre las órdenes completas) y, por proveedor, el plazo promedio y lo recibido sobre lo pedido")
     void proveedores_indicadoresYTabla() {
         when(repository.buscarItemsDeOrdenesNoAnuladas(INICIO, FIN, null, null)).thenReturn(List.of(
                 // Orden 1 de Maltería: pidió 10 presentaciones, llegaron 250 kg (10) el 8/11, estimada el 10/11: a tiempo, plazo 7 días
@@ -171,10 +171,12 @@ class EstadisticaComprasServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeProveedores(new CriteriosReporteProveedores(DESDE, HASTA, null, null, null), PAGINA);
         assertThat(reporte.getCriterioDeFecha()).isEqualTo("Órdenes de compra no anuladas emitidas dentro del período");
 
-        assertThat(valores(reporte)).containsExactly("50 %", "6,5 días", "66,67 %", "1");
+        assertThat(valores(reporte)).containsExactly("50 %", "50 %");
+        assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre).containsExactly("Entregas a tiempo", "Entregas fuera de plazo");
+        assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("1 de 2 órdenes completas");
+        assertThat(reporte.getIndicadores().get(1).getAyuda()).isEqualTo(EstadisticaComprasServicioImpl.AYUDA_FUERA_DE_PLAZO);
         assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("1 de 2 órdenes completas");
         assertThat(reporte.getIndicadores().get(0).getAyuda()).isEqualTo(EstadisticaComprasServicioImpl.AYUDA_A_TIEMPO);
-        assertThat(reporte.getIndicadores().get(1).getAyuda()).isEqualTo(EstadisticaComprasServicioImpl.AYUDA_PLAZO);
         assertThat(reporte.getTabla().getColumnas()).hasSize(6);
         assertThat(reporte.getTabla().getFilas().getContent()).extracting(f -> textos(f.getCeldas()))
                 .containsExactly(
@@ -193,7 +195,8 @@ class EstadisticaComprasServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeProveedores(
                 new CriteriosReporteProveedores(DESDE, HASTA, 5L, "Maltería", TipoInsumo.MALTA), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly("-", "-", "-", "0");
+        assertThat(valores(reporte)).containsExactly("-", "-");
+        assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("Sin órdenes completas");
         assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("Sin órdenes completas");
         assertThat(reporte.getTabla().getFilas().getContent()).isEmpty();
         assertThat(reporte.getTabla().getTotales()).isNull();
@@ -209,7 +212,7 @@ class EstadisticaComprasServicioImplTest {
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeProveedores(new CriteriosReporteProveedores(DESDE, HASTA, null, null, null), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly("-", "-", "0 %", "0");
+        assertThat(valores(reporte)).containsExactly("-", "-");
     }
 
     @Test
@@ -228,10 +231,11 @@ class EstadisticaComprasServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDePrecios(new CriteriosReportePrecios(DESDE, HASTA, null, null, null), PAGINA);
         assertThat(reporte.getCriterioDeFecha()).isEqualTo("Ítems de órdenes de compra no anuladas emitidas dentro del período");
 
-        assertThat(valores(reporte)).containsExactly("3", "1", "+20 %", "-20 %");
+        assertThat(valores(reporte)).containsExactly("3", "1", "1");
         assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("De 2 con más de una compra");
-        assertThat(reporte.getIndicadores().get(2).getAclaracion()).isEqualTo("Pilsen");
-        assertThat(reporte.getIndicadores().get(3).getAclaracion()).isEqualTo("Cascade");
+        assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre).containsExactly("Insumos comprados", "Insumos con suba", "Insumos con baja");
+        assertThat(reporte.getIndicadores().get(2).getAclaracion()).isEqualTo("De 2 con más de una compra");
+        assertThat(reporte.getIndicadores().get(2).getAyuda()).isNotBlank();
         // Pilsen: 10 por kg × 250 kg y 12 por kg × 750 kg: promedio ponderado (2.500 + 9.000) / 1.000 = 11,5
         assertThat(reporte.getTabla().getFilas().getContent()).extracting(f -> textos(f.getCeldas()))
                 .containsExactly(
@@ -254,7 +258,7 @@ class EstadisticaComprasServicioImplTest {
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDePrecios(new CriteriosReportePrecios(DESDE, HASTA, null, null, null), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly("1", "1", "+8,33 %", "-");
+        assertThat(valores(reporte)).containsExactly("1", "1", "0");
         assertThat(reporte.getTabla().getFilas().getContent().get(0).getCeldas().get(5).getTexto()).isEqualTo("+8,33 %");
         assertThat(reporte.getGrafico().getDatos()).extracting(DatoGraficoResponseDTO::getValor).containsExactly(8.33);
     }
@@ -272,7 +276,7 @@ class EstadisticaComprasServicioImplTest {
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDePrecios(new CriteriosReportePrecios(DESDE, HASTA, TipoInsumo.MALTA, 5L, "Maltería"), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly("0", "0", "-", "-");
+        assertThat(valores(reporte)).containsExactly("0", "0", "0");
         assertThat(reporte.getTabla().getFilas().getContent()).isEmpty();
         assertThat(reporte.getTabla().getTotales()).isNull();
     }
