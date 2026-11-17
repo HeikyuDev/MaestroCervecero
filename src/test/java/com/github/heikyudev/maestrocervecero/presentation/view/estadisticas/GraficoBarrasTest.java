@@ -109,10 +109,10 @@ class GraficoBarrasTest {
     @DisplayName("CP-ESTG-07: una etiqueta larga se abrevia en el gráfico y conserva el texto completo")
     void etiquetaLarga() {
         GraficoBarras g = GraficoBarras.de("g", new GraficoReporteResponseDTO("T",
-                List.of(new DatoGraficoResponseDTO("Una etiqueta demasiado larga", 3)), null));
+                List.of(new DatoGraficoResponseDTO("Una etiqueta realmente demasiado larga", 3)), null));
 
         GraficoBarras.Barra barra = g.getBarras().get(0);
-        assertThat(barra.getEtiqueta()).isEqualTo("Una etiqueta demasiado larga");
+        assertThat(barra.getEtiqueta()).isEqualTo("Una etiqueta realmente demasiado larga");
         assertThat(barra.getEtiquetaCorta()).hasSizeLessThanOrEqualTo(GraficoBarras.LARGO_MAXIMO_ETIQUETA).endsWith("…");
         assertThat(GraficoBarras.abreviar("En ejecución")).isEqualTo("En ejecución");
     }

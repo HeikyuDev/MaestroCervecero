@@ -11,12 +11,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * Pestaña "Tiempos" de las estadísticas de producción. Criterios propios: la etapa (lista simple) y la receta (selector con buscador).
+ * <p>
+ * Solo se registra con {@code estadisticas.tiempos.habilitada=true} (en {@code application.properties} está en {@code false}): sin
+ * este reporte la pantalla no muestra la pestaña y su dirección, incluido el PDF, cae en la primera pestaña del usuario.
  */
 @Component
+@ConditionalOnProperty(name = "estadisticas.tiempos.habilitada", havingValue = "true")
 @RequiredArgsConstructor
 public class ReporteTiempos implements ReporteDePestana {
 

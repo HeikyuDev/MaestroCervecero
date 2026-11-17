@@ -35,7 +35,7 @@ public final class GraficoBarras {
     /** Largo mínimo visible, en porcentaje, de una barra con valor distinto de cero. */
     static final double PORCENTAJE_MINIMO = 1.0;
     /** Largo máximo de una etiqueta dentro del gráfico; las más largas se abrevian (la tabla muestra el texto completo). */
-    static final int LARGO_MAXIMO_ETIQUETA = 16;
+    static final int LARGO_MAXIMO_ETIQUETA = 28;
     /** Color de las barras: el ámbar de acento del sistema. */
     public static final String COLOR_BARRA = "#f59e0b";
     /** Color de las barras negativas de un gráfico de variaciones: el azul del sistema. */
