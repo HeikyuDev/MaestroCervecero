@@ -10,7 +10,7 @@ public interface ICierreSesionesServicio {
      * Hace vencer todas las sesiones activas del usuario indicado.
      * <p>
      * Postcondiciones: cada sesión del usuario queda vencida y su próximo pedido vuelve a la pantalla de inicio de
-     * sesión. Sin sesiones activas, no hace nada.
+     * sesión con el aviso de que la contraseña fue restablecida. Sin sesiones activas, no hace nada.
      * </p>
      *
      * @param username Nombre de usuario, tal como quedó registrado.

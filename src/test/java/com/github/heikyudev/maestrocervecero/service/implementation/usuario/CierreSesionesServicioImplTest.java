@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 
+import com.github.heikyudev.maestrocervecero.configuration.security.SesionesCerradasPorRestablecimiento;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,11 +29,14 @@ class CierreSesionesServicioImplTest {
     @Mock
     private SessionRegistry sessionRegistry;
 
+    @Mock
+    private SesionesCerradasPorRestablecimiento sesionesCerradasPorRestablecimiento;
+
     @InjectMocks
     private CierreSesionesServicioImpl cierreSesionesServicio;
 
     @Test
-    @DisplayName("CP-CSS-01: cerrarSesionesDe vence todas las sesiones del usuario indicado y ninguna de los demás usuarios")
+    @DisplayName("CP-CSS-01: cerrarSesionesDe vence y marca como cerradas por restablecimiento todas las sesiones del usuario indicado y ninguna de los demás usuarios")
     void cerrarSesionesDe_debeVencerSoloLasSesionesDelUsuario() {
         // === PREPARACION DE DATOS ===
         UserDetails jperez = usuario("jperez");
@@ -48,6 +52,8 @@ class CierreSesionesServicioImplTest {
         // === ASSERTS ===
         assertThat(sesion1.isExpired()).isTrue();
         assertThat(sesion2.isExpired()).isTrue();
+        verify(sesionesCerradasPorRestablecimiento).marcar("s1");
+        verify(sesionesCerradasPorRestablecimiento).marcar("s2");
         verify(sessionRegistry, never()).getAllSessions(otro, false);
     }
 
@@ -64,6 +70,7 @@ class CierreSesionesServicioImplTest {
 
         // === ASSERTS ===
         assertThat(sesion.isExpired()).isTrue();
+        verify(sesionesCerradasPorRestablecimiento).marcar("s1");
     }
 
     @Test
@@ -77,6 +84,7 @@ class CierreSesionesServicioImplTest {
 
         // === ASSERTS ===
         verify(sessionRegistry, never()).getAllSessions(any(), anyBoolean());
+        verifyNoInteractions(sesionesCerradasPorRestablecimiento);
     }
 
     @Test
@@ -86,7 +94,7 @@ class CierreSesionesServicioImplTest {
         cierreSesionesServicio.cerrarSesionesDe(null);
 
         // === ASSERTS ===
-        verifyNoInteractions(sessionRegistry);
+        verifyNoInteractions(sessionRegistry, sesionesCerradasPorRestablecimiento);
     }
 
     private static UserDetails usuario(String username) {

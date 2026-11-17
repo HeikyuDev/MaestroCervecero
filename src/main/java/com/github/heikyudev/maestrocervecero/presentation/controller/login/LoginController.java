@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * Renderiza la vista de login. Es pública (ver {@code SecurityConfig#securityFilterChain}),
  * y su único trabajo es traducir los parámetros de query que agrega Spring Security al
- * redirigir aquí (error/logout/timeout/expired) en atributos que {@code login.html} entiende.
+ * redirigir aquí (error/logout/timeout/expired/restablecida) en atributos que {@code login.html} entiende.
  */
 @Controller
 public class LoginController {
@@ -19,11 +19,12 @@ public class LoginController {
                             @RequestParam(value = "logout", required = false) String logout,
                             @RequestParam(value = "timeout", required = false) String timeout,
                             @RequestParam(value = "expired", required = false) String expired,
+                            @RequestParam(value = "restablecida", required = false) String restablecida,
                             @RequestParam(value = "redirect", required = false) String redirect,
                             Model model) {
         if (error != null) model.addAttribute("error", true);
         if (logout != null) model.addAttribute("logout", true);
-        // Los avisos solo salen de códigos fijos (timeout, expired) o de un aviso de otra pantalla enviado como atributo
+        // Los avisos solo salen de códigos fijos (timeout, expired, restablecida) o de un aviso de otra pantalla enviado como atributo
         // flash: la pantalla pública nunca muestra texto recibido por parámetro
         if (!model.containsAttribute("mensaje")) {
             if (timeout != null) {
@@ -31,6 +32,9 @@ public class LoginController {
                 model.addAttribute("tipo", "warning");
             } else if (expired != null) {
                 model.addAttribute("mensaje", "Su sesión se cerró porque se inició en otro dispositivo");
+                model.addAttribute("tipo", "warning");
+            } else if (restablecida != null) {
+                model.addAttribute("mensaje", "Su contraseña fue restablecida, inicie sesión nuevamente");
                 model.addAttribute("tipo", "warning");
             }
         }

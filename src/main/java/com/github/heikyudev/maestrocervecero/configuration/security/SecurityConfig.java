@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.configuration.security;
 
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,6 +18,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+
+import java.time.Duration;
 
 /**
  * Configuración central de seguridad del ERP.
@@ -39,7 +42,8 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry,
+                                                   SesionesCerradasPorRestablecimiento sesionesCerradasPorRestablecimiento) throws Exception {
         return http
                 // === AUTORIZACIÓN: quién puede entrar a qué URL ===
                 .authorizeHttpRequests(auth -> auth
@@ -100,7 +104,9 @@ public class SecurityConfig {
                         // ver server.servlet.session.timeout en application.properties.
                         .maximumSessions(1)                   // Un usuario, una sesión activa a la vez
                         .sessionRegistry(sessionRegistry)     // El mismo registro con el que se cierran las sesiones de un usuario
-                        .expiredUrl("/login?expired")         // A dónde va si su sesión fue "expulsada" por una nueva
+                        // A dónde va una sesión vencida: /login?restablecida si se cerró por un restablecimiento de
+                        // contraseña, /login?expired si fue "expulsada" por una nueva
+                        .expiredSessionStrategy(new EstrategiaSesionVencida(sesionesCerradasPorRestablecimiento))
                 )
                 .build();
     }
@@ -110,6 +116,14 @@ public class SecurityConfig {
     @Bean
     public SessionRegistry sessionRegistry() {
         return new SessionRegistryImpl();
+    }
+
+    // Sesiones cerradas por un restablecimiento de contraseña, para avisar el motivo al volver al inicio de sesión. Una
+    // marca dura lo mismo que una sesión inactiva
+    @Bean
+    public SesionesCerradasPorRestablecimiento sesionesCerradasPorRestablecimiento(
+            @Value("${server.servlet.session.timeout:30m}") Duration tiempoInactividadSesion) {
+        return new SesionesCerradasPorRestablecimiento(tiempoInactividadSesion);
     }
 
     // Sin este bean, Spring Security nunca se entera cuando una HttpSession muere de verdad

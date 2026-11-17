@@ -98,6 +98,18 @@ class LoginControllerTest {
     }
 
     @Test
+    @DisplayName("CP-LGC-10: con el parámetro restablecida (la sesión se cerró por un restablecimiento de contraseña) avisa que la contraseña fue restablecida")
+    void login_conRestablecidaAvisaQueLaContrasenaFueRestablecida() throws Exception {
+        mockMvc.perform(get("/login").param("restablecida", ""))
+                .andExpect(status().isOk())
+                .andExpect(view().name("login"))
+                .andExpect(model().attribute("mensaje", "Su contraseña fue restablecida, inicie sesión nuevamente"))
+                .andExpect(model().attribute("tipo", "warning"))
+                .andExpect(content().string(containsString("Su contraseña fue restablecida, inicie sesión nuevamente")))
+                .andExpect(content().string(not(containsString("Su sesión se cerró porque se inició en otro dispositivo"))));
+    }
+
+    @Test
     @DisplayName("CP-LGC-06: los parámetros mensaje y tipo de la URL se ignoran y nunca se muestran en la pantalla pública")
     void login_ignoraMensajeYTipoRecibidosPorParametro() throws Exception {
         mockMvc.perform(get("/login").param("mensaje", "Comuniquese al 0800-FALSO").param("tipo", "danger"))

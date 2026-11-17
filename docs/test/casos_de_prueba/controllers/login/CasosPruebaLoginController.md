@@ -8,7 +8,8 @@
 - `error`: credenciales incorrectas.
 - `logout`: cierre de sesión correcto.
 - `timeout`: la cookie de sesión ya no es válida (`invalidSessionUrl` de `SecurityConfig`).
-- `expired`: la sesión fue desplazada por un inicio de sesión posterior del mismo usuario (`maximumSessions(1)` con `expiredUrl` de `SecurityConfig`).
+- `expired`: la sesión fue desplazada por un inicio de sesión posterior del mismo usuario (`maximumSessions(1)` con `EstrategiaSesionVencida` de `SecurityConfig`).
+- `restablecida`: la sesión se cerró por un restablecimiento de la contraseña del usuario (`EstrategiaSesionVencida`).
 - `mensaje` y `tipo`: aviso explícito que muestra la pantalla tal cual.
 
 ---
@@ -26,3 +27,4 @@
 | **CP-LGC-07** | Aviso flash de otra pantalla | Parámetro `timeout` y atributos flash `mensaje = "Cambió su nombre de usuario: inicie sesión nuevamente"` y `tipo = info` | Un aviso enviado por otra pantalla prevalece sobre los avisos de sesión | La pantalla muestra "Cambió su nombre de usuario: inicie sesión nuevamente" y no muestra "Su sesión venció por inactividad". |
 | **CP-LGC-08** | Recursos locales sin CDN | `GET /login` sin sesión; luego `GET /css/tailwind.css`, `GET /vendor/bootstrap-icons/bootstrap-icons.min.css` y `GET /vendor/bootstrap-icons/fonts/bootstrap-icons.woff2` | La pantalla no depende de internet y sus recursos estáticos son públicos | La pantalla referencia `/css/tailwind.css` y `/vendor/bootstrap-icons/bootstrap-icons.min.css`, y no contiene `cdn.tailwindcss.com` ni `cdn.jsdelivr.net`. Los tres recursos responden 200 sin autenticación. |
 | **CP-LGC-09** | Recuperar y mostrar la contraseña | `GET /login` sin sesión; luego `GET /js/mostrar-contrasena.js` | La pantalla ofrece recuperar la contraseña y ver lo que se escribe | La pantalla tiene el enlace "¿Olvidó su contraseña?" a `/recuperar-contrasena`, el botón del ojo del campo `password` (`data-alternar-contrasena="password"`, `aria-label="Mostrar contraseña"`) y el script `/js/mostrar-contrasena.js`, que responde 200 sin autenticación. |
+| **CP-LGC-10** | Sesión cerrada por un restablecimiento de contraseña | Parámetro `restablecida` | La contraseña del usuario se restableció mientras tenía la sesión abierta | El modelo tiene `mensaje = "Su contraseña fue restablecida, inicie sesión nuevamente"` y `tipo = warning`; la pantalla muestra el aviso y no muestra "Su sesión se cerró porque se inició en otro dispositivo". |
