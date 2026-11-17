@@ -100,6 +100,7 @@ class EstadisticaComprasServicioImplTest {
                 orden(1, LocalDateTime.of(2026, 11, 2, 9, 0), 1, "Maltería", EstadoSolicitud.FINALIZADA, 1, "100")));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCompras(new CriteriosReporteCompras(DESDE, HASTA, null, null, null), PAGINA);
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Órdenes de compra emitidas dentro del período");
 
         assertThat(reporte.getDescripcion()).isEqualTo("Cuánto se compró y a qué proveedores");
         assertThat(valores(reporte)).containsExactly(pesos("500"), "4", pesos("166.6667"), "25 %");
@@ -168,6 +169,7 @@ class EstadisticaComprasServicioImplTest {
                 new Object[]{3L, 50.0, LocalDate.of(2026, 11, 12)}));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeProveedores(new CriteriosReporteProveedores(DESDE, HASTA, null, null, null), PAGINA);
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Órdenes de compra no anuladas emitidas dentro del período");
 
         assertThat(valores(reporte)).containsExactly("50 %", "6,5 días", "66,67 %", "1");
         assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("1 de 2 órdenes completas");
@@ -224,6 +226,7 @@ class EstadisticaComprasServicioImplTest {
                 item(5, 4, LocalDateTime.of(2026, 11, 9, 9, 0), LocalDate.of(2026, 11, 20), EstadoSolicitud.PENDIENTE, null, 2, "Lupulera", 3, "Mosaic", 1, "250")));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDePrecios(new CriteriosReportePrecios(DESDE, HASTA, null, null, null), PAGINA);
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Ítems de órdenes de compra no anuladas emitidas dentro del período");
 
         assertThat(valores(reporte)).containsExactly("3", "1", "+20 %", "-20 %");
         assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("De 2 con más de una compra");
@@ -289,6 +292,7 @@ class EstadisticaComprasServicioImplTest {
         when(repository.contarOrdenesPendientes(any(LocalDate.class), any())).thenReturn(List.<Object[]>of(new Object[]{4L, 1L}));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeRecepcion(new CriteriosReporteRecepcion(DESDE, HASTA, null, null, null), PAGINA);
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Ingresos con fecha de ingreso dentro del período");
 
         assertThat(valores(reporte)).containsExactly("2", pesos("280"), "4", "1");
         assertThat(reporte.getTabla().getColumnas().get(5).isVer()).isTrue();

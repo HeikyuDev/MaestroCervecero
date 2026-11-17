@@ -107,6 +107,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Compras")
                 .descripcion(PestanaEstadistica.COMPRAS.getDescripcion())
+                .criterioDeFecha("Órdenes de compra emitidas dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
@@ -250,6 +251,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Proveedores")
                 .descripcion(PestanaEstadistica.PROVEEDORES.getDescripcion())
+                .criterioDeFecha("Órdenes de compra no anuladas emitidas dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
@@ -380,6 +382,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Precios")
                 .descripcion(PestanaEstadistica.PRECIOS.getDescripcion())
+                .criterioDeFecha("Ítems de órdenes de compra no anuladas emitidas dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
@@ -455,6 +458,7 @@ public class EstadisticaComprasServicioImpl implements IEstadisticaComprasServic
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Recepción")
                 .descripcion(PestanaEstadistica.RECEPCION.getDescripcion())
+                .criterioDeFecha("Ingresos con fecha de ingreso dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
