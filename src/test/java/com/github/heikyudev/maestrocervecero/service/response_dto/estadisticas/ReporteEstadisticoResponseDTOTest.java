@@ -34,11 +34,11 @@ class ReporteEstadisticoResponseDTOTest {
     }
 
     @Test
-    @DisplayName("CP-ERG-02: una tabla admite hasta seis columnas y cada fila (también la de totales) debe tener una celda por columna")
+    @DisplayName("CP-ERG-02: una tabla admite hasta siete columnas y cada fila (también la de totales) debe tener una celda por columna")
     void maximoColumnasYCeldas() {
-        List<ColumnaReporteResponseDTO> siete = Collections.nCopies(7, ColumnaReporteResponseDTO.de("C", TipoColumna.TEXTO));
-        assertThatThrownBy(() -> new TablaReporteResponseDTO(siete, new PageImpl<>(List.of()), null, "fila|filas"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("La tabla de un reporte admite como máximo 6 columnas");
+        List<ColumnaReporteResponseDTO> ocho = Collections.nCopies(8, ColumnaReporteResponseDTO.de("C", TipoColumna.TEXTO));
+        assertThatThrownBy(() -> new TablaReporteResponseDTO(ocho, new PageImpl<>(List.of()), null, "fila|filas"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("La tabla de un reporte admite como máximo 7 columnas");
 
         FilaReporteResponseDTO incompleta = new FilaReporteResponseDTO(List.of(CeldaReporteResponseDTO.texto("LOT-1")));
         assertThatThrownBy(() -> new TablaReporteResponseDTO(COLUMNAS, new PageImpl<>(List.of(incompleta)), null, "lote|lotes"))
@@ -109,6 +109,43 @@ class ReporteEstadisticoResponseDTOTest {
         assertThat(CriterioAplicadoResponseDTO.de("Receta", null, "Todas").getValor()).isEqualTo("Todas");
         assertThat(CriterioAplicadoResponseDTO.de("Estado", " ", "Todos").getValor()).isEqualTo("Todos");
         assertThat(CriterioAplicadoResponseDTO.de("Estado", "Finalizado", "Todos").getValor()).isEqualTo("Finalizado");
+    }
+
+    @Test
+    @DisplayName("CP-ERG-08: un reporte lleva una tabla o varias tablas con título, nunca ambas ni ninguna; una tabla con título no se pagina y la primera es getTabla()")
+    void variasTablas() {
+        TablaReporteResponseDTO sinTitulo = new TablaReporteResponseDTO(COLUMNAS, new PageImpl<>(List.of()), null, "lote|lotes");
+        TablaReporteResponseDTO conTitulo = new TablaReporteResponseDTO("Pale Ale", COLUMNAS, new PageImpl<>(List.of(fila(1))), null, "lote|lotes");
+        TablaReporteResponseDTO otra = new TablaReporteResponseDTO("Stout", COLUMNAS, new PageImpl<>(List.of(fila(2))), null, "lote|lotes");
+
+        assertThat(sinTitulo.isPaginada()).isTrue();
+        assertThat(sinTitulo.getTitulo()).isNull();
+        assertThat(conTitulo.isPaginada()).isFalse();
+        assertThat(conTitulo.getTitulo()).isEqualTo("Pale Ale");
+        ReporteEstadisticoResponseDTO varias = ReporteEstadisticoResponseDTO.builder()
+                .titulo("Costos").descripcion("Pregunta").desde(LocalDate.of(2026, 11, 1)).hasta(LocalDate.of(2026, 11, 30))
+                .criterios(List.of()).indicadores(List.of()).grafico(new GraficoReporteResponseDTO("G", List.of(), null))
+                .tablas(List.of(conTitulo, otra)).build();
+        assertThat(varias.getTablas()).containsExactly(conTitulo, otra);
+        assertThat(varias.getTabla()).isSameAs(conTitulo);
+        assertThat(reporte(0).getTablas()).hasSize(1);
+        assertThatThrownBy(() -> ReporteEstadisticoResponseDTO.builder().titulo("Costos").descripcion("P").criterios(List.of())
+                .indicadores(List.of()).grafico(new GraficoReporteResponseDTO("G", List.of(), null)).build())
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ReporteEstadisticoResponseDTO.builder().titulo("Costos").descripcion("P").criterios(List.of())
+                .indicadores(List.of()).grafico(new GraficoReporteResponseDTO("G", List.of(), null))
+                .tabla(sinTitulo).tablas(List.of(conTitulo)).build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("CP-ERG-09: el reporte lleva la aclaración de qué fecha decide qué registros entran en el período, o null si no la aclara")
+    void criterioDeFecha() {
+        assertThat(reporte(0).getCriterioDeFecha()).isNull();
+        assertThat(ReporteEstadisticoResponseDTO.builder().titulo("Lotes").descripcion("P").criterioDeFecha("Lotes con inicio estimado dentro del período")
+                .criterios(List.of()).indicadores(List.of()).grafico(new GraficoReporteResponseDTO("G", List.of(), null))
+                .tabla(new TablaReporteResponseDTO(COLUMNAS, new PageImpl<>(List.of()), null, "lote|lotes")).build().getCriterioDeFecha())
+                .isEqualTo("Lotes con inicio estimado dentro del período");
     }
 
     private static ReporteEstadisticoResponseDTO reporte(int indicadores) {

@@ -102,9 +102,10 @@ class EstadisticasPlantillasTest {
         String piezas = leer(PIEZAS);
         String pantalla = leer(PANTALLA);
 
-        assertThat(piezas).contains("th:fragment=\"resultados(desde, hasta, urlPdf)\"")
+        assertThat(piezas).contains("th:fragment=\"resultados(desde, hasta, urlPdf, criterioDeFecha)\"")
                 .contains("flex flex-wrap items-center justify-between gap-3")
                 .contains("|Resultados del ${#temporals.format(desde, 'dd/MM/yyyy')} al ${#temporals.format(hasta, 'dd/MM/yyyy')}|")
+                .contains("data-criterio-fecha").contains("${criterioDeFecha}")
                 .contains("data-exportar-pdf target=\"_blank\"").contains("border border-slate-300 bg-white").contains("bi bi-file-earmark-pdf");
         String resultados = piezas.substring(piezas.indexOf("th:fragment=\"resultados("));
         assertThat(resultados.substring(0, resultados.indexOf("</div>"))).as("botón secundario, sin relleno ámbar").doesNotContain("bg-amber-500");
@@ -115,14 +116,14 @@ class EstadisticasPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-ESTT-05: hasta cuatro indicadores en una fila con el tooltip del proyecto para la definición, un solo gráfico debajo a todo el ancho y una tabla de hasta seis columnas con Acciones centrada, totales, estado vacío y paginación estándar")
+    @DisplayName("CP-ESTT-05: hasta cuatro indicadores en una fila con el tooltip del proyecto para la definición, un solo gráfico debajo a todo el ancho y una tabla de hasta siete columnas con Acciones centrada, totales, estado vacío y paginación estándar")
     void estructuraDelReporte() throws IOException {
         String piezas = leer(PIEZAS);
         String pantalla = leer(PANTALLA);
 
         assertThat(ReporteEstadisticoResponseDTO.MAXIMO_INDICADORES).isEqualTo(4);
-        assertThat(TablaReporteResponseDTO.MAXIMO_COLUMNAS).isEqualTo(6);
-        assertThat(piezas).contains("data-indicadores class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4\"")
+        assertThat(TablaReporteResponseDTO.MAXIMO_COLUMNAS).isEqualTo(7);
+        assertThat(piezas).contains("data-indicadores class=\"grid grid-cols-1 gap-4\"")
                 .contains("fragments/tooltip :: ayuda(")
                 .contains("estadisticas/fragments/grafico :: grafico(${grafico})")
                 .contains("'col-acciones'").contains("fragments/boton-abrir :: abrir(")
@@ -132,9 +133,26 @@ class EstadisticasPlantillasTest {
                 .contains("fragments/paginacion :: paginacion(");
         assertThat(count(pantalla, "estadisticas/fragments/reporte :: grafico(")).isEqualTo(1);
         assertThat(count(pantalla, "estadisticas/fragments/reporte :: tabla(")).isEqualTo(1);
+        assertThat(pantalla).as("una tabla debajo de la otra, cada una con su título y sin paginación si lo tiene")
+                .contains("th:each=\"tabla : ${reporte.tablas}\"").contains("${reporte.criterioDeFecha}");
+        assertThat(piezas).contains("data-titulo-tabla").contains("th:if=\"${tabla.paginada}\"");
         assertThat(count(pantalla, "estadisticas/fragments/reporte :: indicadores(")).isEqualTo(1);
         assertThat(pantalla).as("indicadores en una fila y el gráfico debajo, a todo el ancho").doesNotContain("lg:grid-cols-2");
         assertThat(pantalla.indexOf(":: indicadores(")).isLessThan(pantalla.indexOf(":: grafico("));
+    }
+
+    @Test
+    @DisplayName("CP-ESTT-12: la grilla de indicadores toma tantas columnas como tarjetas (2, 3 o 4) para llenar la fila sin huecos, y con menos de cuatro las tarjetas son más amplias y su valor más grande")
+    void indicadoresSeAdaptanALaCantidad() throws IOException {
+        String piezas = leer(PIEZAS);
+        String indicadores = piezas.substring(piezas.indexOf("th:fragment=\"indicadores("), piezas.indexOf("<!-- ===================================================================== GRÁFICO"));
+
+        assertThat(indicadores).contains("th:with=\"cantidad=${#lists.size(indicadores)}\"")
+                .contains("'sm:grid-cols-2 lg:grid-cols-4'").contains("'md:grid-cols-3'").contains("'sm:grid-cols-2'")
+                .contains("${cantidad >= 4} ? 'p-5' : 'p-7'").contains("'text-4xl'").contains("data-cantidad-indicadores")
+                .doesNotContain("grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4");
+        assertThat(leer(PDF)).as("el reporte impreso reparte las celdas de una sola fila en todo el ancho")
+                .contains(".indicadores { width: 100%; table-layout: fixed; }").contains("th:each=\"i : ${reporte.indicadores}\"");
     }
 
     @Test
@@ -161,7 +179,8 @@ class EstadisticasPlantillasTest {
                 .contains("content: counter(page)").contains("content: counter(pages)")
                 .contains("Página <span class=\"numero-pagina\"></span> de <span class=\"total-paginas\"></span>")
                 .contains("font-family: 'Liberation Sans'")
-                .contains("Emitido por").contains("Fecha de emisión").contains("<th>Terminal</th>").contains("${encabezado.terminal}").contains("Período").contains("Criterios de filtro")
+                .contains("Emitido por").contains("Fecha de emisión").contains("<th>Terminal</th>").contains("${encabezado.terminal}").contains("Período").contains("${reporte.criterioDeFecha}").contains("Criterios de filtro")
+                .contains("th:each=\"tabla : ${reporte.tablas}\"").contains("${tabla.titulo}")
                 .contains("dd/MM/yyyy HH:mm").contains(">Maestro Cervecero<")
                 .contains("table.detalle thead { display: table-header-group; }").contains("table.detalle tr { page-break-inside: avoid; }")
                 .contains("${tabla.columnasImprimibles}").contains("${tabla.celdasImprimibles(f)}").contains("<tr class=\"totales\"")

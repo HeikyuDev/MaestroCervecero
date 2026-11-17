@@ -109,6 +109,11 @@ final class SoporteReportes {
         return new PageImpl<>(filas.subList(desde, hasta), pagina, filas.size());
     }
 
+    /** Todas las filas en una sola página, para las tablas con título, que no se paginan. */
+    static <T> Page<T> paginaUnica(List<T> filas) {
+        return new PageImpl<>(filas, PageRequest.of(0, Math.max(1, filas.size())), filas.size());
+    }
+
     /**
      * Las categorías de un gráfico, ya ordenadas de mayor a menor: las primeras {@link #MAXIMO_CATEGORIAS} y, si hay más
      * y {@code etiquetaResto} no es {@code null}, una más que suma el resto.

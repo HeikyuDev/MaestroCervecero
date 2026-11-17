@@ -9,7 +9,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página
 | Acción | Permiso | Gerente de producción | Gerente de compras | Demás roles |
 | --- | --- | --- | --- | --- |
 | Entrar a "Estadísticas" | `ESTADISTICA_PRODUCCION_CONSULTAR` o `ESTADISTICA_COMPRAS_CONSULTAR` | Sí | Sí | No |
-| Ver las pestañas de producción y su PDF (Lotes, Costos, Tiempos, Insumos y Equipamiento) | `ESTADISTICA_PRODUCCION_CONSULTAR` | Sí | No | No |
+| Ver las pestañas de producción y su PDF (Lotes, Costos, Insumos y Equipamiento) | `ESTADISTICA_PRODUCCION_CONSULTAR` | Sí | No | No |
 | Ver las pestañas de compras y su PDF (Compras, Proveedores, Precios y Recepción) | `ESTADISTICA_COMPRAS_CONSULTAR` | No | Sí | No |
 | "Abrir" un lote desde la tabla de Lotes | `LOTE_CONSULTAR` | Sí | No | No |
 | "Ver" una orden de compra desde la tabla de Recepción | `ORDEN_COMPRA_CONSULTAR` | No | Sí | No |
@@ -29,7 +29,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página
 | --- | --- | --- | --- | --- |
 | Lotes | `lotes` | `bi-collection` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Cuántos lotes se planificaron en el período y cómo terminaron |
 | Costos | `costos` | `bi-cash-coin` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Cuánto costó producir cada litro en el período |
-| Tiempos | `tiempos` | `bi-hourglass-split` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Cuánto duran las etapas frente a lo estimado |
+| Tiempos (solo con la propiedad habilitada, ver abajo) | `tiempos` | `bi-hourglass-split` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Cuánto duran las etapas frente a lo estimado |
 | Insumos | `insumos` | `bi-basket` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Qué insumos se consumieron y cuánto se gastó en ellos |
 | Equipamiento | `equipamiento` | `bi-tools` | `ESTADISTICA_PRODUCCION_CONSULTAR` | Cuánto se usó cada equipo y cuántas intervenciones tuvo |
 | Compras | `compras` | `bi-cart3` | `ESTADISTICA_COMPRAS_CONSULTAR` | Cuánto se compró y a qué proveedores |
@@ -39,22 +39,24 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página
 
 Sin `pestana`, o con una que el usuario no puede ver o que no existe, se muestra la primera pestaña que el usuario puede ver. Cada pestaña es la misma URL con otro `?pestana=`.
 
+La pestaña "Tiempos" se ofrece solo con `estadisticas.tiempos.habilitada=true` (en `application.properties` está en `false`): sin la propiedad no aparece entre las pestañas y su clave, en la pantalla y en el PDF, se trata como una clave inexistente. Las demás pestañas no dependen de ella.
+
 ## 3. Pantalla
 
 De arriba abajo: el título "Estadísticas", las pestañas (componente `fragments/pestanas`, cada una con su ícono) y, para la pestaña activa:
 
 1. La línea con la pregunta que responde la pestaña.
 2. Los filtros, con la grilla de las listas y cada campo a su ancho normal: "Desde" y "Hasta" (obligatorios, asterisco rojo; sin parámetros, del primer día del mes en curso a hoy), los criterios propios de la pestaña (como máximo dos). Debajo, en su propia fila y a la derecha, "Limpiar" (vuelve a la pestaña sin criterios) y "Filtrar", como en el resto de las listas.
-3. El encabezado de resultados: "Resultados del dd/MM/yyyy al dd/MM/yyyy" a la izquierda y, a la derecha, el botón secundario "Exportar PDF" (abre el PDF en otra pestaña con los mismos criterios).
-4. Hasta cuatro indicadores, todos en una fila.
+3. El encabezado de resultados: "Resultados del dd/MM/yyyy al dd/MM/yyyy" a la izquierda, con una línea debajo que dice qué fecha decide qué registros entran en el período (por ejemplo, "Lotes con inicio estimado dentro del período"), y, a la derecha, el botón secundario "Exportar PDF" (abre el PDF en otra pestaña con los mismos criterios).
+4. Hasta cuatro indicadores, todos en una fila que ocupa todo el ancho: la grilla toma tantas columnas como tarjetas (2, 3 o 4) y, con menos de cuatro, las tarjetas son más amplias y su valor más grande. Tarjetas por pestaña: Lotes 4, Costos 3, Tiempos 4, Insumos 4, Equipamiento 3, Compras 4, Proveedores 4, Precios 4 y Recepción 4.
 5. Debajo, a todo el ancho, un gráfico de barras horizontales compacto, con el valor escrito a continuación de cada barra.
-6. Una tabla paginada de hasta seis columnas, con fila de totales cuando corresponde.
+6. Una tabla paginada de hasta siete columnas, con fila de totales cuando corresponde. Costos muestra una tabla por receta, con título, una debajo de la otra y sin paginación.
 
 Validación, solo en el servidor (el formulario lleva `novalidate`): el período debe tener sus dos extremos, la fecha hasta no puede ser anterior a la fecha desde y el período no puede superar los 366 días contando ambos extremos. Una fecha que no existe se informa con "La fecha desde no es válida" o "La fecha hasta no es válida". Un rechazo se muestra con la alerta amarilla del layout, se conservan los criterios y en lugar de los indicadores, el gráfico y la tabla se muestra "Indique un período válido y presione Filtrar para ver el reporte", sin el encabezado de resultados ni "Exportar PDF". Un valor de lista que no existe no filtra y se avisa; una entidad que el buscador no ofrece no filtra.
 
 ## 4. Pestaña "Lotes"
 
-**Universo.** Los lotes cuya fecha de inicio estimada cae en el período (ambos extremos inclusive), en cualquier estado.
+**Universo.** Los lotes cuya fecha de inicio estimada cae en el período (ambos extremos inclusive), en cualquier estado. Fecha considerada, escrita debajo del período: "Lotes con inicio estimado dentro del período".
 
 **Criterios propios.**
 
@@ -97,7 +99,7 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 ## 6. Pestaña "Costos"
 
-**Universo.** Los lotes cuya etapa de Envasado está finalizada con fecha de finalización en el período y que tienen litros envasados registrados mayores que cero.
+**Universo.** Los lotes cuya etapa de Envasado está finalizada con fecha de finalización en el período y que tienen litros envasados registrados mayores que cero. Fecha considerada, escrita debajo del período: "Lotes con envasado finalizado dentro del período".
 
 **Criterio propio.** Receta (selector con buscador; incluye todas sus versiones).
 
@@ -105,14 +107,15 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 | --- | --- | --- |
 | Costo total | Suma del costo de insumos y de costos adicionales de los lotes | "Insumos y costos adicionales" |
 | Litros envasados | Suma de los envasados registrados de esos lotes | Cantidad de lotes |
-| Costo por litro | Costo total sobre litros; "-" sin litros. Tooltip con la definición | |
 | Peso de los insumos | Porcentaje del costo total que son insumos; "-" si el costo total es cero. Tooltip | "Del costo total" |
 
-**Gráfico.** Costo por litro por receta (las ocho más caras, sin "Otras": una razón no se suma).
+**Gráfico.** Costo por litro por receta (las ocho más caras, sin "Otras": una razón no se suma). El costo por litro de una receta es la suma del costo total de sus lotes sobre la suma de sus litros.
 
-**Tabla** (fin de envasado más reciente primero): Lote (con la receta debajo), Fin de envasado, Litros, Costo de insumos, Costo total y Costo por litro. Totales: litros, costo de insumos, costo total y costo por litro ponderado.
+**Tablas.** Una tabla por receta con lotes en el período, una debajo de la otra y sin paginación, en el mismo orden del gráfico (de mayor a menor costo por litro y, ante un empate, por nombre) y con el mismo nombre de receta como título, para seguir cada barra hasta sus lotes. Cada tabla lista solo los lotes de su receta, del fin de envasado más reciente al más antiguo: Lote, Fin de envasado, Litros, Costo de insumos, Costo adicional, Costo total y Costo por litro (el costo total es la suma del costo de insumos y el costo adicional). Totales de la receta en el período: litros, costo de insumos, costo adicional, costo total y costo por litro ponderado. Sin lotes en el período, una sola tabla vacía sin título.
 
 ## 7. Pestaña "Tiempos"
+
+Se ofrece solo con `estadisticas.tiempos.habilitada=true`.
 
 **Universo.** Las etapas finalizadas cuya fecha de finalización cae en el período (ambos extremos inclusive), aunque hayan empezado antes. Las etapas canceladas no cuentan.
 
@@ -135,20 +138,20 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 ## 8. Pestaña "Insumos"
 
-**Universo.** Los consumos registrados (los anulados no cuentan) cuya fecha de alta cae en el período, ambos extremos inclusive; es la fecha en que se registró el consumo, no la de su lote de producción.
+**Universo.** Los consumos registrados (los anulados no cuentan) cuya fecha de alta cae en el período, ambos extremos inclusive; es la fecha en que se registró el consumo, no la de su lote de producción. Fecha considerada, escrita debajo del período: "Consumos registrados dentro del período".
 
 **Criterios propios.** Tipo de insumo (lista) y Receta (selector; la del lote del consumo).
 
 | Indicador | Valor |
 | --- | --- |
-| Valor consumido | Suma, de cada consumo registrado, de la cantidad consumida por el costo promedio ponderado (PPP) que tenía el lote de insumo al consumirlo y que quedó congelado en el consumo. Si el lote de insumo tuvo varios ingresos a distintos precios, su PPP sale de ellos. Tooltip con esa definición |
+| Valor consumido | Suma, de cada consumo registrado, de la cantidad consumida por el costo promedio ponderado (PPP) que tenía el lote de insumo al consumirlo y que quedó congelado en el consumo. Sin tooltip; aclaración "Al costo de cada consumo" |
 | Insumos distintos | Cantidad de insumos consumidos |
 | Insumo de mayor valor | Su nombre, con su valor en la aclaración; "-" sin consumos |
 | Consumo sin reserva | Porcentaje del valor que se registró como consumo directo (sin reserva previa); "-" sin valor. Tooltip |
 
 **Gráfico.** Los ocho insumos de mayor valor y "Otros".
 
-**Tabla** (ranking por valor, de mayor a menor): Insumo, Tipo, Cantidad (con su unidad), Valor, % del total y Lotes de producción. "Valor" es el mismo valor consumido del indicador, por insumo, y su encabezado lleva el tooltip "Cantidad consumida por el costo promedio ponderado (PPP) registrado en cada consumo". "Lotes de producción" es la cantidad de lotes de producción distintos en los que se consumió el insumo en el período (no es la cantidad de lotes de insumo) y su encabezado lleva el tooltip "Cantidad de lotes de producción en los que se consumió el insumo en el período". Totales: valor y 100 %.
+**Tabla** (ranking por valor, de mayor a menor): Insumo, Tipo, Cantidad (con su unidad), Valor, % del total y Lotes de producción. "Valor" es el mismo valor consumido del indicador, por insumo. "Lotes de producción" es la cantidad de lotes de producción distintos en los que se consumió el insumo en el período (no es la cantidad de lotes de insumo) y su encabezado lleva el tooltip "Cantidad de lotes de producción en los que se consumió el insumo en el período". Totales: valor y 100 %.
 
 ## 9. Pestaña "Equipamiento"
 
@@ -156,22 +159,23 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 **Criterios propios.** Tipo de equipo (lista) y Equipo (selector con su buscador en modal).
 
+**Fecha considerada**, escrita debajo del período: "Etapas superpuestas con el período e intervenciones registradas dentro de él".
+
 **Actividad.** Las etapas atendidas son las que usaron realmente el equipo y se superponen con el período: las en curso, las finalizadas y las canceladas que ya habían iniciado (el lote se canceló con la etapa en marcha); una etapa cancelada que nunca inició no cuenta. Las horas en uso son su duración real recortada al período: una etapa en curso cuenta hasta ahora, sin pasar del fin del período, y una cancelada cuenta hasta el momento de la cancelación, que el lote guarda como su fecha de finalización (por ejemplo, 30 h de uso y 1 etapa para una etapa iniciada 30 horas antes de que se cancelara el lote); las limpiezas, fallas y mantenimientos son los registrados con fecha en el período (cada uno tiene una sola fecha).
 
 | Indicador | Valor |
 | --- | --- |
-| Equipos con actividad | Equipos con alguna etapa o intervención (aclaración: de cuántos equipos) |
-| Etapas atendidas | Cantidad (aclaración: horas en uso). Tooltip |
-| Limpiezas | Cantidad registrada |
-| Fallas y mantenimientos | Suma (aclaración: cuántas fallas y cuántos mantenimientos) |
+| Limpiezas | Cantidad registrada | "Registradas" |
+| Fallas | Cantidad registrada | "Registradas" |
+| Mantenimientos | Cantidad registrada | "Registrados" |
 
 **Gráfico.** Horas en uso por equipo (los ocho más usados, sin "Otros").
 
-**Tabla** (por tipo e identificador): Equipo (con el tipo debajo; "(dado de baja)" si corresponde), Etapas atendidas, Horas en uso, Limpiezas, Fallas y Mantenimientos. Totales de todas las columnas numéricas.
+**Tabla** (por tipo e identificador, paginada): Equipo (con el tipo debajo; "(dado de baja)" si corresponde), Etapas atendidas, Horas en uso (con su unidad, por ejemplo "0,37 h"), Limpiezas, Fallas y Mantenimientos. Totales de todas las columnas numéricas, con las horas también con su unidad.
 
 ## 10. Pestaña "Compras"
 
-**Universo.** Las órdenes de compra cuya fecha de emisión (fecha de alta) cae en el período, en cualquier estado. El monto de una orden es la suma de cantidad por costo unitario de sus ítems.
+**Universo.** Las órdenes de compra cuya fecha de emisión (fecha de alta) cae en el período, en cualquier estado. Fecha considerada, escrita debajo del período: "Órdenes de compra emitidas dentro del período". El monto de una orden es la suma de cantidad por costo unitario de sus ítems.
 
 **Criterios propios.** Proveedor (selector) y Estado (lista).
 
@@ -188,7 +192,7 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 ## 11. Pestaña "Proveedores"
 
-**Universo.** Los ítems de las órdenes no anuladas emitidas en el período, agrupados por orden y por proveedor. Con un tipo de insumo, solo cuentan esos ítems.
+**Universo.** Los ítems de las órdenes no anuladas emitidas en el período, agrupados por orden y por proveedor. Con un tipo de insumo, solo cuentan esos ítems. Fecha considerada, escrita debajo del período: "Órdenes de compra no anuladas emitidas dentro del período".
 
 **Criterios propios.** Proveedor (selector) y Tipo de insumo (lista).
 
@@ -213,7 +217,7 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 ## 12. Pestaña "Precios"
 
-**Universo.** Los ítems de las órdenes no anuladas emitidas en el período. El precio se compara por unidad de medida del insumo: el costo de la presentación sobre la cantidad de insumo que trae (la misma conversión de las órdenes de compra).
+**Universo.** Los ítems de las órdenes no anuladas emitidas en el período. Fecha considerada, escrita debajo del período: "Ítems de órdenes de compra no anuladas emitidas dentro del período". El precio se compara por unidad de medida del insumo: el costo de la presentación sobre la cantidad de insumo que trae (la misma conversión de las órdenes de compra).
 
 **Criterios propios.** Tipo de insumo (lista) y Proveedor (selector).
 
@@ -232,7 +236,7 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 
 ## 13. Pestaña "Recepción"
 
-**Universo.** Los ingresos registrados con fecha de ingreso en el período, por compra o directos. El valor de un ingreso es su cantidad recibida por su costo unitario. Los dos indicadores de lo pendiente son de hoy y no dependen del período.
+**Universo.** Los ingresos registrados con fecha de ingreso en el período, por compra o directos. Fecha considerada, escrita debajo del período: "Ingresos con fecha de ingreso dentro del período". El valor de un ingreso es su cantidad recibida por su costo unitario. Los dos indicadores de lo pendiente son de hoy y no dependen del período.
 
 **Criterios propios.** Proveedor (selector; con un proveedor no se incluyen los ingresos directos) y Tipo de ingreso (lista).
 
@@ -252,8 +256,8 @@ La fila de totales ("Totales del período") lleva los litros envasados de todo e
 El mismo contenido que la pantalla, en hoja A4 vertical, con la plantilla única `estadisticas/pdf/reporte`:
 
 - Encabezado en cada página: "Maestro Cervecero", "Estadísticas: <pestaña>" y una línea.
-- Datos de emisión en la primera página: "Emitido por" (usuario y, entre paréntesis, nombre y apellido), "Fecha de emisión" (dd/MM/yyyy HH:mm), "Terminal" (el equipo desde el que se pidió el reporte: la dirección es la de la conexión que pidió el reporte, sin tener en cuenta los encabezados que escribe el cliente, como `X-Forwarded-For`; una dirección de loopback se reemplaza por el nombre y la dirección del servidor; el nombre del equipo se resuelve por DNS inverso solo para direcciones IP, con un tiempo máximo de 300 ms y en un grupo reducido de hilos propio, el resultado (también cuando no hay nombre) se conserva 10 minutos por dirección y se muestra `nombre-de-equipo (IP)`, o solo la IP si no se resuelve), "Período" y "Criterios de filtro" con cada criterio de la pestaña ("Todas" o "Todos" si no se indicó).
-- Cuerpo: la pregunta, los mismos indicadores (con las definiciones de los que tienen tooltip escritas debajo), el mismo gráfico y la tabla completa, sin paginar y sin la columna Acciones: el encabezado de la tabla se repite en cada página, ninguna fila se parte y la fila de totales va al final. Si el período tiene más filas que el tope técnico (`LimitesTecnicos.REPORTE_IMPRESO_MAXIMO_FILAS`, 2.000), se avisa antes de la tabla.
+- Datos de emisión en la primera página: "Emitido por" (usuario y, entre paréntesis, nombre y apellido), "Fecha de emisión" (dd/MM/yyyy HH:mm), "Terminal" (el equipo desde el que se pidió el reporte: la dirección es la de la conexión que pidió el reporte, sin tener en cuenta los encabezados que escribe el cliente, como `X-Forwarded-For`; una dirección de loopback se reemplaza por el nombre y la dirección del servidor; el nombre del equipo se resuelve por DNS inverso solo para direcciones IP, con un tiempo máximo de 300 ms y en un grupo reducido de hilos propio, el resultado (también cuando no hay nombre) se conserva 10 minutos por dirección y se muestra `nombre-de-equipo (IP)`, o solo la IP si no se resuelve), "Período", "Fecha considerada" (la misma línea de la pantalla) y "Criterios de filtro" con cada criterio de la pestaña ("Todas" o "Todos" si no se indicó).
+- Cuerpo: la pregunta, los mismos indicadores (con las definiciones de los que tienen tooltip escritas debajo), el mismo gráfico y las tablas completas (cada una con su título si el reporte tiene varias), sin paginar y sin la columna Acciones: el encabezado de la tabla se repite en cada página, ninguna fila se parte y la fila de totales va al final. Si el período tiene más filas que el tope técnico (`LimitesTecnicos.REPORTE_IMPRESO_MAXIMO_FILAS`, 2.000), se avisa antes de la tabla.
 - Pie en cada página: la fecha de emisión, "Maestro Cervecero" y "Página X de Y".
 
 Si los criterios no son válidos, la ruta del PDF vuelve a la pantalla con los mismos parámetros, que muestra el motivo. Si el documento falla al armarse, o ya hay 3 reportes en generación (`LimitesTecnicos.REPORTE_IMPRESO_SIMULTANEOS_MAXIMO`) y no se libera un lugar en 2 segundos (`LimitesTecnicos.REPORTE_IMPRESO_ESPERA_MAXIMA_MS`), vuelve a la pantalla con la alerta amarilla "No se pudo generar el reporte impreso" o "Hay otros reportes en generación, intente nuevamente en unos instantes". La falla se registra en el log con la pestaña y el período, sin datos personales.

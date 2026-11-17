@@ -7,14 +7,20 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * La única tabla de un reporte de estadísticas: hasta {@link #MAXIMO_COLUMNAS} columnas, una página de filas y, si
+ * Una tabla de un reporte de estadísticas, con o sin título: hasta {@link #MAXIMO_COLUMNAS} columnas, una página de filas y, si
  * corresponde, la fila de totales del período completo (no de la página).
  */
 @Getter
 public final class TablaReporteResponseDTO {
 
     /** Cantidad máxima de columnas: la tabla tiene que entrar en una hoja A4 vertical. */
-    public static final int MAXIMO_COLUMNAS = 6;
+    public static final int MAXIMO_COLUMNAS = 7;
+
+    /**
+     * Título de la tabla (por ejemplo, el nombre de una receta), o {@code null} si el reporte tiene una sola tabla. Una
+     * tabla con título no se pagina: muestra todas sus filas, porque el reporte las apila una debajo de la otra.
+     */
+    private final String titulo;
 
     private final List<ColumnaReporteResponseDTO> columnas;
 
@@ -38,6 +44,17 @@ public final class TablaReporteResponseDTO {
      */
     public TablaReporteResponseDTO(List<ColumnaReporteResponseDTO> columnas, Page<FilaReporteResponseDTO> filas,
                                    FilaReporteResponseDTO totales, String etiquetaFilas) {
+        this(null, columnas, filas, totales, etiquetaFilas);
+    }
+
+    /**
+     * Arma una tabla con título, que muestra todas sus filas (una sola página). Los demás parámetros son los de
+     * {@link #TablaReporteResponseDTO(List, Page, FilaReporteResponseDTO, String)}.
+     *
+     * @param titulo Título de la tabla, o {@code null} si no lleva.
+     */
+    public TablaReporteResponseDTO(String titulo, List<ColumnaReporteResponseDTO> columnas, Page<FilaReporteResponseDTO> filas,
+                                   FilaReporteResponseDTO totales, String etiquetaFilas) {
         if (columnas.size() > MAXIMO_COLUMNAS) {
             throw new IllegalArgumentException("La tabla de un reporte admite como máximo " + MAXIMO_COLUMNAS + " columnas");
         }
@@ -47,10 +64,16 @@ public final class TablaReporteResponseDTO {
         if (totales != null) {
             validarCeldas(totales, columnas.size());
         }
+        this.titulo = titulo;
         this.columnas = List.copyOf(columnas);
         this.filas = filas;
         this.totales = filas.isEmpty() ? null : totales;
         this.etiquetaFilas = etiquetaFilas;
+    }
+
+    /** {@code true} si la tabla se muestra con paginación: la que no tiene título. */
+    public boolean isPaginada() {
+        return titulo == null;
     }
 
     /** Qué es cada fila, en plural (por ejemplo, {@code lotes}). */

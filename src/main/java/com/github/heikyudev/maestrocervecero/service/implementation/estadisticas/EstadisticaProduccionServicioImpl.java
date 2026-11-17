@@ -68,9 +68,9 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
 
     static final String TITULO_LOTES = "Lotes";
     static final String AYUDA_EN_PLAZO = "Porcentaje de los lotes finalizados cuya fecha de fin real no es posterior a la fecha de fin estimada";
-    static final String AYUDA_VALOR = "Cantidad consumida por el costo promedio ponderado (PPP) registrado en cada consumo";
     static final String AYUDA_LOTES_DE_PRODUCCION = "Cantidad de lotes de producción en los que se consumió el insumo en el período";
     static final String SIN_ESTIMAR = "Sin estimar";
+    static final String UNIDAD_HORAS = "h";
 
     private final IEstadisticaProduccionRepository estadisticaProduccionRepository;
     private final IConfiguracionProduccionRepository configuracionProduccionRepository;
@@ -118,6 +118,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo(TITULO_LOTES)
                 .descripcion(PestanaEstadistica.LOTES.getDescripcion())
+                .criterioDeFecha("Lotes con inicio estimado dentro del período")
                 .desde(desde)
                 .hasta(hasta)
                 .criterios(List.of(
@@ -160,7 +161,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
 
     /** Un lote del reporte "Costos" con sus litros y sus costos. */
     private record CostoLote(Long id, String lote, String receta, Long idReceta, LocalDateTime finEnvasado, double litros,
-                             BigDecimal insumos, BigDecimal total) {
+                             BigDecimal insumos, BigDecimal adicional, BigDecimal total) {
     }
 
     @Override
@@ -177,9 +178,10 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         for (Object[] f : filas) {
             Long id = (Long) f[0];
             BigDecimal insumos = insumosPorLote.getOrDefault(id, SoporteReportes.aImporte(null));
-            BigDecimal total = insumos.add(adicionalesPorLote.getOrDefault(id, SoporteReportes.aImporte(null)));
+            BigDecimal adicional = adicionalesPorLote.getOrDefault(id, SoporteReportes.aImporte(null));
+            BigDecimal total = insumos.add(adicional);
             lotes.add(new CostoLote(id, (String) f[1], (String) f[2], (Long) f[3], (LocalDateTime) f[4],
-                    redondear(SoporteReportes.aDouble(f[5])), insumos, total));
+                    redondear(SoporteReportes.aDouble(f[5])), insumos, adicional, total));
         }
         lotes.sort(Comparator.comparing(CostoLote::finEnvasado).thenComparing(CostoLote::id).reversed());
 
@@ -187,33 +189,27 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         double litros = redondear(lotes.stream().mapToDouble(CostoLote::litros).sum());
         BigDecimal insumos = lotes.stream().map(CostoLote::insumos).reduce(SoporteReportes.aImporte(null), BigDecimal::add);
         BigDecimal total = lotes.stream().map(CostoLote::total).reduce(SoporteReportes.aImporte(null), BigDecimal::add);
-        BigDecimal porLitro = SoporteReportes.dividir(total, litros);
 
-        // 4. Costo por litro por receta: las más caras, sin sumar el resto (un costo por litro no se suma)
-        Map<Long, String> nombrePorReceta = new LinkedHashMap<>();
-        Map<Long, BigDecimal> costoPorReceta = new HashMap<>();
-        Map<Long, Double> litrosPorReceta = new HashMap<>();
+        // 4. Costo por litro por receta, de la más cara a la más barata: el gráfico (las más caras, sin sumar el resto, porque un
+        // costo por litro no se suma) y una tabla por receta con el mismo título, para poder seguir cada barra hasta sus lotes
+        Map<Long, List<CostoLote>> lotesPorReceta = new LinkedHashMap<>();
         for (CostoLote lote : lotes) {
-            nombrePorReceta.putIfAbsent(lote.idReceta(), lote.receta());
-            costoPorReceta.merge(lote.idReceta(), lote.total(), BigDecimal::add);
-            litrosPorReceta.merge(lote.idReceta(), lote.litros(), Double::sum);
+            lotesPorReceta.computeIfAbsent(lote.idReceta(), id -> new ArrayList<>()).add(lote);
         }
-        List<DatoGraficoResponseDTO> datos = nombrePorReceta.entrySet().stream()
-                .map(e -> new DatoGraficoResponseDTO(e.getValue(), SoporteReportes.dividir(costoPorReceta.get(e.getKey()), litrosPorReceta.get(e.getKey())).doubleValue()))
-                .sorted(Comparator.comparingDouble(DatoGraficoResponseDTO::getValor).reversed().thenComparing(DatoGraficoResponseDTO::getEtiqueta))
-                .toList();
-
-        List<FilaReporteResponseDTO> tabla = lotes.stream().map(l -> new FilaReporteResponseDTO(List.of(
-                CeldaReporteResponseDTO.texto(l.lote(), l.receta()),
-                CeldaReporteResponseDTO.fecha(l.finEnvasado()),
-                CeldaReporteResponseDTO.numero(l.litros()),
-                CeldaReporteResponseDTO.moneda(l.insumos()),
-                CeldaReporteResponseDTO.moneda(l.total()),
-                CeldaReporteResponseDTO.moneda(SoporteReportes.dividir(l.total(), l.litros()))))).toList();
+        List<Map.Entry<Long, List<CostoLote>>> recetas = new ArrayList<>(lotesPorReceta.entrySet());
+        recetas.sort(Comparator.comparing((Map.Entry<Long, List<CostoLote>> e) -> costoPorLitro(e.getValue())).reversed()
+                .thenComparing(e -> e.getValue().get(0).receta()));
+        List<DatoGraficoResponseDTO> datos = recetas.stream()
+                .map(e -> new DatoGraficoResponseDTO(e.getValue().get(0).receta(), costoPorLitro(e.getValue()).doubleValue())).toList();
+        List<TablaReporteResponseDTO> tablas = recetas.stream().map(e -> tablaDeReceta(e.getValue())).toList();
+        if (tablas.isEmpty()) {
+            tablas = List.of(new TablaReporteResponseDTO(columnasDeCostos(), SoporteReportes.paginaUnica(List.of()), null, "lote|lotes"));
+        }
 
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Costos")
                 .descripcion(PestanaEstadistica.COSTOS.getDescripcion())
+                .criterioDeFecha("Lotes con envasado finalizado dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", criterios.textoReceta(), "Todas")))
@@ -221,28 +217,54 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
                         new IndicadorResponseDTO("costo-total", "Costo total", SoporteReportes.textoImporte(total), "Insumos y costos adicionales", null),
                         new IndicadorResponseDTO("litros-envasados", "Litros envasados", FormatoCantidad.conUnidad(litros, "L"),
                                 lotes.size() + (lotes.size() == 1 ? " lote" : " lotes"), null),
-                        new IndicadorResponseDTO("costo-por-litro", "Costo por litro", SoporteReportes.textoImporte(porLitro), null,
-                                "Costo total de los lotes del período dividido por sus litros envasados"),
                         new IndicadorResponseDTO("peso-insumos", "Peso de los insumos", SoporteReportes.textoPorcentaje(SoporteReportes.porcentaje(insumos, total)),
                                 "Del costo total", "Porcentaje del costo total que corresponde a los insumos consumidos; el resto son costos adicionales")))
                 .grafico(GraficoReporteResponseDTO.moneda("Costo por litro por receta", SoporteReportes.principales(datos, null), "L"))
-                .tabla(new TablaReporteResponseDTO(List.of(
-                        ColumnaReporteResponseDTO.de("Lote", TipoColumna.TEXTO),
-                        ColumnaReporteResponseDTO.de("Fin de envasado", TipoColumna.FECHA),
-                        ColumnaReporteResponseDTO.de("Litros", TipoColumna.NUMERO),
-                        ColumnaReporteResponseDTO.de("Costo de insumos", TipoColumna.MONEDA),
-                        ColumnaReporteResponseDTO.de("Costo total", TipoColumna.MONEDA),
-                        ColumnaReporteResponseDTO.de("Costo por litro", TipoColumna.MONEDA)),
-                        SoporteReportes.paginar(tabla, pageable),
-                        new FilaReporteResponseDTO(List.of(
-                                CeldaReporteResponseDTO.texto(SoporteReportes.TOTALES),
-                                CeldaReporteResponseDTO.vacia(),
-                                CeldaReporteResponseDTO.numero(litros),
-                                CeldaReporteResponseDTO.moneda(insumos),
-                                CeldaReporteResponseDTO.moneda(total),
-                                CeldaReporteResponseDTO.moneda(porLitro))),
-                        "lote|lotes"))
+                .tablas(tablas)
                 .build();
+    }
+
+    /** El costo por litro de una receta en el período: la suma de los costos totales de sus lotes sobre la suma de sus litros. */
+    private static BigDecimal costoPorLitro(List<CostoLote> lotesDeLaReceta) {
+        BigDecimal costo = lotesDeLaReceta.stream().map(CostoLote::total).reduce(SoporteReportes.aImporte(null), BigDecimal::add);
+        return SoporteReportes.dividir(costo, redondear(lotesDeLaReceta.stream().mapToDouble(CostoLote::litros).sum()));
+    }
+
+    private static List<ColumnaReporteResponseDTO> columnasDeCostos() {
+        return List.of(
+                ColumnaReporteResponseDTO.de("Lote", TipoColumna.TEXTO),
+                ColumnaReporteResponseDTO.de("Fin de envasado", TipoColumna.FECHA),
+                ColumnaReporteResponseDTO.de("Litros", TipoColumna.NUMERO),
+                ColumnaReporteResponseDTO.de("Costo de insumos", TipoColumna.MONEDA),
+                ColumnaReporteResponseDTO.de("Costo adicional", TipoColumna.MONEDA),
+                ColumnaReporteResponseDTO.de("Costo total", TipoColumna.MONEDA),
+                ColumnaReporteResponseDTO.de("Costo por litro", TipoColumna.MONEDA));
+    }
+
+    /** La tabla de una receta: sus lotes (ya del fin de envasado más reciente al más antiguo) y sus totales en el período. */
+    private static TablaReporteResponseDTO tablaDeReceta(List<CostoLote> lotesDeLaReceta) {
+        double litros = redondear(lotesDeLaReceta.stream().mapToDouble(CostoLote::litros).sum());
+        BigDecimal insumos = lotesDeLaReceta.stream().map(CostoLote::insumos).reduce(SoporteReportes.aImporte(null), BigDecimal::add);
+        BigDecimal adicional = lotesDeLaReceta.stream().map(CostoLote::adicional).reduce(SoporteReportes.aImporte(null), BigDecimal::add);
+        BigDecimal total = insumos.add(adicional);
+        List<FilaReporteResponseDTO> filas = lotesDeLaReceta.stream().map(l -> new FilaReporteResponseDTO(List.of(
+                CeldaReporteResponseDTO.texto(l.lote()),
+                CeldaReporteResponseDTO.fecha(l.finEnvasado()),
+                CeldaReporteResponseDTO.numero(l.litros()),
+                CeldaReporteResponseDTO.moneda(l.insumos()),
+                CeldaReporteResponseDTO.moneda(l.adicional()),
+                CeldaReporteResponseDTO.moneda(l.total()),
+                CeldaReporteResponseDTO.moneda(SoporteReportes.dividir(l.total(), l.litros()))))).toList();
+        return new TablaReporteResponseDTO(lotesDeLaReceta.get(0).receta(), columnasDeCostos(), SoporteReportes.paginaUnica(filas),
+                new FilaReporteResponseDTO(List.of(
+                        CeldaReporteResponseDTO.texto(SoporteReportes.TOTALES),
+                        CeldaReporteResponseDTO.vacia(),
+                        CeldaReporteResponseDTO.numero(litros),
+                        CeldaReporteResponseDTO.moneda(insumos),
+                        CeldaReporteResponseDTO.moneda(adicional),
+                        CeldaReporteResponseDTO.moneda(total),
+                        CeldaReporteResponseDTO.moneda(SoporteReportes.dividir(total, litros)))),
+                "lote|lotes");
     }
 
     // ==================== Tiempos ====================
@@ -412,13 +434,14 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Insumos")
                 .descripcion(PestanaEstadistica.INSUMOS.getDescripcion())
+                .criterioDeFecha("Consumos registrados dentro del período")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
                         CriterioAplicadoResponseDTO.de("Tipo de insumo", criterios.tipoInsumo() == null ? null : criterios.tipoInsumo().getEtiqueta(), "Todos"),
                         CriterioAplicadoResponseDTO.de("Receta", criterios.textoReceta(), "Todas")))
                 .indicadores(List.of(
-                        new IndicadorResponseDTO("valor-consumido", "Valor consumido", SoporteReportes.textoImporte(total), "Al costo de cada consumo", AYUDA_VALOR),
+                        new IndicadorResponseDTO("valor-consumido", "Valor consumido", SoporteReportes.textoImporte(total), "Al costo de cada consumo", null),
                         new IndicadorResponseDTO("insumos-distintos", "Insumos distintos", FormatoCantidad.formatear(insumos.size()), null, null),
                         new IndicadorResponseDTO("insumo-mayor-valor", "Insumo de mayor valor", mayor == null ? CeldaReporteResponseDTO.SIN_DATO : mayor.nombre(),
                                 mayor == null ? null : SoporteReportes.textoImporte(mayor.valor()), null),
@@ -429,7 +452,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
                         ColumnaReporteResponseDTO.de("Insumo", TipoColumna.TEXTO),
                         ColumnaReporteResponseDTO.de("Tipo", TipoColumna.TEXTO),
                         ColumnaReporteResponseDTO.de("Cantidad", TipoColumna.NUMERO),
-                        ColumnaReporteResponseDTO.de("Valor", TipoColumna.MONEDA, AYUDA_VALOR),
+                        ColumnaReporteResponseDTO.de("Valor", TipoColumna.MONEDA),
                         ColumnaReporteResponseDTO.de("% del total", TipoColumna.PORCENTAJE),
                         ColumnaReporteResponseDTO.de("Lotes de producción", TipoColumna.NUMERO, AYUDA_LOTES_DE_PRODUCCION)),
                         SoporteReportes.paginar(tabla, pageable),
@@ -493,7 +516,6 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         equipos.sort(Comparator.comparing((UsoEquipo u) -> u.tipo() == null ? Integer.MAX_VALUE : u.tipo().ordinal())
                 .thenComparing(UsoEquipo::identificador, String.CASE_INSENSITIVE_ORDER));
 
-        long conActividad = equipos.stream().filter(UsoEquipo::tieneActividad).count();
         long etapas = equipos.stream().mapToLong(UsoEquipo::etapas).sum();
         double horas = redondear(equipos.stream().mapToLong(UsoEquipo::minutos).sum() / 60.0);
         long totalLimpiezas = equipos.stream().mapToLong(UsoEquipo::limpiezas).sum();
@@ -503,11 +525,12 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         List<DatoGraficoResponseDTO> datos = equipos.stream().filter(u -> u.minutos() > 0)
                 .sorted(Comparator.comparingLong(UsoEquipo::minutos).reversed().thenComparing(UsoEquipo::identificador))
                 .map(u -> new DatoGraficoResponseDTO(u.identificador(), u.horas())).toList();
+
         List<FilaReporteResponseDTO> tabla = equipos.stream().map(u -> new FilaReporteResponseDTO(List.of(
                 CeldaReporteResponseDTO.texto(u.dadoDeBaja() ? u.identificador() + " (dado de baja)" : u.identificador(),
                         u.tipo() == null ? null : u.tipo().getEtiqueta()),
                 CeldaReporteResponseDTO.numero(u.etapas()),
-                CeldaReporteResponseDTO.numero(u.horas()),
+                CeldaReporteResponseDTO.numero(u.horas(), UNIDAD_HORAS),
                 CeldaReporteResponseDTO.numero(u.limpiezas()),
                 CeldaReporteResponseDTO.numero(u.fallas()),
                 CeldaReporteResponseDTO.numero(u.mantenimientos())))).toList();
@@ -515,22 +538,17 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Equipamiento")
                 .descripcion(PestanaEstadistica.EQUIPAMIENTO.getDescripcion())
+                .criterioDeFecha("Etapas superpuestas con el período e intervenciones registradas dentro de él")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
                         CriterioAplicadoResponseDTO.de("Tipo de equipo", criterios.tipo() == null ? null : criterios.tipo().getEtiqueta(), "Todos"),
                         CriterioAplicadoResponseDTO.de("Equipo", criterios.textoEquipo(), "Todos")))
                 .indicadores(List.of(
-                        new IndicadorResponseDTO("equipos-con-actividad", "Equipos con actividad", FormatoCantidad.formatear(conActividad),
-                                "De " + equipos.size() + (equipos.size() == 1 ? " equipo" : " equipos"), null),
-                        new IndicadorResponseDTO("etapas-atendidas", "Etapas atendidas", FormatoCantidad.formatear(etapas),
-                                FormatoCantidad.conUnidad(horas, "h") + " en uso",
-                                "Etapas de lote iniciadas que se superponen con el período; las horas en uso son su duración real dentro del período"),
                         new IndicadorResponseDTO("limpiezas", "Limpiezas", FormatoCantidad.formatear(totalLimpiezas), "Registradas", null),
-                        new IndicadorResponseDTO("fallas-y-mantenimientos", "Fallas y mantenimientos", FormatoCantidad.formatear(totalFallas + totalMantenimientos),
-                                totalFallas + (totalFallas == 1 ? " falla y " : " fallas y ") + totalMantenimientos
-                                        + (totalMantenimientos == 1 ? " mantenimiento" : " mantenimientos"), null)))
-                .grafico(new GraficoReporteResponseDTO("Horas en uso por equipo", SoporteReportes.principales(datos, null), "h"))
+                        new IndicadorResponseDTO("fallas", "Fallas", FormatoCantidad.formatear(totalFallas), "Registradas", null),
+                        new IndicadorResponseDTO("mantenimientos", "Mantenimientos", FormatoCantidad.formatear(totalMantenimientos), "Registrados", null)))
+                .grafico(new GraficoReporteResponseDTO("Horas en uso por equipo", SoporteReportes.principales(datos, null), UNIDAD_HORAS))
                 .tabla(new TablaReporteResponseDTO(List.of(
                         ColumnaReporteResponseDTO.de("Equipo", TipoColumna.TEXTO),
                         ColumnaReporteResponseDTO.de("Etapas atendidas", TipoColumna.NUMERO),
@@ -542,7 +560,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
                         new FilaReporteResponseDTO(List.of(
                                 CeldaReporteResponseDTO.texto(SoporteReportes.TOTALES),
                                 CeldaReporteResponseDTO.numero(etapas),
-                                CeldaReporteResponseDTO.numero(horas),
+                                CeldaReporteResponseDTO.numero(horas, UNIDAD_HORAS),
                                 CeldaReporteResponseDTO.numero(totalLimpiezas),
                                 CeldaReporteResponseDTO.numero(totalFallas),
                                 CeldaReporteResponseDTO.numero(totalMantenimientos))),

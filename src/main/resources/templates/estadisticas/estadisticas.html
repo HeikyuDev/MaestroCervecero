@@ -7,7 +7,8 @@
     Pantalla "Estadísticas": una pestaña por reporte (PestanaEstadistica), las que permiten los permisos del usuario. Toda
     pestaña muestra lo mismo y en el mismo orden, con las piezas de estadisticas/fragments/reporte: la línea que dice qué
     pregunta responde, la barra de filtros, el encabezado de resultados (período aplicado y "Exportar PDF"), hasta cuatro
-    indicadores en una fila, el gráfico a todo el ancho y una tabla paginada. Si los criterios no
+    indicadores en una fila, el gráfico a todo el ancho y una tabla paginada (o, en los reportes con tablas con título, una
+    tabla debajo de la otra, sin paginar). Si los criterios no
     son válidos, la alerta del layout dice por qué y en lugar del reporte se muestra una tarjeta que pide un período
     válido.
 -->
@@ -41,10 +42,12 @@
         </th:block>
 
         <th:block th:if="${reporte != null}">
-            <div th:replace="~{estadisticas/fragments/reporte :: resultados(${reporte.desde}, ${reporte.hasta}, ${urlPdf})}"></div>
+            <div th:replace="~{estadisticas/fragments/reporte :: resultados(${reporte.desde}, ${reporte.hasta}, ${urlPdf}, ${reporte.criterioDeFecha})}"></div>
             <div th:replace="~{estadisticas/fragments/reporte :: indicadores(${reporte.indicadores})}"></div>
             <section th:replace="~{estadisticas/fragments/reporte :: grafico(${grafico})}"></section>
-            <section th:replace="~{estadisticas/fragments/reporte :: tabla(${reporte.tabla}, ${urlAnterior}, ${urlSiguiente})}"></section>
+            <th:block th:each="tabla : ${reporte.tablas}">
+                <section th:replace="~{estadisticas/fragments/reporte :: tabla(${tabla}, ${urlAnterior}, ${urlSiguiente})}"></section>
+            </th:block>
         </th:block>
     </th:block>
 </div>

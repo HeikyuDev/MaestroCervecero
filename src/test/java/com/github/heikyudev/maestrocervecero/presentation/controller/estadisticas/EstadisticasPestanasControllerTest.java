@@ -39,6 +39,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -64,9 +65,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Las pestañas de producción y de compras de la pantalla "Estadísticas": permisos, pestaña por defecto, criterios propios
- * de cada una y reporte impreso. Todas se arman con la misma pantalla y la misma plantilla del PDF.
+ * de cada una y reporte impreso. Todas se arman con la misma pantalla y la misma plantilla del PDF. Se habilita la pestaña
+ * "Tiempos" (deshabilitada por defecto) para verificar su reporte.
  */
 @WebMvcTest(EstadisticasController.class)
+@TestPropertySource(properties = "estadisticas.tiempos.habilitada=true")
 @Import({SecurityConfig.class, ControllerAdvices.class, ReporteLotes.class, ReporteCostos.class, ReporteTiempos.class, ReporteInsumos.class,
         ReporteEquipamiento.class, ReporteCompras.class, ReporteProveedores.class, ReportePrecios.class, ReporteRecepcion.class,
         BuscadoresEstadisticasController.class})
@@ -117,6 +120,34 @@ class EstadisticasPestanasControllerTest {
     private String pantalla(String url, Rol rol) throws Exception {
         return HtmlUtils.htmlUnescape(mockMvc.perform(get(url).with(como(rol))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    @DisplayName("CP-ESTC-26: un reporte con varias tablas las muestra una debajo de la otra, cada una con su título y sin paginación, y aclara qué fecha decide los lotes del período")
+    void pantalla_variasTablasConTitulo() throws Exception {
+        when(estadisticaProduccionServicio.generarReporteDeCostos(any(), any())).thenReturn(ReportesDePrueba.costos("Pale Ale", "Stout"));
+
+        String html = pantalla("/estadisticas?pestana=costos&desde=2026-11-01&hasta=2026-11-30", Rol.GERENTE_DE_PRODUCCION);
+
+        assertThat(html.split("data-tabla-reporte", -1).length - 1).isEqualTo(2);
+        assertThat(html.split("data-titulo-tabla", -1).length - 1).isEqualTo(2);
+        assertThat(html.indexOf(">Pale Ale</h2>")).isNotNegative().isLessThan(html.indexOf(">Stout</h2>"));
+        assertThat(html).doesNotContain("Página <span>").contains("Lotes con envasado finalizado dentro del período");
+    }
+
+    @Test
+    @DisplayName("CP-ESTC-27: con tres indicadores la pantalla usa una grilla de tres columnas y tarjetas más amplias, sin hueco; con cuatro conserva la grilla de cuatro")
+    void pantalla_indicadoresSeAdaptanALaCantidad() throws Exception {
+        when(estadisticaProduccionServicio.generarReporteDeCostos(any(), any())).thenReturn(ReportesDePrueba.costos("Pale Ale"));
+        when(estadisticaProduccionServicio.generarReporteDeLotes(any(), any())).thenReturn(ReportesDePrueba.lotes(1, 1));
+
+        String tres = pantalla("/estadisticas?pestana=costos&desde=2026-11-01&hasta=2026-11-30", Rol.GERENTE_DE_PRODUCCION);
+        String cuatro = pantalla("/estadisticas?pestana=lotes&desde=2026-11-01&hasta=2026-11-30", Rol.GERENTE_DE_PRODUCCION);
+
+        assertThat(tres).contains("data-cantidad-indicadores=\"3\"").contains("grid-cols-1 gap-4 md:grid-cols-3").doesNotContain("gap-4 sm:grid-cols-2 lg:grid-cols-4");
+        assertThat(tres.split("data-indicador=\"", -1).length - 1).isEqualTo(3);
+        assertThat(tres).contains("p-7").contains("text-4xl");
+        assertThat(cuatro).contains("data-cantidad-indicadores=\"4\"").contains("gap-4 sm:grid-cols-2 lg:grid-cols-4").doesNotContain("gap-4 md:grid-cols-3");
     }
 
     // ==================== Pestañas por permiso ====================

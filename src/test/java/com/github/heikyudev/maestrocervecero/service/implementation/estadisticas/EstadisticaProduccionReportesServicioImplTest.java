@@ -24,6 +24,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.estadisticas.C
 import com.github.heikyudev.maestrocervecero.service.response_dto.estadisticas.DatoGraficoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.estadisticas.IndicadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.estadisticas.ReporteEstadisticoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.estadisticas.TablaReporteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.FormatoImporte;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -100,7 +101,7 @@ class EstadisticaProduccionReportesServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ESP-12: Costos suma el costo de insumos y los costos adicionales de cada lote y calcula el costo total, los litros, el costo por litro ponderado y el peso de los insumos")
+    @DisplayName("CP-ESP-12: Costos suma el costo de insumos y los costos adicionales de cada lote y calcula el costo total, los litros y el peso de los insumos, sin un costo por litro global")
     void costos_indicadoresYTabla() {
         when(repository.buscarLotesConEnvasadoFinalizado(INICIO, FIN, null)).thenReturn(List.of(
                 lote(1, "LOT-A-01", "Pale Ale", 7, LocalDateTime.of(2026, 11, 5, 10, 0), 100.0),
@@ -112,33 +113,50 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, null, null), PAGINA);
 
         assertThat(reporte.getDescripcion()).isEqualTo("Cuánto costó producir cada litro en el período");
-        assertThat(valores(reporte)).containsExactly(pesos("250"), "150 L", pesos("1.6667"), "80 %");
-        assertThat(reporte.getIndicadores()).hasSize(4);
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Lotes con envasado finalizado dentro del período");
+        assertThat(valores(reporte)).containsExactly(pesos("250"), "150 L", "80 %");
+        assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre)
+                .containsExactly("Costo total", "Litros envasados", "Peso de los insumos");
         assertThat(reporte.getCriterios()).extracting("etiqueta", "valor").containsExactly(tuple("Receta", "Todas"));
-        assertThat(reporte.getTabla().getColumnas()).hasSize(6);
-        List<CeldaReporteResponseDTO> primera = reporte.getTabla().getFilas().getContent().get(0).getCeldas();
+        // Una tabla por receta, en el orden del gráfico: Pale Ale cuesta $ 2 por litro y Stout $ 1
+        assertThat(reporte.getGrafico().getDatos()).extracting(DatoGraficoResponseDTO::getEtiqueta, DatoGraficoResponseDTO::getValor)
+                .containsExactly(tuple("Pale Ale", 2.0), tuple("Stout", 1.0));
+        assertThat(reporte.getTablas()).extracting(TablaReporteResponseDTO::getTitulo).containsExactly("Pale Ale", "Stout");
+        assertThat(reporte.getTablas()).allSatisfy(t -> {
+            assertThat(t.isPaginada()).isFalse();
+            assertThat(t.getColumnas()).extracting(c -> c.getTitulo())
+                    .containsExactly("Lote", "Fin de envasado", "Litros", "Costo de insumos", "Costo adicional", "Costo total", "Costo por litro");
+        });
+        TablaReporteResponseDTO stout = reporte.getTablas().get(1);
+        List<CeldaReporteResponseDTO> primera = stout.getFilas().getContent().get(0).getCeldas();
         assertThat(primera).extracting(CeldaReporteResponseDTO::getTexto)
-                .containsExactly("LOT-B-01", "09/11/2026", "50", pesos("50"), pesos("50"), pesos("1"));
-        assertThat(primera.get(0).getDetalle()).isEqualTo("Stout");
-        assertThat(reporte.getTabla().getTotales().getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
-                .containsExactly("Totales del período", "", "150", pesos("200"), pesos("250"), pesos("1.6667"));
+                .containsExactly("LOT-B-01", "09/11/2026", "50", pesos("50"), pesos("0"), pesos("50"), pesos("1"));
+        assertThat(primera.get(0).getDetalle()).isNull();
+        assertThat(stout.getTotales().getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
+                .containsExactly("Totales del período", "", "50", pesos("50"), pesos("0"), pesos("50"), pesos("1"));
+        assertThat(reporte.getTablas().get(0).getTotales().getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
+                .containsExactly("Totales del período", "", "100", pesos("150"), pesos("50"), pesos("200"), pesos("2"));
     }
 
     @Test
-    @DisplayName("CP-ESP-13: Costos sin lotes muestra ceros y guiones: no divide por cero y no lleva totales")
+    @DisplayName("CP-ESP-13: Costos sin lotes muestra ceros y guiones: no divide por cero, lleva una tabla vacía sin título y no lleva totales")
     void costos_sinLotes() {
         when(repository.buscarLotesConEnvasadoFinalizado(INICIO, FIN, 7L)).thenReturn(List.of());
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, 7L, "Pale Ale"), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly(pesos("0"), "0 L", "-", "-");
+        assertThat(valores(reporte)).containsExactly(pesos("0"), "0 L", "-");
+        assertThat(reporte.getTablas()).hasSize(1);
+        assertThat(reporte.getTabla().getTitulo()).isNull();
+        assertThat(reporte.getTabla().getColumnas()).hasSize(7);
+        assertThat(reporte.getTabla().getFilas().getContent()).isEmpty();
         assertThat(reporte.getTabla().getTotales()).isNull();
         assertThat(reporte.getGrafico().getDatos()).isEmpty();
         assertThat(reporte.getCriterios().get(0).getValor()).isEqualTo("Pale Ale");
     }
 
     @Test
-    @DisplayName("CP-ESP-14: el gráfico de Costos muestra el costo por litro de las ocho recetas más caras sin sumar el resto en 'Otras'")
+    @DisplayName("CP-ESP-14: el gráfico de Costos muestra el costo por litro de las ocho recetas más caras sin sumar el resto en 'Otras'; hay una tabla por cada receta, la más cara primero")
     void costos_graficoSinOtras() {
         List<Object[]> lotes = new ArrayList<>();
         List<Object[]> insumos = new ArrayList<>();
@@ -152,12 +170,40 @@ class EstadisticaProduccionReportesServicioImplTest {
         when(repository.sumarCostoDeInsumosPorLote(ids)).thenReturn(insumos);
         when(repository.sumarCostosAdicionalesPorLote(ids)).thenReturn(List.of());
 
-        List<DatoGraficoResponseDTO> datos = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, null, null), PAGINA).getGrafico().getDatos();
+        ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, null, null), PAGINA);
+        List<DatoGraficoResponseDTO> datos = reporte.getGrafico().getDatos();
 
         assertThat(datos).hasSize(8);
         assertThat(datos.get(0).getEtiqueta()).isEqualTo("Receta 10");
         assertThat(datos.get(0).getValor()).isEqualTo(10.0);
         assertThat(datos).extracting(DatoGraficoResponseDTO::getEtiqueta).doesNotContain("Otras", "Otros");
+        assertThat(reporte.getTablas()).hasSize(10);
+        assertThat(reporte.getTablas().get(0).getTitulo()).isEqualTo("Receta 10");
+        assertThat(reporte.getTablas().get(0).getFilas().getContent().get(0).getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
+                .contains(pesos("100"), pesos("0"));
+        assertThat(reporte.getTablas().subList(0, 8)).extracting(TablaReporteResponseDTO::getTitulo)
+                .isEqualTo(datos.stream().map(DatoGraficoResponseDTO::getEtiqueta).toList());
+    }
+
+    @Test
+    @DisplayName("CP-ESP-27: en Costos una receta con varios lotes los lista del fin de envasado más reciente al más antiguo y sus totales usan solo sus lotes; ante igual costo por litro, las tablas siguen el orden por nombre")
+    void costos_variosLotesPorRecetaYEmpate() {
+        when(repository.buscarLotesConEnvasadoFinalizado(INICIO, FIN, null)).thenReturn(List.of(
+                lote(1, "LOT-Z-01", "Zeta", 9, LocalDateTime.of(2026, 11, 20, 10, 0), 10.0),
+                lote(2, "LOT-A-01", "Alfa", 7, LocalDateTime.of(2026, 11, 3, 10, 0), 10.0),
+                lote(3, "LOT-A-02", "Alfa", 7, LocalDateTime.of(2026, 11, 15, 10, 0), 30.0)));
+        when(repository.sumarCostoDeInsumosPorLote(List.of(1L, 2L, 3L))).thenReturn(List.of(
+                new Object[]{1L, new BigDecimal("20")}, new Object[]{2L, new BigDecimal("20")}, new Object[]{3L, new BigDecimal("60")}));
+        when(repository.sumarCostosAdicionalesPorLote(List.of(1L, 2L, 3L))).thenReturn(List.of());
+
+        ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, null, null), PAGINA);
+
+        assertThat(reporte.getTablas()).extracting(TablaReporteResponseDTO::getTitulo).containsExactly("Alfa", "Zeta");
+        TablaReporteResponseDTO alfa = reporte.getTablas().get(0);
+        assertThat(alfa.getFilas().getContent()).extracting(f -> f.getCeldas().get(0).getTexto()).containsExactly("LOT-A-02", "LOT-A-01");
+        assertThat(alfa.getTotales().getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
+                .containsExactly("Totales del período", "", "40", pesos("80"), pesos("0"), pesos("80"), pesos("2"));
+        assertThat(valores(reporte)).containsExactly(pesos("100"), "50 L", "100 %");
     }
 
     // ==================== Tiempos ====================
@@ -294,9 +340,11 @@ class EstadisticaProduccionReportesServicioImplTest {
 
         assertThat(valores(reporte)).containsExactly(pesos("1000"), "2", "Pilsen", "10 %");
         assertThat(reporte.getIndicadores().get(2).getAclaracion()).isEqualTo(pesos("600"));
-        assertThat(reporte.getIndicadores().get(0).getAyuda()).isEqualTo("Cantidad consumida por el costo promedio ponderado (PPP) registrado en cada consumo");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Consumos registrados dentro del período");
+        assertThat(reporte.getIndicadores().get(0).getAyuda()).isNull();
+        assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("Al costo de cada consumo");
         assertThat(reporte.getTabla().getColumnas()).extracting(c -> c.getTitulo()).containsExactly("Insumo", "Tipo", "Cantidad", "Valor", "% del total", "Lotes de producción");
-        assertThat(reporte.getTabla().getColumnas().get(3).getAyuda()).isEqualTo("Cantidad consumida por el costo promedio ponderado (PPP) registrado en cada consumo");
+        assertThat(reporte.getTabla().getColumnas().get(3).getAyuda()).isNull();
         assertThat(reporte.getTabla().getColumnas().get(5).getAyuda()).isEqualTo("Cantidad de lotes de producción en los que se consumió el insumo en el período");
         assertThat(reporte.getDescripcion()).isEqualTo("Qué insumos se consumieron y cuánto se gastó en ellos");
         assertThat(reporte.getTabla().getFilas().getContent().get(0).getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
@@ -371,17 +419,21 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeEquipamiento(new CriteriosReporteEquipamiento(desde, hasta, null, null, null), PAGINA);
 
         // MOL-03 está dado de baja sin actividad: no figura. Con actividad: FER-01, MOL-01, MAC-01, OLL-01 y MOL-02 (de baja)
-        assertThat(valores(reporte)).containsExactly("5", "3", "3", "2");
-        assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("56 h en uso");
-        assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("De 6 equipos");
-        assertThat(reporte.getIndicadores().get(3).getAclaracion()).isEqualTo("1 falla y 1 mantenimiento");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Etapas superpuestas con el período e intervenciones registradas dentro de él");
+        assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre).containsExactly("Limpiezas", "Fallas", "Mantenimientos");
+        assertThat(valores(reporte)).containsExactly("3", "1", "1");
+        assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getAclaracion).containsExactly("Registradas", "Registradas", "Registrados");
+        assertThat(reporte.getTablas()).hasSize(1);
+        assertThat(reporte.getTabla().getTitulo()).isNull();
+        assertThat(reporte.getTabla().getColumnas()).extracting(c -> c.getTitulo())
+                .containsExactly("Equipo", "Etapas atendidas", "Horas en uso", "Limpiezas", "Fallas", "Mantenimientos");
         assertThat(reporte.getTabla().getFilas().getContent()).extracting(f -> f.getCeldas().get(0).getTexto())
                 .containsExactly("MOL-01", "MOL-02 (dado de baja)", "MAC-01", "OLL-01", "FER-01", "FER-02");
         assertThat(reporte.getTabla().getFilas().getContent().get(0).getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
-                .containsExactly("MOL-01", "1", "38", "0", "0", "0");
+                .containsExactly("MOL-01", "1", "38 h", "0", "0", "0");
         assertThat(reporte.getTabla().getFilas().getContent().get(0).getCeldas().get(0).getDetalle()).isEqualTo(TipoEquipamiento.MOLINO.getEtiqueta());
         assertThat(reporte.getTabla().getTotales().getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
-                .containsExactly("Totales del período", "3", "56", "3", "1", "1");
+                .containsExactly("Totales del período", "3", "56 h", "3", "1", "1");
         assertThat(reporte.getGrafico().getDatos()).extracting(DatoGraficoResponseDTO::getEtiqueta, DatoGraficoResponseDTO::getValor)
                 .containsExactly(tuple("MOL-01", 38.0), tuple("FER-01", 12.0), tuple("MOL-02", 6.0));
     }
@@ -398,7 +450,7 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeEquipamiento(
                 new CriteriosReporteEquipamiento(DESDE, HASTA, TipoEquipamiento.FERMENTADOR, 4L, "FER-01"), PAGINA);
 
-        assertThat(valores(reporte)).containsExactly("0", "0", "0", "0");
+        assertThat(valores(reporte)).containsExactly("0", "0", "0");
         assertThat(reporte.getTabla().getTotales()).isNull();
         assertThat(reporte.getGrafico().getDatos()).isEmpty();
         assertThat(reporte.getCriterios()).extracting("valor").containsExactly("Fermentador", "FER-01");
@@ -422,8 +474,6 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeEquipamiento(new CriteriosReporteEquipamiento(desde, hasta, null, null, null), PAGINA);
 
         assertThat(reporte.getTabla().getFilas().getContent().get(0).getCeldas()).extracting(CeldaReporteResponseDTO::getTexto)
-                .containsExactly("FER-01", "1", "30", "0", "0", "0");
-        assertThat(reporte.getIndicadores().get(1).getValor()).isEqualTo("1");
-        assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("30 h en uso");
+                .containsExactly("FER-01", "1", "30 h", "0", "0", "0");
     }
 }

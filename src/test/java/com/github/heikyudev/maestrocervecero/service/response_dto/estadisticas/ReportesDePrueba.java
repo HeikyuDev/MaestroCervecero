@@ -54,6 +54,7 @@ public final class ReportesDePrueba {
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Lotes")
                 .descripcion("Cuántos lotes se planificaron en el período y cómo terminaron")
+                .criterioDeFecha("Lotes con inicio estimado dentro del período")
                 .desde(LocalDate.of(2026, 11, 1))
                 .hasta(LocalDate.of(2026, 11, 30))
                 .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", null, "Todas"), CriterioAplicadoResponseDTO.de("Estado", "Finalizado", "Todos")))
@@ -69,5 +70,32 @@ public final class ReportesDePrueba {
                         new DatoGraficoResponseDTO("Finalizado", cantidad), new DatoGraficoResponseDTO("Cancelado", 0)), null))
                 .tabla(tabla)
                 .build();
+    }
+
+    /** Un reporte "Costos" con una tabla con título por cada receta indicada, sin paginación, cada una con un lote. */
+    public static ReporteEstadisticoResponseDTO costos(String... recetas) {
+        List<TablaReporteResponseDTO> tablas = new ArrayList<>();
+        for (String receta : recetas) {
+            List<FilaReporteResponseDTO> filas = List.of(new FilaReporteResponseDTO(List.of(
+                    CeldaReporteResponseDTO.texto("LOT-" + receta), CeldaReporteResponseDTO.fecha(LocalDate.of(2026, 11, 5)),
+                    CeldaReporteResponseDTO.numero(100.0), CeldaReporteResponseDTO.numero(1.0), CeldaReporteResponseDTO.numero(2.0),
+                    CeldaReporteResponseDTO.numero(3.0), CeldaReporteResponseDTO.numero(0.03))));
+            tablas.add(new TablaReporteResponseDTO(receta, List.of(
+                    ColumnaReporteResponseDTO.de("Lote", TipoColumna.TEXTO), ColumnaReporteResponseDTO.de("Fin de envasado", TipoColumna.FECHA),
+                    ColumnaReporteResponseDTO.de("Litros", TipoColumna.NUMERO), ColumnaReporteResponseDTO.de("Costo de insumos", TipoColumna.NUMERO),
+                    ColumnaReporteResponseDTO.de("Costo adicional", TipoColumna.NUMERO), ColumnaReporteResponseDTO.de("Costo total", TipoColumna.NUMERO),
+                    ColumnaReporteResponseDTO.de("Costo por litro", TipoColumna.NUMERO)),
+                    new PageImpl<>(filas, PageRequest.of(0, 1), 1), null, "lote|lotes"));
+        }
+        return ReporteEstadisticoResponseDTO.builder()
+                .titulo("Costos").descripcion("Cuánto costó producir cada litro en el período")
+                .criterioDeFecha("Lotes con envasado finalizado dentro del período")
+                .desde(LocalDate.of(2026, 11, 1)).hasta(LocalDate.of(2026, 11, 30))
+                .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", null, "Todas")))
+                .indicadores(List.of(new IndicadorResponseDTO("costo-total", "Costo total", "$ 300,00", null, null),
+                        new IndicadorResponseDTO("litros-envasados", "Litros envasados", "200 L", "2 lotes", null),
+                        new IndicadorResponseDTO("peso-insumos", "Peso de los insumos", "80 %", "Del costo total", null)))
+                .grafico(new GraficoReporteResponseDTO("Costo por litro por receta", List.of(), null))
+                .tablas(tablas).build();
     }
 }

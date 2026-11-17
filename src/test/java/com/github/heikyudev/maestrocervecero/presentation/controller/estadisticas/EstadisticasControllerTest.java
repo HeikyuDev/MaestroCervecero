@@ -152,7 +152,7 @@ class EstadisticasControllerTest {
     }
 
     @Test
-    @DisplayName("CP-ESTC-05: la pantalla muestra el encabezado de resultados con el período y 'Exportar PDF' con los mismos criterios, como máximo 4 indicadores, un único gráfico con sus valores y una tabla de hasta 6 columnas con 'Abrir' centrado, la fila de totales y la paginación")
+    @DisplayName("CP-ESTC-05: la pantalla muestra el encabezado de resultados con el período y 'Exportar PDF' con los mismos criterios, como máximo 4 indicadores, un único gráfico con sus valores y una tabla de hasta 7 columnas con 'Abrir' centrado, la fila de totales y la paginación")
     void pantalla_estructuraDelReporte() throws Exception {
         conReporte(ReportesDePrueba.lotes(3, 3));
 
@@ -172,7 +172,8 @@ class EstadisticasControllerTest {
                 .contains("<span>3</span> <span>lotes</span>").contains("Página <span>1</span> de <span>1</span>")
                 .contains("href=\"/estadisticas/pdf?pestana=lotes&amp;desde=2026-11-01&amp;hasta=2026-11-30&amp;estado=FINALIZADO\"".replace("&amp;", "&"))
                 .contains("href=\"/estadisticas?pestana=lotes\" data-limpiar-filtros");
-        assertThat(html).contains("Resultados del 01/11/2026 al 30/11/2026");
+        assertThat(html).contains("Resultados del 01/11/2026 al 30/11/2026").contains("data-criterio-fecha")
+                .contains("Lotes con inicio estimado dentro del período");
         assertThat(html).contains("method=\"get\" novalidate").contains("<option value=\"FINALIZADO\" selected=\"selected\">Finalizado</option>");
     }
 

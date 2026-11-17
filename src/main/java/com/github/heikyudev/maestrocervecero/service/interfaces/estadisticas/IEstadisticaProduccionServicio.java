@@ -46,11 +46,13 @@ public interface IEstadisticaProduccionServicio {
      * <p>
      * Postcondiciones: el costo de un lote es el de sus consumos registrados (cantidad por costo unitario congelado al
      * consumir) más sus costos adicionales (congelados al finalizar el envasado); no incluye costos fijos. Devuelve el
-     * criterio Receta; cuatro indicadores: costo total, litros envasados, costo por litro (costo total sobre litros) y
-     * peso de los insumos (su porcentaje sobre el costo total; un guion si el costo total es cero); el gráfico del costo
-     * por litro por receta (las ocho más caras, sin sumar el resto); y la página pedida de la tabla (lote con su receta,
-     * fin de envasado, litros, costo de insumos, costo total y costo por litro), del fin de envasado más reciente al más
-     * antiguo, con la fila de totales y el costo por litro ponderado. No modifica ningún dato.
+     * criterio Receta; tres indicadores: costo total, litros envasados y peso de los insumos (su porcentaje sobre el costo
+     * total; un guion si el costo total es cero); el gráfico del costo por litro por receta (las ocho más caras, sin
+     * sumar el resto); y una tabla por receta, una debajo de la otra y sin paginar, en el orden del gráfico (de la de
+     * mayor a la de menor costo por litro, y por nombre ante un empate) y con el nombre de la receta como título. Cada
+     * tabla lista los lotes de su receta (lote, fin de envasado, litros, costo de insumos, costo adicional, costo total
+     * y costo por litro), del fin de envasado más reciente al más antiguo, con la fila de totales de la receta en el
+     * período y su costo por litro ponderado. Sin lotes, una tabla vacía sin título. No modifica ningún dato.
      * </p>
      *
      * @param criterios Criterios del reporte.
@@ -117,10 +119,10 @@ public interface IEstadisticaProduccionServicio {
      * Postcondiciones: las etapas atendidas son las iniciadas (en curso o finalizadas) que se superponen con el período;
      * las horas en uso son la suma de sus duraciones reales recortadas al período (una etapa en curso cuenta hasta
      * ahora); las limpiezas, fallas y mantenimientos son los registrados con fecha en el período. Devuelve los criterios
-     * Tipo de equipo y Equipo; cuatro indicadores: equipos con actividad, etapas atendidas, limpiezas y fallas y
+     * Tipo de equipo y Equipo; tres indicadores: limpiezas, fallas y
      * mantenimientos; el gráfico de horas en uso de los ocho equipos más usados; y la página pedida de la tabla (equipo
-     * con su tipo, etapas atendidas, horas en uso, limpiezas, fallas y mantenimientos) por tipo e identificador, con la
-     * fila de totales. No modifica ningún dato.
+     * con su tipo, etapas atendidas, horas en uso con su unidad, limpiezas, fallas y mantenimientos) por tipo e
+     * identificador, con la fila de totales. No modifica ningún dato.
      * </p>
      *
      * @param criterios Criterios del reporte.

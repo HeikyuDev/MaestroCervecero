@@ -10,13 +10,14 @@
     criterios propios de la pestaña (CampoFiltro: lista simple con "Todos"/"Todas" o selector con buscador en modal),
     con su ancho normal de columna. "Limpiar" (vuelve al período por defecto y quita los criterios) y "Filtrar" van en su
     propia fila debajo de los campos, a la derecha, como en el resto de las listas.
-    resultados(desde, hasta, urlPdf): encabezado de los resultados, debajo de los filtros y solo si hay reporte:
-    "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) a la izquierda y, en la misma línea a la derecha, el
+    resultados(desde, hasta, urlPdf, criterioDeFecha): encabezado de los resultados, debajo de los filtros y solo si hay reporte:
+    "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) y, debajo, qué fecha decide qué registros entran en el período (criterioDeFecha, por ejemplo "Lotes con inicio estimado dentro del período") a la izquierda y, en la misma línea a la derecha, el
     botón secundario (con borde, sin relleno) "Exportar PDF", que abre el PDF en otra pestaña con los mismos criterios.
-    indicadores(indicadores): hasta cuatro tarjetas (IndicadorResponseDTO) en una sola fila, con el nombre, el valor
+    indicadores(indicadores): hasta cuatro tarjetas (IndicadorResponseDTO) en una sola fila que ocupa todo el ancho (la grilla toma tantas columnas como tarjetas; con menos de cuatro, las tarjetas son algo más amplias y su valor algo más grande), con el nombre, el valor
     grande (algo más chico si es largo, como un importe de siete cifras, para que no se parta), una aclaración de una línea y, si el indicador tiene definición, el tooltip de ayuda junto al nombre.
     grafico(grafico): tarjeta con el único gráfico (GraficoBarras), debajo de los indicadores y a todo el ancho.
-    tabla(tabla, urlAnterior, urlSiguiente): la única tabla (TablaReporteResponseDTO), con cada columna alineada según su
+    tabla(tabla, urlAnterior, urlSiguiente): una tabla (TablaReporteResponseDTO; un reporte puede tener varias, una debajo de la otra,
+    cada una con su título y sin paginación), con cada columna alineada según su
     tipo, el botón "Abrir" o "Ver" en la columna de acciones (protegido por el permiso de la columna; sin botón si la
     celda no tiene ID), la fila de totales del
     período, la línea "Sin resultados para los criterios indicados" sin filas y la paginación estándar.
@@ -62,9 +63,12 @@
 </form>
 
 <!-- ===================================================================== ENCABEZADO DE RESULTADOS -->
-<div th:fragment="resultados(desde, hasta, urlPdf)" data-resultados class="flex flex-wrap items-center justify-between gap-3">
-    <h2 class="text-base font-semibold text-slate-900"
-        th:text="|Resultados del ${#temporals.format(desde, 'dd/MM/yyyy')} al ${#temporals.format(hasta, 'dd/MM/yyyy')}|">Resultados del 01/11/2026 al 15/11/2026</h2>
+<div th:fragment="resultados(desde, hasta, urlPdf, criterioDeFecha)" data-resultados class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+        <h2 class="text-base font-semibold text-slate-900"
+            th:text="|Resultados del ${#temporals.format(desde, 'dd/MM/yyyy')} al ${#temporals.format(hasta, 'dd/MM/yyyy')}|">Resultados del 01/11/2026 al 15/11/2026</h2>
+        <p th:if="${criterioDeFecha != null}" data-criterio-fecha class="mt-0.5 text-sm text-slate-500" th:text="${criterioDeFecha}">Lotes con inicio estimado dentro del período</p>
+    </div>
     <a th:href="@{${urlPdf}}" data-exportar-pdf target="_blank" rel="noopener"
        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-colors">
         <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Exportar PDF
@@ -72,8 +76,12 @@
 </div>
 
 <!-- ===================================================================== INDICADORES -->
-<div th:fragment="indicadores(indicadores)" data-indicadores class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div th:each="i : ${indicadores}" th:attr="data-indicador=${i.clave}" class="p-5 bg-white border border-slate-200 rounded-xl shadow-sm">
+<div th:fragment="indicadores(indicadores)" data-indicadores class="grid grid-cols-1 gap-4"
+     th:with="cantidad=${#lists.size(indicadores)}"
+     th:attr="data-cantidad-indicadores=${cantidad}"
+     th:classappend="${cantidad >= 4} ? 'sm:grid-cols-2 lg:grid-cols-4' : (${cantidad == 3} ? 'md:grid-cols-3' : (${cantidad == 2} ? 'sm:grid-cols-2' : ''))">
+    <div th:each="i : ${indicadores}" th:attr="data-indicador=${i.clave}" class="bg-white border border-slate-200 rounded-xl shadow-sm"
+         th:classappend="${cantidad >= 4} ? 'p-5' : 'p-7'">
         <div class="flex h-5 items-center gap-1.5">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider" th:text="${i.nombre}">Lotes del período</span>
             <th:block th:if="${i.ayuda != null}">
@@ -81,7 +89,7 @@
                 <div th:id="'ayuda-indicador-' + ${i.clave}" hidden th:text="${i.ayuda}">Definición</div>
             </th:block>
         </div>
-        <p class="mt-2 font-bold text-slate-800 whitespace-nowrap" th:classappend="${#strings.length(i.valor) > 9} ? 'text-2xl' : 'text-3xl'" data-indicador-valor th:text="${i.valor}">0</p>
+        <p class="mt-2 font-bold text-slate-800 whitespace-nowrap" th:classappend="${#strings.length(i.valor) > 9} ? (${cantidad >= 4} ? 'text-2xl' : 'text-3xl') : (${cantidad >= 4} ? 'text-3xl' : 'text-4xl')" data-indicador-valor th:text="${i.valor}">0</p>
         <p th:if="${i.aclaracion != null}" class="mt-1 text-xs text-slate-500 truncate" data-indicador-aclaracion th:text="${i.aclaracion}">Aclaración</p>
     </div>
 </div>
@@ -96,6 +104,7 @@
 
 <!-- ===================================================================== TABLA -->
 <section th:fragment="tabla(tabla, urlAnterior, urlSiguiente)" data-tabla-reporte class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 th:if="${tabla.titulo != null}" data-titulo-tabla class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900" th:text="${tabla.titulo}">Pale Ale</h2>
     <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -147,8 +156,10 @@
             </tfoot>
         </table>
     </div>
-    <div th:replace="~{fragments/paginacion :: paginacion(${tabla.filas}, ${tabla.etiquetaFilas},
-            ${urlAnterior != null} ? @{${urlAnterior}} : null, ${urlSiguiente != null} ? @{${urlSiguiente}} : null, false)}"></div>
+    <th:block th:if="${tabla.paginada}">
+        <div th:replace="~{fragments/paginacion :: paginacion(${tabla.filas}, ${tabla.etiquetaFilas},
+                ${urlAnterior != null} ? @{${urlAnterior}} : null, ${urlSiguiente != null} ? @{${urlSiguiente}} : null, false)}"></div>
+    </th:block>
 </section>
 
 <!-- ===================================================================== SIN REPORTE -->
