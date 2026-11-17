@@ -71,7 +71,7 @@ class RestablecimientoContrasenaControllerTest {
     // ==================== POST /recuperar-contrasena ====================
 
     @Test
-    @DisplayName("CP-RCT-02: pedir el enlace llama al service con el nombre de usuario y vuelve al inicio de sesión con el aviso neutral")
+    @DisplayName("CP-RCT-02: pedir el enlace deja el pedido al service con el nombre de usuario y la IP del cliente y vuelve al inicio de sesión con el aviso neutral")
     void solicitarRestablecimiento_redirigeAlLoginConElAvisoNeutral() throws Exception {
         mockMvc.perform(post("/recuperar-contrasena").with(csrf()).param("username", "jperez"))
                 .andExpect(status().is3xxRedirection())
@@ -79,14 +79,14 @@ class RestablecimientoContrasenaControllerTest {
                 .andExpect(flash().attribute("mensaje", MENSAJE_SOLICITUD))
                 .andExpect(flash().attribute("tipo", "info"));
 
-        verify(restablecimientoContrasenaServicio).solicitarRestablecimiento("jperez");
+        verify(restablecimientoContrasenaServicio).solicitarRestablecimiento("jperez", "127.0.0.1");
     }
 
     @Test
     @DisplayName("CP-RCT-03: si el service falla, la respuesta es la misma redirección con el mismo aviso neutral")
     void solicitarRestablecimiento_fallaDelServiceNoCambiaLaRespuesta() throws Exception {
         doThrow(new IllegalStateException("Base de datos no disponible"))
-                .when(restablecimientoContrasenaServicio).solicitarRestablecimiento(anyString());
+                .when(restablecimientoContrasenaServicio).solicitarRestablecimiento(anyString(), any());
 
         mockMvc.perform(post("/recuperar-contrasena").with(csrf()).param("username", "jperez"))
                 .andExpect(status().is3xxRedirection())

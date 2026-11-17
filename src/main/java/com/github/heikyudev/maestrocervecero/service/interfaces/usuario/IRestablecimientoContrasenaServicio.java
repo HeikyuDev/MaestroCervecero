@@ -14,8 +14,11 @@ public interface IRestablecimientoContrasenaServicio {
      * Envía, a la dirección de correo registrada del usuario activo con ese nombre de usuario, un enlace para
      * restablecer su contraseña.
      * <p>
-     * Precondiciones: ninguna. El resultado visible es el mismo exista o no el usuario: no informa si el nombre de
-     * usuario existe.
+     * Se ejecuta en un hilo aparte: quien lo invoca recibe el control de inmediato, de modo que ni el resultado ni el
+     * tiempo de respuesta informan si el nombre de usuario existe. Una falla se registra en el log y nunca se propaga.
+     * </p>
+     * <p>
+     * Precondiciones: ninguna.
      * </p>
      * <p>
      * Postcondiciones: si existe un usuario activo con ese nombre de usuario (normalizado como al guardarlo) y no se le
@@ -25,8 +28,10 @@ public interface IRestablecimientoContrasenaServicio {
      * </p>
      *
      * @param username Nombre de usuario tal como lo escribió el usuario.
+     * @param ipCliente IP desde la que se hizo el pedido, para la bitácora (el hilo aparte ya no tiene la request), o
+     *                  {@code null} si no se conoce.
      */
-    void solicitarRestablecimiento(String username);
+    void solicitarRestablecimiento(String username, String ipCliente);
 
     /**
      * Verifica que un enlace para restablecer la contraseña sirva, antes de mostrar el formulario de la contraseña nueva.
@@ -47,8 +52,10 @@ public interface IRestablecimientoContrasenaServicio {
      * {@link com.github.heikyudev.maestrocervecero.util.method.MetodosPassword} y la confirmación coincide con ella.
      * </p>
      * <p>
-     * Postcondiciones: la contraseña del usuario queda reemplazada (guardada como hash), el enlace queda usado, los demás
-     * enlaces sin usar del usuario dejan de servir y se registra el restablecimiento en la bitácora.
+     * Postcondiciones: el enlace queda usado (se reclama con una única sentencia, de modo que dos pedidos simultáneos no
+     * pueden usarlo dos veces), la contraseña del usuario queda reemplazada (guardada como hash), los demás enlaces sin
+     * usar del usuario dejan de servir y se registra el restablecimiento en la bitácora, todo en una misma transacción.
+     * Confirmada la transacción, se cierran las sesiones abiertas del usuario.
      * </p>
      *
      * @param token Token recibido en el enlace.

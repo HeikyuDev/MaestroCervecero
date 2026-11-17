@@ -11,6 +11,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -37,7 +39,7 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
         return http
                 // === AUTORIZACIÓN: quién puede entrar a qué URL ===
                 .authorizeHttpRequests(auth -> auth
@@ -97,9 +99,17 @@ public class SecurityConfig {
                         // de morir) NO se configura aquí: es una propiedad del contenedor de servlets,
                         // ver server.servlet.session.timeout en application.properties.
                         .maximumSessions(1)                   // Un usuario, una sesión activa a la vez
+                        .sessionRegistry(sessionRegistry)     // El mismo registro con el que se cierran las sesiones de un usuario
                         .expiredUrl("/login?expired")         // A dónde va si su sesión fue "expulsada" por una nueva
                 )
                 .build();
+    }
+
+    // Registro de las sesiones activas de cada usuario. Lo usa maximumSessions(1) y, al restablecer una contraseña,
+    // CierreSesionesServicioImpl para cerrar las sesiones abiertas con la contraseña anterior.
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
     }
 
     // Sin este bean, Spring Security nunca se entera cuando una HttpSession muere de verdad

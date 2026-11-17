@@ -14,14 +14,17 @@ import com.github.heikyudev.maestrocervecero.service.exception.EnlaceRestablecim
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.service.interfaces.correo.ICorreoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.ICierreSesionesServicio;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;
@@ -41,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -55,6 +59,7 @@ class RestablecimientoContrasenaServicioImplTest {
     private static final long MINUTOS_ENTRE_SOLICITUDES = 2;
     private static final String TOKEN = "Q2xhdmVEZVBydWViYVBhcmFFbFJlc3RhYmxlY2ltaWVudG8";
     private static final String PASSWORD_NUEVA = "NuevaClave123";
+    private static final String IP = "10.0.0.1";
 
     @Mock
     private IUsuarioRepository usuarioRepository;
@@ -71,12 +76,15 @@ class RestablecimientoContrasenaServicioImplTest {
     @Mock
     private IAuditLogService auditLogService;
 
+    @Mock
+    private ICierreSesionesServicio cierreSesionesServicio;
+
     private RestablecimientoContrasenaServicioImpl servicio;
 
     @BeforeEach
     void setUp() {
         servicio = new RestablecimientoContrasenaServicioImpl(usuarioRepository, tokenRepository, passwordEncoder,
-                correoServicio, auditLogService, URL_BASE, MINUTOS_VIGENCIA, MINUTOS_ENTRE_SOLICITUDES);
+                correoServicio, auditLogService, cierreSesionesServicio, URL_BASE, MINUTOS_VIGENCIA, MINUTOS_ENTRE_SOLICITUDES);
     }
 
     // ==================== solicitarRestablecimiento ====================
@@ -92,7 +100,7 @@ class RestablecimientoContrasenaServicioImplTest {
 
         // === EJECUCION ===
         LocalDateTime antes = LocalDateTime.now();
-        servicio.solicitarRestablecimiento("jperez");
+        servicio.solicitarRestablecimiento("jperez", IP);
 
         // === ASSERTS ===
         ArgumentCaptor<Map<String, Object>> variables = ArgumentCaptor.forClass(Map.class);
@@ -118,13 +126,13 @@ class RestablecimientoContrasenaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SRC-02: solicitarRestablecimiento registra la solicitud en la bitácora con el usuario y el concepto Sesión")
+    @DisplayName("CP-SRC-02: solicitarRestablecimiento registra la solicitud en la bitácora con el usuario, el concepto Sesión y la IP recibida")
     void solicitarRestablecimiento_debeRegistrarLaSolicitudEnLaBitacora() {
         // === PREPARACION DE DATOS ===
         when(usuarioRepository.findUserEntityByUsername("jperez")).thenReturn(Optional.of(crearUsuario(Estado.ACTIVO)));
 
         // === EJECUCION ===
-        servicio.solicitarRestablecimiento("jperez");
+        servicio.solicitarRestablecimiento("jperez", IP);
 
         // === ASSERTS ===
         ArgumentCaptor<AuditLogEntity> auditoria = ArgumentCaptor.forClass(AuditLogEntity.class);
@@ -134,6 +142,7 @@ class RestablecimientoContrasenaServicioImplTest {
         assertThat(auditoria.getValue().getConceptoAuditoria()).isEqualTo(ConceptoAuditoria.SESION);
         assertThat(auditoria.getValue().getEntidadId()).isEqualTo("1");
         assertThat(auditoria.getValue().getFechaHora()).isNotNull();
+        assertThat(auditoria.getValue().getIpAddress()).isEqualTo(IP);
     }
 
     @Test
@@ -143,7 +152,7 @@ class RestablecimientoContrasenaServicioImplTest {
         when(usuarioRepository.findUserEntityByUsername("jperez")).thenReturn(Optional.empty());
 
         // === EJECUCION ===
-        servicio.solicitarRestablecimiento("  JPerez ");
+        servicio.solicitarRestablecimiento("  JPerez ", IP);
 
         // === ASSERTS ===
         verify(usuarioRepository).findUserEntityByUsername("jperez");
@@ -156,7 +165,7 @@ class RestablecimientoContrasenaServicioImplTest {
         when(usuarioRepository.findUserEntityByUsername("inexistente")).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
-        assertThatCode(() -> servicio.solicitarRestablecimiento("inexistente")).doesNotThrowAnyException();
+        assertThatCode(() -> servicio.solicitarRestablecimiento("inexistente", IP)).doesNotThrowAnyException();
         verifyNoInteractions(tokenRepository, correoServicio, auditLogService);
     }
 
@@ -164,8 +173,8 @@ class RestablecimientoContrasenaServicioImplTest {
     @DisplayName("CP-SRC-05: solicitarRestablecimiento con un nombre de usuario nulo o en blanco no consulta nada")
     void solicitarRestablecimiento_usernameNuloOEnBlancoNoConsulta() {
         // === EJECUCION ===
-        servicio.solicitarRestablecimiento(null);
-        servicio.solicitarRestablecimiento("   ");
+        servicio.solicitarRestablecimiento(null, IP);
+        servicio.solicitarRestablecimiento("   ", IP);
 
         // === ASSERTS ===
         verifyNoInteractions(usuarioRepository, tokenRepository, correoServicio, auditLogService);
@@ -179,7 +188,7 @@ class RestablecimientoContrasenaServicioImplTest {
         when(tokenRepository.existeEnviadoDespuesDe(eq(1L), any(LocalDateTime.class))).thenReturn(true);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatCode(() -> servicio.solicitarRestablecimiento("jperez")).doesNotThrowAnyException();
+        assertThatCode(() -> servicio.solicitarRestablecimiento("jperez", IP)).doesNotThrowAnyException();
         verify(tokenRepository, never()).vencerVigentesDelUsuario(anyLong(), any(LocalDateTime.class));
         verify(tokenRepository, never()).save(any(TokenRestablecimientoContrasenaEntity.class));
         verifyNoInteractions(correoServicio, auditLogService);
@@ -192,14 +201,22 @@ class RestablecimientoContrasenaServicioImplTest {
         when(usuarioRepository.findUserEntityByUsername("jperez")).thenReturn(Optional.of(crearUsuario(Estado.ACTIVO)));
 
         // === EJECUCION ===
-        servicio.solicitarRestablecimiento("jperez");
-        servicio.solicitarRestablecimiento("jperez");
+        servicio.solicitarRestablecimiento("jperez", IP);
+        servicio.solicitarRestablecimiento("jperez", IP);
 
         // === ASSERTS ===
         ArgumentCaptor<TokenRestablecimientoContrasenaEntity> guardados = ArgumentCaptor.forClass(TokenRestablecimientoContrasenaEntity.class);
         verify(tokenRepository, times(2)).save(guardados.capture());
         List<TokenRestablecimientoContrasenaEntity> tokens = guardados.getAllValues();
         assertThat(tokens.get(0).getTokenHash()).isNotEqualTo(tokens.get(1).getTokenHash());
+    }
+
+    @Test
+    @DisplayName("CP-SRC-08: solicitarRestablecimiento se ejecuta en un hilo aparte (@Async), para que la request no espere su trabajo")
+    void solicitarRestablecimiento_debeSerAsincrono() throws Exception {
+        // === EJECUCION Y ASSERTS ===
+        assertThat(RestablecimientoContrasenaServicioImpl.class.getMethod("solicitarRestablecimiento", String.class, String.class)
+                .isAnnotationPresent(Async.class)).isTrue();
     }
 
     // ==================== validarEnlace ====================
@@ -280,11 +297,12 @@ class RestablecimientoContrasenaServicioImplTest {
     // ==================== restablecerContrasena ====================
 
     @Test
-    @DisplayName("CP-RCC-01: restablecerContrasena guarda el hash de la contraseña nueva, marca el enlace como usado, vence los demás y audita")
+    @DisplayName("CP-RCC-01: restablecerContrasena reclama el enlace antes de guardar el hash de la contraseña nueva, vence los demás enlaces, audita y cierra las sesiones del usuario")
     void restablecerContrasena_debeReemplazarLaContrasenaYUsarElEnlace() throws Exception {
         // === PREPARACION DE DATOS ===
         TokenRestablecimientoContrasenaEntity enlace = crearEnlace(Estado.ACTIVO, null, LocalDateTime.now().plusMinutes(10));
         when(tokenRepository.buscarPorTokenHash(sha256(TOKEN))).thenReturn(Optional.of(enlace));
+        when(tokenRepository.reclamarParaUso(eq(10L), any(LocalDateTime.class))).thenReturn(1);
         when(passwordEncoder.encode(PASSWORD_NUEVA)).thenReturn("hashNuevo");
 
         // === EJECUCION ===
@@ -292,10 +310,15 @@ class RestablecimientoContrasenaServicioImplTest {
 
         // === ASSERTS ===
         assertThat(enlace.getUsuario().getPassword()).isEqualTo("hashNuevo");
-        assertThat(enlace.getFechaUso()).isCloseTo(LocalDateTime.now(), within(5, ChronoUnit.SECONDS));
-        verify(usuarioRepository).save(enlace.getUsuario());
-        verify(tokenRepository).save(enlace);
-        verify(tokenRepository).vencerVigentesDelUsuario(eq(1L), any(LocalDateTime.class));
+        ArgumentCaptor<LocalDateTime> momentoReclamo = ArgumentCaptor.forClass(LocalDateTime.class);
+        InOrder orden = inOrder(tokenRepository, passwordEncoder, usuarioRepository);
+        orden.verify(tokenRepository).reclamarParaUso(eq(10L), momentoReclamo.capture());
+        orden.verify(passwordEncoder).encode(PASSWORD_NUEVA);
+        orden.verify(usuarioRepository).save(enlace.getUsuario());
+        orden.verify(tokenRepository).vencerVigentesDelUsuario(eq(1L), any(LocalDateTime.class));
+        assertThat(momentoReclamo.getValue()).isCloseTo(LocalDateTime.now(), within(5, ChronoUnit.SECONDS));
+        verify(tokenRepository, never()).save(any(TokenRestablecimientoContrasenaEntity.class));
+        verify(cierreSesionesServicio).cerrarSesionesDe("jperez");
 
         ArgumentCaptor<AuditLogEntity> auditoria = ArgumentCaptor.forClass(AuditLogEntity.class);
         verify(auditLogService).guardar(auditoria.capture());
@@ -316,8 +339,8 @@ class RestablecimientoContrasenaServicioImplTest {
         assertThatThrownBy(() -> servicio.restablecerContrasena(TOKEN, crearFormulario(PASSWORD_NUEVA, PASSWORD_NUEVA)))
                 .isInstanceOf(EnlaceRestablecimientoInvalidoException.class)
                 .hasMessage("El enlace para restablecer la contraseña ya fue utilizado");
-        verifyNoInteractions(passwordEncoder, usuarioRepository, auditLogService);
-        verify(tokenRepository, never()).save(any(TokenRestablecimientoContrasenaEntity.class));
+        verifyNoInteractions(passwordEncoder, usuarioRepository, auditLogService, cierreSesionesServicio);
+        verify(tokenRepository, never()).reclamarParaUso(anyLong(), any(LocalDateTime.class));
     }
 
     @Test
@@ -332,6 +355,7 @@ class RestablecimientoContrasenaServicioImplTest {
                 .hasMessage("La contraseña es obligatoria")
                 .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("password");
         verifyNoInteractions(passwordEncoder, usuarioRepository);
+        verify(tokenRepository, never()).reclamarParaUso(anyLong(), any(LocalDateTime.class));
     }
 
     @Test
@@ -348,6 +372,7 @@ class RestablecimientoContrasenaServicioImplTest {
                     .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("password");
         }
         verifyNoInteractions(passwordEncoder, usuarioRepository);
+        verify(tokenRepository, never()).reclamarParaUso(anyLong(), any(LocalDateTime.class));
     }
 
     @Test
@@ -363,6 +388,7 @@ class RestablecimientoContrasenaServicioImplTest {
                 .hasMessageStartingWith("La contraseña es demasiado larga")
                 .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("password");
         verifyNoInteractions(passwordEncoder, usuarioRepository);
+        verify(tokenRepository, never()).reclamarParaUso(anyLong(), any(LocalDateTime.class));
     }
 
     @Test
@@ -377,6 +403,38 @@ class RestablecimientoContrasenaServicioImplTest {
                 .hasMessage("La confirmación no coincide con la contraseña")
                 .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("confirmacionPassword");
         verifyNoInteractions(passwordEncoder, usuarioRepository, auditLogService);
+        verify(tokenRepository, never()).reclamarParaUso(anyLong(), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("CP-RCC-07: si otro pedido usó el enlace entre la validación y el reclamo, lanza \"ya fue utilizado\" sin cambiar la contraseña")
+    void restablecerContrasena_reclamoPerdidoPorUsoNoCambiaNada() {
+        // === PREPARACION DE DATOS ===
+        when(tokenRepository.buscarPorTokenHash(anyString())).thenReturn(Optional.of(crearEnlace(Estado.ACTIVO, null, LocalDateTime.now().plusMinutes(10))));
+        when(tokenRepository.reclamarParaUso(eq(10L), any(LocalDateTime.class))).thenReturn(0);
+        when(tokenRepository.buscarFechaUso(10L)).thenReturn(Optional.of(LocalDateTime.now()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> servicio.restablecerContrasena(TOKEN, crearFormulario(PASSWORD_NUEVA, PASSWORD_NUEVA)))
+                .isInstanceOf(EnlaceRestablecimientoInvalidoException.class)
+                .hasMessage("El enlace para restablecer la contraseña ya fue utilizado");
+        verifyNoInteractions(passwordEncoder, usuarioRepository, auditLogService, cierreSesionesServicio);
+        verify(tokenRepository, never()).vencerVigentesDelUsuario(anyLong(), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("CP-RCC-08: si el enlace venció o fue reemplazado entre la validación y el reclamo, lanza \"venció o fue reemplazado\" sin cambiar la contraseña")
+    void restablecerContrasena_reclamoPerdidoPorVencimientoNoCambiaNada() {
+        // === PREPARACION DE DATOS ===
+        when(tokenRepository.buscarPorTokenHash(anyString())).thenReturn(Optional.of(crearEnlace(Estado.ACTIVO, null, LocalDateTime.now().plusMinutes(10))));
+        when(tokenRepository.reclamarParaUso(eq(10L), any(LocalDateTime.class))).thenReturn(0);
+        when(tokenRepository.buscarFechaUso(10L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> servicio.restablecerContrasena(TOKEN, crearFormulario(PASSWORD_NUEVA, PASSWORD_NUEVA)))
+                .isInstanceOf(EnlaceRestablecimientoInvalidoException.class)
+                .hasMessage("El enlace para restablecer la contraseña venció o fue reemplazado por uno más nuevo");
+        verifyNoInteractions(passwordEncoder, usuarioRepository, auditLogService, cierreSesionesServicio);
     }
 
     // ==================== Auxiliares ====================

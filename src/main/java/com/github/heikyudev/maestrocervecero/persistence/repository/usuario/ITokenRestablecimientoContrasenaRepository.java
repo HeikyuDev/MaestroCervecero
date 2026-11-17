@@ -47,4 +47,27 @@ public interface ITokenRestablecimientoContrasenaRepository extends JpaRepositor
     @Query("UPDATE TokenRestablecimientoContrasenaEntity t SET t.fechaExpiracion = :ahora "
             + "WHERE t.usuario.id = :idUsuario AND t.fechaUso IS NULL AND t.fechaExpiracion > :ahora")
     int vencerVigentesDelUsuario(@Param("idUsuario") Long idUsuario, @Param("ahora") LocalDateTime ahora);
+
+    /**
+     * Marca el enlace como usado en el momento indicado, solo si todavía sirve (sin usar y sin vencer). Es una única
+     * sentencia: de dos pedidos simultáneos con el mismo enlace, solo uno lo reclama.
+     *
+     * @param id El ID del enlace.
+     * @param ahora Momento actual: queda como fecha de uso.
+     * @return 1 si el enlace se reclamó, 0 si ya estaba usado o vencido.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE TokenRestablecimientoContrasenaEntity t SET t.fechaUso = :ahora "
+            + "WHERE t.id = :id AND t.fechaUso IS NULL AND t.fechaExpiracion > :ahora")
+    int reclamarParaUso(@Param("id") Long id, @Param("ahora") LocalDateTime ahora);
+
+    /**
+     * Lee de la base la fecha de uso de un enlace, sin pasar por las entidades ya cargadas. Distingue, tras un reclamo
+     * fallido, si el enlace se usó o venció.
+     *
+     * @param id El ID del enlace.
+     * @return Un Optional con la fecha de uso, o vacío si el enlace no se usó.
+     */
+    @Query("SELECT t.fechaUso FROM TokenRestablecimientoContrasenaEntity t WHERE t.id = :id")
+    Optional<LocalDateTime> buscarFechaUso(@Param("id") Long id);
 }

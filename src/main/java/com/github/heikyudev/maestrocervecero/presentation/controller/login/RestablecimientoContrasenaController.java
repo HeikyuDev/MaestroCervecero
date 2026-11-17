@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.Solic
 import com.github.heikyudev.maestrocervecero.service.exception.EnlaceRestablecimientoInvalidoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.IRestablecimientoContrasenaServicio;
+import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
 import jakarta.validation.Valid;
@@ -26,7 +27,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * {@code SecurityConfig#securityFilterChain}): las usa quien no puede iniciar sesión.
  * <p>
  * La solicitud responde siempre el mismo aviso, exista o no el nombre de usuario, y también si el service falla: la
- * pantalla nunca revela qué nombres de usuario existen. El token del enlace llega como parámetro aparte, nunca dentro del
+ * pantalla nunca revela qué nombres de usuario existen. El service la procesa en un hilo aparte, por lo que el trabajo
+ * de la request es el mismo para cualquier nombre de usuario y tampoco el tiempo de respuesta lo revela. El token del enlace llega como parámetro aparte, nunca dentro del
  * formulario.
  * </p>
  */
@@ -56,8 +58,9 @@ public class RestablecimientoContrasenaController {
     }
 
     /**
-     * Procesa el pedido del enlace (Post-Redirect-Get). Con el formulario válido vuelve siempre a la pantalla de inicio
-     * de sesión con el mismo aviso: una falla del service se registra en el log y no cambia la respuesta.
+     * Procesa el pedido del enlace (Post-Redirect-Get). Con el formulario válido deja el pedido en manos del service, que
+     * lo procesa en un hilo aparte, y vuelve de inmediato a la pantalla de inicio de sesión con el mismo aviso: una falla
+     * (incluso al encolar el pedido) se registra en el log y no cambia la respuesta.
      */
     @PostMapping("/recuperar-contrasena")
     public String solicitarRestablecimiento(@Valid @ModelAttribute(ATRIBUTO_SOLICITUD) SolicitudRestablecimientoContrasenaFormDTO solicitudForm,
@@ -67,7 +70,7 @@ public class RestablecimientoContrasenaController {
             return VISTA_SOLICITUD;
         }
         try {
-            restablecimientoContrasenaServicio.solicitarRestablecimiento(solicitudForm.getUsername());
+            restablecimientoContrasenaServicio.solicitarRestablecimiento(solicitudForm.getUsername(), RequestUtils.obtenerIpCliente());
         } catch (RuntimeException e) {
             log.error("No se pudo procesar la solicitud de restablecimiento de contraseña", e);
         }

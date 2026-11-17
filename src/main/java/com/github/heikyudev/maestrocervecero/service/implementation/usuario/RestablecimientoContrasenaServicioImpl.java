@@ -13,11 +13,13 @@ import com.github.heikyudev.maestrocervecero.service.exception.EnlaceRestablecim
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.service.interfaces.correo.ICorreoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.ICierreSesionesServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.IRestablecimientoContrasenaServicio;
 import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +44,14 @@ import java.util.Optional;
  * en Base64URL sin relleno. Solo se guarda su hash SHA-256: el token en sí viaja únicamente en el enlace del correo.
  * </p>
  * <p>
- * La solicitud no informa si el nombre de usuario existe: no lanza excepciones por un usuario inexistente y el correo se
- * envía en un hilo aparte ({@link ICorreoServicio}), de modo que tampoco el tiempo de respuesta lo revela. El correo y
- * la bitácora se despachan recién cuando la transacción se confirma: si el enlace no llega a guardarse, no se envía.
+ * La solicitud no informa si el nombre de usuario existe: corre entera en un hilo aparte (@Async), no lanza excepciones
+ * por un usuario inexistente y el correo se envía a su vez en otro hilo ({@link ICorreoServicio}), de modo que tampoco el
+ * tiempo de respuesta lo revela. El correo y la bitácora se despachan recién cuando la transacción se confirma: si el
+ * enlace no llega a guardarse, no se envía.
+ * </p>
+ * <p>
+ * El restablecimiento reclama el enlace con una única sentencia condicional antes de tocar la contraseña: de dos pedidos
+ * simultáneos con el mismo enlace, solo uno lo usa. Confirmada la transacción, se cierran las sesiones del usuario.
  * </p>
  */
 @Service
@@ -71,6 +78,7 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
     private final PasswordEncoder passwordEncoder;
     private final ICorreoServicio correoServicio;
     private final IAuditLogService auditLogService;
+    private final ICierreSesionesServicio cierreSesionesServicio;
     private final String urlBase;
     private final long minutosVigencia;
     private final long minutosEntreSolicitudes;
@@ -80,6 +88,7 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
                                                   PasswordEncoder passwordEncoder,
                                                   ICorreoServicio correoServicio,
                                                   IAuditLogService auditLogService,
+                                                  ICierreSesionesServicio cierreSesionesServicio,
                                                   @Value("${app.url-base}") String urlBase,
                                                   @Value("${restablecimiento-contrasena.minutos-vigencia}") long minutosVigencia,
                                                   @Value("${restablecimiento-contrasena.minutos-entre-solicitudes}") long minutosEntreSolicitudes) {
@@ -88,14 +97,16 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
         this.passwordEncoder = passwordEncoder;
         this.correoServicio = correoServicio;
         this.auditLogService = auditLogService;
+        this.cierreSesionesServicio = cierreSesionesServicio;
         this.urlBase = urlBase;
         this.minutosVigencia = minutosVigencia;
         this.minutosEntreSolicitudes = minutosEntreSolicitudes;
     }
 
     @Override
+    @Async
     @Transactional
-    public void solicitarRestablecimiento(String username) {
+    public void solicitarRestablecimiento(String username, String ipCliente) {
         String usernameNormalizado = NormalizacionTexto.username(username);
         if (usernameNormalizado == null || usernameNormalizado.isEmpty()) {
             return;
@@ -120,7 +131,7 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
                 .fechaExpiracion(ahora.plusMinutes(minutosVigencia))
                 .build());
 
-        AuditLogEntity auditoria = armarAuditoria(usuario, AccionAuditoria.SOLICITUD_RESTABLECIMIENTO_CONTRASENA, ahora);
+        AuditLogEntity auditoria = armarAuditoria(usuario, AccionAuditoria.SOLICITUD_RESTABLECIMIENTO_CONTRASENA, ahora, ipCliente);
         Map<String, Object> variables = Map.of(
                 "nombre", usuario.getNombre(),
                 "enlace", armarEnlace(token),
@@ -157,15 +168,25 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
             throw new ReglaNegocioException("La confirmación no coincide con la contraseña", "confirmacionPassword");
         }
 
+        // El reclamo va antes que el cambio de contraseña: si otro pedido ya usó el enlace, aquí no se cambia nada. Una
+        // falla posterior revierte la transacción y con ella el reclamo
+        if (tokenRepository.reclamarParaUso(enlace.getId(), ahora) == 0) {
+            boolean usado = tokenRepository.buscarFechaUso(enlace.getId()).isPresent();
+            throw new EnlaceRestablecimientoInvalidoException(usado ? MENSAJE_ENLACE_USADO : MENSAJE_ENLACE_VENCIDO);
+        }
+
         UsuarioEntity usuario = enlace.getUsuario();
         usuario.setPassword(passwordEncoder.encode(password));
-        enlace.setFechaUso(ahora);
         usuarioRepository.save(usuario);
-        tokenRepository.save(enlace);
         tokenRepository.vencerVigentesDelUsuario(usuario.getId(), ahora);
 
-        AuditLogEntity auditoria = armarAuditoria(usuario, AccionAuditoria.RESTABLECIMIENTO_CONTRASENA, ahora);
-        ejecutarAlConfirmar(() -> auditLogService.guardar(auditoria));
+        AuditLogEntity auditoria = armarAuditoria(usuario, AccionAuditoria.RESTABLECIMIENTO_CONTRASENA, ahora,
+                RequestUtils.obtenerIpCliente());
+        String username = usuario.getUsername();
+        ejecutarAlConfirmar(() -> {
+            auditLogService.guardar(auditoria);
+            cierreSesionesServicio.cerrarSesionesDe(username);
+        });
     }
 
     /**
@@ -216,15 +237,16 @@ public class RestablecimientoContrasenaServicioImpl implements IRestablecimiento
                 .toUriString();
     }
 
-    // La IP se lee aquí, en el hilo de la request: la bitácora se guarda en un hilo aparte que ya no la tiene
-    private static AuditLogEntity armarAuditoria(UsuarioEntity usuario, AccionAuditoria accion, LocalDateTime ahora) {
+    // La IP llega resuelta desde el hilo de la request: la bitácora se guarda en un hilo aparte que ya no la tiene
+    private static AuditLogEntity armarAuditoria(UsuarioEntity usuario, AccionAuditoria accion, LocalDateTime ahora,
+                                                 String ipCliente) {
         return AuditLogEntity.builder()
                 .username(usuario.getUsername())
                 .accion(accion)
                 .conceptoAuditoria(ConceptoAuditoria.SESION)
                 .entidadId(String.valueOf(usuario.getId()))
                 .fechaHora(ahora)
-                .ipAddress(RequestUtils.obtenerIpCliente())
+                .ipAddress(ipCliente)
                 .build();
     }
 

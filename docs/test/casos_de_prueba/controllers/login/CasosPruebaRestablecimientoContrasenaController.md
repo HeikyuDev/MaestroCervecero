@@ -5,7 +5,7 @@
 **Acceso:** `/recuperar-contrasena` y `/restablecer-contrasena` son públicos; no requieren autenticación. Los `POST` exigen el token CSRF.
 
 **Reglas:**
-- Pedir el enlace responde siempre el mismo aviso, exista o no el nombre de usuario y aunque el service falle: "Si el nombre de usuario existe, se envió un correo con las instrucciones para restablecer la contraseña".
+- Pedir el enlace responde siempre el mismo aviso, exista o no el nombre de usuario y aunque el service falle: "Si el nombre de usuario existe, se envió un correo con las instrucciones para restablecer la contraseña". El service procesa el pedido en un hilo aparte, por lo que la request hace el mismo trabajo para cualquier nombre de usuario.
 - El token del enlace llega como parámetro `token`, aparte del formulario.
 - Un enlace que no sirve muestra el motivo y ofrece pedir un enlace nuevo.
 
@@ -23,7 +23,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-RCT-02** | Pedido del enlace | `username: "jperez"`, con CSRF | El formulario es válido | Llama a `solicitarRestablecimiento("jperez")` y redirige a `/login` con `mensaje` = aviso neutral y `tipo = info`. |
+| **CP-RCT-02** | Pedido del enlace | `username: "jperez"`, con CSRF | El formulario es válido | Llama a `solicitarRestablecimiento("jperez", "127.0.0.1")` (la IP del cliente) y redirige a `/login` con `mensaje` = aviso neutral y `tipo = info`. |
 | **CP-RCT-03** | Falla del service | `username: "jperez"`, con CSRF; el service lanza `IllegalStateException` | La falla no cambia la respuesta | Redirige a `/login` con el mismo aviso neutral y `tipo = info`. |
 | **CP-RCT-04** | Nombre de usuario vacío | `username: "  "`, con CSRF | Falla `@NotBlank` | Responde 200 con la vista `login/recuperar-contrasena`, error en el campo `username` y el texto "El nombre de usuario es obligatorio". No llama al service. |
 | **CP-RCT-05** | Sin token CSRF | `username: "jperez"`, sin CSRF y sin sesión | Spring Security rechaza el pedido | Redirige a `/login?timeout`. No llama al service. |
