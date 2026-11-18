@@ -358,7 +358,7 @@ class ConfiguracionProduccionControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
+    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "ENCARGADO_DE_DISTRIBUCION"})
     @DisplayName("CP-CPC-15: la sidebar de los demás roles no muestra ni la sección \"Configuración\" ni el enlace a la pantalla")
     void caso_cp_cpc_15(String rol) throws Exception {
         // === EJECUCION Y VERIFICACION ===
@@ -367,6 +367,18 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(not(containsString("href=\"/configuracion-produccion\""))))
                 .andExpect(content().string(not(containsString("bi-sliders"))))
                 .andExpect(content().string(not(containsString(">Configuración<"))));
+    }
+
+    @Test
+    @DisplayName("CP-CPC-21: la sidebar del GERENTE_DE_COMPRAS muestra la sección \"Configuración\" solo con \"Configuración de Compras\", sin el enlace a esta pantalla")
+    void caso_cp_cpc_21() throws Exception {
+        // === EJECUCION Y VERIFICACION ===
+        mockMvc.perform(get("/home").with(user("usuario").roles("GERENTE_DE_COMPRAS")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("href=\"/configuracion-produccion\""))))
+                .andExpect(content().string(not(containsString("Configuración de Producción"))))
+                .andExpect(content().string(containsString("href=\"/configuracion-compras\"")))
+                .andExpect(content().string(containsString(">Configuración<")));
     }
 
     // ==================== Datos de prueba ====================
