@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.service.implementation.usuario.User
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,6 +18,8 @@ import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 import java.time.Duration;
@@ -40,6 +43,43 @@ import java.time.Duration;
 @EnableWebSecurity      // Activa toda la infraestructura de Spring Security (filtros, etc)
 @EnableMethodSecurity   // Permite usar @PreAuthorize("hasRole('ADMIN')") en los @Service o @Controller
 public class SecurityConfig {
+
+    /**
+     * Cadena propia de la pantalla pública con la que los proveedores responden una solicitud de cotización
+     * ({@code /cotizacion/**}). Se evalúa antes que la cadena general.
+     * <p>
+     * Es pública: el enlace del correo identifica al proveedor con su token, sin iniciar sesión. No usa la sesión de la
+     * aplicación (un proveedor que deja el formulario abierto más de lo que dura una sesión no termina en la pantalla
+     * de inicio de sesión): el token CSRF del formulario viaja en una cookie propia en lugar de la sesión, y la
+     * protección CSRF sigue habilitada.
+     * </p>
+     */
+    @Bean
+    @Order(1)
+    public SecurityFilterChain cotizacionProveedorFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher("/cotizacion/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .csrf(csrf -> csrf.csrfTokenRepository(cookieCsrfCotizacion()))
+                // El enlace lleva el token del proveedor: ningún pedido a otro sitio informa la dirección de la pantalla
+                .headers(headers -> headers.referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
+                .build();
+    }
+
+    /**
+     * Repositorio del token CSRF de la pantalla pública de cotización: una cookie propia, no legible desde JavaScript,
+     * limitada a {@code /cotizacion} y enviada solo en navegación del mismo sitio. Lleva el atributo {@code Secure}
+     * cuando el pedido llega por HTTPS; detrás de un proxy que termina el HTTPS, la aplicación debe confiar en sus
+     * cabeceras {@code X-Forwarded-*} ({@code server.forward-headers-strategy}) para reconocerlo.
+     */
+    private static CookieCsrfTokenRepository cookieCsrfCotizacion() {
+        CookieCsrfTokenRepository repositorio = new CookieCsrfTokenRepository();
+        repositorio.setCookiePath("/cotizacion");
+        repositorio.setCookieCustomizer(cookie -> cookie.sameSite("Strict"));
+        return repositorio;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry,

@@ -7,11 +7,13 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.OrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
@@ -90,6 +92,7 @@ public class OrdenCompraController {
     private static final String VISTA_BUSCADOR_ITEM = "orden_compra/buscador-item :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "ordenCompraForm";
     private static final String URL_LISTA = "/ordenes-compra";
+    private static final String URL_SOLICITUDES_COTIZACION = "/solicitudes-cotizacion";
     private static final String URL_BUSCADOR_PLANIFICACIONES = "/ordenes-compra/buscador/planificaciones";
     private static final String URL_FILTRO_PLANIFICACIONES = "/ordenes-compra/filtros/planificaciones";
     private static final String URL_BUSCADOR_RECETAS = "/ordenes-compra/buscador/recetas";
@@ -103,13 +106,15 @@ public class OrdenCompraController {
     private final IProveedorServicio proveedorServicio;
     private final IRecetaServicio recetaServicio;
     private final ILocalidadServicio localidadServicio;
+    private final ISolicitudCotizacionServicio solicitudCotizacionServicio;
 
     // ==================== Listado ====================
 
     /**
      * Lista las órdenes de compra, paginadas de a {@code TAMANIO_PAGINA} y con la última registrada arriba. Los criterios (planificación,
      * proveedor, estado y fecha de entrega estimada) son opcionales. Una planificación o un proveedor que ya no existe
-     * no restringe el listado.
+     * no restringe el listado. Al GERENTE_DE_COMPRAS le muestra además el acceso a los procesos de compra (solicitudes de
+     * cotización) y el aviso de los que tienen planes listos para revisar.
      */
     @GetMapping
     @PreAuthorize(GERENTE_O_ENCARGADO)
@@ -118,7 +123,8 @@ public class OrdenCompraController {
                                       @RequestParam(required = false) EstadoSolicitud estado,
                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEntregaEstimada,
                                       @RequestParam(defaultValue = "0") int pagina,
-                                      Model model) {
+                                      Model model,
+                                      org.springframework.security.core.Authentication authentication) {
         String planificacionTexto = etiquetaPlanificacion(idPlanificacion);
         Long idPlanificacionVigente = planificacionTexto == null ? null : idPlanificacion;
         ProveedorResponseDTO proveedor = proveedorElegido(idProveedor);
@@ -136,6 +142,10 @@ public class OrdenCompraController {
         model.addAttribute("filtroProveedorTexto", proveedor == null ? null : textoDeProveedor(proveedor.getVersion()));
         model.addAttribute("filtroEstado", estado);
         model.addAttribute("filtroFechaEntregaEstimada", fechaEntregaEstimada);
+        // Aviso dentro del sistema de los procesos de compra con planes listos para revisar: solo para quien los decide
+        boolean gerente = esGerenteDeCompras(authentication);
+        model.addAttribute("procesosPendientes", gerente ? solicitudCotizacionServicio.buscarPendientesDeDecision() : List.of());
+        model.addAttribute("solicitudesPorConfirmar", gerente ? solicitudCotizacionServicio.buscarPendientesDeConfirmacion() : List.of());
         return VISTA_LISTA;
     }
 
@@ -145,10 +155,41 @@ public class OrdenCompraController {
      * Muestra el formulario vacío para registrar una orden de compra. Con {@code idPlanificacion} (el botón "Registrar
      * orden de compra" del detalle de una planificación) la planificación llega elegida; el estado de la
      * planificación lo valida el service al enviar.
+     * <p>
+     * Con {@code idOrdenPropuesta} (la acción "Confirmar" de una orden propuesta por un plan de compra) el formulario
+     * llega prearmado con la planificación, el proveedor y los ítems de la propuesta, con un aviso por cada ítem que el
+     * proveedor ya no ofrece. Si la orden propuesta no existe o ya no se puede confirmar, el {@code ControllerAdvices}
+     * vuelve al origen con el motivo.
+     * </p>
      */
     @GetMapping("/nuevo")
     @PreAuthorize(SOLO_GERENTE)
-    public String mostrarFormularioAlta(@RequestParam(required = false) String idPlanificacion, Model model) {
+    public String mostrarFormularioAlta(@RequestParam(required = false) String idPlanificacion,
+                                        @RequestParam(required = false) String idOrdenPropuesta,
+                                        Model model) {
+        Long idOrdenPropuestaIndicada = aId(idOrdenPropuesta);
+        if (idOrdenPropuestaIndicada != null) {
+            OrdenCompraPrearmadaResponseDTO prearmada = solicitudCotizacionServicio.prepararOrdenCompra(idOrdenPropuestaIndicada);
+            OrdenCompraFormDTO ordenCompraForm = OrdenCompraFormDTO.builder()
+                    .idPlanificacionProduccion(prearmada.getIdPlanificacion())
+                    .idProveedor(prearmada.getIdProveedor())
+                    .detallesCompra(new java.util.ArrayList<>(prearmada.getItems().stream()
+                            .map(item -> DetalleCompraFormDTO.builder()
+                                    .idCatalogoProveedor(item.getIdCatalogoProveedor())
+                                    .cantidad(item.getCantidad())
+                                    .costoUnitario(item.getPrecioUnitario())
+                                    .build())
+                            .toList()))
+                    .build();
+            if (!prearmada.getAvisos().isEmpty()) {
+                agregarAvisos(model, prearmada.getAvisos());
+            }
+            model.addAttribute(ATRIBUTO_FORMULARIO, ordenCompraForm);
+            cargarModeloFormulario(model, ordenCompraForm);
+            cargarOrdenPropuesta(model, prearmada);
+            return VISTA_FORMULARIO;
+        }
+
         OrdenCompraFormDTO ordenCompraForm = new OrdenCompraFormDTO();
         Long idPlanificacionIndicada = aId(idPlanificacion);
         if (vacioANulo(idPlanificacion) != null && idPlanificacionIndicada == null) {
@@ -174,11 +215,14 @@ public class OrdenCompraController {
     @PreAuthorize(SOLO_GERENTE)
     public String registrarOrdenCompra(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) OrdenCompraFormDTO ordenCompraForm,
                                        BindingResult bindingResult,
+                                       @RequestParam(required = false) Long idOrdenPropuesta,
                                        Model model,
                                        RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
-                OrdenCompraResponseDTO orden = ordenCompraServicio.registrarOrdenCompra(ordenCompraForm);
+                OrdenCompraResponseDTO orden = idOrdenPropuesta == null
+                        ? ordenCompraServicio.registrarOrdenCompra(ordenCompraForm)
+                        : solicitudCotizacionServicio.confirmarOrdenPropuesta(idOrdenPropuesta, ordenCompraForm);
                 agregarMensaje(redirectAttributes, "Orden de compra registrada correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA + "/" + orden.getId();
             } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
@@ -187,7 +231,34 @@ public class OrdenCompraController {
         }
 
         cargarModeloFormulario(model, ordenCompraForm);
+        if (idOrdenPropuesta != null) {
+            cargarOrdenPropuesta(model, ordenPropuestaParaVolverAMostrar(idOrdenPropuesta));
+        }
         return VISTA_FORMULARIO;
+    }
+
+    /**
+     * Los datos de la orden propuesta para volver a mostrar el formulario: si ya no se puede prearmar (por ejemplo,
+     * otra persona la confirmó), solo su ID, para que el formulario siga enviándola y el service informe el motivo.
+     */
+    private OrdenCompraPrearmadaResponseDTO ordenPropuestaParaVolverAMostrar(Long idOrdenPropuesta) {
+        try {
+            return solicitudCotizacionServicio.prepararOrdenCompra(idOrdenPropuesta);
+        } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
+            return OrdenCompraPrearmadaResponseDTO.builder().idOrdenPropuesta(idOrdenPropuesta).build();
+        }
+    }
+
+    /**
+     * Carga la orden propuesta que se confirma: el aviso de la pantalla, el campo oculto que la envía y el regreso a su
+     * solicitud de cotización.
+     */
+    private static void cargarOrdenPropuesta(Model model, OrdenCompraPrearmadaResponseDTO prearmada) {
+        model.addAttribute("ordenPropuesta", prearmada);
+        if (prearmada.getIdSolicitud() != null) {
+            model.addAttribute("urlCancelar", URL_SOLICITUDES_COTIZACION + "/" + prearmada.getIdSolicitud()
+                    + (prearmada.getNumeroPlan() == null ? "" : "?plan=" + prearmada.getNumeroPlan()));
+        }
     }
 
     // ==================== Detalle ====================
@@ -461,6 +532,12 @@ public class OrdenCompraController {
      */
     private static String textoDeProveedor(VersionProveedorResponseDTO version) {
         return version.getRazonSocial() + " (" + ValidacionesTexto.formatearCuit(version.getCuit()) + ")";
+    }
+
+    /** Si el usuario autenticado es gerente de compras. */
+    private static boolean esGerenteDeCompras(org.springframework.security.core.Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_GERENTE_DE_COMPRAS".equals(authority.getAuthority()));
     }
 
     /** Muestra el aviso como una alerta amarilla. */

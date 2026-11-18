@@ -21,9 +21,11 @@ import java.util.Map;
  * Implementación de {@link ICorreoServicio} sobre SMTP ({@link JavaMailSender}, configurado con las propiedades
  * {@code spring.mail.*} de cada perfil).
  * <p>
- * Corre en un hilo aparte (@Async): quien envía un correo no espera la respuesta del servidor SMTP, y el tiempo de
- * respuesta de la pantalla que lo dispara no depende de que el correo se haya enviado. Por la misma razón, toda falla
- * se atrapa aquí adentro y se registra en el log: nunca llega al usuario.
+ * {@link #enviarCorreoHtml} corre en un hilo aparte (@Async): quien envía un correo no espera la respuesta del servidor
+ * SMTP, y el tiempo de respuesta de la pantalla que lo dispara no depende de que el correo se haya enviado.
+ * {@link #intentarEnviarCorreoHtml} envía en el hilo de quien lo invoca e informa si el servidor aceptó el correo, para
+ * los procesos que reintentan un envío fallido. En ambos casos toda falla se atrapa aquí adentro y se registra en el
+ * log: nunca se propaga.
  * </p>
  */
 @Slf4j
@@ -50,6 +52,11 @@ public class CorreoServicioImpl implements ICorreoServicio {
     @Override
     @Async
     public void enviarCorreoHtml(String destinatario, String asunto, String plantilla, Map<String, Object> variables) {
+        intentarEnviarCorreoHtml(destinatario, asunto, plantilla, variables);
+    }
+
+    @Override
+    public boolean intentarEnviarCorreoHtml(String destinatario, String asunto, String plantilla, Map<String, Object> variables) {
         try {
             String html = templateEngine.process(plantilla, new Context(IDIOMA_CORREOS, variables));
 
@@ -62,9 +69,11 @@ public class CorreoServicioImpl implements ICorreoServicio {
             mailSender.send(mensaje);
 
             log.info("Correo enviado (plantilla={})", plantilla);
+            return true;
         } catch (MessagingException | UnsupportedEncodingException | RuntimeException e) {
             log.error("No se pudo enviar el correo (plantilla={}, falla={}): {}",
                     plantilla, e.getClass().getSimpleName(), e.getMessage());
+            return false;
         }
     }
 }

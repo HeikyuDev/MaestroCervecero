@@ -45,6 +45,7 @@ public enum ConceptoAuditoria {
     FRACCIONAMIENTO_BARRIL("Fraccionamiento de barril"),
     SOLICITUD_BUSQUEDA("Solicitud de búsqueda"),
     CONFIGURACION_PRODUCCION("Configuración de producción"),
+    CONFIGURACION_COMPRAS("Configuración de compras"),
     MOTIVO_AJUSTE("Motivo de ajuste"),
     AJUSTE_INSUMO("Ajuste de insumo"),
     USUARIO("Usuario");

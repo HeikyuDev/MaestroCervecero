@@ -86,6 +86,17 @@ public interface IEscaladoInsumoServicio {
     List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo, LoteEntity lote);
 
     /**
+     * Igual que {@link #calcularRequerimientosLupulo(VersionRecetaEntity, double, LoteEntity)} para un volumen que todavía
+     * no tiene lote (por ejemplo, la cantidad a producir de una planificación): las mismas fórmulas, con los datos vigentes
+     * de cada lúpulo y sin asociar etapa. Un lúpulo que la receta usa en varios detalles se informa una vez por detalle.
+     *
+     * @param versionReceta   La versión de receta.
+     * @param volumenObjetivo El volumen a escalar, en litros.
+     * @return Un requerimiento por cada detalle de lúpulo de la receta, con la etapa en {@code null}.
+     */
+    List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo);
+
+    /**
      * Calcula, para cada levadura de la receta, la masa escalada necesaria
      * (ver docs/Dominio/Escalado/EscaladoDeLevadura.md): primero la cantidad total de células
      * viables necesarias (según los grados Plato del OG objetivo y la tasa de inoculación

@@ -388,4 +388,17 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             "LEFT JOIN FETCH e.equipamiento " +
             "WHERE l.id = :id")
     Optional<LoteEntity> buscarConEtapasParaDetalle(@Param("id") Long id);
+
+    /**
+     * Los lotes registrados que todavía no se iniciaron (estado {@code PENDIENTE}) y no tienen ninguna reserva de insumo
+     * activa: lo que van a consumir todavía no está descontado del stock disponible. Un lote reserva todos sus insumos al
+     * iniciarse, así que un lote pendiente con reservas activas no se repite. Trae la instantánea de su escalado y su
+     * planificación para calcular sus requerimientos.
+     *
+     * @return Los lotes pendientes sin reservas activas.
+     */
+    @Query("SELECT l FROM LoteEntity l LEFT JOIN FETCH l.escaladoLote JOIN FETCH l.planificacionProduccion WHERE l.estado = 'PENDIENTE' "
+            + "AND NOT EXISTS (SELECT r FROM ReservaInsumoEntity r WHERE r.etapaLote.lote = l "
+            + "AND r.estado = com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo.ACTIVA) ORDER BY l.id")
+    List<LoteEntity> buscarPendientesSinReservasActivas();
 }

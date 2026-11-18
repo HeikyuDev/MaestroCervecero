@@ -132,6 +132,9 @@ class OrdenCompraControllerTest {
     private ILocalidadServicio localidadServicio;
 
     @MockitoBean
+    private com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio solicitudCotizacionServicio;
+
+    @MockitoBean
     private UserDetailServiceImpl userDetailService;
 
     // ==================== GET /ordenes-compra ====================
@@ -1460,6 +1463,165 @@ class OrdenCompraControllerTest {
                 .contains("name=\"detallesCompra[2].idCatalogoProveedor\" value=\"104\"");
         assertThat(html.split(Pattern.quote(FILA_RESALTADA), -1)).hasSize(3);
         verify(ordenCompraServicio, never()).registrarOrdenCompra(any());
+    }
+
+    // ==================== Acceso a las solicitudes de cotización ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-66: el listado ofrece al GERENTE_DE_COMPRAS el botón de las solicitudes de cotización y el aviso de las que tienen planes listos")
+    void caso_cp_occ_66() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(solicitudCotizacionServicio.buscarPendientesDeDecision()).thenReturn(List.of(
+                com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO.builder()
+                        .id(90L).etiquetaPlanificacion("Plan #7 - Pale Ale").cantidadPlanes(3).build()));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("data-procesos-compra").contains("href=\"/solicitudes-cotizacion\"")
+                .contains(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra.ENTRADA)
+                .contains("data-aviso-planes-pendientes")
+                .contains("Hay 1 solicitud de cotización con planes de órdenes de compra listos para revisar")
+                .contains("href=\"/solicitudes-cotizacion/90\"").contains("Solicitud #90 - Plan #7 - Pale Ale (3 planes)")
+                .doesNotContain("data-aviso-por-confirmar");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-68: el listado avisa al GERENTE_DE_COMPRAS las solicitudes que esperan la confirmación del envío, con su explicación y su enlace")
+    void caso_cp_occ_68() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(solicitudCotizacionServicio.buscarPendientesDeConfirmacion()).thenReturn(List.of(
+                com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO.builder()
+                        .id(12L).etiquetaPlanificacion("Plan #45 - Pale Ale")
+                        .explicacion("Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg). Confirme el envío a los proveedores o cancele la solicitud")
+                        .build()));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("data-aviso-por-confirmar")
+                .contains("Hay 1 solicitud de cotización que espera la confirmación del envío a los proveedores")
+                .contains("href=\"/solicitudes-cotizacion/12\"").contains("Confirme el envío a los proveedores o cancele la solicitud");
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-OCC-67: el ENCARGADO_DE_DEPOSITO no ve el acceso a las solicitudes de cotización ni el aviso, y el menú no tiene una entrada propia para ellas")
+    void caso_cp_occ_67() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).doesNotContain("data-procesos-compra").doesNotContain("data-aviso-planes-pendientes")
+                .doesNotContain("href=\"/solicitudes-cotizacion\"");
+        verify(solicitudCotizacionServicio, never()).buscarPendientesDeDecision();
+    }
+
+    // ==================== Orden propuesta por un plan de compra ====================
+
+    private static com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO prearmada(List<String> avisos) {
+        return com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO.builder()
+                .idOrdenPropuesta(801L).idSolicitud(90L).numeroPlan(1).idPlanificacion(7L).idProveedor(4L)
+                .items(List.of(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO.builder()
+                        .idCatalogoProveedor(100L).cantidad(4).precioUnitario(new java.math.BigDecimal("30000")).build()))
+                .avisos(avisos)
+                .build();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-62: con una orden propuesta el alta llega prearmada con su planificación, su proveedor y sus ítems, el aviso del plan y el regreso a la solicitud")
+    void caso_cp_occ_62() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenReturn(prearmada(List.of("El proveedor ya no ofrece Cascade en Bolsa (1 kg): el ítem no se incluyó")));
+        cargarProveedorYPlanificacion();
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/nuevo").param("idOrdenPropuesta", "801"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA_FORMULARIO))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("Confirmar orden de compra propuesta")
+                .contains("Orden propuesta por el plan 1 de la solicitud de cotización #90.")
+                .contains("name=\"idOrdenPropuesta\" value=\"801\"")
+                .contains("href=\"/solicitudes-cotizacion/90?plan=1\"")
+                .contains("Volver a la solicitud de cotización")
+                .contains("name=\"idPlanificacionProduccion\" value=\"7\"")
+                .contains("name=\"idProveedor\" value=\"4\"")
+                .contains("name=\"detallesCompra[0].idCatalogoProveedor\" value=\"100\"")
+                .contains("name=\"detallesCompra[0].cantidad\" value=\"4\"")
+                .contains("El proveedor ya no ofrece Cascade en Bolsa (1 kg): el ítem no se incluyó")
+                .doesNotContain("name=\"detallesCompra[1].idCatalogoProveedor\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-63: el envío con una orden propuesta la confirma con el service del plan de compra y redirige al detalle de la orden registrada")
+    void caso_cp_occ_63() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.confirmarOrdenPropuesta(org.mockito.ArgumentMatchers.eq(801L), any())).thenReturn(orden(12L, EstadoSolicitud.PENDIENTE));
+
+        // Act + Assert
+        mockMvc.perform(post(URL).with(csrf()).params(datosValidos()).param("idOrdenPropuesta", "801"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordenes-compra/12"))
+                .andExpect(flash().attribute("mensaje", "Orden de compra registrada correctamente"));
+
+        ArgumentCaptor<OrdenCompraFormDTO> captor = ArgumentCaptor.forClass(OrdenCompraFormDTO.class);
+        verify(solicitudCotizacionServicio).confirmarOrdenPropuesta(org.mockito.ArgumentMatchers.eq(801L), captor.capture());
+        assertThat(captor.getValue().getIdProveedor()).isEqualTo(4L);
+        assertThat(captor.getValue().getDetallesCompra()).hasSize(2);
+        verify(ordenCompraServicio, never()).registrarOrdenCompra(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-64: si la confirmación de la orden propuesta se rechaza, vuelve al formulario con el motivo y conserva la orden propuesta")
+    void caso_cp_occ_64() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.confirmarOrdenPropuesta(org.mockito.ArgumentMatchers.eq(801L), any()))
+                .thenThrow(new ReglaNegocioException("La orden de compra debe registrarse para el proveedor de la orden propuesta"));
+        when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenReturn(prearmada(List.of()));
+        cargarProveedorYPlanificacion();
+
+        // Act
+        String html = mockMvc.perform(post(URL).with(csrf()).params(datosValidos()).param("idOrdenPropuesta", "801"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA_FORMULARIO))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("La orden de compra debe registrarse para el proveedor de la orden propuesta")
+                .contains("name=\"idOrdenPropuesta\" value=\"801\"")
+                .contains("Confirmar orden de compra propuesta")
+                .contains("name=\"detallesCompra[1].idCatalogoProveedor\" value=\"102\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-65: una orden propuesta que ya no se puede confirmar no abre el formulario: vuelve al origen con el motivo")
+    void caso_cp_occ_65() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenThrow(new ReglaNegocioException("La orden propuesta ya fue confirmada"));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/nuevo").param("idOrdenPropuesta", "801"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "La orden propuesta ya fue confirmada"));
     }
 
     // ==================== Datos de prueba ====================

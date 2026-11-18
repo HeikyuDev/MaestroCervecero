@@ -12,10 +12,46 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Órdenes de Compra</h1>
             <p class="text-sm text-slate-500">Órdenes de compra registradas, con la última registrada arriba.</p>
         </div>
-        <a sec:authorize="hasRole('GERENTE_DE_COMPRAS')" th:href="@{/ordenes-compra/nuevo}"
-           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-            <i class="bi bi-plus-lg"></i> Nueva orden de compra
-        </a>
+        <div sec:authorize="hasRole('GERENTE_DE_COMPRAS')" class="flex shrink-0 flex-wrap items-center justify-end gap-3">
+            <a th:href="@{/solicitudes-cotizacion}" data-procesos-compra
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-700 border border-slate-300 bg-white hover:bg-slate-50 shadow-sm transition-colors">
+                <i class="bi bi-envelope-paper"></i> <span th:text="${T(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra).ENTRADA}">Solicitudes de cotización</span>
+            </a>
+            <a th:href="@{/ordenes-compra/nuevo}"
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                <i class="bi bi-plus-lg"></i> Nueva orden de compra
+            </a>
+        </div>
+    </div>
+
+    <!-- Aviso: solicitudes de cotización que esperan la confirmación del envío a los proveedores -->
+    <div th:if="${solicitudesPorConfirmar != null and !#lists.isEmpty(solicitudesPorConfirmar)}" data-aviso-por-confirmar
+         class="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800" role="status">
+        <p class="flex items-center gap-2 font-semibold">
+            <i class="bi bi-send"></i>
+            <span th:text="${#lists.size(solicitudesPorConfirmar) == 1} ? 'Hay 1 solicitud de cotización que espera la confirmación del envío a los proveedores' : |Hay ${#lists.size(solicitudesPorConfirmar)} solicitudes de cotización que esperan la confirmación del envío a los proveedores|">Hay 1 solicitud por confirmar</span>
+        </p>
+        <ul class="mt-2 space-y-1">
+            <li th:each="p : ${solicitudesPorConfirmar}">
+                <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id})}" class="font-medium text-violet-700 hover:text-violet-900 hover:underline"
+                   th:text="${p.explicacion != null} ? ${p.explicacion} : |Solicitud #${p.id} - ${p.etiquetaPlanificacion}|">Se generó la solicitud de cotización N° 12</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Aviso: solicitudes de cotización con planes de órdenes de compra listos para revisar (sin plan elegido) -->
+    <div th:if="${procesosPendientes != null and !#lists.isEmpty(procesosPendientes)}" data-aviso-planes-pendientes
+         class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
+        <p class="flex items-center gap-2 font-semibold">
+            <i class="bi bi-bell"></i>
+            <span th:text="${#lists.size(procesosPendientes) == 1} ? 'Hay 1 solicitud de cotización con planes de órdenes de compra listos para revisar' : |Hay ${#lists.size(procesosPendientes)} solicitudes de cotización con planes de órdenes de compra listos para revisar|">Hay 1 proceso de compra con planes listos para revisar</span>
+        </p>
+        <ul class="mt-2 space-y-1">
+            <li th:each="p : ${procesosPendientes}">
+                <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id})}" class="font-medium text-amber-700 hover:text-amber-900 hover:underline"
+                   th:text="|Solicitud #${p.id} - ${p.etiquetaPlanificacion} (${p.cantidadPlanes} planes)|">Solicitud #3 - Plan #7 - Pale Ale (3 planes)</a>
+            </li>
+        </ul>
     </div>
 
     <!-- Criterios de búsqueda -->

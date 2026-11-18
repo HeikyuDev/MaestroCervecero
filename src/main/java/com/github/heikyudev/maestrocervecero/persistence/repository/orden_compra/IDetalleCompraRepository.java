@@ -46,4 +46,15 @@ public interface IDetalleCompraRepository extends JpaRepository<DetalleCompraEnt
     @Query("SELECT d FROM DetalleCompraEntity d JOIN FETCH d.catalogoProveedor c JOIN FETCH c.presentacionComercial JOIN FETCH c.insumo "
             + "WHERE d.ordenCompra.id IN :idsOrdenes")
     java.util.List<DetalleCompraEntity> buscarConPresentacionDeOrdenes(@Param("idsOrdenes") java.util.Collection<Long> idsOrdenes);
+
+    /**
+     * Carga los ítems de las órdenes de compra PENDIENTE cuyo insumo es alguno de los indicados, con su ítem de
+     * catálogo, la presentación comercial y el insumo, que hacen falta para calcular cuánto insumo resta recibir.
+     *
+     * @param idsInsumo Los IDs de los insumos (no vacío).
+     * @return Los ítems de las órdenes pendientes de esos insumos.
+     */
+    @Query("SELECT d FROM DetalleCompraEntity d JOIN FETCH d.catalogoProveedor c JOIN FETCH c.presentacionComercial JOIN FETCH c.insumo i "
+            + "WHERE d.ordenCompra.estado = 'PENDIENTE' AND i.id IN :idsInsumo")
+    java.util.List<DetalleCompraEntity> buscarDeOrdenesPendientesPorInsumos(@Param("idsInsumo") java.util.Collection<Long> idsInsumo);
 }

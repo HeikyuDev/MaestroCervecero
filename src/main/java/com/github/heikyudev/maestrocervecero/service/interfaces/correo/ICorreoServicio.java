@@ -26,4 +26,20 @@ public interface ICorreoServicio {
      * @param variables Variables que usa la plantilla.
      */
     void enviarCorreoHtml(String destinatario, String asunto, String plantilla, Map<String, Object> variables);
+
+    /**
+     * Igual que {@link #enviarCorreoHtml}, pero en el hilo de quien lo invoca, informando si el servidor de correo
+     * aceptó el correo. Lo usan los procesos que guardan el resultado del envío y lo reintentan si falló.
+     * <p>
+     * Postcondiciones: el correo se entrega al servidor SMTP configurado, o la falla se registra en el log; nunca se
+     * propaga.
+     * </p>
+     *
+     * @param destinatario Dirección de correo del destinatario.
+     * @param asunto Asunto del correo.
+     * @param plantilla Nombre de la plantilla relativo a {@code templates}, sin extensión.
+     * @param variables Variables que usa la plantilla.
+     * @return {@code true} si el servidor aceptó el correo; {@code false} si falló la plantilla, la conexión o las credenciales.
+     */
+    boolean intentarEnviarCorreoHtml(String destinatario, String asunto, String plantilla, Map<String, Object> variables);
 }

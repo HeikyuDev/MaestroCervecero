@@ -437,6 +437,37 @@ La restricción `ck_audit_log_accion` admite además `SOLICITUD_RESTABLECIMIENTO
 
 Los planes de producción se calculan al momento y no tienen tabla propia: confirmar un plan registra sus lotes en `lote` como cualquier otro registro de lote.
 
+### Generación automática de planes de órdenes de compra
+
+`V30__generacion_automatica_planes_compra.sql` crea las tablas del proceso que, al registrar una planificación de producción con insumos faltantes, genera una solicitud de cotización, pide al gerente de compras que confirme el envío a los proveedores y, al vencer el plazo, genera los planes de órdenes de compra:
+
+| Tabla y columna | Contenido |
+|---|---|
+| `configuracion_compras` | Fila única (`id = 1`, `ck_configuracion_compras_id`) con el plazo de respuesta en horas (por defecto 48), la cantidad de planes (3), el criterio (`MENOR_PRECIO`, `MAYOR_CANTIDAD` o `PONDERADO`, por defecto `PONDERADO`) y el peso del precio del criterio ponderado (0 a 100, por defecto 50). La edita el gerente de compras |
+| `solicitud_cotizacion` | Solicitud de una planificación (`fk_solicitud_cotizacion_planificacion_produccion_id`) con su estado (`PENDIENTE_DE_CONFIRMACION`, `ABIERTA`, `CERRADA`, `PLANES_GENERADOS` o `CANCELADA`); la fecha de confirmación del envío y la fecha límite de respuesta (las dos nulas mientras está pendiente de confirmación: el plazo corre desde la confirmación); las fechas de cierre, de generación de los planes y de cancelación con su motivo; y los intentos fallidos del cierre programado (`intentos_cierre`, `falla_cierre` y `motivo_falla_cierre`: al tercer intento se marca la falla y se deja de reintentar). El índice parcial `udx_solicitud_cotizacion_planificacion_vigente` admite una sola solicitud no cancelada por planificación, y `idx_solicitud_cotizacion_estado_fecha_limite_respuesta` acelera el cierre de las abiertas vencidas |
+| `linea_solicitud_cotizacion` | Insumo faltante con el cálculo que lo originó: requerido, disponible sin reservar, comprometido en lotes registrados sin iniciar (`cantidad_comprometida_lotes`), pendiente de recibir y faltante (mayor a 0), en la unidad del insumo, y si ningún proveedor lo ofrecía. Un insumo por solicitud (`uk_linea_solicitud_cotizacion_solicitud_insumo`) |
+| `invitacion_cotizacion` | Proveedor candidato de una solicitud (uno por proveedor, `uk_invitacion_cotizacion_solicitud_proveedor`) y su enlace: hash SHA-256 del token (`varchar(64)`, único por `uk_invitacion_cotizacion_token_hash`, nulo hasta el primer envío; el token viaja solo en el correo y cada intento de envío genera uno nuevo), vencimiento (la fecha límite, nulo mientras la solicitud está pendiente de confirmación), resultado del envío del correo (`estado_envio`, ver `V31`), intentos de envío (hasta 3) y fecha de la última respuesta |
+| `oferta_cotizacion` | Oferta del proveedor para una línea: ítem de su catálogo (insumo y presentación), precio de cada unidad de la presentación (`numeric(14,4)`, mayor a 0) y unidades disponibles (mayor a 0). Una por invitación y línea (`uk_oferta_cotizacion_invitacion_linea`) |
+| `plan_compra` | Plan generado, numerado dentro de la solicitud (`uk_plan_compra_solicitud_numero`), con su estado (`PROPUESTO`, `ELEGIDO`, `DESCARTADO` o `CANCELADO`) |
+| `orden_compra_propuesta` | Orden que un plan propone a un proveedor, con su estado (`PROPUESTA`, `CONFIRMADA` o `DESCARTADA`) y, una vez confirmada, la orden de compra definitiva (`orden_compra_id`, única) |
+| `item_orden_compra_propuesta` | Unidades de un ítem del catálogo al precio ofrecido, para una línea de la solicitud |
+
+La restricción `ck_audit_log_concepto_auditoria` admite además `CONFIGURACION_COMPRAS`, con el que la bitácora registra los cambios de la configuración de compras.
+
+La pantalla pública de cotización (`/cotizacion/{token}`) guarda el token CSRF en una cookie propia con el atributo `Secure` cuando el pedido llega por HTTPS. Detrás de un proxy que termina el HTTPS, la aplicación debe confiar en sus cabeceras `X-Forwarded-*` (`server.forward-headers-strategy`) para reconocerlo.
+
+### Estados del envío de las invitaciones a cotizar
+
+`V31__estados_envio_invitacion_cotizacion.sql` redefine `ck_invitacion_cotizacion_estado_envio` con los estados del envío del correo de cada invitación:
+
+| Estado | Significado |
+|---|---|
+| `PENDIENTE` | Todavía no se intentó enviar |
+| `EN_ENVIO` | El token del intento ya está guardado y el correo se está enviando fuera de toda transacción; no se reintenta, porque el correo pudo haber salido con ese enlace |
+| `ENVIADA` | El servidor de correo aceptó el correo |
+| `FALLIDA` | Falló el último intento; el proceso programado lo reintenta hasta 3 intentos |
+| `OMITIDA` | El proveedor se dio de baja o no tiene una versión vigente: no corresponde enviarlo (estado final) |
+
 ## Auditoría y transacciones
 
 `AuditAspect` registra la bitácora solo después de que la operación se confirma:

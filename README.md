@@ -104,7 +104,9 @@ Cada usuario tiene uno de seis roles, con permisos definidos en código:
 
 Para producción: `./mvnw spring-boot:run "-Dspring-boot.run.profiles=prod"`. En ese perfil se pueden reemplazar la conexión con las variables `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`.
 
-**Esquema.** Flyway aplica al arrancar las migraciones pendientes de `src/main/resources/db/migration` (`V1` esquema, `V2` datos iniciales, hasta `V26`). Luego Hibernate (`ddl-auto=validate`) comprueba que las entidades coincidan con las tablas. No cree tablas a mano: una base con tablas y sin historial de Flyway no se adopta y debe recrearse.
+Detrás de un proxy que termina el HTTPS, producción necesita `server.forward-headers-strategy=framework` (por ejemplo, con la variable `SERVER_FORWARD_HEADERS_STRATEGY=framework`) para que la aplicación reconozca el HTTPS original y marque `Secure` la cookie CSRF de la pantalla pública de cotización, y `APP_URL_BASE` con la dirección pública en `https://`, que se usa en los enlaces de los correos (restablecer la contraseña y cotizar).
+
+**Esquema.** Flyway aplica al arrancar las migraciones pendientes de `src/main/resources/db/migration` (`V1` esquema, `V2` datos iniciales, hasta `V31`). Luego Hibernate (`ddl-auto=validate`) comprueba que las entidades coincidan con las tablas. No cree tablas a mano: una base con tablas y sin historial de Flyway no se adopta y debe recrearse.
 
 **Tests.**
 

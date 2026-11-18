@@ -82,4 +82,15 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
             "WHERE v.localidad.id = :idLocalidad AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
     boolean existsByLocalidadIdAndEsUltimaVersionTrue(@Param("idLocalidad") Long idLocalidad);
+
+    /**
+     * Las versiones vigentes de los proveedores activos cuyo catálogo ofrece alguno de los insumos indicados (en
+     * cualquier presentación comercial), con su proveedor cargado.
+     *
+     * @param idsInsumo Los IDs de los insumos (no vacío).
+     * @return Las versiones vigentes encontradas, sin repetir, por razón social.
+     */
+    @Query("SELECT DISTINCT v FROM VersionProveedorEntity v JOIN FETCH v.proveedor p JOIN v.catalogoProveedor c "
+            + "WHERE v.esUltimaVersion = true AND p.estado = 'ACTIVO' AND c.insumo.id IN :idsInsumo ORDER BY v.razonSocial, v.id")
+    java.util.List<VersionProveedorEntity> buscarVigentesDeProveedoresActivosQueOfrecen(@Param("idsInsumo") java.util.Collection<Long> idsInsumo);
 }

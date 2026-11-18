@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#solicitudes-lista-content}, 'ordenes-compra')}">
+<body>
+
+<div id="solicitudes-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="@{/ordenes-compra}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>Volver a órdenes de compra</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="${T(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra).ENTRADA}">Solicitudes de cotización</h1>
+        <p class="text-sm text-slate-500">Solicitudes de cotización que el sistema envía a los proveedores al registrar una planificación de producción con insumos faltantes. Primero las abiertas, por vencimiento; después las demás, con la última arriba.</p>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/solicitudes-cotizacion}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+            <select id="estado" name="estado"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Abierta</option>
+            </select>
+        </div>
+        <div class="md:col-span-2 flex items-center justify-end gap-3">
+            <a th:href="@{/solicitudes-cotizacion}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-2 py-3 whitespace-nowrap">N.º</th>
+                <th class="px-2 py-3 whitespace-nowrap">Planificación</th>
+                <th class="px-2 py-3 whitespace-nowrap">Generada</th>
+                <th class="px-2 py-3 whitespace-nowrap">Cierre</th>
+                <th class="px-2 py-3 whitespace-nowrap">Tiempo restante</th>
+                <th class="px-2 py-3 whitespace-nowrap text-right">Insumos</th>
+                <th class="px-2 py-3 whitespace-nowrap text-right">Respuestas</th>
+                <th class="px-2 py-3 whitespace-nowrap">Estado</th>
+                <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="s : ${solicitudes.content}" class="hover:bg-slate-50">
+                <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${s.id}">3</td>
+                <td class="px-2 py-3 text-slate-700">
+                    <span class="inline-block max-w-[12rem] truncate align-bottom" tabindex="0" th:data-tooltip="${s.etiquetaPlanificacion}" th:text="${s.etiquetaPlanificacion}">Plan #7 - Pale Ale</span>
+                </td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${s.fechaSolicitud})}"></th:block></td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${s.fechaLimiteRespuesta})}"></th:block></td>
+                <td class="px-2 py-3 whitespace-nowrap" data-tiempo-restante>
+                    <span th:if="${s.tiempoRestante != null}" class="font-medium text-blue-700" th:text="${s.tiempoRestante}">2 días y 5 horas</span>
+                    <span th:if="${s.tiempoRestante == null}" class="text-slate-400">-</span>
+                </td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap text-right" th:text="${s.cantidadInsumos}">2</td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap text-right" th:text="|${s.cantidadRespuestas} de ${s.cantidadInvitaciones}|">1 de 3</td>
+                <td class="px-2 py-3 whitespace-nowrap">
+                    <span th:replace="~{cotizacion/formato :: estadoSolicitud(${s.estado})}"></span>
+                    <i th:if="${!#lists.isEmpty(s.avisos)}" class="bi bi-exclamation-triangle text-amber-500 ml-1" tabindex="0"
+                       th:data-tooltip="${#strings.listJoin(s.avisos, ' · ')}" th:aria-label="${#strings.listJoin(s.avisos, ' · ')}"></i>
+                </td>
+                <td class="col-acciones px-2 py-3">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <a th:href="@{/solicitudes-cotizacion/{id}(id=${s.id})}" title="Ver detalle" aria-label="Ver detalle"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${solicitudes.empty}">
+                <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-envelope-paper block text-3xl mb-2"></i>
+                    No se encontraron solicitudes de cotización con los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${solicitudes}, 'solicitud de cotización|solicitudes de cotización',
+                ${solicitudes.hasPrevious()} ? @{/solicitudes-cotizacion(pagina=${solicitudes.number - 1}, estado=${filtroEstado})} : null,
+                ${solicitudes.hasNext()} ? @{/solicitudes-cotizacion(pagina=${solicitudes.number + 1}, estado=${filtroEstado})} : null,
+                false)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

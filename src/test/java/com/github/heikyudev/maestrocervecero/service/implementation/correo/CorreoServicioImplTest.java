@@ -109,6 +109,21 @@ class CorreoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-CO-06: intentarEnviarCorreoHtml envía en el mismo hilo e informa si el servidor aceptó el correo, sin propagar fallas")
+    void intentarEnviarCorreoHtml_informaElResultado() throws Exception {
+        // === PREPARACION DE DATOS ===
+        when(mailSender.createMimeMessage()).thenAnswer(inv -> new MimeMessage(Session.getInstance(new Properties())));
+        when(templateEngine.process(eq(PLANTILLA), any(Context.class))).thenReturn("<p>Hola</p>");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(correoServicio.intentarEnviarCorreoHtml(DESTINATARIO, ASUNTO, PLANTILLA, Map.of())).isTrue();
+        doThrow(new MailSendException("Autenticación rechazada")).when(mailSender).send(any(MimeMessage.class));
+        assertThat(correoServicio.intentarEnviarCorreoHtml(DESTINATARIO, ASUNTO, PLANTILLA, Map.of())).isFalse();
+        assertThat(CorreoServicioImpl.class.getMethod("intentarEnviarCorreoHtml", String.class, String.class, String.class, Map.class)
+                .isAnnotationPresent(Async.class)).isFalse();
+    }
+
+    @Test
     @DisplayName("CP-CO-04: enviarCorreoHtml se ejecuta en un hilo aparte (@Async)")
     void enviarCorreoHtml_debeSerAsincrono() throws Exception {
         // === EJECUCION Y ASSERTS ===

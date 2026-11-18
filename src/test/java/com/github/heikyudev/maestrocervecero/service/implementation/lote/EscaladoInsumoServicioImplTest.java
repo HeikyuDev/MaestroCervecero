@@ -119,6 +119,32 @@ class EscaladoInsumoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-EI-CL-03: calcularRequerimientosLupulo sin lote aplica las mismas fórmulas y no asocia etapa")
+    void calcularRequerimientosLupulo_sinLote_mismasCantidadesSinEtapa() {
+        // === PREPARACION DE DATOS ===
+        LupuloEntity cascade = crearLupulo(1L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        LupuloEntity centennial = crearLupulo(2L, "Centennial", 10.0, FormatoLupulo.PELLET);
+        LupuloEntity citra = crearLupulo(3L, "Citra", 12.0, FormatoLupulo.PELLET);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050)
+                .ibuObjetivo(35.0)
+                .volumenBase(20.0)
+                .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade),
+                        detalleLupulo(10.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 15.0, centennial),
+                        detalleLupulo(15.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, citra)))
+                .build();
+
+        // === EJECUCION ===
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosLupulo(versionReceta, 100.0);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(RequerimientoInsumo::etapa).containsOnlyNulls();
+        assertThat(resultado.get(0).cantidadRequerida()).isCloseTo(192.82, within(0.01));
+        assertThat(resultado.get(1).cantidadRequerida()).isCloseTo(64.27, within(0.01));
+        assertThat(resultado.get(2).cantidadRequerida()).isCloseTo(75.0, within(0.001));
+    }
+
+    @Test
     @DisplayName("CP-EI-CL-02: calcularRequerimientosLupulo lanza RecursoNoEncontradoException si el lote no tiene la etapa de uso indicada por un detalle")
     void calcularRequerimientosLupulo_debeLanzarExcepcionSiNoExisteLaEtapaDeUso() {
         // === PREPARACION DE DATOS ===

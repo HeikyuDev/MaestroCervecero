@@ -96,6 +96,13 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
     }
 
     @Override
+    public List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo) {
+        return calcularAdiciones(versionReceta, volumenObjetivo, null).stream()
+                .map(adicion -> new RequerimientoInsumo(adicion.detalle().getLupulo(), null, adicion.cantidad()))
+                .toList();
+    }
+
+    @Override
     public List<AdicionLupulo> calcularAdicionesLupulo(EtapaLoteEntity etapaLote) {
         LoteEntity lote = etapaLote.getLote();
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();

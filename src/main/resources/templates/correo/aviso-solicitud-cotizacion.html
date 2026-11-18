@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+    Correo con el que se avisa a un gerente de compras una novedad de una solicitud de cotización (planes listos para
+    revisar, insumos sin proveedor, cierre sin ofertas). Lo procesa ICorreoServicio fuera de una request HTTP, por lo
+    que el enlace llega completo en la variable "enlace".
+    Variables: nombre, titulo, mensaje, detalles (lista de textos, puede estar vacía), enlace.
+    Los estilos van en línea porque los clientes de correo ignoran las hojas de estilo.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${titulo} + ' - Maestro Cervecero'">Aviso - Maestro Cervecero</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:24px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+                   style="max-width:560px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+                <tr>
+                    <td style="background-color:#0f172a;padding:24px;text-align:center;">
+                        <span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;">MAESTRO</span><span
+                            style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#f59e0b;">CERVECERO</span>
+                        <div style="font-size:13px;color:#94a3b8;margin-top:4px;" th:text="${titulo}">Planes de órdenes de compra listos para revisar</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:32px 32px 8px 32px;font-size:15px;line-height:1.6;">
+                        <p style="margin:0 0 16px 0;">Hola <span th:text="${nombre}">Juan</span>:</p>
+                        <p style="margin:0 0 12px 0;" th:text="${mensaje}">La solicitud de cotización #3 cerró y sus planes están listos para revisar</p>
+                        <ul th:if="${detalles != null and !#lists.isEmpty(detalles)}" style="margin:0 0 16px 0;padding-left:20px;">
+                            <li th:each="detalle : ${detalles}" th:text="${detalle}">Planes generados: 3</li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding:8px 32px 24px 32px;">
+                        <a th:href="${enlace}" href="#"
+                           style="display:inline-block;background-color:#d97706;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 28px;border-radius:10px;">
+                            Ver solicitud de cotización
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color:#f8fafc;padding:16px 32px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+                        Este correo se envió automáticamente: no lo responda.
+                        <br>&copy; 2026 Maestro Cervecero. Todos los derechos reservados.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

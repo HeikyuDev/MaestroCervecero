@@ -1,0 +1,14 @@
+## Casos de prueba de los procesos de la generación de planes de órdenes de compra
+
+**Tipo de prueba:** unitaria (clase `ProcesosCotizacionTest`), con los services y repositorios simulados. Cubre las piezas que rodean al service: el disparo al registrar una planificación de producción (`GeneracionSolicitudCotizacionListener`), el cierre programado (`CierreSolicitudesCotizacionProgramado`) y los correos (`NotificadorCotizaciones`).
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-PRC-01**|Disparo al registrar una planificación|Eventos de registro de las planificaciones 7 y 8|Registro confirmado|Se genera la solicitud de cada una; no se envía ninguna invitación (el envío espera la confirmación del gerente de compras).|
+|**CP-PRC-02**|Falla al generar la solicitud|`generarSolicitud` lanza una excepción con detalle técnico; luego también falla el aviso|Falla $\rightarrow$ **TRUE**|La falla se registra en el log, no se propaga al registro de la planificación y los gerentes de compras reciben el aviso genérico "No se pudo generar automáticamente la solicitud de cotización de la planificación N° 7: revise si le faltan insumos y registre las órdenes de compra necesarias", sin el detalle de la excepción; si el aviso falla, tampoco se propaga.|
+|**CP-PRC-03**|Proceso programado|Envíos pendientes en las solicitudes 1 (falla) y 2; vencidas 3, 4 (falla al cerrar) y 5|Corrida programada|Envía los pendientes de la 2 aunque falle la 1; cierra la 3 y la 5; la falla de la 4 se registra con `registrarFallaCierre(4, "bloqueo")` (el detalle solo va al log).|
+|**CP-PRC-04**|Invitación al proveedor|Proveedor MALTERIA SUR, token `abc123`, fecha límite 20/11/2026 10:30; el servidor acepta y luego rechaza|Envío sincrónico|Usa la plantilla `correo/solicitud-cotizacion` con el enlace `https://cerveceria.com/cotizacion/abc123`, la fecha y los insumos, y devuelve `true` y luego `false`.|
+|**CP-PRC-05**|Aviso a los gerentes de compras|Dos gerentes activos; solicitud 90; y un aviso sin solicitud|Gerentes activos|Cada uno recibe el aviso con su nombre, el mensaje, los detalles y el enlace a `/solicitudes-cotizacion/90`; sin solicitud, el enlace lleva a `/solicitudes-cotizacion`.|
+
+|**CP-PRC-06**|Único disparo|Métodos del listener|Escuchas de eventos|Hay un único método que escucha eventos: recibe `PlanificacionProduccionRegistradaEvento` y corre después de confirmarse la transacción (`AFTER_COMMIT`).|
+|**CP-PRC-07**|Envío fuera de la transacción|Dos correos preparados: uno se acepta y el otro lanza una excepción; luego una solicitud sin nada preparado|Orden preparar $\rightarrow$ enviar $\rightarrow$ registrar|Primero `prepararEnvios(90)`, después los dos correos y por último `registrarResultadosEnvio(90, {601: true, 602: false})` (la excepción cuenta como fallido); el orquestador no es transaccional; sin preparados no registra nada.|

@@ -116,4 +116,14 @@ public interface IUsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u "
             + "WHERE u.rol = 'ADMINISTRADOR' AND u.estado = 'ACTIVO' AND u.id <> :id")
     boolean existsAdministradorActivoDistintoDe(@Param("id") Long id);
+
+    /**
+     * Los usuarios con el rol y el estado indicados (por ejemplo, los gerentes de compras activos a los que se avisa
+     * por correo).
+     *
+     * @param rol Rol buscado.
+     * @param estado Estado buscado.
+     * @return Los usuarios encontrados.
+     */
+    java.util.List<UsuarioEntity> findByRolAndEstado(Rol rol, com.github.heikyudev.maestrocervecero.persistence.enums.Estado estado);
 }

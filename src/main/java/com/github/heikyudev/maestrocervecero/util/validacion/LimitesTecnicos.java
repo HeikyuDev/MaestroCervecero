@@ -188,6 +188,21 @@ public final class LimitesTecnicos {
     /** Tiempo máximo, en milisegundos, que una petición espera su turno para generar un reporte impreso. */
     public static final long REPORTE_IMPRESO_ESPERA_MAXIMA_MS = 2_000;
 
+    /** Plazo máximo, en horas, que tienen los proveedores para responder una solicitud de cotización (30 días). */
+    public static final int PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS = 720;
+
+    /** Cantidad máxima de planes de órdenes de compra que se generan al cerrar una solicitud de cotización. */
+    public static final int CANTIDAD_PLANES_COMPRA_MAXIMA = 10;
+
+    /** Peso máximo del precio (porcentaje) en el criterio ponderado de los planes de órdenes de compra. */
+    public static final double PESO_PRECIO_PLAN_COMPRA_MAXIMO = 100.0;
+
+    /** Intentos de envío del correo de una invitación a cotizar antes de dejar de reintentarlo. */
+    public static final int INTENTOS_ENVIO_INVITACION_MAXIMO = 3;
+
+    /** Intentos fallidos del cierre programado de una solicitud de cotización antes de marcar la falla y dejar de reintentarlo. */
+    public static final int INTENTOS_CIERRE_SOLICITUD_MAXIMO = 3;
+
     private LimitesTecnicos() {
     }
 }

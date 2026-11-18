@@ -1,0 +1,416 @@
+package com.github.heikyudev.maestrocervecero.presentation.controller.cotizacion;
+
+import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConfig;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoOrdenCompraPropuesta;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoPlanCompra;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion;
+import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.implementation.cotizacion.EnvioInvitacionesCotizacion;
+import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
+import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.CoberturaInsumoPlanResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.InvitacionCotizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPropuestaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaSolicitudCotizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPropuestaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.PlanCompraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.mockito.ArgumentCaptor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+
+@WebMvcTest(SolicitudCotizacionController.class)
+@Import({SecurityConfig.class, ControllerAdvices.class})
+class SolicitudCotizacionControllerTest {
+
+    private static final String URL = "/solicitudes-cotizacion";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private ISolicitudCotizacionServicio solicitudCotizacionServicio;
+
+    @MockitoBean
+    private EnvioInvitacionesCotizacion envioInvitaciones;
+
+    @MockitoBean
+    private UserDetailServiceImpl userDetailService;
+
+    // ==================== Datos de prueba ====================
+
+    private static SolicitudCotizacionResponseDTO resumen(Long id, EstadoSolicitudCotizacion estado, List<String> avisos) {
+        return SolicitudCotizacionResponseDTO.builder().id(id).estado(estado).idPlanificacion(7L).etiquetaPlanificacion("Plan #7 - Pale Ale")
+                .fechaSolicitud(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0))
+                .cantidadInsumos(2).cantidadInvitaciones(3).cantidadRespuestas(1).cantidadPlanes(3).avisos(avisos)
+                .tiempoRestante(estado == EstadoSolicitudCotizacion.ABIERTA ? "1 día y 3 horas" : null).build();
+    }
+
+    private static OrdenCompraPropuestaResponseDTO orden(Long id, EstadoOrdenCompraPropuesta estado, Long idOrdenCompra) {
+        return OrdenCompraPropuestaResponseDTO.builder().id(id).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
+                .proveedorActivo(true).estado(estado).idOrdenCompra(idOrdenCompra).total(new BigDecimal("120000"))
+                .items(List.of(ItemOrdenCompraPropuestaResponseDTO.builder().id(1L).idCatalogoProveedor(100L).nombreInsumo("Malta Pilsen")
+                        .nombrePresentacion("Bolsa (25 kg)").cantidad(4).precioUnitario(new BigDecimal("30000")).subtotal(new BigDecimal("120000"))
+                        .cantidadEnUnidadDelInsumo(100.0).unidad("kg").precioPorUnidadDelInsumo(new BigDecimal("1200")).build()))
+                .build();
+    }
+
+    private static PlanCompraResponseDTO plan(int numero, EstadoPlanCompra estado, OrdenCompraPropuestaResponseDTO... ordenes) {
+        return PlanCompraResponseDTO.builder().id(700L + numero).numero(numero).estado(estado).costoTotal(new BigDecimal("120000"))
+                .cubreTodo(false).ordenes(List.of(ordenes))
+                .coberturas(List.of(CoberturaInsumoPlanResponseDTO.builder().idInsumo(1L).nombreInsumo("Malta Pilsen").unidad("kg")
+                        .cantidadFaltante(150.0).cantidadCubierta(100.0).cantidadSinCubrir(50.0).build()))
+                .build();
+    }
+
+    private static SolicitudCotizacionResponseDTO detalle(EstadoSolicitudCotizacion estado, List<PlanCompraResponseDTO> planes) {
+        return SolicitudCotizacionResponseDTO.builder().id(90L).estado(estado).idPlanificacion(7L).etiquetaPlanificacion("Plan #7 - Pale Ale")
+                .fechaSolicitud(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0))
+                .tiempoRestante(estado == EstadoSolicitudCotizacion.ABIERTA ? "1 día y 3 horas" : null)
+                .planElegido(planes.stream().anyMatch(p -> p.getEstado() == EstadoPlanCompra.ELEGIDO))
+                .fechaCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? LocalDateTime.of(2026, 11, 19, 8, 0) : null)
+                .motivoCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "Se consiguió el insumo" : null)
+                .usuarioCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "compras1" : null)
+                .avisos(List.of("Ningún plan cubre todo el faltante: revise la cantidad sin cubrir de cada insumo"))
+                .lineas(List.of(LineaSolicitudCotizacionResponseDTO.builder().id(501L).idInsumo(1L).nombreInsumo("Malta Pilsen").tipoInsumo("Malta")
+                        .unidad("kg").cantidadRequerida(200.0).cantidadDisponible(30.0).cantidadPendienteRecepcion(20.0).cantidadFaltante(150.0).build()))
+                .invitaciones(List.of(
+                        InvitacionCotizacionResponseDTO.builder().id(1L).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
+                                .proveedorActivo(true).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
+                                .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.ENVIADA).intentosEnvio(1)
+                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen")).build(),
+                        InvitacionCotizacionResponseDTO.builder().id(2L).idProveedor(2L).razonSocial("LUPULOS DEL VALLE").cuit("30-87654321-0")
+                                .proveedorActivo(false).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).cantidadOfertas(0)
+                                .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
+                                .estadoParticipacion("Dado de baja").insumosCotizados(List.of()).build()))
+                .planes(planes)
+                .build();
+    }
+
+    // ==================== GET /solicitudes-cotizacion ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-01: el listado muestra las solicitudes con su tiempo restante, el regreso a órdenes de compra y el menú de órdenes de compra resaltado; el orden lo define la consulta")
+    void caso_cp_scc_01() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.filtrarSolicitudes(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(resumen(91L, EstadoSolicitudCotizacion.ABIERTA, List.of()),
+                        resumen(90L, EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of("Ningún proveedor activo ofrece Cascade"))), PageRequest.of(0, 20), 2));
+
+        // Act
+        String html = mockMvc.perform(get(URL))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cotizacion/solicitudes-lista"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("Solicitudes de cotización").contains("Volver a órdenes de compra").contains("href=\"/ordenes-compra\"")
+                .doesNotContain("data-aviso-planes-pendientes")
+                .contains("Tiempo restante").contains("1 día y 3 horas")
+                .contains("href=\"/solicitudes-cotizacion/90\"")
+                .contains("Planes generados").contains("1 de 3").contains("18/11/2026 09:00").contains("20/11/2026 09:00")
+                .contains("data-tooltip=\"Ningún proveedor activo ofrece Cascade\"")
+                .containsPattern("href=\"/ordenes-compra\"[^>]*bg-amber-500/10");
+        assertThat(html.indexOf("href=\"/solicitudes-cotizacion/91\"")).isLessThan(html.indexOf("href=\"/solicitudes-cotizacion/90\""));
+        ArgumentCaptor<Pageable> pagina = ArgumentCaptor.forClass(Pageable.class);
+        verify(solicitudCotizacionServicio).filtrarSolicitudes(isNull(), isNull(), pagina.capture());
+        assertThat(pagina.getValue().getSort().isUnsorted()).isTrue();
+        assertThat(pagina.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-02: el filtro de estado se aplica sin distinguir mayúsculas y un estado inexistente se ignora; sin solicitudes se muestra el estado vacío sin aviso")
+    void caso_cp_scc_02() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.filtrarSolicitudes(any(), isNull(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        // Act
+        String html = mockMvc.perform(get(URL).param("estado", "abierta")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        mockMvc.perform(get(URL).param("estado", "INEXISTENTE")).andExpect(status().isOk());
+
+        // Assert
+        verify(solicitudCotizacionServicio).filtrarSolicitudes(eq(EstadoSolicitudCotizacion.ABIERTA), isNull(), any(Pageable.class));
+        verify(solicitudCotizacionServicio).filtrarSolicitudes(isNull(), isNull(), any(Pageable.class));
+        assertThat(html)
+                .contains("No se encontraron solicitudes de cotización con los criterios indicados")
+                .contains("<option value=\"ABIERTA\" selected=\"selected\">Abierta</option>")
+                .doesNotContain("data-aviso-planes-pendientes");
+    }
+
+    // ==================== GET /solicitudes-cotizacion/{id} ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con lo que cotizó, los avisos, la cancelación y el primer plan en su pestaña")
+    void caso_cp_scc_03() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of(
+                plan(1, EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null)),
+                plan(2, EstadoPlanCompra.PROPUESTO, orden(802L, EstadoOrdenCompraPropuesta.PROPUESTA, null)))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/90"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cotizacion/solicitud-detalle"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("Solicitud de cotización #90").contains("Plan #7 - Pale Ale")
+                .contains("Ningún plan cubre todo el faltante: revise la cantidad sin cubrir de cada insumo")
+                .contains("Insumos solicitados").contains("Malta Pilsen").contains("200 kg").contains("30 kg").contains("20 kg").contains("150 kg")
+                .contains("href=\"/planificaciones-produccion/7\"")
+                .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
+                .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
+                .containsPattern("data-insumos-cotizados>\\s*<span>Malta Pilsen</span>")
+                .contains("data-boton-cancelar").contains("dialogo-cancelar")
+                .contains("href=\"/solicitudes-cotizacion/90?plan=1\"").contains("href=\"/solicitudes-cotizacion/90?plan=2\"")
+                .contains("bi-diagram-3")
+                .contains("Cobertura de los insumos").contains("50 kg")
+                .contains("Bolsa (25 kg)").contains("$ 1.200,00 / kg").contains("$ 120.000,00")
+                .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=801\"")
+                .doesNotContain("idOrdenPropuesta=802")
+                .doesNotContain("/descartar");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-04: con ?plan=N se muestra ese plan; en el plan elegido cada orden pendiente ofrece confirmar y descartar y la confirmada enlaza a su orden de compra")
+    void caso_cp_scc_04() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of(
+                plan(1, EstadoPlanCompra.DESCARTADO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null)),
+                plan(2, EstadoPlanCompra.ELEGIDO, orden(802L, EstadoOrdenCompraPropuesta.CONFIRMADA, 12L), orden(803L, EstadoOrdenCompraPropuesta.PROPUESTA, null)))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/90").param("plan", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("Elegido").contains("Confirmada")
+                .contains("href=\"/ordenes-compra/12\"").contains("Ver orden de compra #12")
+                .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=803\"")
+                .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/803/descartar?plan=2\"")
+                .contains("data-confirmar-titulo=\"Descartar orden propuesta\"")
+                .doesNotContain("idOrdenPropuesta=801").doesNotContain("idOrdenPropuesta=802")
+                .doesNotContain("data-boton-cancelar");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-05: una solicitud cancelada muestra el detalle de su cancelación en un diálogo y no ofrece acciones; una abierta muestra el tiempo restante y ofrece cancelar, sin sección de planes")
+    void caso_cp_scc_05() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.CANCELADA, List.of(
+                plan(1, EstadoPlanCompra.CANCELADO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null)))));
+        when(solicitudCotizacionServicio.buscarPorId(91L)).thenReturn(detalle(EstadoSolicitudCotizacion.ABIERTA, List.of()));
+
+        // Act
+        String cancelada = mockMvc.perform(get(URL + "/90")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String abierta = mockMvc.perform(get(URL + "/91")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(cancelada).contains("Cancelado").doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar")
+                .doesNotContain("data-boton-cancelar")
+                .contains("data-detalle-motivo=\"Se consiguió el insumo\"").contains("data-detalle-usuario=\"compras1\"")
+                .contains("Detalle de la cancelación").doesNotContain(">Se consiguió el insumo<");
+        assertThat(abierta).doesNotContain("data-planes").doesNotContain("Cobertura de los insumos")
+                .contains("data-tiempo-restante").contains("1 día y 3 horas").contains("data-boton-cancelar");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-06: una solicitud inexistente vuelve al origen con el motivo")
+    void caso_cp_scc_06() throws Exception {
+        when(solicitudCotizacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la solicitud de cotización con ID: 99"));
+
+        mockMvc.perform(get(URL + "/99"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "No se encontró la solicitud de cotización con ID: 99"));
+    }
+
+    // ==================== POST /solicitudes-cotizacion/{id}/ordenes-propuestas/{idOrdenPropuesta}/descartar ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-07: descartar una orden propuesta delega en el service y vuelve a la pestaña del plan con alerta de éxito")
+    void caso_cp_scc_07() throws Exception {
+        mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()).param("plan", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/90?plan=2"))
+                .andExpect(flash().attribute("mensaje", "Orden propuesta descartada correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(solicitudCotizacionServicio).descartarOrdenPropuesta(90L, 803L);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-08: si el service rechaza el descarte, vuelve al origen con el motivo")
+    void caso_cp_scc_08() throws Exception {
+        when(solicitudCotizacionServicio.descartarOrdenPropuesta(90L, 803L)).thenThrow(new ReglaNegocioException("Solo se pueden descartar órdenes propuestas del plan elegido"));
+
+        mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "Solo se pueden descartar órdenes propuestas del plan elegido"));
+    }
+
+    // ==================== Seguridad ====================
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DISTRIBUCION"})
+    @DisplayName("CP-SCC-09: ningún otro rol accede a las solicitudes de cotización, ni las cancela ni descarta órdenes propuestas")
+    void caso_cp_scc_09(String rol) throws Exception {
+        for (String ruta : List.of(URL, URL + "/90")) {
+            mockMvc.perform(get(ruta).with(user("usuario").roles(rol)))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
+        mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(user("usuario").roles(rol)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/90/cancelar").with(user("usuario").roles(rol)).with(csrf()).param("motivo", "x"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/90/confirmar-envio").with(user("usuario").roles(rol)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(solicitudCotizacionServicio, envioInvitaciones);
+    }
+
+    @Test
+    @DisplayName("CP-SCC-10: un usuario sin sesión es enviado al inicio de sesión")
+    void caso_cp_scc_10() throws Exception {
+        mockMvc.perform(get(URL)).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"));
+        verify(solicitudCotizacionServicio, never()).buscarPorId(any());
+    }
+
+    // ==================== POST /solicitudes-cotizacion/{id}/cancelar ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-11: cancelar delega el motivo en el service y vuelve al detalle con alerta de éxito")
+    void caso_cp_scc_11() throws Exception {
+        mockMvc.perform(post(URL + "/90/cancelar").with(csrf()).param("motivo", "Se consiguió el insumo"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/90"))
+                .andExpect(flash().attribute("mensaje", "Solicitud de cotización cancelada correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(solicitudCotizacionServicio).cancelarSolicitud(90L, "Se consiguió el insumo");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-12: si el service rechaza la cancelación (sin motivo o con plan elegido), vuelve al origen con el motivo")
+    void caso_cp_scc_12() throws Exception {
+        when(solicitudCotizacionServicio.cancelarSolicitud(90L, null)).thenThrow(new ReglaNegocioException("El motivo de cancelación es obligatorio"));
+
+        mockMvc.perform(post(URL + "/90/cancelar").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "El motivo de cancelación es obligatorio"));
+    }
+
+    // ==================== Confirmación del envío ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-13: una solicitud pendiente de confirmación muestra la explicación y ofrece confirmar el envío (con diálogo) y cancelar")
+    void caso_cp_scc_13() throws Exception {
+        // Arrange
+        SolicitudCotizacionResponseDTO pendiente = SolicitudCotizacionResponseDTO.builder().id(12L).estado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION)
+                .idPlanificacion(45L).etiquetaPlanificacion("Plan #45 - Pale Ale").avisos(List.of())
+                .explicacion("Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg). Confirme el envío a los proveedores o cancele la solicitud")
+                .lineas(List.of()).invitaciones(List.of()).planes(List.of()).build();
+        when(solicitudCotizacionServicio.buscarPorId(12L)).thenReturn(pendiente);
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/12")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .contains("data-explicacion-solicitud").contains("el stock actual no cubre Malta Pilsen (faltan 120 kg)")
+                .contains("Pendiente de confirmación")
+                .contains("action=\"/solicitudes-cotizacion/12/confirmar-envio\"").contains("data-confirmar-titulo=\"Confirmar envío\"")
+                .contains("data-boton-cancelar").doesNotContain("data-tiempo-restante");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-14: confirmar el envío abre la solicitud, envía las invitaciones después de confirmarla y vuelve al detalle con alerta de éxito")
+    void caso_cp_scc_14() throws Exception {
+        mockMvc.perform(post(URL + "/12/confirmar-envio").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/12"))
+                .andExpect(flash().attribute("mensaje", "Envío a los proveedores confirmado correctamente"));
+
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(solicitudCotizacionServicio, envioInvitaciones);
+        orden.verify(solicitudCotizacionServicio).confirmarEnvio(12L);
+        orden.verify(envioInvitaciones).enviarPendientes(12L);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-15: si el service rechaza la confirmación, vuelve al origen con el motivo y no envía nada")
+    void caso_cp_scc_15() throws Exception {
+        when(solicitudCotizacionServicio.confirmarEnvio(12L)).thenThrow(new ReglaNegocioException("No se puede confirmar el envío porque la planificación de producción ya no está Pendiente"));
+
+        mockMvc.perform(post(URL + "/12/confirmar-envio").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "No se puede confirmar el envío porque la planificación de producción ya no está Pendiente"));
+
+        verify(envioInvitaciones, never()).enviarPendientes(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-16: descartar pasa al service la solicitud de la URL; una orden propuesta de otra solicitud vuelve con el motivo")
+    void caso_cp_scc_16() throws Exception {
+        when(solicitudCotizacionServicio.descartarOrdenPropuesta(91L, 803L))
+                .thenThrow(new RecursoNoEncontradoException("No se encontró la orden propuesta con ID 803 en la solicitud de cotización #91"));
+
+        mockMvc.perform(post(URL + "/91/ordenes-propuestas/803/descartar").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "No se encontró la orden propuesta con ID 803 en la solicitud de cotización #91"))
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verify(solicitudCotizacionServicio).descartarOrdenPropuesta(91L, 803L);
+    }
+}

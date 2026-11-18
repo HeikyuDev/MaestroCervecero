@@ -10,10 +10,22 @@
     <div>
         <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i>
-            <span>Volver a órdenes de compra</span>
+            <span th:text="${ordenPropuesta != null} ? 'Volver a la solicitud de cotización' : 'Volver a órdenes de compra'">Volver a órdenes de compra</span>
         </a>
-        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nueva orden de compra</h1>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="${ordenPropuesta != null} ? 'Confirmar orden de compra propuesta' : 'Nueva orden de compra'">Nueva orden de compra</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <!-- Orden propuesta por un plan de compra: la orden llega prearmada y se puede ajustar antes de registrarla -->
+    <div th:if="${ordenPropuesta != null}" data-orden-propuesta
+         class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <i class="bi bi-lightbulb text-lg"></i>
+        <p>
+            <span th:if="${ordenPropuesta.numeroPlan != null}"
+                  th:text="|Orden propuesta por el plan ${ordenPropuesta.numeroPlan} de la solicitud de cotización #${ordenPropuesta.idSolicitud}.|">Orden propuesta por el plan 1 de la solicitud de cotización #3.</span>
+            Complete la fecha de entrega estimada y, si hace falta, modifique cantidades, costos o ítems antes de registrarla.
+            Al registrar la primera orden de un plan, ese plan queda elegido y los demás se descartan.
+        </p>
     </div>
 
     <!--
@@ -28,6 +40,9 @@
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
         <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar la orden de compra')}"></div>
+
+        <!-- La orden propuesta que se confirma viaja aparte de los datos de la orden -->
+        <input th:if="${ordenPropuesta != null}" type="hidden" name="idOrdenPropuesta" th:value="${ordenPropuesta.idOrdenPropuesta}" />
 
         <!-- 1. PLANIFICACIÓN, PROVEEDOR Y FECHA -->
         <section class="p-6" data-seccion-datos>

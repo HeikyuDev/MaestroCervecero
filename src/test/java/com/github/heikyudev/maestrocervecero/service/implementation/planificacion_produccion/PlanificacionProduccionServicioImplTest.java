@@ -81,6 +81,10 @@ class PlanificacionProduccionServicioImplTest {
     private IEnvasadoLoteRepository envasadoLoteRepository;
     @Mock
     private IConfiguracionProduccionRepository configuracionProduccionRepository;
+    @Mock
+    private com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio solicitudCotizacionServicio;
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PlanificacionProduccionServicioImpl planificacionProduccionServicio;
@@ -355,6 +359,35 @@ class PlanificacionProduccionServicioImplTest {
                 .hasMessage("No se encontró una versión activa para la receta con ID: 1");
 
         verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RPP-19: registrarPlanificacionProduccion avisa el registro con el ID de la planificación guardada, y no avisa nada si la rechaza")
+    void registrar_debePublicarElEventoDeRegistro() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
+                .fechaInicioEstimada(LocalDate.of(2099, 3, 1))
+                .fechaFinalizacionEstimada(LocalDate.of(2099, 4, 1))
+                .cantidadAProducir(100.0)
+                .build();
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, true)));
+        when(planificacionProduccionRepository.save(any(PlanificacionProduccionEntity.class))).thenAnswer(invocation -> {
+            PlanificacionProduccionEntity entidad = invocation.getArgument(0);
+            entidad.setId(15L);
+            return entidad;
+        });
+
+        // === EJECUCION ===
+        planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO);
+        PlanificacionProduccionFormDTO invalido = planificacionFormDTOValidoBuilder(1L).cantidadAProducir(0.0).build();
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(invalido)).isInstanceOf(ReglaNegocioException.class);
+
+        // === ASSERTS ===
+        ArgumentCaptor<com.github.heikyudev.maestrocervecero.service.implementation.planificacion_produccion.PlanificacionProduccionRegistradaEvento> evento =
+                ArgumentCaptor.forClass(com.github.heikyudev.maestrocervecero.service.implementation.planificacion_produccion.PlanificacionProduccionRegistradaEvento.class);
+        verify(eventPublisher, org.mockito.Mockito.times(1)).publishEvent(evento.capture());
+        assertThat(evento.getValue().idPlanificacion()).isEqualTo(15L);
+        verifyNoInteractions(solicitudCotizacionServicio);
     }
 
     @Test
@@ -639,6 +672,26 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(planificacion.getMotivoAnulacion()).isEqualTo("Error de carga");
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.ANULADA);
         verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-APP-12: anularPlanificacionProduccion cancela las solicitudes de cotización de la planificación solo cuando la anula")
+    void anular_debeCancelarLasSolicitudesDeCotizacion() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity pendiente = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        PlanificacionProduccionEntity finalizada = crearPlanificacionEntity(2L, EstadoSolicitud.FINALIZADA, LocalDate.of(2026, 3, 1));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(pendiente));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(2L)).thenReturn(Optional.of(finalizada));
+        when(planificacionProduccionRepository.save(pendiente)).thenReturn(pendiente);
+
+        // === EJECUCION ===
+        planificacionProduccionServicio.anularPlanificacionProduccion(1L, anulacionFormDTO("Error de carga"));
+        assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(2L, anulacionFormDTO("Error de carga")))
+                .isInstanceOf(ReglaNegocioException.class);
+
+        // === ASSERTS ===
+        verify(solicitudCotizacionServicio).cancelarPorAnulacionDePlanificacion(1L);
+        verify(solicitudCotizacionServicio, never()).cancelarPorAnulacionDePlanificacion(2L);
     }
 
     @Test

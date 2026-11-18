@@ -29,7 +29,9 @@ import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,8 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     private final ILoteRepository loteRepository;
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IConfiguracionProduccionRepository configuracionProduccionRepository;
+    private final ISolicitudCotizacionServicio solicitudCotizacionServicio;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Recupera una página de planificaciones de producción registradas en el sistema, filtradas
@@ -221,8 +225,13 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
                 .versionReceta(versionRecetaEntity)
                 .build();
 
-        // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
-        return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
+        // 7. Guardar la entidad en la base de datos
+        PlanificacionProduccionEntity guardada = planificacionProduccionRepository.save(planificacionProduccionEntity);
+
+        // 8. Avisar el registro: la generación de planes de órdenes de compra calcula los insumos faltantes de la
+        //    planificación recién cuando la transacción se confirma, en una transacción propia
+        eventPublisher.publishEvent(new PlanificacionProduccionRegistradaEvento(guardada.getId()));
+        return MapperPlanificacionProduccion.toDTO(guardada);
     }
 
     /**
@@ -275,7 +284,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         planificacionProduccionEntity.setFechaAnulacion(LocalDateTime.now());
         planificacionProduccionEntity.setEstado(EstadoSolicitud.ANULADA);
 
-        // 7. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 7. Cancelar sus solicitudes de cotización: los enlaces de los proveedores dejan de servir y sus planes de
+        //    órdenes de compra quedan cancelados (las órdenes de compra ya confirmadas no se tocan)
+        solicitudCotizacionServicio.cancelarPorAnulacionDePlanificacion(id);
+
+        // 8. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
     }
 

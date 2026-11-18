@@ -58,6 +58,11 @@ public interface IPlanificacionProduccionServicio {
      * {@code ILoteServicio#registrarLote}). La planificación no se modifica después de registrada, por lo que su prioridad
      * no cambia.
      * </p>
+     * <p>
+     * Al confirmarse la transacción se dispara la generación automática de planes de órdenes de compra con los insumos
+     * que le faltan a la planificación (ver {@code ISolicitudCotizacionServicio#generarSolicitud}); una falla en esa
+     * generación no revierte la planificación.
+     * </p>
      *
      * @param planificacionProduccionFormDTO Los datos de la planificación de producción a registrar.
      * @return La planificación de producción registrada.
@@ -68,6 +73,10 @@ public interface IPlanificacionProduccionServicio {
 
     /**
      * Anula una planificación de producción existente.
+     * <p>
+     * Sus solicitudes de cotización se cancelan en la misma transacción: los enlaces de los proveedores dejan de servir y
+     * sus planes de órdenes de compra quedan cancelados; las órdenes de compra ya confirmadas no se modifican.
+     * </p>
      *
      * @param id El ID de la planificación de producción a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
