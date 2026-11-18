@@ -292,7 +292,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub no puede superar la capacidad útil de la olla");
+                .hasMessage("La pérdida por trub debe ser menor a la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -914,7 +914,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub no puede superar la capacidad útil de la olla");
+                .hasMessage("La pérdida por trub debe ser menor a la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
     }
@@ -1016,6 +1016,30 @@ class OllaHervorServicioImplTest {
                 .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO)
                 .build();
+    }
+
+    @Test
+    @DisplayName("CP-AO-48: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es menor al mínimo de 10 litros")
+    void altaOllaHervor_debeRechazarCapacidadUtilMenorAlMinimo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO(20.0, 9.99, 1.0, 1.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser de al menos 10 litros");
+
+        verifyNoInteractions(ollaHervorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-49: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la pérdida por trub es igual a la capacidad útil")
+    void altaOllaHervor_debeRechazarPerdidaPorTrubIgualALaCapacidadUtil() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO(100.0, 80.0, 10.0, 80.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser menor a la capacidad útil de la olla");
+
+        verifyNoInteractions(ollaHervorRepository);
     }
 
     private static OllaHervorFormDTO ollaHervorFormDTO(Double capacidadTotal,

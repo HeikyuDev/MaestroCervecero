@@ -451,13 +451,15 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-19: un alta válida enlaza los datos (fechas ISO), delega en el service y redirige al listado con alerta de éxito")
-    void alta_debeRedirigirAlListadoConAlerta() throws Exception {
+    @DisplayName("CP-PPC-19: un alta válida enlaza los datos (fechas ISO), delega en el service y redirige a los planes de producción de la planificación con alerta de éxito")
+    void alta_debeRedirigirALosPlanesConAlerta() throws Exception {
+        when(planificacionServicio.registrarPlanificacionProduccion(any())).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
                         .param("idReceta", "3").param("prioridad", "MEDIA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/planificaciones-produccion"))
+                .andExpect(redirectedUrl("/planificaciones-produccion/7/planes"))
                 .andExpect(flash().attribute("mensaje", "Planificación de producción creada correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
@@ -1965,6 +1967,47 @@ class PlanificacionProduccionControllerTest {
                 .contains("data-motivo-url=\"/planificaciones-produccion/7/anular\"");
     }
 
+    @Test
+    @DisplayName("CP-PPC-115: una planificación Pendiente con litros sin cubrir por sus lotes muestra a quien tiene LOTE_REGISTRAR el botón \"Generar plan\" hacia sus planes de producción")
+    void detalle_pendienteConLitrosSinCubrirMuestraGenerarPlan() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01")));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Matcher enlace = Pattern.compile("(?s)<a[^>]*href=\"/planificaciones-produccion/7/planes\"[^>]*>(.*?)</a>").matcher(html);
+        assertThat(enlace.find()).isTrue();
+        assertThat(enlace.group()).contains("data-generar-plan").contains("bi-diagram-3").contains("Generar plan");
+    }
+
+    @Test
+    @DisplayName("CP-PPC-116: no se ofrece \"Generar plan\" si los lotes vivos ya cubren la cantidad a producir, si la planificación no está Pendiente o sin LOTE_REGISTRAR")
+    void detalle_noMuestraGenerarPlanSiNoCorresponde() throws Exception {
+        // Lotes pendiente y en ejecución de 300 L cada uno cubren los 600 L solicitados
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01"),
+                lote(2L, "LOT-R7-02", EstadoLote.EN_EJECUCION, "F-02")));
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Generar plan"))));
+
+        // Planificación finalizada
+        when(planificacionServicio.buscarPorId(8L)).thenReturn(planificacion(8L, "Pale Ale", EstadoSolicitud.FINALIZADA));
+        when(loteServicio.listarLotesDePlanificacion(8L)).thenReturn(List.of());
+        mockMvc.perform(get("/planificaciones-produccion/8").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Generar plan"))));
+
+        // Sin LOTE_REGISTRAR
+        when(planificacionServicio.buscarPorId(9L)).thenReturn(planificacion(9L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(9L)).thenReturn(List.of());
+        mockMvc.perform(get("/planificaciones-produccion/9").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Generar plan"))));
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = EstadoSolicitud.class, names = {"FINALIZADA", "ANULADA"})
     @DisplayName("CP-PPC-91: una planificación Finalizada o Anulada no muestra el link \"Nuevo lote\"")
@@ -2125,6 +2168,8 @@ class PlanificacionProduccionControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-PPC-110: un alta con la prioridad ALTA la entrega al service")
     void alta_debeEntregarLaPrioridadAlService() throws Exception {
+        when(planificacionServicio.registrarPlanificacionProduccion(any())).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
         mockMvc.perform(post("/planificaciones-produccion").with(csrf())
                         .param("idReceta", "3").param("prioridad", "ALTA").param("cantidadAProducir", "600")
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))

@@ -427,6 +427,16 @@ el `../../pom.xml`.
 
 La restricción `ck_audit_log_accion` admite además `SOLICITUD_RESTABLECIMIENTO_CONTRASENA` y `RESTABLECIMIENTO_CONTRASENA`, que la bitácora registra con el concepto `SESION`.
 
+### Excedente máximo de un plan de producción
+
+`V29__excedente_maximo_plan_produccion.sql` agrega a la configuración de producción el excedente que admite un plan de producción al confirmarlo (`ConfiguracionProduccionEntity.excedenteMaximoLitros`):
+
+| Tabla y columna | Contenido |
+|---|---|
+| `configuracion_produccion.excedente_maximo_litros` | Litros que la suma de los lotes de un plan de producción puede superar a la cantidad a producir de su planificación (`double precision not null`, por defecto `300`). La restricción `ck_configuracion_produccion_excedente_maximo_litros` exige un valor mayor o igual a 0; el service además lo limita a 100.000 litros |
+
+Los planes de producción se calculan al momento y no tienen tabla propia: confirmar un plan registra sus lotes en `lote` como cualquier otro registro de lote.
+
 ## Auditoría y transacciones
 
 `AuditAspect` registra la bitácora solo después de que la operación se confirma:

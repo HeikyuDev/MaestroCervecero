@@ -136,12 +136,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LoteServicioImpl implements ILoteServicio {
 
-    private static final int HORAS_POR_DIA = 24;
-
-    // Separación entre dos lotes consecutivos de un fermentador: el día fin + 1 es el de limpieza y el siguiente lote
-    // arranca como mínimo el día fin + 2
-    private static final int DIAS_MARGEN_LIMPIEZA = 2;
-
     // Días que necesitan los equipos de un lote que estaba en ejecución (finalizado o cancelado) para su limpieza:
     // los pendientes del fermentador no pueden arrancar antes de hoy + 1
     private static final int DIAS_LIMPIEZA_TRAS_LOTE_EN_EJECUCION = 1;
@@ -150,8 +144,6 @@ public class LoteServicioImpl implements ILoteServicio {
     private static final String MENSAJE_LOTE_YA_ES_PRIMERO_DE_LA_COLA = "El lote ya es el primero de la cola pendiente de su fermentador";
     private static final String MENSAJE_LOTE_YA_ES_ULTIMO_DE_LA_COLA = "El lote ya es el último de la cola pendiente de su fermentador";
 
-    // Estados de lote que todavía ocupan un lugar en el cronograma de un fermentador
-    private static final List<EstadoLote> ESTADOS_QUE_OCUPAN_FERMENTADOR = List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION);
 
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
     private final IEscaladoLoteRepository escaladoLoteRepository;
@@ -420,7 +412,9 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // El fermentador se bloquea para escritura (exclusión mutua de su cola de lotes pendientes): dos registros
         // simultáneos sobre el mismo fermentador no pueden intercalarse al ubicar el lote en la cola. Respeta el orden
-        // canónico (planificación, fermentador, cola); ningún equipo anterior se bloquea, por lo que no hay inversión
+        // canónico (planificación, fermentador, cola); ningún equipo anterior se bloquea, por lo que no hay inversión.
+        // Si una misma transacción registra varios lotes (la confirmación de un plan de producción), bloquea antes todos
+        // sus fermentadores por ID ascendente, para que los fermentadores también se bloqueen siempre en el mismo orden
         fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdFermentador());
         FermentadorEntity fermentador = fermentadorRepository.findById(loteFormDTO.getIdFermentador())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + loteFormDTO.getIdFermentador()));
@@ -433,16 +427,16 @@ public class LoteServicioImpl implements ILoteServicio {
         double masaMaltaEscalada = calcularMasaMaltaEscalada(volumenObjetivo, macerador, versionReceta);
 
         // 5. Validar el volumen pre-hervor contra la capacidad de la olla de hervor (Paso 2 del escalado de agua)
-        double volumenPreHervor = Redondeo.redondear(EscaladoAgua.calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta));
-        if (volumenPreHervor > Redondeo.redondear(ollaHervor.getCapacidadUtil())) {
+        double volumenPreHervor = EstimacionLote.calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta);
+        if (EstimacionLote.superaCapacidad(volumenPreHervor, ollaHervor.getCapacidadUtil())) {
             throw new ReglaNegocioException("El volumen pre-hervor calculado (" + ValidacionesNumericas.formatearNumero(volumenPreHervor)
                     + " L) supera la capacidad útil de la olla de hervor seleccionada ("
                     + ValidacionesNumericas.formatearNumero(ollaHervor.getCapacidadUtil()) + " L)");
         }
 
         // 6. Validar el volumen de la mezcla de agua y malta contra la capacidad del macerador (Paso 3 del escalado de agua)
-        double volumenMezclaMacerador = Redondeo.redondear(EscaladoAgua.calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta));
-        if (volumenMezclaMacerador > Redondeo.redondear(macerador.getCapacidadUtil())) {
+        double volumenMezclaMacerador = EstimacionLote.calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta);
+        if (EstimacionLote.superaCapacidad(volumenMezclaMacerador, macerador.getCapacidadUtil())) {
             throw new ReglaNegocioException("La mezcla de agua y grano (" + ValidacionesNumericas.formatearNumero(volumenMezclaMacerador)
                     + " L) desbordará el macerador seleccionado (capacidad útil: "
                     + ValidacionesNumericas.formatearNumero(macerador.getCapacidadUtil()) + " L)");
@@ -1096,7 +1090,7 @@ public class LoteServicioImpl implements ILoteServicio {
         List<String> advertencias = new ArrayList<>(agua.advertencias());
         if (maltaMolida) {
             double volumenMezcla = Redondeo.redondear(EscaladoAgua.calcularVolumenMezcla(masaMalta, espacioMuerto, versionReceta));
-            if (volumenMezcla > Redondeo.redondear(capacidadUtilMacerador)) {
+            if (EstimacionLote.superaCapacidad(volumenMezcla, capacidadUtilMacerador)) {
                 advertencias.add("La mezcla de agua y malta molida (" + ValidacionesNumericas.formatearNumero(volumenMezcla)
                         + " L) desbordará el macerador (capacidad útil: " + ValidacionesNumericas.formatearNumero(capacidadUtilMacerador) + " L)");
             }
@@ -1325,7 +1319,7 @@ public class LoteServicioImpl implements ILoteServicio {
         BigDecimal litrosProducidos = BigDecimal.valueOf(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(idPlanificacionProduccion));
         BigDecimal cantidadAProducir = BigDecimal.valueOf(planificacionProduccion.getCantidadAProducir());
         if (litrosProducidos.compareTo(cantidadAProducir) < 0
-                || loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(idPlanificacionProduccion, ESTADOS_QUE_OCUPAN_FERMENTADOR)) {
+                || loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(idPlanificacionProduccion, EstimacionLote.ESTADOS_QUE_OCUPAN_FERMENTADOR)) {
             return;
         }
 
@@ -1649,7 +1643,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * fermentador seleccionado.
      */
     private void validarVolumenObjetivoContraFermentador(double volumenObjetivo, FermentadorEntity fermentador) {
-        if (volumenObjetivo > Redondeo.redondear(fermentador.getCapacidadUtil())) {
+        if (EstimacionLote.superaCapacidad(volumenObjetivo, fermentador.getCapacidadUtil())) {
             throw new ReglaNegocioException("El volumen objetivo (" + ValidacionesNumericas.formatearNumero(volumenObjetivo)
                     + " L) supera la capacidad útil del fermentador seleccionado ("
                     + ValidacionesNumericas.formatearNumero(fermentador.getCapacidadUtil()) + " L)");
@@ -1911,11 +1905,9 @@ public class LoteServicioImpl implements ILoteServicio {
      * </p>
      */
     private LocalDate calcularFechaInicioEstimada(FermentadorEntity fermentador, PlanificacionProduccionEntity planificacionProduccion) {
-        LocalDate hoy = LocalDate.now();
-        LocalDate fechaPorCola = loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, ESTADOS_QUE_OCUPAN_FERMENTADOR)
-                .map(ultimaFechaFinalizacionEstimada -> (ultimaFechaFinalizacionEstimada.isBefore(hoy) ? hoy : ultimaFechaFinalizacionEstimada).plusDays(DIAS_MARGEN_LIMPIEZA))
-                .orElse(hoy);
-        return maxima(fechaPorCola, planificacionProduccion.getFechaInicioEstimada(), hoy);
+        LocalDate finUltimoLoteVivo = loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, EstimacionLote.ESTADOS_QUE_OCUPAN_FERMENTADOR)
+                .orElse(null);
+        return EstimacionLote.calcularFechaInicioEstimada(finUltimoLoteVivo, planificacionProduccion.getFechaInicioEstimada(), LocalDate.now());
     }
 
     /**
@@ -1925,18 +1917,11 @@ public class LoteServicioImpl implements ILoteServicio {
      * envasado.
      */
     private LocalDate calcularFechaFinalizacionEstimada(LocalDate fechaInicioEstimada, double volumenObjetivo, MolinoEntity molino, double masaMaltaEscalada, VersionRecetaEntity versionReceta) {
-        double horasMolienda = masaMaltaEscalada / molino.getRendimientoMolienda();
-        double horasMaceracionYHervido = (versionReceta.getDuracionMaceracion() + versionReceta.getDuracionHervido()) / 60.0;
-
         ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
                 .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
-        double horasEnvasado = volumenObjetivo / configuracion.getVelocidadEstandarEnvasado();
-
-        long diasBrewDayYEnvasado = (long) Math.ceil((horasMolienda + horasMaceracionYHervido + horasEnvasado) / HORAS_POR_DIA);
-        long diasTotales = diasBrewDayYEnvasado + versionReceta.getDuracionFermentacion() + versionReceta.getDuracionMaduracion();
-
-        return fechaInicioEstimada.plusDays(diasTotales);
+        return EstimacionLote.calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino.getRendimientoMolienda(),
+                masaMaltaEscalada, versionReceta, configuracion.getVelocidadEstandarEnvasado());
     }
 
     /**
@@ -2084,7 +2069,8 @@ public class LoteServicioImpl implements ILoteServicio {
             List<LocalDate> iniciosDePlanificacion = pendientes.stream()
                     .map(l -> l.getPlanificacionProduccion().getFechaInicioEstimada())
                     .toList();
-            List<LocalDate> inicios = encadenarInicios(duraciones, iniciosDePlanificacion, hoy.plusDays(DIAS_MARGEN_LIMPIEZA), hoy);
+            List<LocalDate> inicios = encadenarInicios(duraciones, iniciosDePlanificacion,
+                    EstimacionLote.calcularInicioTrasLote(enEjecucion.getFechaFinalizacionEstimada(), hoy), hoy);
             for (int i = 0; i < pendientes.size(); i++) {
                 long corrimiento = ChronoUnit.DAYS.between(pendientes.get(i).getFechaInicioEstimada(), inicios.get(i));
                 if (corrimiento > 0) {
@@ -2222,7 +2208,7 @@ public class LoteServicioImpl implements ILoteServicio {
      *     ({@code hoy + DIAS_LIMPIEZA_TRAS_LOTE_EN_EJECUCION}) cuando {@code requiereDiaDeLimpieza} es verdadero: el
      *     lote que acaba de finalizar o de cancelarse estando en ejecución dejó sus equipos sucios y
      *     necesitan su día de limpieza.</li>
-     *     <li>La base inicial es {@code max(fechaFinalizacionEstimada, hoy) + DIAS_MARGEN_LIMPIEZA} del lote
+     *     <li>La base inicial es {@code max(fechaFinalizacionEstimada, hoy) + EstimacionLote.DIAS_MARGEN_LIMPIEZA} del lote
      *     EN_EJECUCION del fermentador (si ese lote está atrasado el fermentador sigue ocupado hoy), o el inicio
      *     mínimo si el fermentador no tiene ningún lote en ejecución.</li>
      *     <li>Para cada lote, en el orden recibido:
@@ -2254,7 +2240,7 @@ public class LoteServicioImpl implements ILoteServicio {
         //    limpieza; si está atrasado, cuenta desde hoy), o el inicio mínimo
         LocalDate base = loteRepository.buscarLoteEnEjecucionDeFermentador(idFermentador)
                 .map(LoteEntity::getFechaFinalizacionEstimada)
-                .map(fin -> (fin.isBefore(hoy) ? hoy : fin).plusDays(DIAS_MARGEN_LIMPIEZA))
+                .map(fin -> EstimacionLote.calcularInicioTrasLote(fin, hoy))
                 .orElse(inicioMinimo);
 
         // 4. Encadenar los lotes en el orden recibido, respetando la planificación y el inicio mínimo como pisos
@@ -2304,7 +2290,7 @@ public class LoteServicioImpl implements ILoteServicio {
             LocalDate inicioDePlanificacion = iniciosDePlanificacion.get(i) == null ? inicioMinimo : iniciosDePlanificacion.get(i);
             LocalDate inicio = maxima(baseDelLote, inicioDePlanificacion, inicioMinimo);
             inicios.add(inicio);
-            baseDelLote = inicio.plusDays(duracionesEnDias.get(i)).plusDays(DIAS_MARGEN_LIMPIEZA);
+            baseDelLote = inicio.plusDays(duracionesEnDias.get(i)).plusDays(EstimacionLote.DIAS_MARGEN_LIMPIEZA);
         }
         return inicios;
     }

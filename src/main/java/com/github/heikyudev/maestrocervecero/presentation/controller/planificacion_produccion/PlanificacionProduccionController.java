@@ -126,9 +126,9 @@ public class PlanificacionProduccionController {
     }
 
     /**
-     * Procesa el registro de una planificación (Post-Redirect-Get). Si la validación del formulario o una
-     * regla del service falla, se vuelve a renderizar el formulario (sin redirigir) con lo que el usuario
-     * había cargado.
+     * Procesa el registro de una planificación (Post-Redirect-Get) y lleva a sus planes de producción propuestos.
+     * Si la validación del formulario o una regla del service falla, se vuelve a renderizar el formulario (sin
+     * redirigir) con lo que el usuario había cargado.
      */
     @PostMapping
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
@@ -138,9 +138,9 @@ public class PlanificacionProduccionController {
                                          RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
-                planificacionServicio.registrarPlanificacionProduccion(planificacionForm);
+                PlanificacionProduccionResponseDTO planificacion = planificacionServicio.registrarPlanificacionProduccion(planificacionForm);
                 agregarMensaje(redirectAttributes, "Planificación de producción creada correctamente", TipoAlerta.SUCCESS);
-                return "redirect:" + URL_LISTA;
+                return "redirect:" + URL_LISTA + "/" + planificacion.getId() + "/planes";
             } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -155,7 +155,7 @@ public class PlanificacionProduccionController {
     /**
      * Muestra el estado actual de la planificación: sus datos, los contadores de lotes por estado, el
      * diagrama de Gantt y la tabla de lotes. Si no existe, el {@code ControllerAdvices} vuelve al origen
-     * con el motivo.
+     * con el motivo. Una planificación Pendiente con litros sin cubrir por sus lotes ofrece generar un plan de producción.
      */
     @GetMapping("/{id}")
     public String mostrarDetalle(@PathVariable Long id, Model model) {
@@ -170,6 +170,7 @@ public class PlanificacionProduccionController {
         model.addAttribute("lotesFinalizados", contar(lotes, EstadoLote.FINALIZADO));
         model.addAttribute("lotesCancelados", contar(lotes, EstadoLote.CANCELADO));
         cargarAvanceProduccion(model, planificacion);
+        model.addAttribute("puedeGenerarPlan", puedeGenerarPlan(planificacion, lotes));
         model.addAttribute("gantt", GanttPlanificacionBuilder.construir(lotes,
                 planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada(), LocalDate.now()));
         return VISTA_DETALLE;
@@ -333,6 +334,22 @@ public class PlanificacionProduccionController {
         model.addAttribute("litrosExcedidos", redondear(Math.max(0, producido - solicitado)));
         model.addAttribute("porcentajeProducido", porcentaje);
         model.addAttribute("porcentajeBarra", Math.min(100, porcentaje));
+    }
+
+    /**
+     * Una planificación admite generar un plan si está Pendiente y lo producido más el volumen objetivo de sus lotes
+     * pendientes y en ejecución todavía no cubre la cantidad a producir.
+     */
+    private static boolean puedeGenerarPlan(PlanificacionProduccionResponseDTO planificacion, List<LoteCronogramaResponseDTO> lotes) {
+        if (planificacion.getEstado() != EstadoSolicitud.PENDIENTE || planificacion.getCantidadAProducir() == null) {
+            return false;
+        }
+        double producido = planificacion.getLitrosProducidos() != null ? planificacion.getLitrosProducidos() : 0.0;
+        double comprometido = lotes.stream()
+                .filter(l -> l.getEstado() == EstadoLote.PENDIENTE || l.getEstado() == EstadoLote.EN_EJECUCION)
+                .mapToDouble(l -> l.getVolumenObjetivo() != null ? l.getVolumenObjetivo() : 0.0)
+                .sum();
+        return redondear(producido + comprometido) < redondear(planificacion.getCantidadAProducir());
     }
 
     private static double redondear(double valor) {

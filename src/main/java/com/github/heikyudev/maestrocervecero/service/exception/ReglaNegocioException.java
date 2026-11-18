@@ -19,7 +19,7 @@ public class ReglaNegocioException extends BaseException {
      * @param mensaje Explicación clara de la restricción lógica o estado no permitido.
      */
     public ReglaNegocioException(String mensaje) {
-        this(mensaje, null);
+        this(mensaje, (String) null);
     }
 
     /**
@@ -37,6 +37,18 @@ public class ReglaNegocioException extends BaseException {
     /**
      * @return El nombre del campo del formulario al que se refiere la regla, o {@code null} si no indica uno.
      */
+    /**
+     * Crea la excepción con el mensaje indicado y la excepción que la originó (por ejemplo, el rechazo de una
+     * operación anidada al que se le agrega contexto en el mensaje).
+     *
+     * @param mensaje El mensaje para el usuario.
+     * @param causa La excepción original.
+     */
+    public ReglaNegocioException(String mensaje, Throwable causa) {
+        super(mensaje, causa);
+        this.campo = null;
+    }
+
     public String getCampo() {
         return campo;
     }

@@ -15,3 +15,4 @@
 | **CP-FC-03** | Valor nulo y unidad | `null`, `1847.3685` con `g` y `2000.0` con `g` | Sin valor y con la unidad agregada | `-`, `1.847,3685 g` y `2.000 g`. |
 | **CP-FC-04** | Los mensajes coinciden con las tablas | `formatearNumero(11.655)`, `12.655` y `1250.5` | Mismos decimales que las tablas | `11,655`, `12,655` y `1.250,5`. |
 | **CP-FC-05** | Plantillas sin formato manual | Todas las plantillas y `receta/formato.html` | Ninguna plantilla reemplaza el punto decimal por coma a mano y los fragmentos usan `FormatoCantidad` | Sin plantillas infractoras; `numero` y `medida` usan `#cantidades` (el dialecto `CantidadesDialect`, que expone `FormatoCantidad` en las plantillas). |
+| **CP-FC-06** | Volumen con hasta dos decimales | `formatearVolumen(628.2726)`, `(1500.0)`, `(333.5)` y `(null)` | Formato de los volúmenes calculados de un aviso | "628,27", "1.500", "333,5" y "-". |

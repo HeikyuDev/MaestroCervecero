@@ -137,7 +137,7 @@ class ConfiguracionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AC-08: actualizarConfiguracion actualiza correctamente los 5 parámetros (camino feliz)")
+    @DisplayName("CP-AC-08: actualizarConfiguracion actualiza correctamente los 6 parámetros (camino feliz)")
     void actualizar_debeActualizarCorrectamente() {
         // === PREPARACION DE DATOS ===
         ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(10.0, 20.0, 80.0,
@@ -157,6 +157,7 @@ class ConfiguracionProduccionServicioImplTest {
         assertThat(resultado.getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(90.0);
         assertThat(resultado.getCriterioSeleccionPlanSecuencial()).isEqualTo(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA);
         assertThat(resultado.getCriterioSeleccionPlanConcurrente()).isEqualTo(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+        assertThat(resultado.getExcedenteMaximoLitros()).isEqualTo(300.0);
         verify(configuracionProduccionRepository).save(configuracion);
     }
 
@@ -312,6 +313,69 @@ class ConfiguracionProduccionServicioImplTest {
         verify(configuracionProduccionRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-AC-20: actualizarConfiguracion lanza ReglaNegocioException cuando el excedente máximo de un plan es nulo")
+    void actualizar_debeRechazarExcedenteMaximoNulo() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+        formDTO.setExcedenteMaximoLitros(null);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El excedente máximo de un plan es obligatorio");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-21: actualizarConfiguracion lanza ReglaNegocioException cuando el excedente máximo de un plan es negativo o NaN")
+    void actualizar_debeRechazarExcedenteMaximoNegativoONaN() {
+        for (Double excedente : new Double[]{-1.0, Double.NaN}) {
+            ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
+                    CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+            formDTO.setExcedenteMaximoLitros(excedente);
+
+            assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El excedente máximo de un plan debe ser mayor o igual a 0");
+        }
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-22: actualizarConfiguracion lanza ReglaNegocioException cuando el excedente máximo de un plan supera su techo")
+    void actualizar_debeRechazarExcedenteMaximoSobreElTecho() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+        formDTO.setExcedenteMaximoLitros(100000.01);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageStartingWith("El excedente máximo de un plan no puede superar");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-23: actualizarConfiguracion persiste un excedente máximo de 0 y uno igual a su techo (límites válidos)")
+    void actualizar_debePersistirExcedenteMaximoEnSusLimites() {
+        for (Double excedente : new Double[]{0.0, 100000.0}) {
+            ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(10.0, 20.0, 80.0,
+                    CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD, CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA);
+            when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
+            when(configuracionProduccionRepository.save(any(ConfiguracionProduccionEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+            ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
+                    CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+            formDTO.setExcedenteMaximoLitros(excedente);
+
+            ConfiguracionProduccionResponseDTO resultado = configuracionProduccionServicio.actualizarConfiguracion(formDTO);
+
+            assertThat(configuracion.getExcedenteMaximoLitros()).isEqualTo(excedente);
+            assertThat(resultado.getExcedenteMaximoLitros()).isEqualTo(excedente);
+        }
+    }
+
     // ==================== Helpers ====================
 
     private static ConfiguracionProduccionFormDTO configuracionFormDTO(Double velocidadEnvasado, Double capacidadLote, Double porcentajeMinimo,
@@ -322,6 +386,7 @@ class ConfiguracionProduccionServicioImplTest {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
                 .criterioSeleccionPlanSecuencial(criterioSecuencial)
                 .criterioSeleccionPlanConcurrente(criterioConcurrente)
+                .excedenteMaximoLitros(300.0)
                 .build();
     }
 
@@ -334,6 +399,7 @@ class ConfiguracionProduccionServicioImplTest {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
                 .criterioSeleccionPlanSecuencial(criterioSecuencial)
                 .criterioSeleccionPlanConcurrente(criterioConcurrente)
+                .excedenteMaximoLitros(300.0)
                 .build();
     }
 }

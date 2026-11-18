@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacio
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -53,4 +54,11 @@ public class ConfiguracionProduccionFormDTO {
      */
     @NotNull(message = "El criterio de selección concurrente es obligatorio")
     private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
+
+    /**
+     * Litros (0 o más) que un plan de producción puede superar a la cantidad a producir de su planificación al confirmarlo.
+     */
+    @NotNull(message = "El excedente máximo de un plan es obligatorio")
+    @PositiveOrZero(message = "El excedente máximo de un plan debe ser mayor o igual a 0")
+    private Double excedenteMaximoLitros;
 }

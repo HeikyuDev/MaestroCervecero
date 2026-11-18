@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -62,4 +63,12 @@ public interface IOllaHervorRepository extends JpaRepository<OllaHervorEntity, L
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
     Optional<OllaHervorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 
+    /**
+     * Obtiene todos los ollas de hervor activos, sin paginar y ordenados por identificador interno. Los usa la generación
+     * automática de planes de producción, que evalúa todos los equipos activos sin importar su estado operativo.
+     *
+     * @return Los ollas de hervor activos, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT o FROM OllaHervorEntity o WHERE o.estado = 'ACTIVO' ORDER BY o.identificadorInterno, o.id")
+    List<OllaHervorEntity> buscarActivos();
 }

@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -61,4 +62,13 @@ public interface IMaceradorRepository extends JpaRepository<MaceradorEntity, Lon
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
     Optional<MaceradorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
+
+    /**
+     * Obtiene todos los maceradores activos, sin paginar y ordenados por identificador interno. Los usa la generación
+     * automática de planes de producción, que evalúa todos los equipos activos sin importar su estado operativo.
+     *
+     * @return Los maceradores activos, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT ma FROM MaceradorEntity ma WHERE ma.estado = 'ACTIVO' ORDER BY ma.identificadorInterno, ma.id")
+    List<MaceradorEntity> buscarActivos();
 }

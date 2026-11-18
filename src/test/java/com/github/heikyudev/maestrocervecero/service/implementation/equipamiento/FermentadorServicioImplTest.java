@@ -934,6 +934,18 @@ class FermentadorServicioImplTest {
                 .build();
     }
 
+    @Test
+    @DisplayName("CP-AF-33: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es menor al mínimo de 10 litros")
+    void altaFermentador_debeRechazarCapacidadUtilMenorAlMinimo() {
+        FermentadorFormDTO dto = fermentadorFormDTO(20.0, 9.99);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser de al menos 10 litros");
+
+        verifyNoInteractions(fermentadorRepository);
+    }
+
     private static FermentadorFormDTO fermentadorFormDTO(Double capacidadTotal,
                                                            Double capacidadUtil) {
         return fermentadorFormDTO(capacidadTotal, capacidadUtil, USOS_MAXIMOS_ANTES_MANTENIMIENTO);

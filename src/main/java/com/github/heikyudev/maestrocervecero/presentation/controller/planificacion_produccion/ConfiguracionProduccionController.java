@@ -56,6 +56,7 @@ public class ConfiguracionProduccionController {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(actual.getPorcentajeMinimoConsumoParaAvanzarEtapa())
                 .criterioSeleccionPlanSecuencial(actual.getCriterioSeleccionPlanSecuencial())
                 .criterioSeleccionPlanConcurrente(actual.getCriterioSeleccionPlanConcurrente())
+                .excedenteMaximoLitros(actual.getExcedenteMaximoLitros())
                 .build());
         cargarModeloFormulario(model, actual);
         return VISTA_FORMULARIO;

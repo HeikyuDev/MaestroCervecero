@@ -27,6 +27,7 @@ public class MapperConfiguracionProduccion {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionEntity.getPorcentajeMinimoConsumoParaAvanzarEtapa())
                 .criterioSeleccionPlanSecuencial(configuracionProduccionEntity.getCriterioSeleccionPlanSecuencial())
                 .criterioSeleccionPlanConcurrente(configuracionProduccionEntity.getCriterioSeleccionPlanConcurrente())
+                .excedenteMaximoLitros(configuracionProduccionEntity.getExcedenteMaximoLitros())
                 .build();
     }
 }

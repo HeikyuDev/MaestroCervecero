@@ -40,6 +40,7 @@
 |**CP-AF-30**|Identificador interno generado por el sistema|`secuencia: 7` (resto válido)|El Service pide el siguiente número de la secuencia del tipo y arma el identificador|Persiste la entidad con `identificadorInterno = "FER-07"` y retorna el DTO con ese identificador.|
 |**CP-AF-31**|Una validación fallida no consume un número de la secuencia|Datos inválidos (capacidad total nula, capacidad útil mayor a la total o usos máximos iguales a 0)|La validación falla antes de pedir el número|Lanza `ReglaNegocioException` en cada caso; no consulta la secuencia (`verifyNoInteractions`) y no ejecuta `save()`.|
 |**CP-AF-32**|El número de la secuencia se pide como último paso|`secuencia: 1` (resto válido)|El número se pide después de todas las validaciones y justo antes de guardar|Consulta la secuencia y recién después ejecuta `save()` (verificación con `InOrder`).|
+|**CP-AF-33**|Capacidad útil menor al mínimo|`capTotal: 20.0`, `capUtil: 9.99`|`capacidadUtil < 10` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad útil debe ser de al menos 10 litros"). No consulta la BD.|
 
 ### 4. `modificarFermentador(Long id, FermentadorFormDTO fermentadorFormDTO)`
 

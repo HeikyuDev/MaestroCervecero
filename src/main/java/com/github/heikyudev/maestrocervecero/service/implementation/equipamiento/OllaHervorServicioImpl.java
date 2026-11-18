@@ -260,8 +260,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         if (perdidaPorTrub <= 0) {
             throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0");
         }
-        if (perdidaPorTrub > capacidadUtil) {
-            throw new ReglaNegocioException("La pérdida por trub no puede superar la capacidad útil de la olla");
+        if (perdidaPorTrub >= capacidadUtil) {
+            throw new ReglaNegocioException("La pérdida por trub debe ser menor a la capacidad útil de la olla");
         }
         ValidacionesNumericas.validarMayorACero(perdidaPorTrub, "La pérdida por trub");
     }

@@ -13,11 +13,12 @@ public class MetodosEquipamiento {
      * Valida las capacidades de un equipamiento. Ambas deben haber sido informadas y la capacidad
      * util no puede ser mayor o igual a la capacidad total. Luego, ambas deben ser números finitos
      * mayores a 0, y la capacidad total no puede superar {@link LimitesTecnicos#CAPACIDAD_EQUIPO_MAXIMA_LITROS} litros
-     * (la capacidad útil, al ser menor, queda dentro de ese máximo).
+     * (la capacidad útil, al ser menor, queda dentro de ese máximo). La capacidad útil debe ser de al menos
+     * {@link LimitesTecnicos#CAPACIDAD_UTIL_MINIMA_LITROS} litros, para que todo equipo activo pueda recibir un lote.
      *
      * @param capacidadTotal Capacidad total del Equipamiento.
      * @param capacidadUtil  Capacidad util del Equipamiento.
-     * @throws ReglaNegocioException Si alguna es nula, si la capacidad útil es mayor o igual a la capacidad total, o si alguna no es un número mayor a 0 o supera el máximo.
+     * @throws ReglaNegocioException Si alguna es nula, si la capacidad útil es mayor o igual a la capacidad total, si alguna no es un número mayor a 0 o supera el máximo, o si la capacidad útil es menor al mínimo.
      */
     public static void validarCapacidadUtil(Double capacidadTotal, Double capacidadUtil) {
         if (capacidadTotal == null) {
@@ -32,6 +33,10 @@ public class MetodosEquipamiento {
         ValidacionesNumericas.validarMayorACeroConMaximo(capacidadTotal,
                 LimitesTecnicos.CAPACIDAD_EQUIPO_MAXIMA_LITROS, "La capacidad total", "litros");
         ValidacionesNumericas.validarMayorACero(capacidadUtil, "La capacidad útil");
+        if (capacidadUtil < LimitesTecnicos.CAPACIDAD_UTIL_MINIMA_LITROS) {
+            throw new ReglaNegocioException("La capacidad útil debe ser de al menos "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CAPACIDAD_UTIL_MINIMA_LITROS) + " litros");
+        }
     }
 
     /**

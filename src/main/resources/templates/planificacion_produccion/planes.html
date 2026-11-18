@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::#planes-produccion-content}, 'planificaciones')}">
+<body>
+
+<div id="planes-produccion-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Planes de producción</h1>
+            <p class="text-sm text-slate-500">Elija el plan, modifique los lotes que necesite y confírmelo para registrar todos sus lotes juntos.</p>
+        </div>
+        <a th:href="@{/planificaciones-produccion/{id}(id=${idPlanificacion})}"
+           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a la planificación
+        </a>
+    </div>
+
+    <!-- Resumen de la planificación -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm" data-resumen-planificacion>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700" th:text="${planificacion.etiqueta}">Plan #7 - Pale Ale</h2>
+        <!-- Una fila por tema: cantidades y fechas -->
+        <div class="space-y-5 p-5">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Cantidad a producir (L)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Litros a planificar (L)</dt>
+                    <dd class="mt-1 font-semibold text-slate-900" data-litros-a-planificar><th:block th:replace="~{receta/formato :: numero(${planes.litrosAPlanificar})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Excedente máximo (L)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planes.excedenteMaximoLitros})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaInicioEstimada})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaFinalizacionEstimada})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Prioridad</dt>
+                    <dd class="mt-1"><span th:replace="~{planificacion_produccion/formato :: prioridadPlanificacion(${planificacion.prioridad})}"></span></dd>
+                </div>
+            </dl>
+        </div>
+    </section>
+
+    <!-- Motivos del rechazo de la confirmación (validación del formulario y reglas del service) -->
+    <div th:if="${!#lists.isEmpty(errores)}" data-errores-plan role="alert"
+         class="p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-800">
+        <div class="flex items-center gap-2 text-sm font-semibold">
+            <i class="bi bi-x-circle-fill text-xl text-rose-500"></i>
+            <span>No se pudo confirmar el plan</span>
+        </div>
+        <ul class="mt-2 ml-8 list-disc text-sm">
+            <li th:each="error : ${errores}" th:text="${error}">Error</li>
+        </ul>
+    </div>
+
+    <!-- Ningún plan disponible: un único aviso con los motivos, sin pestañas -->
+    <section th:if="${!secuencialVisible and !concurrenteVisible}" data-sin-planes role="alert"
+             class="p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800">
+        <div class="flex items-center gap-2 text-sm font-semibold">
+            <i class="bi bi-exclamation-triangle-fill text-xl text-amber-500"></i>
+            <span>No se pudo generar ningún plan de producción válido</span>
+        </div>
+        <ul class="mt-2 ml-8 list-disc text-sm">
+            <li th:each="motivo : ${motivosSinPlanes}" th:text="${motivo}">Motivo</li>
+        </ul>
+    </section>
+
+    <!-- Una pestaña por plan disponible, solo si hay dos: el navegador cambia de pestaña sin recargar para conservar las modificaciones -->
+    <th:block th:if="${secuencialVisible and concurrenteVisible}">
+        <th:block th:replace="~{fragments/pestanas :: pestanas('Planes de producción', 'plan', ~{::enlacesPlanes})}">
+            <th:block th:fragment="enlacesPlanes">
+                <a th:replace="~{fragments/pestanas :: pestana(@{/planificaciones-produccion/{id}/planes(id=${idPlanificacion}, modalidad='SECUENCIAL')}, ${modalidadActiva.name() == 'SECUENCIAL'}, 'secuencial', ~{fragments/pestanas :: bi('bi-arrow-right-circle')}, 'Secuencial')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{/planificaciones-produccion/{id}/planes(id=${idPlanificacion}, modalidad='CONCURRENTE')}, ${modalidadActiva.name() == 'CONCURRENTE'}, 'concurrente', ~{fragments/pestanas :: bi('bi-diagram-3')}, 'Concurrente')}"></a>
+            </th:block>
+        </th:block>
+    </th:block>
+
+    <!-- Las fechas del plan son una estimación: el registro recalcula la cola de cada fermentador al confirmar -->
+    <p th:if="${secuencialVisible or concurrenteVisible}" data-nota-fechas-estimadas class="p-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-800 text-sm">
+        <i class="bi bi-info-circle mr-1.5"></i>Las fechas de los lotes son estimadas. Al confirmar el plan, cada lote se registra con las fechas que resulten de la cola de su fermentador en ese momento, que considera la prioridad de la planificación y los lotes registrados por otros usuarios.
+    </p>
+
+    <!-- Solo se muestran los planes disponibles; con uno solo, se muestra sin pestañas y con su título -->
+    <div th:if="${secuencialVisible}" data-panel-plan="SECUENCIAL" th:hidden="${modalidadActiva.name() != 'SECUENCIAL'}" th:with="plan=${planSecuencial}">
+        <h2 th:unless="${concurrenteVisible}" class="mb-4 text-sm font-semibold text-slate-700"><i class="bi bi-arrow-right-circle mr-1.5"></i>Plan secuencial</h2>
+        <div th:replace="~{planificacion_produccion/planes :: plan}"></div>
+    </div>
+    <div th:if="${concurrenteVisible}" data-panel-plan="CONCURRENTE" th:hidden="${modalidadActiva.name() != 'CONCURRENTE'}" th:with="plan=${planConcurrente}">
+        <h2 th:unless="${secuencialVisible}" class="mb-4 text-sm font-semibold text-slate-700"><i class="bi bi-diagram-3 mr-1.5"></i>Plan concurrente</h2>
+        <div th:replace="~{planificacion_produccion/planes :: plan}"></div>
+    </div>
+
+    <!-- Modal para modificar un lote: los cambios se guardan en el formulario del plan, que el servidor recalcula -->
+    <dialog id="dialogo-lote-plan" data-dialogo-lote-plan
+            th:data-url-recalcular="@{/planificaciones-produccion/{id}/planes/recalcular(id=${idPlanificacion})}"
+            class="m-auto w-full max-w-3xl rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+        <div class="p-6 space-y-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">Modificar lote <span data-numero-lote>1</span></h3>
+                    <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+                </div>
+                <button type="button" data-cerrar-lote-plan title="Cerrar" aria-label="Cerrar"
+                        class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <!-- Motivos por los que el servidor no aplicó la modificación -->
+            <div data-errores-lote-plan hidden role="alert" class="p-3 rounded-lg border bg-rose-50 border-rose-200 text-rose-800 text-sm"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="lote-plan-volumen" class="block text-sm font-medium text-slate-700 mb-1">Volumen objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <div th:replace="~{fragments/campo-unidad :: dialogo('lote-plan-volumen', 'volumenObjetivo', 'Ej: 300', 'L', null, 'any')}"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div data-campo-equipo="idFermentador">
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Fermentador <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idFermentador', null, null, @{/lotes/buscador/fermentadores}, null, null, false, false, 'Seleccione fermentador')}"></div>
+                </div>
+                <div data-campo-equipo="idMolino">
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Molino <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idMolino', null, null, @{/lotes/buscador/molinos}, null, null, false, false, 'Seleccione molino')}"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div data-campo-equipo="idMacerador">
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Macerador <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idMacerador', null, null, @{/lotes/buscador/maceradores}, null, null, false, false, 'Seleccione macerador')}"></div>
+                </div>
+                <div data-campo-equipo="idOllaHervor">
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Olla de hervor <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idOllaHervor', null, null, @{/lotes/buscador/ollas}, null, null, false, false, 'Seleccione olla de hervor')}"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" data-cerrar-lote-plan
+                        class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+                <button type="button" data-aplicar-lote-plan
+                        class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Aplicar cambios</button>
+            </div>
+        </div>
+    </dialog>
+
+    <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
+
+    <script th:src="@{/js/planes-produccion.js}" defer></script>
+</div>
+
+<!--
+    Un plan disponible (la página no muestra los que no lo están): el criterio, los avisos, los indicadores y la tabla de lotes
+    dentro del formulario de confirmación. Cada fila lleva en campos ocultos el volumen y los equipos del lote (lo que se
+    envía al confirmar o al recalcular) y en data-* los identificadores que el modal muestra. El Controller devuelve
+    también este fragmento solo, con el plan recalculado. Usa la variable "plan" (en la página la define th:with).
+-->
+<div th:fragment="plan" data-plan th:attr="data-modalidad=${plan.modalidad}" class="space-y-6">
+
+    <th:block th:if="${plan.disponible}">
+        <p class="text-sm text-slate-500">Criterio de selección de equipos: <span class="font-medium text-slate-700" data-criterio-plan th:text="${plan.criterio}">Criterio</span></p>
+
+        <div th:if="${!#lists.isEmpty(plan.avisos)}" data-avisos-plan role="alert"
+             class="p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800">
+            <div class="flex items-center gap-2 text-sm font-semibold">
+                <i class="bi bi-exclamation-triangle-fill text-xl text-amber-500"></i>
+                <span>Revise el plan antes de confirmarlo</span>
+            </div>
+            <ul class="mt-2 ml-8 list-disc text-sm">
+                <li th:each="aviso : ${plan.avisos}" th:text="${aviso}">Aviso</li>
+            </ul>
+        </div>
+
+        <!-- Indicadores del plan -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <p class="text-xs font-medium text-slate-500">Lotes</p>
+                <p class="mt-1 text-2xl font-bold text-slate-900" data-indicador="lotes" th:text="${plan.cantidadLotes}">0</p>
+                <p class="text-xs text-slate-400" th:text="${plan.fermentadoresUtilizados == 1} ? 'En 1 fermentador' : |En ${plan.fermentadoresUtilizados} fermentadores|">En 1 fermentador</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <p class="text-xs font-medium text-slate-500">Volumen total (L)</p>
+                <p class="mt-1 text-2xl font-bold text-slate-900" data-indicador="volumen"><th:block th:replace="~{receta/formato :: numero(${plan.volumenTotal})}"></th:block></p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <p class="text-xs font-medium text-slate-500">Excedente (L)</p>
+                <p class="mt-1 text-2xl font-bold text-slate-900" data-indicador="excedente"><th:block th:replace="~{receta/formato :: numero(${plan.excedente})}"></th:block></p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <p class="text-xs font-medium text-slate-500">Fin del plan</p>
+                <p class="mt-1 text-2xl font-bold text-slate-900" data-indicador="fin"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${plan.fechaFinalizacionPlan})}"></th:block></p>
+            </div>
+        </section>
+
+        <form th:action="@{/planificaciones-produccion/{id}/planes/confirmar(id=${idPlanificacion})}" method="post" novalidate data-un-solo-envio data-form-plan
+              class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <input type="hidden" name="modalidad" th:value="${plan.modalidad}">
+            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Lotes del plan</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-3 py-3 whitespace-nowrap">N.º</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Fermentador</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Volumen (L)</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Equipos</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Inicio estimado</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Fin estimado</th>
+                        <th class="col-acciones px-3 py-3 text-right whitespace-nowrap">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="l, iter : ${plan.lotes}" data-lote-plan class="hover:bg-slate-50"
+                        th:attr="data-orden=${l.orden},data-texto-id-fermentador=${l.identificadorFermentador},data-texto-id-molino=${l.identificadorMolino},data-texto-id-macerador=${l.identificadorMacerador},data-texto-id-olla-hervor=${l.identificadorOllaHervor}">
+                        <td class="px-3 py-3 font-medium text-slate-900" th:text="${l.orden}">1</td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${l.identificadorFermentador}">FER-01</td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${l.volumenObjetivo})}"></th:block></td>
+                        <!-- Molino, macerador y olla de hervor apilados en una sola columna para que la tabla entre sin desplazarse -->
+                        <td class="px-3 py-2 text-xs text-slate-700" data-equipos-lote>
+                            <div><span class="text-slate-500">Molino:</span> <span th:text="${l.identificadorMolino}">MOL-01</span></div>
+                            <div><span class="text-slate-500">Macerador:</span> <span th:text="${l.identificadorMacerador}">MAC-01</span></div>
+                            <div><span class="text-slate-500">Olla de hervor:</span> <span th:text="${l.identificadorOllaHervor}">OLL-01</span></div>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicioEstimada})}"></th:block></td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></td>
+                        <td class="col-acciones px-3 py-3 text-right">
+                            <input type="hidden" data-campo-lote="volumenObjetivo" th:name="|lotes[${iter.index}].volumenObjetivo|"
+                                   th:value="${l.volumenObjetivo == l.volumenObjetivo.intValue() ? l.volumenObjetivo.intValue() : l.volumenObjetivo}">
+                            <input type="hidden" data-campo-lote="idFermentador" th:name="|lotes[${iter.index}].idFermentador|" th:value="${l.idFermentador}">
+                            <input type="hidden" data-campo-lote="idMolino" th:name="|lotes[${iter.index}].idMolino|" th:value="${l.idMolino}">
+                            <input type="hidden" data-campo-lote="idMacerador" th:name="|lotes[${iter.index}].idMacerador|" th:value="${l.idMacerador}">
+                            <input type="hidden" data-campo-lote="idOllaHervor" th:name="|lotes[${iter.index}].idOllaHervor|" th:value="${l.idOllaHervor}">
+                            <div class="flex items-center justify-end gap-1">
+                                <button type="button" data-modificar-lote th:title="|Modificar lote ${l.orden}|" th:aria-label="|Modificar lote ${l.orden}|"
+                                        class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-pencil-square text-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-5 flex items-center justify-end gap-3 bg-slate-50 border-t border-slate-100">
+                <button type="submit"
+                        data-confirmar-titulo="Confirmar plan"
+                        th:data-confirmar-mensaje="${plan.cantidadLotes == 1} ? |Se registrará 1 lote en estado Pendiente. ¿Desea confirmar el plan ${plan.modalidad.etiqueta.toLowerCase()}?| : |Se registrarán ${plan.cantidadLotes} lotes en estado Pendiente. ¿Desea confirmar el plan ${plan.modalidad.etiqueta.toLowerCase()}?|"
+                        class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-check2-circle"></i> Confirmar plan
+                </button>
+            </div>
+        </form>
+    </th:block>
+</div>
+
+<!-- Motivos por los que el servidor no recalculó el plan: el navegador los muestra en el modal y conserva el plan.
+     Con data-redirigir (la planificación ya no tiene litros por planificar), el navegador vuelve a esa URL -->
+<div th:fragment="errorRecalculo" data-error-recalculo th:attr="data-redirigir=${urlRedirigir}">
+    <ul class="list-disc ml-8">
+        <li th:each="error : ${errores}" th:text="${error}">Error</li>
+    </ul>
+</div>
+
+</body>
+</html>

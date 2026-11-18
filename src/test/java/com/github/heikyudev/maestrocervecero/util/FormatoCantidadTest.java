@@ -66,6 +66,15 @@ class FormatoCantidadTest {
         assertThat(leer(TEMPLATES.resolve("receta/formato.html"))).contains("#cantidades.formatear(valor)").contains("#cantidades.conUnidad(valor, unidad)");
     }
 
+    @Test
+    @DisplayName("CP-FC-06: formatearVolumen muestra un volumen con hasta dos decimales, sin ceros sobrantes")
+    void formatearVolumen_debeUsarHastaDosDecimales() {
+        assertThat(FormatoCantidad.formatearVolumen(628.2726)).isEqualTo("628,27");
+        assertThat(FormatoCantidad.formatearVolumen(1500.0)).isEqualTo("1.500");
+        assertThat(FormatoCantidad.formatearVolumen(333.5)).isEqualTo("333,5");
+        assertThat(FormatoCantidad.formatearVolumen(null)).isEqualTo("-");
+    }
+
     private static String leer(Path archivo) {
         try {
             return Files.readString(archivo, StandardCharsets.UTF_8);

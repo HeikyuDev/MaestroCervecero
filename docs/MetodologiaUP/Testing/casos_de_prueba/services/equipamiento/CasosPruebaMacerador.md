@@ -47,6 +47,7 @@ Aquí se concentran las principales reglas de validación del negocio
 |**CP-48**|Identificador interno generado por el sistema|`secuencia: 7` (resto válido)|El Service pide el siguiente número de la secuencia del tipo y arma el identificador|Persiste la entidad con `identificadorInterno = "MAC-07"` y retorna el DTO con ese identificador.|
 |**CP-49**|Una validación fallida no consume un número de la secuencia|Datos inválidos (capacidad total nula, capacidad útil mayor a la total, eficiencia nula o usos máximos iguales a 0)|La validación falla antes de pedir el número|Lanza `ReglaNegocioException` en cada caso; no consulta la secuencia (`verifyNoInteractions`) y no ejecuta `save()`.|
 |**CP-50**|El número de la secuencia se pide como último paso|`secuencia: 1` (resto válido)|El número se pide después de todas las validaciones y justo antes de guardar|Consulta la secuencia y recién después ejecuta `save()` (verificación con `InOrder`).|
+|**CP-51**|Capacidad útil menor al mínimo|`capacidadTotal: 20.0`, `capacidadUtil: 9.99`, `espacioMuerto: 1.0`, `eficiencia: 75.0`|`capacidadUtil < 10` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad útil debe ser de al menos 10 litros"). No consulta la BD.|
 
 ### 2. Pruebas para `modificarMacerador(Long id, MaceradorFormDTO)`
 

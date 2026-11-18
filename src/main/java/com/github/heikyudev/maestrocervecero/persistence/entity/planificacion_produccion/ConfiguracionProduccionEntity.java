@@ -72,4 +72,11 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
     @Column(name = "criterio_seleccion_plan_concurrente", nullable = false)
     @Enumerated(EnumType.STRING)
     private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
+
+    /**
+     * Litros que la suma de los lotes de un plan de producción puede superar a la cantidad a producir de su
+     * planificación al confirmarlo. El valor 0 exige no superarla.
+     */
+    @Column(name = "excedente_maximo_litros", nullable = false)
+    private Double excedenteMaximoLitros;
 }

@@ -87,8 +87,20 @@ public final class LimitesTecnicos {
      */
     public static final int RANGO_MAXIMO_CRONOGRAMA_DIAS = 1_825;
 
+    /**
+     * Capacidad útil mínima de un fermentador, un macerador o una olla de hervor, en litros. Un equipo más chico es un
+     * error de carga: todo equipo activo debe poder recibir un lote.
+     */
+    public static final double CAPACIDAD_UTIL_MINIMA_LITROS = 10.0;
+
     /** Capacidad máxima del lote estándar de la configuración de producción, en litros. */
     public static final double CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS = 100_000.0;
+
+    /** Excedente máximo que la configuración de producción admite para un plan de producción, en litros. */
+    public static final double EXCEDENTE_MAXIMO_PLAN_LITROS = 100_000.0;
+
+    /** Cantidad máxima de lotes que se registran al confirmar un plan de producción. */
+    public static final int PLAN_PRODUCCION_MAXIMO_LOTES = 100;
 
     /** Velocidad máxima de envasado de la configuración de producción, en litros por hora. */
     public static final double VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA = 100_000.0;

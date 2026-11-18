@@ -125,4 +125,13 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
     Optional<FermentadorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
+
+    /**
+     * Obtiene todos los fermentadores activos, sin paginar y ordenados por identificador interno. Los usa la generación
+     * automática de planes de producción, que evalúa todos los equipos activos sin importar su estado operativo.
+     *
+     * @return Los fermentadores activos, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT f FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' ORDER BY f.identificadorInterno, f.id")
+    List<FermentadorEntity> buscarActivos();
 }

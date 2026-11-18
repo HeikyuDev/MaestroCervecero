@@ -100,7 +100,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("action=\"/configuracion-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString("Tiempos y capacidades")))
-                .andExpect(content().string(containsString("Criterios de selección de equipos para planes de producción")))
+                .andExpect(content().string(containsString("Planes de producción")))
                 .andExpect(content().string(containsString("Capacidad de lote estándar <span")))
                 .andExpect(content().string(containsString("Velocidad de envasado <span")))
                 .andExpect(content().string(containsString("Porcentaje mínimo de consumo <span")))
@@ -207,7 +207,8 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "80.5")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA"))
+                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA")
+                        .param("excedenteMaximoLitros", "300"))
                 // === VERIFICACION ===
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL))
@@ -221,6 +222,7 @@ class ConfiguracionProduccionControllerTest {
         assertThat(captor.getValue().getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(75.0);
         assertThat(captor.getValue().getCriterioSeleccionPlanSecuencial()).isEqualTo(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
         assertThat(captor.getValue().getCriterioSeleccionPlanConcurrente()).isEqualTo(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA);
+        assertThat(captor.getValue().getExcedenteMaximoLitros()).isEqualTo(300.0);
     }
 
     @Test
@@ -238,7 +240,8 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "150")
                         .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA"))
+                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA")
+                        .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
@@ -262,7 +265,8 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES"))
+                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
+                        .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
@@ -287,12 +291,14 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "")
                         .param("criterioSeleccionPlanSecuencial", "")
-                        .param("criterioSeleccionPlanConcurrente", ""))
+                        .param("criterioSeleccionPlanConcurrente", "")
+                        .param("excedenteMaximoLitros", ""))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("La capacidad de lote est")))
                 .andExpect(content().string(containsString("La velocidad de envasado es obligatoria")))
                 .andExpect(content().string(containsString("El porcentaje m")))
                 .andExpect(content().string(containsString("El criterio de selecci")))
+                .andExpect(content().string(containsString("El excedente máximo de un plan es obligatorio")))
                 .andExpect(content().string(containsString("es obligatori")));
 
         verify(configuracionServicio, never()).actualizarConfiguracion(any());
@@ -308,7 +314,8 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES"))
+                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
+                        .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -325,7 +332,8 @@ class ConfiguracionProduccionControllerTest {
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES"))
+                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
+                        .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().is3xxRedirection());
 
         verify(configuracionServicio, never()).actualizarConfiguracion(any());
@@ -371,6 +379,7 @@ class ConfiguracionProduccionControllerTest {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
                 .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
                 .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES)
+                .excedenteMaximoLitros(300.0)
                 .build();
     }
 
@@ -422,6 +431,45 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-pestana-parametros")))
                 .andExpect(content().string(containsString("data-pestana-costos")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CPC-19: la sección Planes de producción muestra el excedente máximo vigente sin ceros sobrantes, con asterisco, placeholder, unidad y texto de ayuda")
+    void caso_cp_cpc_19() throws Exception {
+        // === PREPARACION DE DATOS ===
+        when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
+
+        // === EJECUCION Y VERIFICACION ===
+        mockMvc.perform(get(URL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Excedente máximo de un plan <span")))
+                .andExpect(content().string(containsString("name=\"excedenteMaximoLitros\" value=\"300\"")))
+                .andExpect(content().string(containsString("Litros que la suma de los lotes de un plan puede superar a la cantidad a producir al confirmarlo")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CPC-20: un excedente máximo negativo muestra el error del campo y no llega al service")
+    void caso_cp_cpc_20() throws Exception {
+        // === PREPARACION DE DATOS ===
+        when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
+
+        // === EJECUCION Y VERIFICACION ===
+        mockMvc.perform(post(URL).with(csrf())
+                        .param("capacidadLoteEstandar", "250")
+                        .param("velocidadEstandarEnvasado", "80")
+                        .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
+                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
+                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
+                        .param("excedenteMaximoLitros", "-5"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("configuracion/configuracion-produccion"))
+                .andExpect(content().string(containsString("No se pudo guardar la configuración")))
+                .andExpect(content().string(containsString("El excedente máximo de un plan debe ser mayor o igual a 0")))
+                .andExpect(content().string(containsString("name=\"excedenteMaximoLitros\" value=\"-5\"")));
+
+        verify(configuracionServicio, never()).actualizarConfiguracion(any());
     }
 
     private static RequestPostProcessor como(Rol rol) {

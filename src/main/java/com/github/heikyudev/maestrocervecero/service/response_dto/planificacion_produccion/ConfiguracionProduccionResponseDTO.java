@@ -46,4 +46,9 @@ public class ConfiguracionProduccionResponseDTO {
      * Criterio para elegir la combinación de equipos de un plan en modalidad concurrente.
      */
     private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
+
+    /**
+     * Litros que un plan de producción puede superar a la cantidad a producir de su planificación al confirmarlo.
+     */
+    private Double excedenteMaximoLitros;
 }

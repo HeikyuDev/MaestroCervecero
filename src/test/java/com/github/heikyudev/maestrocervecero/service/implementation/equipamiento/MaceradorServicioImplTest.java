@@ -1049,6 +1049,18 @@ class MaceradorServicioImplTest {
                 .build();
     }
 
+    @Test
+    @DisplayName("CP-51: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es menor al mínimo de 10 litros")
+    void altaMacerador_debeRechazarCapacidadUtilMenorAlMinimo() {
+        MaceradorFormDTO dto = maceradorFormDTO(20.0, 9.99, 1.0, 75.0);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser de al menos 10 litros");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
     private static MaceradorFormDTO maceradorFormDTO(Double capacidadTotal,
                                                        Double capacidadUtil, Double espacioMuerto, Double eficienciaMaceracion) {
         return maceradorFormDTO(capacidadTotal, capacidadUtil, espacioMuerto, eficienciaMaceracion, USOS_MAXIMOS_ANTES_MANTENIMIENTO);

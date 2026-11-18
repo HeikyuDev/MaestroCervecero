@@ -38,7 +38,7 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a 0 o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a 0 o supera su máximo técnico, si el porcentaje mínimo de consumo no es un número entre 0 y 100, o si el excedente máximo de un plan no es un número mayor o igual a 0 o supera su máximo técnico.
      */
     @Override
     @Transactional
@@ -60,6 +60,9 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         if (configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente() == null) {
             throw new ReglaNegocioException("El criterio de selección concurrente es obligatorio");
         }
+        if (configuracionProduccionFormDTO.getExcedenteMaximoLitros() == null) {
+            throw new ReglaNegocioException("El excedente máximo de un plan es obligatorio");
+        }
 
         // 2. Validar que la velocidad de envasado y la capacidad de lote sean mayores a 0
         if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0) {
@@ -80,6 +83,10 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         ValidacionesNumericas.validarMayorOIgualACero(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa(),
                 "El porcentaje mínimo de consumo");
 
+        // 3 bis. Validar que el excedente máximo de un plan sea un número mayor o igual a 0 que no supere su máximo técnico
+        ValidacionesNumericas.validarMayorOIgualACeroConMaximo(configuracionProduccionFormDTO.getExcedenteMaximoLitros(),
+                LimitesTecnicos.EXCEDENTE_MAXIMO_PLAN_LITROS, "El excedente máximo de un plan", "litros");
+
         // 4. Localizar la configuración vigente, aplicar los nuevos valores y persistirla
         ConfiguracionProduccionEntity configuracionProduccionEntity = buscarEntidadSingleton();
         configuracionProduccionEntity.setVelocidadEstandarEnvasado(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado());
@@ -87,6 +94,7 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         configuracionProduccionEntity.setPorcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa());
         configuracionProduccionEntity.setCriterioSeleccionPlanSecuencial(configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial());
         configuracionProduccionEntity.setCriterioSeleccionPlanConcurrente(configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente());
+        configuracionProduccionEntity.setExcedenteMaximoLitros(configuracionProduccionFormDTO.getExcedenteMaximoLitros());
 
         return MapperConfiguracionProduccion.toDTO(configuracionProduccionRepository.save(configuracionProduccionEntity));
     }

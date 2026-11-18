@@ -34,6 +34,11 @@
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
                 <i class="bi bi-arrow-left"></i> Volver a planificaciones
             </a>
+            <a th:if="${puedeGenerarPlan}" sec:authorize="hasAuthority('LOTE_REGISTRAR')" data-generar-plan
+               th:href="@{/planificaciones-produccion/{id}/planes(id=${planificacion.id})}"
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                <i class="bi bi-diagram-3"></i> Generar plan
+            </a>
             <a th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasAuthority('LOTE_REGISTRAR')"
                th:href="@{/lotes/nuevo(idPlanificacion=${planificacion.id})}"
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
