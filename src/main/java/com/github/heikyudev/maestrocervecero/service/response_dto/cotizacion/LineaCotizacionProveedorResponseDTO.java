@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -9,7 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO de respuesta con un insumo solicitado en la pantalla de cotización de un proveedor, con su respuesta actual si ya respondió.
+ * DTO de respuesta con un insumo solicitado en la pantalla de cotización de un proveedor: una fila por cada presentación
+ * de su catálogo vigente, con su respuesta actual si ya respondió.
  */
 @Getter
 @Builder
@@ -43,22 +43,7 @@ public class LineaCotizacionProveedorResponseDTO {
     private Double cantidadSolicitada;
 
     /**
-     * Presentaciones del insumo que el proveedor ofrece.
+     * Presentaciones del insumo que el proveedor ofrece en su catálogo vigente, cada una con su respuesta actual.
      */
     private List<OpcionPresentacionResponseDTO> presentaciones;
-
-    /**
-     * Presentación de la respuesta actual, o {@code null}.
-     */
-    private Long idCatalogoProveedorOfertado;
-
-    /**
-     * Precio de la respuesta actual, o {@code null}.
-     */
-    private BigDecimal precioUnitarioOfertado;
-
-    /**
-     * Cantidad de la respuesta actual, o {@code null}.
-     */
-    private Integer cantidadDisponibleOfertada;
 }

@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Piezas del proceso automático alrededor del service: el disparo al confirmar un plan de producción, el cierre
+ * Piezas del proceso automático alrededor del service: el disparo al registrar una planificación de producción, el cierre
  * programado y los correos.
  */
 class ProcesosCotizacionTest {

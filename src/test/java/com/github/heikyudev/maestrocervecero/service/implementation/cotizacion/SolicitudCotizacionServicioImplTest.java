@@ -34,6 +34,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRe
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.util.mapper.cotizacion.MapperSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cotizacion.IConfiguracionComprasRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cotizacion.IInvitacionCotizacionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cotizacion.IOrdenCompraPropuestaRepository;
@@ -1326,5 +1327,118 @@ class SolicitudCotizacionServicioImplTest {
         assertThatThrownBy(() -> servicio.buscarPorId(91L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la solicitud de cotización con ID: 91");
+    }
+
+    // ==================== Varias presentaciones y fecha estimada de entrega ====================
+
+    @Test
+    @DisplayName("CP-SCO-43: cerrarSolicitud combina varias presentaciones del mismo proveedor y su orden propuesta lleva un ítem por presentación")
+    void cerrar_variasPresentacionesDelMismoProveedor() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        VersionProveedorEntity version = malteria.getVersiones().get(0);
+        PresentacionComercialEntity bolsa10Kg = PresentacionComercialEntity.builder().id(31L).nombre("Bolsa").cantidad(10.0)
+                .unidadDeMedida(UnidadDeMedida.KILOGRAMO).estado(Estado.ACTIVO).build();
+        CatalogoProveedorEntity catalogo25 = version.getCatalogoProveedor().get(0);
+        CatalogoProveedorEntity catalogo10 = CatalogoProveedorEntity.builder().id(150L).version(version).insumo(malta).presentacionComercial(bolsa10Kg).build();
+        version.getCatalogoProveedor().add(catalogo10);
+        InvitacionCotizacionEntity invitacion = invitar(solicitud, malteria, LocalDateTime.now());
+        // Faltan 100 kg: 2 bolsas de 25 kg a $20.000 ($800/kg) y 6 bolsas de 10 kg a $9.000 ($900/kg)
+        invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(catalogo25).precioUnitario(new BigDecimal("20000")).cantidadDisponible(2).build());
+        invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(2L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(catalogo10).precioUnitario(new BigDecimal("9000")).cantidadDisponible(6).build());
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cerrarSolicitud(90L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLANES_GENERADOS);
+        PlanCompraEntity mejor = solicitud.getPlanes().get(0);
+        // Una sola orden para el proveedor, con un ítem por presentación: 2 x 25 kg + 5 x 10 kg = 100 kg
+        assertThat(mejor.getOrdenes()).singleElement().satisfies(orden ->
+                assertThat(orden.getItems()).extracting(item -> item.getCatalogoProveedor().getId() + ":" + item.getCantidad())
+                        .containsExactly(catalogo25.getId() + ":2", "150:5"));
+    }
+
+    @Test
+    @DisplayName("CP-SCO-44: la orden prearmada y la orden propuesta llevan la fecha estimada de entrega que indicó el proveedor")
+    void preparar_llevaLaFechaEstimadaDeEntregaDelProveedor() {
+        // === PREPARACION DE DATOS ===
+        ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        ProveedorEntity p2 = proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta);
+        SolicitudCotizacionEntity solicitud = solicitudConPlanes(p1, p2);
+        java.time.LocalDate entrega = java.time.LocalDate.now().plusDays(12);
+        invitar(solicitud, p1, LocalDateTime.now()).setFechaEntregaEstimada(entrega);
+        invitar(solicitud, p2, LocalDateTime.now());
+        OrdenCompraPropuestaEntity orden = solicitud.getPlanes().get(0).getOrdenes().get(0);
+        OrdenCompraPropuestaEntity sinFecha = solicitud.getPlanes().get(1).getOrdenes().get(0);
+        conOrdenPropuesta(orden);
+
+        // === EJECUCION Y VERIFICACION ===
+        assertThat(servicio.prepararOrdenCompra(801L).getFechaEntregaEstimada()).isEqualTo(entrega);
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(orden).getFechaEntregaEstimada()).isEqualTo(entrega);
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(sinFecha).getFechaEntregaEstimada()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-SCO-45: las ofertas sin stock no entran en los planes y una respuesta solo sin stock cuenta como respuesta sin ofertas")
+    void cerrar_ignoraOfertasSinStock() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        InvitacionCotizacionEntity sinStock = invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), LocalDateTime.now());
+        sinStock.getOfertas().add(OfertaCotizacionEntity.builder().id(1L).invitacion(sinStock).lineaSolicitud(linea)
+                .catalogoProveedor(sinStock.getProveedor().getVersiones().get(0).getCatalogoProveedor().get(0)).cantidadDisponible(0).build());
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION Y VERIFICACION ===
+        // Solo hay una presentación sin stock: no hay planes y cuenta como respuesta sin ofertas
+        servicio.cerrarSolicitud(90L);
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CERRADA);
+        assertThat(solicitud.getPlanes()).isEmpty();
+        assertThat(SolicitudCotizacionServicioImpl.mensajeCierreSinOfertas(solicitud))
+                .isEqualTo("La solicitud de cotización #90 cerró porque los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados: no se generaron planes");
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(sinStock).getInsumosCotizados()).containsExactly("Malta Pilsen: Sin stock en Bolsa (25 kg)");
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(sinStock).getCantidadOfertas()).isZero();
+
+        // Con otra oferta con stock, el plan usa solo esa
+        SolicitudCotizacionEntity otra = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        InvitacionCotizacionEntity conCero = invitar(otra, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), LocalDateTime.now());
+        conCero.getOfertas().add(OfertaCotizacionEntity.builder().id(1L).invitacion(conCero).lineaSolicitud(otra.getLineas().get(0))
+                .catalogoProveedor(conCero.getProveedor().getVersiones().get(0).getCatalogoProveedor().get(0)).cantidadDisponible(0).build());
+        ofertar(invitar(otra, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), LocalDateTime.now()), 2L, otra.getLineas().get(0), "30000", 10);
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(otra));
+        servicio.cerrarSolicitud(90L);
+        assertThat(otra.getPlanes()).isNotEmpty();
+        assertThat(otra.getPlanes()).allSatisfy(plan -> assertThat(plan.getOrdenes()).extracting(orden -> orden.getProveedor().getId()).containsExactly(2L));
+    }
+
+    @Test
+    @DisplayName("CP-SCO-46: si la fecha estimada de entrega del proveedor ya pasó, la orden prearmada llega sin fecha y con un aviso para indicar una nueva")
+    void preparar_fechaDelProveedorVencida() {
+        // === PREPARACION DE DATOS ===
+        ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        SolicitudCotizacionEntity solicitud = solicitudConPlanes(p1, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        java.time.LocalDate vencida = java.time.LocalDate.now().minusDays(1);
+        invitar(solicitud, p1, LocalDateTime.now().minusDays(5)).setFechaEntregaEstimada(vencida);
+        OrdenCompraPropuestaEntity orden = solicitud.getPlanes().get(0).getOrdenes().get(0);
+        conOrdenPropuesta(orden);
+
+        // === EJECUCION ===
+        OrdenCompraPrearmadaResponseDTO prearmada = servicio.prepararOrdenCompra(801L);
+
+        // === ASSERTS ===
+        assertThat(prearmada.getFechaEntregaEstimada()).isNull();
+        assertThat(prearmada.getAvisos()).containsExactly("La fecha de entrega indicada por el proveedor ("
+                + vencida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ") ya pasó; indique una nueva");
+        // El detalle de la solicitud sigue mostrando la fecha que indicó el proveedor
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(orden).getFechaEntregaEstimada()).isEqualTo(vencida);
+        // La de hoy todavía sirve
+        solicitud.getInvitaciones().get(0).setFechaEntregaEstimada(java.time.LocalDate.now());
+        assertThat(servicio.prepararOrdenCompra(801L).getFechaEntregaEstimada()).isEqualTo(java.time.LocalDate.now());
     }
 }

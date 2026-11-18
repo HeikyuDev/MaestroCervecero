@@ -325,4 +325,37 @@ class GeneradorPlanesCompraTest {
         assertThat(asignaciones(planes.get(1))).isEqualTo("2x21");
         assertThat(planes).allSatisfy(plan -> assertThat(plan.proporcionSinCubrir()).isEqualTo(0.0));
     }
+
+    @Test
+    @DisplayName("CP-GPC-16: un proveedor con varias presentaciones del mismo insumo las combina para cubrir el faltante")
+    void variasPresentacionesDelMismoProveedor_seCombinan() {
+        // === PREPARACION DE DATOS ===
+        // Mismo proveedor: 2 bolsas de 25 kg a $20.000 ($800/kg) y 3 bolsas de 10 kg a $9.000 ($900/kg): 80 kg disponibles
+        List<Oferta> ofertas = List.of(oferta(1, LINEA_MALTA, 10, 25.0, "20000", 2), oferta(2, LINEA_MALTA, 10, 10.0, "9000", 3));
+
+        // === EJECUCION ===
+        Plan plan = GeneradorPlanesCompra.generar(List.of(new Demanda(LINEA_MALTA, 60.0)), ofertas, CriterioPlanCompra.MENOR_PRECIO, 50, 1).get(0);
+
+        // === ASSERTS ===
+        // 2 x 25 kg + 1 x 10 kg = 60 kg: cubre todo con una asignación por presentación del mismo proveedor
+        assertThat(asignaciones(plan)).isEqualTo("1x2,2x1");
+        assertThat(plan.asignaciones()).allSatisfy(a -> assertThat(a.oferta().idProveedor()).isEqualTo(10L));
+        assertThat(plan.proporcionSinCubrir()).isZero();
+        assertThat(plan.costoTotal()).isEqualByComparingTo("49000");
+    }
+
+    @Test
+    @DisplayName("CP-GPC-17: con MENOR_PRECIO se prefiere la presentación más barata por kilogramo del mismo proveedor")
+    void variasPresentaciones_menorPrecioPorKilogramo() {
+        // === PREPARACION DE DATOS ===
+        // Bolsa de 25 kg a $30.000 ($1.200/kg) y bolsa de 10 kg a $9.000 ($900/kg), del mismo proveedor
+        List<Oferta> ofertas = List.of(oferta(1, LINEA_MALTA, 10, 25.0, "30000", 4), oferta(2, LINEA_MALTA, 10, 10.0, "9000", 4));
+
+        // === EJECUCION ===
+        Plan plan = GeneradorPlanesCompra.generar(List.of(new Demanda(LINEA_MALTA, 20.0)), ofertas, CriterioPlanCompra.MENOR_PRECIO, 50, 1).get(0);
+
+        // === ASSERTS ===
+        assertThat(asignaciones(plan)).isEqualTo("2x2");
+        assertThat(plan.costoTotal()).isEqualByComparingTo("18000");
+    }
 }

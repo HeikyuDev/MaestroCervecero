@@ -3,8 +3,8 @@
 <head th:replace="~{fragments/pantalla-publica :: cabecera('Solicitud de cotización')}"></head>
 <!--
     Pantalla pública con la que un proveedor responde una solicitud de cotización desde el enlace del correo. No usa el
-    layout de la aplicación: la usa alguien externo y de vez en cuando, así que muestra solo lo necesario, con una fila
-    por insumo y una explicación breve de cada dato. El token del enlace va en la dirección del formulario.
+    layout de la aplicación: la usa alguien externo y de vez en cuando, así que muestra solo lo necesario: la fecha
+    estimada de entrega y, por insumo, una fila por presentación de su catálogo, con una explicación breve de cada dato. El token del enlace va en la dirección del formulario.
 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -20,8 +20,8 @@
     <div>
         <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Solicitud de cotización</h1>
         <p class="mt-1 text-sm text-slate-600">
-            <span th:text="${cotizacion.razonSocial}">Malterías del Sur S.A.</span>: indique, para cada insumo que pueda entregar, la presentación,
-            el precio de cada unidad de esa presentación y cuántas unidades puede entregar. Deje en blanco los insumos que no cotice.
+            <span th:text="${cotizacion.razonSocial}">Malterías del Sur S.A.</span>: indique, para cada presentación que pueda entregar, el precio
+            de cada unidad y cuántas unidades puede entregar, y la fecha estimada de entrega. Deje en blanco las presentaciones que no cotice.
         </p>
     </div>
 
@@ -60,51 +60,59 @@
         <!-- Resumen de todos los errores: campos inválidos y reglas rechazadas -->
         <div th:replace="~{fragments/form-errors :: resumen('No se pudo enviar la cotización')}"></div>
 
-        <!-- Una sección por insumo solicitado -->
-        <section th:each="linea, estado : ${cotizacion.lineas}" class="p-6" th:with="i=${estado.index}" data-linea-cotizacion>
-            <input type="hidden" th:field="*{ofertas[__${i}__].idLinea}" />
-            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <!-- Fecha estimada de entrega: una sola para toda la respuesta (su orden de compra tiene una sola fecha) -->
+        <section class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="fechaEntregaEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha estimada de entrega <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="date" id="fechaEntregaEstimada" th:field="*{fechaEntregaEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 15/07/2027"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('fechaEntregaEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('fechaEntregaEstimada')}" th:errors="*{fechaEntregaEstimada}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('fechaEntregaEstimada')}" class="mt-1 text-xs text-slate-500">Fecha en que puede entregar lo que cotiza, desde hoy y hasta un año. Obligatoria si ofrece alguna presentación con stock.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Una sección por insumo solicitado, con una fila por cada presentación de su catálogo -->
+        <section th:each="linea, estado : ${cotizacion.lineas}" class="p-6" th:with="inicio=${primeraFila[estado.index]}" data-linea-cotizacion>
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
                 <h2 class="text-base font-semibold text-slate-900">
                     <span th:text="${linea.nombreInsumo}">Malta Pilsen</span>
                     <span class="ml-1 text-xs font-medium text-slate-500" th:text="${linea.tipoInsumo}">Malta</span>
                 </h2>
                 <p class="text-sm text-slate-600">Cantidad solicitada: <strong class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${linea.cantidadSolicitada}, ${linea.unidad})}"></th:block></strong></p>
             </div>
+            <p class="mb-4 text-xs text-slate-500">Complete las presentaciones que pueda entregar, aunque no alcancen lo solicitado; puede combinar varias. Indique 0 unidades, sin precio, en las que no tenga stock y deje en blanco las que no cotice.</p>
 
-            <!-- Una fila por tema: presentación, y precio con cantidad -->
+            <!-- Una fila por presentación: precio y unidades -->
             <div class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label th:for="|presentacion-${i}|" class="block text-sm font-medium text-slate-700 mb-1">Presentación</label>
-                        <select th:id="|presentacion-${i}|" th:field="*{ofertas[__${i}__].idCatalogoProveedor}"
-                                class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                                th:classappend="${#fields.hasErrors('ofertas[' + i + '].idCatalogoProveedor')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                            <option value="">No cotizo este insumo</option>
-                            <option th:each="opcion : ${linea.presentaciones}" th:value="${opcion.idCatalogoProveedor}" th:text="${opcion.nombre}">Bolsa (25 kg)</option>
-                        </select>
-                        <p th:if="${#fields.hasErrors('ofertas[' + i + '].idCatalogoProveedor')}" th:errors="*{ofertas[__${i}__].idCatalogoProveedor}" class="mt-1 text-xs text-rose-600"></p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label th:for="|precio-${i}|" class="block text-sm font-medium text-slate-700 mb-1">Precio por unidad de la presentación</label>
-                        <div class="flex">
-                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 bg-slate-100 text-sm font-medium text-slate-500"
-                                  th:classappend="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')} ? 'border-rose-400' : 'border-slate-300'">$</span>
-                            <input type="number" th:id="|precio-${i}|" th:field="*{ofertas[__${i}__].precioUnitario}" min="0" step="any" autocomplete="off" placeholder="Ej: 32500"
-                                   class="min-w-0 flex-1 px-3 py-2 rounded-r-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                                   th:classappend="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                <div th:each="presentacion, p : ${linea.presentaciones}" th:with="i=${inicio + p.index}" data-presentacion-cotizacion
+                     class="rounded-lg border border-slate-200 p-4">
+                    <input type="hidden" th:field="*{ofertas[__${i}__].idLinea}" />
+                    <input type="hidden" th:field="*{ofertas[__${i}__].idCatalogoProveedor}" />
+                    <p class="mb-3 text-sm font-semibold text-slate-800" th:text="${presentacion.nombre}">Bolsa (25 kg)</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label th:for="|precio-${i}|" class="block text-sm font-medium text-slate-700 mb-1">Precio por unidad de la presentación</label>
+                            <div class="flex">
+                                <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 bg-slate-100 text-sm font-medium text-slate-500"
+                                      th:classappend="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')} ? 'border-rose-400' : 'border-slate-300'">$</span>
+                                <input type="number" th:id="|precio-${i}|" th:field="*{ofertas[__${i}__].precioUnitario}" min="0" step="any" autocomplete="off" placeholder="Ej: 32500"
+                                       class="min-w-0 flex-1 px-3 py-2 rounded-r-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                                       th:classappend="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                            </div>
+                            <p th:if="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')}" th:errors="*{ofertas[__${i}__].precioUnitario}" class="mt-1 text-xs text-rose-600"></p>
+                            <p th:unless="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')}" class="mt-1 text-xs text-slate-500">Precio de una unidad de esta presentación. Hasta 4 decimales.</p>
                         </div>
-                        <p th:if="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')}" th:errors="*{ofertas[__${i}__].precioUnitario}" class="mt-1 text-xs text-rose-600"></p>
-                        <p th:unless="${#fields.hasErrors('ofertas[' + i + '].precioUnitario')}" class="mt-1 text-xs text-slate-500">Precio de una unidad de la presentación elegida (por ejemplo, de una bolsa). Hasta 4 decimales.</p>
-                    </div>
-                    <div>
-                        <label th:for="|cantidad-${i}|" class="block text-sm font-medium text-slate-700 mb-1">Unidades que puede entregar</label>
-                        <input type="number" th:id="|cantidad-${i}|" th:field="*{ofertas[__${i}__].cantidadDisponible}" min="1" step="1" autocomplete="off" placeholder="Ej: 12"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <p th:if="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')}" th:errors="*{ofertas[__${i}__].cantidadDisponible}" class="mt-1 text-xs text-rose-600"></p>
-                        <p th:unless="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')}" class="mt-1 text-xs text-slate-500">Cantidad de unidades de la presentación, aunque no alcance lo solicitado. Un número entero mayor a 0.</p>
+                        <div>
+                            <label th:for="|cantidad-${i}|" class="block text-sm font-medium text-slate-700 mb-1">Unidades que puede entregar</label>
+                            <input type="number" th:id="|cantidad-${i}|" th:field="*{ofertas[__${i}__].cantidadDisponible}" min="0" step="1" autocomplete="off" placeholder="Ej: 10 (0 si no tiene stock)"
+                                   class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                                   th:classappend="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                            <p th:if="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')}" th:errors="*{ofertas[__${i}__].cantidadDisponible}" class="mt-1 text-xs text-rose-600"></p>
+                            <p th:unless="${#fields.hasErrors('ofertas[' + i + '].cantidadDisponible')}" class="mt-1 text-xs text-slate-500">Cantidad de unidades de esta presentación. Un número entero; indique 0 si no tiene stock y deje el precio en blanco.</p>
+                        </div>
                     </div>
                 </div>
             </div>

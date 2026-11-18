@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -54,7 +55,7 @@ public class InvitacionCotizacionResponseDTO {
     private LocalDateTime fechaRespuesta;
 
     /**
-     * Cantidad de insumos que cotizó.
+     * Cantidad de ofertas con stock que cotizó (una por insumo y presentación; no cuenta las presentaciones sin stock).
      */
     private int cantidadOfertas;
 
@@ -75,7 +76,13 @@ public class InvitacionCotizacionResponseDTO {
     private String estadoParticipacion;
 
     /**
-     * Nombres de los insumos que cotizó.
+     * Ofertas que cotizó, una por insumo y presentación (ej. {@code Malta Pilsen: 2 x Bolsa (25 kg) a $ 32.500,00} o
+     * {@code Malta Pilsen: Sin stock en Balde (5 kg)}).
      */
     private List<String> insumosCotizados;
+
+    /**
+     * Fecha en que estima entregar lo que ofrece, o {@code null} si no respondió o respondió sin ofertas.
+     */
+    private LocalDate fechaEntregaEstimada;
 }

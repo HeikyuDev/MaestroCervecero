@@ -157,7 +157,8 @@ public class OrdenCompraController {
      * planificación lo valida el service al enviar.
      * <p>
      * Con {@code idOrdenPropuesta} (la acción "Confirmar" de una orden propuesta por un plan de compra) el formulario
-     * llega prearmado con la planificación, el proveedor y los ítems de la propuesta, con un aviso por cada ítem que el
+     * llega prearmado con la planificación, el proveedor, la fecha estimada de entrega que indicó el proveedor (se puede
+     * cambiar) y los ítems de la propuesta (uno por presentación), con un aviso por cada ítem que el
      * proveedor ya no ofrece. Si la orden propuesta no existe o ya no se puede confirmar, el {@code ControllerAdvices}
      * vuelve al origen con el motivo.
      * </p>
@@ -171,6 +172,7 @@ public class OrdenCompraController {
         if (idOrdenPropuestaIndicada != null) {
             OrdenCompraPrearmadaResponseDTO prearmada = solicitudCotizacionServicio.prepararOrdenCompra(idOrdenPropuestaIndicada);
             OrdenCompraFormDTO ordenCompraForm = OrdenCompraFormDTO.builder()
+                    .fechaEntregaEstimada(prearmada.getFechaEntregaEstimada())
                     .idPlanificacionProduccion(prearmada.getIdPlanificacion())
                     .idProveedor(prearmada.getIdProveedor())
                     .detallesCompra(new java.util.ArrayList<>(prearmada.getItems().stream()

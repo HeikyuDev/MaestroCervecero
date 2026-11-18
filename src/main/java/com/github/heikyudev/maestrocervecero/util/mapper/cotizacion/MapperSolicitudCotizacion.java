@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.Estad
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoPlanCompra;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.InvitacionCotizacionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.OfertaCotizacionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.ItemOrdenCompraPropuestaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.LineaSolicitudCotizacionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.OrdenCompraPropuestaEntity;
@@ -27,6 +28,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.Pla
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion;
 import com.github.heikyudev.maestrocervecero.util.FormatoCantidad;
+import com.github.heikyudev.maestrocervecero.util.FormatoImporte;
 import com.github.heikyudev.maestrocervecero.util.method.CantidadesDetalleCompra;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
@@ -36,8 +38,10 @@ import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,7 +143,7 @@ public final class MapperSolicitudCotizacion {
             long invitados = entity.getInvitaciones().stream().filter(invitacion -> invitacion.getEstadoEnvio() != EstadoEnvioInvitacion.OMITIDA).count();
             long noEntregadas = entity.getInvitaciones().stream().filter(invitacion -> invitacion.getEstadoEnvio() == EstadoEnvioInvitacion.FALLIDA).count();
             if (!respondieron.isEmpty()) {
-                avisos.add(respondieron.stream().allMatch(invitacion -> invitacion.getOfertas().isEmpty())
+                avisos.add(respondieron.stream().noneMatch(MapperSolicitudCotizacion::ofreceConStock)
                         ? "Los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados"
                         : "Ninguna respuesta de un proveedor activo ofreció los insumos solicitados");
             } else if (noEntregadas > 0 && noEntregadas == invitados) {
@@ -194,9 +198,14 @@ public final class MapperSolicitudCotizacion {
                 .proveedorActivo(proveedor.getEstado() == Estado.ACTIVO)
                 .fechaEnvio(invitacion.getCreatedDate())
                 .fechaRespuesta(invitacion.getFechaRespuesta())
-                .cantidadOfertas(invitacion.getOfertas().size())
+                .cantidadOfertas((int) invitacion.getOfertas().stream().filter(oferta -> oferta.getCantidadDisponible() != null && oferta.getCantidadDisponible() > 0).count())
                 .estadoParticipacion(estadoParticipacion(invitacion))
-                .insumosCotizados(invitacion.getOfertas().stream().map(oferta -> oferta.getLineaSolicitud().getInsumo().getNombre()).toList())
+                .insumosCotizados(invitacion.getOfertas().stream()
+                        .sorted(Comparator.comparing((OfertaCotizacionEntity oferta) -> oferta.getLineaSolicitud().getId())
+                                .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
+                        .map(MapperSolicitudCotizacion::descripcionOferta)
+                        .toList())
+                .fechaEntregaEstimada(invitacion.getFechaEntregaEstimada())
                 .estadoEnvio(invitacion.getEstadoEnvio())
                 .intentosEnvio(invitacion.getIntentosEnvio() == null ? 0 : invitacion.getIntentosEnvio())
                 .build();
@@ -336,7 +345,43 @@ public final class MapperSolicitudCotizacion {
                 .idOrdenCompra(orden.getOrdenCompra() == null ? null : orden.getOrdenCompra().getId())
                 .total(items.stream().map(ItemOrdenCompraPropuestaResponseDTO::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add))
                 .items(items)
+                .fechaEntregaEstimada(fechaEntregaEstimada(orden))
                 .build();
+    }
+
+    /**
+     * Si el proveedor ofreció alguna presentación con stock (cantidad mayor a 0). Una respuesta solo con presentaciones
+     * sin stock cuenta como respuesta sin ofertas.
+     */
+    public static boolean ofreceConStock(InvitacionCotizacionEntity invitacion) {
+        return invitacion.getOfertas().stream().anyMatch(oferta -> oferta.getCantidadDisponible() != null && oferta.getCantidadDisponible() > 0);
+    }
+
+    /**
+     * Una oferta para mostrar: insumo, unidades, presentación y precio unitario, por ejemplo
+     * {@code Malta Pilsen: 2 x Bolsa (25 kg) a $ 32.500,00}, o {@code Malta Pilsen: Sin stock en Bolsa (25 kg)} si el
+     * proveedor indicó cantidad 0.
+     */
+    static String descripcionOferta(OfertaCotizacionEntity oferta) {
+        if (oferta.getCantidadDisponible() == null || oferta.getCantidadDisponible() == 0) {
+            return oferta.getLineaSolicitud().getInsumo().getNombre() + ": Sin stock en "
+                    + nombrePresentacion(oferta.getCatalogoProveedor().getPresentacionComercial());
+        }
+        return oferta.getLineaSolicitud().getInsumo().getNombre() + ": " + oferta.getCantidadDisponible() + " x "
+                + nombrePresentacion(oferta.getCatalogoProveedor().getPresentacionComercial()) + " a "
+                + FormatoImporte.conSimbolo(oferta.getPrecioUnitario());
+    }
+
+    /**
+     * La fecha estimada de entrega que indicó en su cotización el proveedor de una orden propuesta, o {@code null}.
+     */
+    public static LocalDate fechaEntregaEstimada(OrdenCompraPropuestaEntity orden) {
+        return orden.getPlan().getSolicitud().getInvitaciones().stream()
+                .filter(invitacion -> invitacion.getProveedor().getId().equals(orden.getProveedor().getId()))
+                .map(InvitacionCotizacionEntity::getFechaEntregaEstimada)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     /**

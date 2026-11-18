@@ -26,11 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,8 +42,10 @@ import java.util.stream.Collectors;
  * Implementación de {@link ICotizacionProveedorServicio}.
  * <p>
  * La respuesta bloquea la solicitud antes de volver a validar el enlace: no se cruza con el cierre programado, de modo
- * que una respuesta nunca se registra en una solicitud que ya cerró. Las ofertas se actualizan en su lugar (no se borran
- * y se vuelven a crear) para respetar la unicidad de una oferta por insumo y proveedor.
+ * que una respuesta nunca se registra en una solicitud que ya cerró. Un proveedor puede ofrecer un mismo insumo en varias
+ * presentaciones de su catálogo: cada presentación con precio y cantidad es una oferta, y una presentación con cantidad
+ * 0 y sin precio es una oferta sin stock, que los planes no usan. Las ofertas se actualizan en su
+ * lugar (no se borran y se vuelven a crear) para respetar la unicidad de una oferta por invitación, insumo y presentación.
  * </p>
  */
 @Service
@@ -52,7 +55,12 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
     static final String MENSAJE_ENLACE_NO_VALIDO = "El enlace de la solicitud de cotización no es válido";
     static final String MENSAJE_SOLICITUD_CANCELADA = "La solicitud de cotización fue cancelada: ya no se reciben respuestas";
     static final String MENSAJE_SOLICITUD_CERRADA = "La solicitud de cotización ya cerró: el plazo para responder venció";
+    static final String MENSAJE_PRECIO_SIN_STOCK = "No indique precio unitario si la cantidad disponible es 0";
+    static final String MENSAJE_PRECIO_OBLIGATORIO = "El precio unitario es obligatorio si indica una cantidad disponible";
+    static final String MENSAJE_CANTIDAD_OBLIGATORIA = "La cantidad disponible es obligatoria si indica un precio unitario";
     static final String MENSAJE_PROVEEDOR_INACTIVO = "El enlace ya no está habilitado para responder la solicitud de cotización";
+
+    private static final String CAMPO_FECHA_ENTREGA = "fechaEntregaEstimada";
 
     private final IInvitacionCotizacionRepository invitacionRepository;
     private final ISolicitudCotizacionRepository solicitudRepository;
@@ -86,83 +94,136 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
         List<OfertaCotizacionFormDTO> filas = cotizacionProveedorFormDTO.getOfertas() == null ? List.of() : cotizacionProveedorFormDTO.getOfertas();
         if (filas.size() > LimitesTecnicos.ORDEN_COMPRA_MAXIMO_ITEMS) {
             throw new ReglaNegocioException("La cotización no puede superar "
-                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_ITEMS) + " insumos");
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_ITEMS) + " presentaciones");
         }
 
-        // 3. Validar cada fila contra los insumos que el proveedor ofrece y su catálogo vigente
+        // 3. Validar cada fila (un insumo solicitado en una presentación) contra los insumos que el proveedor ofrece y su
+        //    catálogo vigente: el ítem del catálogo debe ser de ese proveedor, de su versión vigente y del mismo insumo
         VersionProveedorEntity version = MapperSolicitudCotizacion.versionVigente(invitacion.getProveedor());
         Map<Long, LineaSolicitudCotizacionEntity> lineasOfrecidas = lineasQueOfrece(solicitud, version).stream()
                 .collect(Collectors.toMap(LineaSolicitudCotizacionEntity::getId, Function.identity()));
-        Map<Long, OfertaCotizacionEntity> nuevas = new HashMap<>();
-        Set<Long> lineasVistas = new HashSet<>();
+        Map<ClaveOferta, OfertaCotizacionEntity> nuevas = new LinkedHashMap<>();
+        Set<ClaveOferta> filasVistas = new HashSet<>();
         for (int i = 0; i < filas.size(); i++) {
             OfertaCotizacionFormDTO fila = filas.get(i);
             if (fila == null) {
                 throw new ReglaNegocioException("Las filas de la cotización son obligatorias");
             }
+            // Una fila sin precio ni cantidad no responde esa presentación: se ignora antes de mirar su insumo y su
+            // presentación, para que un dato viejo en una fila que el proveedor no tocó no bloquee la respuesta
+            if (fila.getPrecioUnitario() == null && fila.getCantidadDisponible() == null) {
+                continue;
+            }
             if (fila.getIdLinea() == null) {
                 throw new ReglaNegocioException("El insumo de cada fila de la cotización es obligatorio");
+            }
+            if (fila.getIdCatalogoProveedor() == null) {
+                throw new ReglaNegocioException("La presentación de cada fila de la cotización es obligatoria");
             }
             LineaSolicitudCotizacionEntity linea = lineasOfrecidas.get(fila.getIdLinea());
             if (linea == null) {
                 throw new ReglaNegocioException("Uno de los insumos de la cotización no forma parte de la solicitud o no figura en su catálogo");
             }
-            if (!lineasVistas.add(linea.getId())) {
-                throw new ReglaNegocioException("La cotización no puede repetir el mismo insumo");
+            CatalogoProveedorEntity catalogo = version.getCatalogoProveedor().stream()
+                    .filter(item -> item.getId().equals(fila.getIdCatalogoProveedor()) && item.getInsumo().getId().equals(linea.getInsumo().getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ReglaNegocioException("Una de las presentaciones de " + linea.getInsumo().getNombre() + " no figura en su catálogo"));
+            ClaveOferta clave = new ClaveOferta(linea.getId(), catalogo.getId());
+            if (!filasVistas.add(clave)) {
+                throw new ReglaNegocioException("La cotización no puede repetir la misma presentación de un insumo");
             }
-            if (fila.getIdCatalogoProveedor() == null && fila.getPrecioUnitario() == null && fila.getCantidadDisponible() == null) {
-                continue;
-            }
-            CatalogoProveedorEntity catalogo = validarFila(i, fila, linea, version);
-            nuevas.put(linea.getId(), OfertaCotizacionEntity.builder()
+            boolean sinStock = validarFila(i, fila, linea, catalogo);
+            nuevas.put(clave, OfertaCotizacionEntity.builder()
                     .invitacion(invitacion)
                     .lineaSolicitud(linea)
                     .catalogoProveedor(catalogo)
-                    .precioUnitario(fila.getPrecioUnitario())
+                    // Sin stock no lleva precio (la validación ya rechazó un precio con cantidad 0)
+                    .precioUnitario(sinStock ? null : fila.getPrecioUnitario())
                     .cantidadDisponible(fila.getCantidadDisponible())
                     .build());
         }
 
-        // 4. Reemplazar las ofertas: se actualizan las de los insumos que se vuelven a cotizar, se quitan las demás y se
-        //    agregan las nuevas
-        invitacion.getOfertas().removeIf(oferta -> !nuevas.containsKey(oferta.getLineaSolicitud().getId()));
+        // 4. Validar la fecha estimada de entrega: obligatoria si ofrece alguna presentación con stock (cantidad mayor a 0),
+        //    no anterior a la fecha actual y a no más del máximo de una orden de compra (la usa la orden que se le propone)
+        boolean ofreceConStock = nuevas.values().stream().anyMatch(oferta -> oferta.getCantidadDisponible() > 0);
+        LocalDate fechaEntregaEstimada = ofreceConStock ? cotizacionProveedorFormDTO.getFechaEntregaEstimada() : null;
+        if (ofreceConStock) {
+            validarFechaEntregaEstimada(fechaEntregaEstimada);
+        }
+
+        // 5. Reemplazar las ofertas: se actualizan las de las presentaciones que se vuelven a cotizar, se quitan las demás
+        //    y se agregan las nuevas
+        invitacion.getOfertas().removeIf(oferta -> !nuevas.containsKey(ClaveOferta.de(oferta)));
         for (OfertaCotizacionEntity existente : invitacion.getOfertas()) {
-            OfertaCotizacionEntity nueva = nuevas.remove(existente.getLineaSolicitud().getId());
-            existente.setCatalogoProveedor(nueva.getCatalogoProveedor());
+            OfertaCotizacionEntity nueva = nuevas.remove(ClaveOferta.de(existente));
             existente.setPrecioUnitario(nueva.getPrecioUnitario());
             existente.setCantidadDisponible(nueva.getCantidadDisponible());
         }
         nuevas.values().stream()
-                .sorted(Comparator.comparing(oferta -> oferta.getLineaSolicitud().getId()))
+                .sorted(Comparator.comparing((OfertaCotizacionEntity oferta) -> oferta.getLineaSolicitud().getId())
+                        .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
                 .forEach(invitacion.getOfertas()::add);
         invitacion.setFechaRespuesta(ahora);
+        invitacion.setFechaEntregaEstimada(fechaEntregaEstimada);
 
         return armarCotizacion(invitacionRepository.save(invitacion));
     }
 
     /**
-     * Valida una fila completa (o a medio completar): la presentación, el precio unitario y la cantidad disponible. Cada
-     * regla indica el campo de la fila que falló.
-     *
-     * @return El ítem del catálogo vigente elegido.
+     * Valida la fecha estimada de entrega con las mismas reglas que el alta de órdenes de compra: informada, no anterior
+     * a la fecha actual y a no más de {@code LimitesTecnicos.ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA} días.
      */
-    private static CatalogoProveedorEntity validarFila(int indice, OfertaCotizacionFormDTO fila, LineaSolicitudCotizacionEntity linea,
-                                                       VersionProveedorEntity version) {
-        String insumo = linea.getInsumo().getNombre();
+    private static void validarFechaEntregaEstimada(LocalDate fecha) {
+        if (fecha == null) {
+            throw new ReglaNegocioException("La fecha estimada de entrega es obligatoria", CAMPO_FECHA_ENTREGA);
+        }
+        LocalDate hoy = LocalDate.now();
+        if (fecha.isBefore(hoy)) {
+            throw new ReglaNegocioException("La fecha estimada de entrega no puede ser anterior a la fecha actual", CAMPO_FECHA_ENTREGA);
+        }
+        if (fecha.isAfter(hoy.plusDays(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA))) {
+            throw new ReglaNegocioException("La fecha estimada de entrega no puede superar un año desde la fecha actual", CAMPO_FECHA_ENTREGA);
+        }
+    }
+
+    /** Identidad de una oferta dentro de la respuesta de un proveedor: el insumo solicitado y la presentación. */
+    private record ClaveOferta(Long idLinea, Long idCatalogoProveedor) {
+
+        static ClaveOferta de(OfertaCotizacionEntity oferta) {
+            return new ClaveOferta(oferta.getLineaSolicitud().getId(), oferta.getCatalogoProveedor().getId());
+        }
+    }
+
+    /**
+     * Valida el precio unitario y la cantidad disponible de una fila completa (o a medio completar): cantidad 0 sin
+     * precio indica que el proveedor no tiene stock de esa presentación; cantidad 0 con precio, cantidad mayor a 0 sin
+     * precio y precio sin cantidad se rechazan; precio y cantidad mayor a 0 son una oferta. Cada regla indica el campo
+     * de la fila que falló.
+     *
+     * @return {@code true} si la fila indica que no tiene stock (cantidad 0).
+     */
+    private static boolean validarFila(int indice, OfertaCotizacionFormDTO fila, LineaSolicitudCotizacionEntity linea,
+                                       CatalogoProveedorEntity catalogo) {
+        String insumo = linea.getInsumo().getNombre() + " en " + MapperSolicitudCotizacion.nombrePresentacion(catalogo.getPresentacionComercial());
         String prefijo = "ofertas[" + indice + "].";
 
-        if (fila.getIdCatalogoProveedor() == null) {
-            throw new ReglaNegocioException("Seleccione la presentación de " + insumo, prefijo + "idCatalogoProveedor");
-        }
-        CatalogoProveedorEntity catalogo = version.getCatalogoProveedor().stream()
-                .filter(item -> item.getId().equals(fila.getIdCatalogoProveedor()) && item.getInsumo().getId().equals(linea.getInsumo().getId()))
-                .findFirst()
-                .orElseThrow(() -> new ReglaNegocioException("La presentación elegida para " + insumo + " no figura en su catálogo",
-                        prefijo + "idCatalogoProveedor"));
-
+        Integer cantidad = fila.getCantidadDisponible();
         BigDecimal precio = fila.getPrecioUnitario();
+        if (cantidad != null && cantidad < 0) {
+            throw new ReglaNegocioException("La cantidad disponible de " + insumo + " no puede ser negativa", prefijo + "cantidadDisponible");
+        }
+        // Cantidad 0 sin precio: el proveedor indica que no tiene stock de la presentación
+        if (cantidad != null && cantidad == 0) {
+            if (precio != null) {
+                throw new ReglaNegocioException(MENSAJE_PRECIO_SIN_STOCK, prefijo + "precioUnitario");
+            }
+            return true;
+        }
         if (precio == null) {
-            throw new ReglaNegocioException("El precio unitario de " + insumo + " es obligatorio", prefijo + "precioUnitario");
+            throw new ReglaNegocioException(MENSAJE_PRECIO_OBLIGATORIO, prefijo + "precioUnitario");
+        }
+        if (cantidad == null) {
+            throw new ReglaNegocioException(MENSAJE_CANTIDAD_OBLIGATORIA, prefijo + "cantidadDisponible");
         }
         if (precio.signum() <= 0) {
             throw new ReglaNegocioException("El precio unitario de " + insumo + " debe ser mayor a 0", prefijo + "precioUnitario");
@@ -176,18 +237,11 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                     + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales", prefijo + "precioUnitario");
         }
 
-        Integer cantidad = fila.getCantidadDisponible();
-        if (cantidad == null) {
-            throw new ReglaNegocioException("La cantidad disponible de " + insumo + " es obligatoria", prefijo + "cantidadDisponible");
-        }
-        if (cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad disponible de " + insumo + " debe ser mayor a 0", prefijo + "cantidadDisponible");
-        }
         if (cantidad > LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA) {
             throw new ReglaNegocioException("La cantidad disponible de " + insumo + " no puede superar "
                     + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA), prefijo + "cantidadDisponible");
         }
-        return catalogo;
+        return false;
     }
 
     /**
@@ -239,12 +293,15 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
         return solicitud.getLineas().stream().filter(linea -> insumosDelCatalogo.contains(linea.getInsumo().getId())).toList();
     }
 
-    /** Arma lo que ve el proveedor: los insumos que ofrece, con sus presentaciones y su respuesta actual. */
+    /**
+     * Arma lo que ve el proveedor: los insumos que ofrece, cada uno con las presentaciones de su catálogo vigente y, en
+     * cada presentación, su respuesta actual.
+     */
     private static CotizacionProveedorResponseDTO armarCotizacion(InvitacionCotizacionEntity invitacion) {
         SolicitudCotizacionEntity solicitud = invitacion.getSolicitud();
         VersionProveedorEntity version = MapperSolicitudCotizacion.versionVigente(invitacion.getProveedor());
-        Map<Long, OfertaCotizacionEntity> ofertaPorLinea = invitacion.getOfertas().stream()
-                .collect(Collectors.toMap(oferta -> oferta.getLineaSolicitud().getId(), Function.identity(), (a, b) -> a));
+        Map<ClaveOferta, OfertaCotizacionEntity> ofertas = invitacion.getOfertas().stream()
+                .collect(Collectors.toMap(ClaveOferta::de, Function.identity(), (primera, segunda) -> primera));
 
         List<LineaCotizacionProveedorResponseDTO> lineas = new ArrayList<>();
         for (LineaSolicitudCotizacionEntity linea : lineasQueOfrece(solicitud, version)) {
@@ -252,12 +309,16 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                     .filter(item -> item.getInsumo().getId().equals(linea.getInsumo().getId()))
                     .sorted(Comparator.comparing((CatalogoProveedorEntity item) -> item.getPresentacionComercial().getNombre(), String.CASE_INSENSITIVE_ORDER)
                             .thenComparing(CatalogoProveedorEntity::getId))
-                    .map(item -> OpcionPresentacionResponseDTO.builder()
-                            .idCatalogoProveedor(item.getId())
-                            .nombre(MapperSolicitudCotizacion.nombrePresentacion(item.getPresentacionComercial()))
-                            .build())
+                    .map(item -> {
+                        OfertaCotizacionEntity oferta = ofertas.get(new ClaveOferta(linea.getId(), item.getId()));
+                        return OpcionPresentacionResponseDTO.builder()
+                                .idCatalogoProveedor(item.getId())
+                                .nombre(MapperSolicitudCotizacion.nombrePresentacion(item.getPresentacionComercial()))
+                                .precioUnitarioOfertado(oferta == null ? null : oferta.getPrecioUnitario())
+                                .cantidadDisponibleOfertada(oferta == null ? null : oferta.getCantidadDisponible())
+                                .build();
+                    })
                     .toList();
-            OfertaCotizacionEntity oferta = ofertaPorLinea.get(linea.getId());
             lineas.add(LineaCotizacionProveedorResponseDTO.builder()
                     .idLinea(linea.getId())
                     .nombreInsumo(linea.getInsumo().getNombre())
@@ -265,9 +326,6 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                     .unidad(linea.getInsumo().getUnidadDeMedida().getSimbolo())
                     .cantidadSolicitada(linea.getCantidadFaltante())
                     .presentaciones(presentaciones)
-                    .idCatalogoProveedorOfertado(oferta == null ? null : oferta.getCatalogoProveedor().getId())
-                    .precioUnitarioOfertado(oferta == null ? null : oferta.getPrecioUnitario())
-                    .cantidadDisponibleOfertada(oferta == null ? null : oferta.getCantidadDisponible())
                     .build());
         }
         return CotizacionProveedorResponseDTO.builder()
@@ -276,6 +334,7 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                 .nombreComercial(version == null ? null : version.getNombreComercial())
                 .fechaLimiteRespuesta(solicitud.getFechaLimiteRespuesta())
                 .fechaRespuesta(invitacion.getFechaRespuesta())
+                .fechaEntregaEstimada(invitacion.getFechaEntregaEstimada())
                 .lineas(lineas)
                 .build();
     }

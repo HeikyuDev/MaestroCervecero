@@ -112,7 +112,8 @@ class SolicitudCotizacionControllerTest {
                         InvitacionCotizacionResponseDTO.builder().id(1L).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
                                 .proveedorActivo(true).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.ENVIADA).intentosEnvio(1)
-                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen")).build(),
+                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00"))
+                                .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5)).build(),
                         InvitacionCotizacionResponseDTO.builder().id(2L).idProveedor(2L).razonSocial("LUPULOS DEL VALLE").cuit("30-87654321-0")
                                 .proveedorActivo(false).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).cantidadOfertas(0)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
@@ -177,7 +178,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con lo que cotizó, los avisos, la cancelación y el primer plan en su pestaña")
+    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con su fecha estimada de entrega y cada presentación que cotizó, los avisos, la cancelación y el primer plan en su pestaña")
     void caso_cp_scc_03() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of(
@@ -198,7 +199,8 @@ class SolicitudCotizacionControllerTest {
                 .contains("href=\"/planificaciones-produccion/7\"")
                 .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
                 .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
-                .containsPattern("data-insumos-cotizados>\\s*<span>Malta Pilsen</span>")
+                .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
+                .contains("Entrega estimada").containsPattern("data-fecha-entrega>\\s*05/12/2026")
                 .contains("data-boton-cancelar").contains("dialogo-cancelar")
                 .contains("href=\"/solicitudes-cotizacion/90?plan=1\"").contains("href=\"/solicitudes-cotizacion/90?plan=2\"")
                 .contains("bi-diagram-3")

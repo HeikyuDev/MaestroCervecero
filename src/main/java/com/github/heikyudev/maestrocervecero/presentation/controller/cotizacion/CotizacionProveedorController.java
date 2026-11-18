@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ICotizacionProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.CotizacionProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaCotizacionProveedorResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OpcionPresentacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +33,9 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * correo, sin iniciar sesión (ver {@code SecurityConfig#cotizacionProveedorFilterChain}). Es una pantalla aparte, sin
  * el menú de la aplicación, pensada para alguien que la usa de vez en cuando.
  * <p>
- * El token del enlace viaja en la dirección, nunca dentro del formulario. El formulario tiene una fila por insumo
- * solicitado que el proveedor ofrece, en el mismo orden que la pantalla. Si el enlace no sirve (venció, la solicitud
+ * El token del enlace viaja en la dirección, nunca dentro del formulario. El formulario tiene una fila por cada
+ * presentación del catálogo vigente del proveedor de cada insumo solicitado que ofrece, en el mismo orden que la pantalla,
+ * y la fecha en que estima entregar lo que ofrece. Si el enlace no sirve (venció, la solicitud
  * cerró o fue cancelada, o el proveedor se dio de baja) se muestra una pantalla que explica el motivo.
  * </p>
  */
@@ -105,45 +107,63 @@ public class CotizacionProveedorController {
         return VISTA_FORMULARIO;
     }
 
-    /** El formulario con una fila por insumo, completada con la respuesta actual del proveedor. */
+    /**
+     * El formulario con una fila por presentación de cada insumo, en el orden de la pantalla, completado con la
+     * respuesta actual del proveedor y su fecha estimada de entrega.
+     */
     private static CotizacionProveedorFormDTO formularioDe(CotizacionProveedorResponseDTO cotizacion) {
-        List<OfertaCotizacionFormDTO> filas = cotizacion.getLineas().stream()
-                .map(linea -> OfertaCotizacionFormDTO.builder()
+        List<OfertaCotizacionFormDTO> filas = new ArrayList<>();
+        for (LineaCotizacionProveedorResponseDTO linea : cotizacion.getLineas()) {
+            for (OpcionPresentacionResponseDTO presentacion : linea.getPresentaciones()) {
+                filas.add(OfertaCotizacionFormDTO.builder()
                         .idLinea(linea.getIdLinea())
-                        .idCatalogoProveedor(linea.getIdCatalogoProveedorOfertado())
-                        .precioUnitario(linea.getPrecioUnitarioOfertado())
-                        .cantidadDisponible(linea.getCantidadDisponibleOfertada())
-                        .build())
-                .toList();
-        return CotizacionProveedorFormDTO.builder().ofertas(new ArrayList<>(filas)).build();
+                        .idCatalogoProveedor(presentacion.getIdCatalogoProveedor())
+                        .precioUnitario(presentacion.getPrecioUnitarioOfertado())
+                        .cantidadDisponible(presentacion.getCantidadDisponibleOfertada())
+                        .build());
+            }
+        }
+        return CotizacionProveedorFormDTO.builder()
+                .fechaEntregaEstimada(cotizacion.getFechaEntregaEstimada())
+                .ofertas(filas)
+                .build();
     }
 
     /**
-     * Deja una fila por insumo de la pantalla, en su orden, con lo que el proveedor había cargado: si las filas enviadas
-     * ya coinciden con los insumos (lo habitual), no cambia nada y los errores quedan junto a su campo.
+     * Deja una fila por presentación de cada insumo de la pantalla, en su orden, con lo que el proveedor había cargado:
+     * si las filas enviadas ya coinciden con las de la pantalla (lo habitual), no cambia nada y los errores quedan junto
+     * a su campo.
      */
     private static List<OfertaCotizacionFormDTO> alinearConLineas(List<OfertaCotizacionFormDTO> enviadas, List<LineaCotizacionProveedorResponseDTO> lineas) {
         List<OfertaCotizacionFormDTO> filas = enviadas == null ? List.of() : enviadas;
-        boolean alineadas = filas.size() == lineas.size();
-        for (int i = 0; alineadas && i < lineas.size(); i++) {
-            alineadas = filas.get(i) != null && Objects.equals(filas.get(i).getIdLinea(), lineas.get(i).getIdLinea());
-        }
-        if (alineadas) {
-            return filas;
-        }
         List<OfertaCotizacionFormDTO> resultado = new ArrayList<>();
         for (LineaCotizacionProveedorResponseDTO linea : lineas) {
-            resultado.add(filas.stream()
-                    .filter(fila -> fila != null && Objects.equals(fila.getIdLinea(), linea.getIdLinea()))
-                    .findFirst()
-                    .orElse(OfertaCotizacionFormDTO.builder().idLinea(linea.getIdLinea()).build()));
+            for (OpcionPresentacionResponseDTO presentacion : linea.getPresentaciones()) {
+                resultado.add(filas.stream()
+                        .filter(fila -> fila != null && Objects.equals(fila.getIdLinea(), linea.getIdLinea())
+                                && Objects.equals(fila.getIdCatalogoProveedor(), presentacion.getIdCatalogoProveedor()))
+                        .findFirst()
+                        .orElse(OfertaCotizacionFormDTO.builder().idLinea(linea.getIdLinea())
+                                .idCatalogoProveedor(presentacion.getIdCatalogoProveedor()).build()));
+            }
         }
-        return resultado;
+        return resultado.equals(filas) ? filas : resultado;
     }
 
+    /**
+     * Carga la cotización y, por cada insumo, la posición de su primera fila en el formulario (las filas de cada insumo
+     * son consecutivas, una por presentación).
+     */
     private static void cargarModelo(Model model, String token, CotizacionProveedorResponseDTO cotizacion) {
+        List<Integer> primeraFila = new ArrayList<>();
+        int fila = 0;
+        for (LineaCotizacionProveedorResponseDTO linea : cotizacion.getLineas()) {
+            primeraFila.add(fila);
+            fila += linea.getPresentaciones().size();
+        }
         model.addAttribute("token", token);
         model.addAttribute("cotizacion", cotizacion);
+        model.addAttribute("primeraFila", primeraFila);
     }
 
     private static String mostrarEnlaceInvalido(Model model, EnlaceCotizacionInvalidoException e) {
