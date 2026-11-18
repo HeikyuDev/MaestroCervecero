@@ -34,3 +34,6 @@ build/
 
 ### Tailwind build ###
 frontend/tailwind/node_modules/
+
+### SonarLint ###
+.sonar/
