@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** guarda de consistencia (JUnit 5 plano, clase `OrdenDeCamposTest`). No levanta Spring ni simula peticiones: lee del sistema de archivos las plantillas de `src/main/resources/templates`.
 
-**Objetivo:** los formularios y los detalles agrupan los datos por sentido y cada fila (una grilla) trata un solo tema: la dirección del proveedor nunca comparte fila con el correo y, en el resto de las pantallas, identidad, origen, medidas, mantenimiento, fechas y estado van en filas separadas (regla "Orden y agrupación de campos" de `../../../../Tecnico/EstandaresUI.md`).
+**Objetivo:** los formularios y los detalles agrupan los datos por sentido y cada fila (una grilla) trata un solo tema: la dirección del proveedor nunca comparte fila con el correo y, en el resto de las pantallas, identidad, origen, medidas, mantenimiento, fechas y estado van en filas separadas (regla "Orden y agrupación de campos" de `../../../../../Tecnico/EstandaresUI.md`).
 
 ---
 

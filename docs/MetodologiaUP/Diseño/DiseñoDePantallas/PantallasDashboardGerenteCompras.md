@@ -1,6 +1,6 @@
 # Diseño del panel de control del gerente de compras
 
-Este documento define el panel que el gerente de compras ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra nada por sí mismo, pero la fila de cada planificación lleva con un clic al formulario de la orden de compra con esa planificación elegida, y las demás filas llevan a la consulta. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el gerente de compras ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra nada por sí mismo, pero la fila de cada planificación lleva con un clic al formulario de la orden de compra con esa planificación elegida, y las demás filas llevan a la consulta. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -99,7 +99,7 @@ No se agregó una migración: las consultas se apoyan en los índices existentes
 - `home/dashboard-gerente-compras.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `planificacionesSinOrden(dashboard)`, `ordenesPendientes(dashboard)` y `ordenesFinalizadas(dashboard)`, más la pieza compartida `encabezado`.
 - Reutiliza `fragments/boton-registrar`, `planificacion_produccion/formato :: fecha, fechaHora y prioridadPlanificacion`.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard/CasosPruebaDashboardGerenteCompras.md` y, en `../../../test/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardGerenteCompras.md`, `CasosPruebaDashboardGerenteComprasController.md` y `CasosPruebaPlantillasDashboardGerenteCompras.md`.
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardGerenteCompras.md` y, en `../../Testing/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardGerenteCompras.md`, `CasosPruebaDashboardGerenteComprasController.md` y `CasosPruebaPlantillasDashboardGerenteCompras.md`.
 
 ## 7. Recorridos
 

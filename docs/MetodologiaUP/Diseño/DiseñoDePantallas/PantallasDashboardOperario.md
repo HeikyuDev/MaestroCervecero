@@ -1,6 +1,6 @@
 # Diseño del panel de control del operario de producción
 
-Este documento define el panel que el operario de producción ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es informativo y de atajos: no registra ni modifica nada por sí mismo; cada acción se hace en la pantalla de trabajo a la que el atajo lleva. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el operario de producción ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es informativo y de atajos: no registra ni modifica nada por sí mismo; cada acción se hace en la pantalla de trabajo a la que el atajo lleva. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -183,7 +183,7 @@ Los índices de estas consultas los crea la migración `V20__indices_consultas_p
 
 **Estándares.** `../../../Tecnico/EstandaresUI.md` suma un apartado "Botón de registro en la fila" con el contrato de `fragments/boton-registrar` (cuándo se usa frente a "Abrir", texto, ícono, `aria-label`, ubicación en `col-acciones`) y su prueba de plantilla.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard` y `../../../test/casos_de_prueba/controllers/dashboard` documentan los casos con los mismos IDs de los tests: `DashboardOperarioServicioImplTest` (orden y tope de 5, totales, causa de mantenimiento, bloques vacíos), `HomeControllerTest` (el modelo del panel solo para el operario) y una prueba de plantilla del panel (permisos de cada atajo, estados vacíos, botón "Abrir" frente a "Registrar").
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard` y `../../Testing/casos_de_prueba/controllers/dashboard` documentan los casos con los mismos IDs de los tests: `DashboardOperarioServicioImplTest` (orden y tope de 5, totales, causa de mantenimiento, bloques vacíos), `HomeControllerTest` (el modelo del panel solo para el operario) y una prueba de plantilla del panel (permisos de cada atajo, estados vacíos, botón "Abrir" frente a "Registrar").
 
 ## 6. Recorridos
 

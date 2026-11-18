@@ -1,6 +1,6 @@
 # Diseño del panel de control del encargado de depósito
 
-Este documento define el panel que el encargado de depósito ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra ni modifica nada por sí mismo, pero cada fila lleva con un clic a la pantalla donde se hace la operación que corresponde (registrar el ingreso de una orden de compra, registrar el ajuste de un lote de insumo) y a la pantalla de consulta. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el encargado de depósito ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra ni modifica nada por sí mismo, pero cada fila lleva con un clic a la pantalla donde se hace la operación que corresponde (registrar el ingreso de una orden de compra, registrar el ajuste de un lote de insumo) y a la pantalla de consulta. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -96,7 +96,7 @@ No se agregó una migración: las consultas se apoyan en los índices existentes
 
 **Pantalla de stock.** En el detalle del stock de un insumo, cada lote ofrece "Registrar ajuste" (botón de registro con ícono `bi-sliders2`) junto a "Abrir", solo para quien tiene `AJUSTE_INSUMO_REGISTRAR`; lleva al formulario de ajuste con el lote elegido. El gerente de producción, que solo consulta el stock, no lo ve.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard/CasosPruebaDashboardEncargadoDeposito.md` y, en `../../../test/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardEncargadoDeposito.md`, `CasosPruebaDashboardEncargadoDepositoController.md` y `CasosPruebaPlantillasDashboardEncargadoDeposito.md`.
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardEncargadoDeposito.md` y, en `../../Testing/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardEncargadoDeposito.md`, `CasosPruebaDashboardEncargadoDepositoController.md` y `CasosPruebaPlantillasDashboardEncargadoDeposito.md`.
 
 ## 6. Recorridos
 

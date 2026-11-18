@@ -143,7 +143,7 @@ El esquema lo gestiona solo Flyway y Hibernate únicamente lo valida. Consulte e
 | [Diseño de pantallas](docs/MetodologiaUP/Dise%C3%B1o/Dise%C3%B1oDePantallas) | Pantallas por módulo y paneles por rol |
 | [Diagrama de clases](docs/MetodologiaUP/Dise%C3%B1o/DiagramaDeClases/class_diagram.md) | Diagrama de clases en Mermaid |
 | [Técnico](docs/Tecnico) | Base de datos, estándares de interfaz y estilos locales |
-| [Casos de prueba](docs/test/casos_de_prueba) | Casos por capa (services y controllers) y por módulo |
+| [Casos de prueba](docs/MetodologiaUP/Testing/casos_de_prueba) | Casos por capa (services y controllers) y por módulo |
 
 ## Metodología de desarrollo
 

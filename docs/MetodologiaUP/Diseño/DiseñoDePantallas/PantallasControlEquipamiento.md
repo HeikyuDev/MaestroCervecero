@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Control de Equipamientos
 
-Este documento define las pantallas del Controller del módulo de Control de Equipamientos: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../../test/casos_de_prueba/controllers/control_equipamiento`.
+Este documento define las pantallas del Controller del módulo de Control de Equipamientos: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../Testing/casos_de_prueba/controllers/control_equipamiento`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 

@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Control de Barriles
 
-Este documento define las pantallas del Controller del módulo de Control de Barriles: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../../test/casos_de_prueba/controllers/control_barril`. El módulo sigue el diseño de Control de Equipamientos (`PantallasControlEquipamiento.md`) con seis tipos de operación en lugar de tres.
+Este documento define las pantallas del Controller del módulo de Control de Barriles: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../Testing/casos_de_prueba/controllers/control_barril`. El módulo sigue el diseño de Control de Equipamientos (`PantallasControlEquipamiento.md`) con seis tipos de operación en lugar de tres.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 

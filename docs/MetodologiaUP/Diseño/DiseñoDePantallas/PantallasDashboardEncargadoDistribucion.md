@@ -1,6 +1,6 @@
 # Diseño del panel de control del encargado de distribución
 
-Este documento define el panel que el encargado de distribución ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra nada por sí mismo, pero la fila de cada barril lleva con un clic al formulario de la operación que corresponde (la devolución de un barril despachado o el despacho de un barril con cerveza) y a la pantalla de consulta. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el encargado de distribución ve en la pantalla de inicio (`/home`): qué muestra, qué atajos ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. Es un panel de trabajo: no registra nada por sí mismo, pero la fila de cada barril lleva con un clic al formulario de la operación que corresponde (la devolución de un barril despachado o el despacho de un barril con cerveza) y a la pantalla de consulta. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -101,7 +101,7 @@ La condición de despacho vigente es común a las cuatro consultas: despacho reg
 - `home/dashboard-encargado-distribucion.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `devolucionesPendientes(dashboard)`, `clientesConBarriles(dashboard)` y `barrilesListos(dashboard)`, más la pieza compartida `encabezado`.
 - Reutiliza `fragments/boton-registrar`, `fragments/boton-abrir`, `planificacion_produccion/formato :: fecha`, `lote/formato :: duracion` y `receta/formato :: medida`.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard/CasosPruebaDashboardEncargadoDistribucion.md` y, en `../../../test/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardEncargadoDistribucion.md`, `CasosPruebaDashboardEncargadoDistribucionController.md` y `CasosPruebaPlantillasDashboardEncargadoDistribucion.md`.
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardEncargadoDistribucion.md` y, en `../../Testing/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardEncargadoDistribucion.md`, `CasosPruebaDashboardEncargadoDistribucionController.md` y `CasosPruebaPlantillasDashboardEncargadoDistribucion.md`.
 
 ## 7. Recorridos
 

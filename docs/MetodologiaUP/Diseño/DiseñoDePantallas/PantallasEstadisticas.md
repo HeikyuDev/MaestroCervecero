@@ -1,6 +1,6 @@
 # Diseño de la pantalla de estadísticas
 
-Este documento define la pantalla "Estadísticas": quién la ve, cómo se organiza en pestañas y qué muestra cada pestaña, en pantalla y en su reporte impreso. La estructura común de todo reporte y la receta para agregar una pestaña están en `../../../Tecnico/EstandaresUI.md`, sección "Estadísticas y reportes impresos". El comportamiento verificable está en `../../../test/casos_de_prueba/services/estadisticas` y en `../../../test/casos_de_prueba/controllers/estadisticas`.
+Este documento define la pantalla "Estadísticas": quién la ve, cómo se organiza en pestañas y qué muestra cada pestaña, en pantalla y en su reporte impreso. La estructura común de todo reporte y la receta para agregar una pestaña están en `../../../Tecnico/EstandaresUI.md`, sección "Estadísticas y reportes impresos". El comportamiento verificable está en `../../Testing/casos_de_prueba/services/estadisticas` y en `../../Testing/casos_de_prueba/controllers/estadisticas`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve la página HTML y el PDF. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 

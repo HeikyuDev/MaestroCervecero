@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Lotes
 
-Este documento define las pantallas del Controller del módulo de Lotes (Control de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `../../../test/casos_de_prueba/controllers/lote`; las reglas de negocio, en `../../../test/casos_de_prueba/services/lote` y en `../../Requerimientos/Dominio/Escalado`.
+Este documento define las pantallas del Controller del módulo de Lotes (Control de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `../../Testing/casos_de_prueba/controllers/lote`; las reglas de negocio, en `../../Testing/casos_de_prueba/services/lote` y en `../../Requerimientos/Dominio/Escalado`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML y fragmentos HTML para los modales. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 

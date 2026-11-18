@@ -1,6 +1,6 @@
 # Diseño del panel de control del gerente de producción
 
-Este documento define el panel que el gerente de producción ve en la pantalla de inicio (`/home`): qué muestra, qué enlaces ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es de solo lectura: no registra ni modifica nada; cada enlace lleva a la pantalla de consulta correspondiente. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el gerente de producción ve en la pantalla de inicio (`/home`): qué muestra, qué enlaces ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es de solo lectura: no registra ni modifica nada; cada enlace lleva a la pantalla de consulta correspondiente. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -106,7 +106,7 @@ Las consultas 1 y 2 usan el índice de `V20__indices_consultas_panel_y_ciclo_de_
 - `home/dashboard-gerente.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `produccionEnCurso(dashboard)`, `colaDeFermentadores(dashboard)` y `planificacionesPendientes(dashboard)`, más la pieza compartida `encabezado`.
 - Reutiliza `fragments/boton-abrir`, `fragments/enlace-equipo`, `lote/formato :: duracion`, `planificacion_produccion/formato :: fecha` y `prioridadPlanificacion`, y los mismos estilos de tarjeta y de tabla de las listas.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard/CasosPruebaDashboardGerente.md`, `../../../test/casos_de_prueba/controllers/dashboard/CasosPruebaMapperDashboardGerente.md`, `CasosPruebaDashboardGerenteController.md` y `CasosPruebaPlantillasDashboardGerente.md` documentan los casos con los mismos IDs de los tests.
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardGerente.md`, `../../Testing/casos_de_prueba/controllers/dashboard/CasosPruebaMapperDashboardGerente.md`, `CasosPruebaDashboardGerenteController.md` y `CasosPruebaPlantillasDashboardGerente.md` documentan los casos con los mismos IDs de los tests.
 
 ## 6. Recorridos
 

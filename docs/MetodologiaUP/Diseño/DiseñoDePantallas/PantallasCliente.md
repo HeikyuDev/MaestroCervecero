@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Gestión de Clientes
 
-Este documento define las pantallas del Controller del módulo de Gestión de Clientes: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../../test/casos_de_prueba/controllers/cliente/CasosPruebaClienteController.md` y las reglas de negocio en `../../../test/casos_de_prueba/services/cliente/CasosPruebaCliente.md`.
+Este documento define las pantallas del Controller del módulo de Gestión de Clientes: qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable está en `../../Testing/casos_de_prueba/controllers/cliente/CasosPruebaClienteController.md` y las reglas de negocio en `../../Testing/casos_de_prueba/services/cliente/CasosPruebaCliente.md`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 

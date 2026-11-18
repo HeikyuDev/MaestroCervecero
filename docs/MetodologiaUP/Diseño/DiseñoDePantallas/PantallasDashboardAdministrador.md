@@ -1,6 +1,6 @@
 # Diseño del panel de control del administrador
 
-Este documento define el panel que el administrador ve en la pantalla de inicio (`/home`): qué muestra, qué enlaces ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es de solo lectura: no registra ni modifica nada; cada enlace lleva a la pantalla de consulta correspondiente. El comportamiento verificable está en `../../../test/casos_de_prueba/services/dashboard` y en `../../../test/casos_de_prueba/controllers/dashboard`.
+Este documento define el panel que el administrador ve en la pantalla de inicio (`/home`): qué muestra, qué enlaces ofrece, qué permiso exige cada uno, cómo está armado y cuántos clics lleva cada objetivo del usuario. El panel es de solo lectura: no registra ni modifica nada; cada enlace lleva a la pantalla de consulta correspondiente. El comportamiento verificable está en `../../Testing/casos_de_prueba/services/dashboard` y en `../../Testing/casos_de_prueba/controllers/dashboard`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -84,7 +84,7 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
 - `home/dashboard-administrador.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `usuariosPorRol(dashboard)`, `usuariosRecientes(dashboard)` y `actividadReciente(dashboard)`, más las piezas compartidas `encabezado` y `contenidoFicha`.
 - Reutiliza `fragments/boton-abrir`, `planificacion_produccion/formato :: fechaHora`.
 
-**Pruebas y casos de prueba.** `../../../test/casos_de_prueba/services/dashboard/CasosPruebaDashboardAdministrador.md` y, en `../../../test/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardAdministrador.md`, `CasosPruebaDashboardAdministradorController.md` y `CasosPruebaPlantillasDashboardAdministrador.md`.
+**Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardAdministrador.md` y, en `../../Testing/casos_de_prueba/controllers/dashboard`, `CasosPruebaMapperDashboardAdministrador.md`, `CasosPruebaDashboardAdministradorController.md` y `CasosPruebaPlantillasDashboardAdministrador.md`.
 
 ## 6. Recorridos
 
