@@ -1469,13 +1469,13 @@ class OrdenCompraControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-OCC-66: el listado ofrece al GERENTE_DE_COMPRAS el botón de las solicitudes de cotización y el aviso de las que tienen planes listos")
+    @DisplayName("CP-OCC-66: el listado ofrece al GERENTE_DE_COMPRAS el botón de las solicitudes de cotización y el aviso de las que tienen el plan listo")
     void caso_cp_occ_66() throws Exception {
         // Arrange
         when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
         when(solicitudCotizacionServicio.buscarPendientesDeDecision()).thenReturn(List.of(
                 com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO.builder()
-                        .id(90L).etiquetaPlanificacion("Plan #7 - Pale Ale").cantidadPlanes(3).build()));
+                        .id(90L).etiquetaPlanificacion("Plan #7 - Pale Ale").build()));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -1485,8 +1485,8 @@ class OrdenCompraControllerTest {
                 .contains("data-procesos-compra").contains("href=\"/solicitudes-cotizacion\"")
                 .contains(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra.ENTRADA)
                 .contains("data-aviso-planes-pendientes")
-                .contains("Hay 1 solicitud de cotización con planes de órdenes de compra listos para revisar")
-                .contains("href=\"/solicitudes-cotizacion/90\"").contains("Solicitud #90 - Plan #7 - Pale Ale (3 planes)")
+                .contains("Hay 1 solicitud de cotización con el plan de órdenes de compra listo para revisar")
+                .contains("href=\"/solicitudes-cotizacion/90\"").contains("Solicitud #90 - Plan #7 - Pale Ale").doesNotContain("planes)")
                 .doesNotContain("data-aviso-por-confirmar");
     }
 
@@ -1531,7 +1531,7 @@ class OrdenCompraControllerTest {
 
     private static com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO prearmada(List<String> avisos) {
         return com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO.builder()
-                .idOrdenPropuesta(801L).idSolicitud(90L).numeroPlan(1).idPlanificacion(7L).idProveedor(4L)
+                .idOrdenPropuesta(801L).idSolicitud(90L).idPlanificacion(7L).idProveedor(4L)
                 .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5))
                 .items(List.of(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO.builder()
                         .idCatalogoProveedor(100L).cantidad(4).precioUnitario(new java.math.BigDecimal("30000")).build()))
@@ -1556,9 +1556,9 @@ class OrdenCompraControllerTest {
         // Assert
         assertThat(html)
                 .contains("Confirmar orden de compra propuesta")
-                .contains("Orden propuesta por el plan 1 de la solicitud de cotización #90.")
+                .contains("Orden propuesta por el plan de la solicitud de cotización #90.")
                 .contains("name=\"idOrdenPropuesta\" value=\"801\"")
-                .contains("href=\"/solicitudes-cotizacion/90?plan=1\"")
+                .contains("href=\"/solicitudes-cotizacion/90\"")
                 .contains("Volver a la solicitud de cotización")
                 .contains("name=\"idPlanificacionProduccion\" value=\"7\"")
                 .contains("name=\"idProveedor\" value=\"4\"")
@@ -1779,7 +1779,7 @@ class OrdenCompraControllerTest {
         String aviso = "La fecha de entrega indicada por el proveedor (10/11/2026) ya pasó; indique una nueva";
         when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenReturn(
                 com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO.builder()
-                        .idOrdenPropuesta(801L).idSolicitud(90L).numeroPlan(1).idPlanificacion(7L).idProveedor(4L)
+                        .idOrdenPropuesta(801L).idSolicitud(90L).idPlanificacion(7L).idProveedor(4L)
                         .items(List.of(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO.builder()
                                 .idCatalogoProveedor(100L).cantidad(4).precioUnitario(new java.math.BigDecimal("30000")).build()))
                         .avisos(List.of(aviso))

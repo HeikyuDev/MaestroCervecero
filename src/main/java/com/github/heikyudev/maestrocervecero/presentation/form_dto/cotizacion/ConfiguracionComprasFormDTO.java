@@ -17,8 +17,8 @@ import lombok.Setter;
  * órdenes de compra).
  * <p>
  * No admite actualización parcial: el gerente de compras siempre reenvía el conjunto completo. Los topes de las
- * anotaciones repiten {@code LimitesTecnicos.PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS} y
- * {@code LimitesTecnicos.CANTIDAD_PLANES_COMPRA_MAXIMA} (una anotación exige un literal).
+ * anotaciones repiten {@code LimitesTecnicos.PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS} (una anotación exige un
+ * literal).
  * </p>
  */
 @Getter
@@ -37,17 +37,9 @@ public class ConfiguracionComprasFormDTO {
     private Integer plazoRespuestaHoras;
 
     /**
-     * Cantidad de planes de órdenes de compra que se generan al cerrar una solicitud.
+     * Criterio con el que se ordenan las ofertas de cada insumo al armar el plan.
      */
-    @NotNull(message = "La cantidad de planes es obligatoria")
-    @Positive(message = "La cantidad de planes debe ser mayor a 0")
-    @Max(value = 10, message = "La cantidad de planes no puede superar 10 planes")
-    private Integer cantidadPlanes;
-
-    /**
-     * Criterio con el que se ordenan las ofertas de cada insumo.
-     */
-    @NotNull(message = "El criterio de los planes es obligatorio")
+    @NotNull(message = "El criterio del plan es obligatorio")
     private CriterioPlanCompra criterioPlanCompra;
 
     /**

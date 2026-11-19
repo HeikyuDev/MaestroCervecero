@@ -38,13 +38,7 @@ public class ConfiguracionComprasEntity extends AuditableEntity<String> {
     private Integer plazoRespuestaHoras;
 
     /**
-     * Cantidad de planes de órdenes de compra distintos que se generan al cerrar una solicitud de cotización.
-     */
-    @Column(name = "cantidad_planes", nullable = false)
-    private Integer cantidadPlanes;
-
-    /**
-     * Criterio con el que se ordenan las ofertas de cada insumo.
+     * Criterio con el que se ordenan las ofertas de cada insumo al armar el plan.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "criterio_plan_compra", nullable = false)

@@ -48,9 +48,9 @@ import java.util.Map;
 
 /**
  * MapperSolicitudCotizacion tiene la responsabilidad de mapear una solicitud de cotización, con sus líneas,
- * invitaciones y planes de órdenes de compra, a sus DTOs de respuesta. También arma los textos que comparten la pantalla
+ * invitaciones y su plan de órdenes de compra, a sus DTOs de respuesta. También arma los textos que comparten la pantalla
  * del gerente de compras y la del proveedor (tipo del insumo, nombre de la presentación con su contenido) y calcula la
- * cobertura de cada insumo de un plan.
+ * cobertura de cada insumo del plan.
  */
 public final class MapperSolicitudCotizacion {
 
@@ -61,7 +61,7 @@ public final class MapperSolicitudCotizacion {
     }
 
     /**
-     * Mapea una solicitud para los listados: sus datos, los conteos y los avisos, sin líneas, invitaciones ni planes.
+     * Mapea una solicitud para los listados: sus datos, los conteos y los avisos, sin líneas, invitaciones ni plan.
      *
      * @param entity Solicitud a convertir.
      * @return El DTO, o {@code null} si la entidad es nula.
@@ -71,7 +71,7 @@ public final class MapperSolicitudCotizacion {
     }
 
     /**
-     * Mapea una solicitud completa: sus datos, los conteos, los avisos, las líneas, las invitaciones y los planes.
+     * Mapea una solicitud completa: sus datos, los conteos, los avisos, las líneas, las invitaciones y el plan.
      *
      * @param entity Solicitud a convertir.
      * @return El DTO, o {@code null} si la entidad es nula.
@@ -81,7 +81,7 @@ public final class MapperSolicitudCotizacion {
     }
 
     private static SolicitudCotizacionResponseDTO armar(SolicitudCotizacionEntity entity, boolean completo) {
-        List<PlanCompraResponseDTO> planes = entity.getPlanes().stream().map(plan -> toPlanDTO(plan, entity.getLineas())).toList();
+        PlanCompraResponseDTO plan = entity.getPlan() == null ? null : toPlanDTO(entity.getPlan(), entity.getLineas());
         int respuestas = (int) entity.getInvitaciones().stream().filter(invitacion -> invitacion.getFechaRespuesta() != null).count();
 
         return SolicitudCotizacionResponseDTO.builder()
@@ -93,7 +93,7 @@ public final class MapperSolicitudCotizacion {
                 .fechaSolicitud(entity.getCreatedDate())
                 .fechaLimiteRespuesta(entity.getFechaLimiteRespuesta())
                 .fechaCierre(entity.getFechaCierre())
-                .fechaGeneracionPlanes(entity.getFechaGeneracionPlanes())
+                .fechaGeneracionPlan(entity.getFechaGeneracionPlan())
                 .fechaCancelacion(entity.getFechaCancelacion())
                 .motivoCancelacion(entity.getMotivoCancelacion())
                 .fechaConfirmacionEnvio(entity.getFechaConfirmacionEnvio())
@@ -102,23 +102,22 @@ public final class MapperSolicitudCotizacion {
                 .cantidadInsumos(entity.getLineas().size())
                 .cantidadInvitaciones(entity.getInvitaciones().size())
                 .cantidadRespuestas(respuestas)
-                .cantidadPlanes(entity.getPlanes().size())
                 .fallaCierre(entity.isFallaCierre())
                 .motivoFallaCierre(entity.getMotivoFallaCierre())
                 .tiempoRestante(entity.getEstado() == EstadoSolicitudCotizacion.ABIERTA ? tiempoRestante(entity.getFechaLimiteRespuesta(), LocalDateTime.now()) : null)
-                .planElegido(entity.getPlanes().stream().anyMatch(plan -> plan.getEstado() == EstadoPlanCompra.ELEGIDO))
-                .avisos(armarAvisos(entity, respuestas, planes))
+                .planElegido(entity.getPlan() != null && entity.getPlan().getEstado() == EstadoPlanCompra.ELEGIDO)
+                .avisos(armarAvisos(entity, respuestas, plan))
                 .lineas(completo ? entity.getLineas().stream().map(MapperSolicitudCotizacion::toLineaDTO).toList() : null)
                 .invitaciones(completo ? entity.getInvitaciones().stream().map(MapperSolicitudCotizacion::toInvitacionDTO).toList() : null)
-                .planes(completo ? planes : null)
+                .plan(completo ? plan : null)
                 .build();
     }
 
     /**
      * Las situaciones que el gerente de compras debe conocer: insumos que ningún proveedor ofrecía, solicitud cerrada
-     * sin respuestas o sin ofertas útiles, y planes que no cubren todo el faltante.
+     * sin respuestas o sin ofertas útiles, y plan que no cubre todo el faltante.
      */
-    private static List<String> armarAvisos(SolicitudCotizacionEntity entity, int respuestas, List<PlanCompraResponseDTO> planes) {
+    private static List<String> armarAvisos(SolicitudCotizacionEntity entity, int respuestas, PlanCompraResponseDTO plan) {
         List<String> avisos = new ArrayList<>();
         List<String> sinProveedor = entity.getLineas().stream()
                 .filter(LineaSolicitudCotizacionEntity::isSinProveedor)
@@ -158,8 +157,8 @@ public final class MapperSolicitudCotizacion {
         if (entity.isFallaCierre()) {
             avisos.add("No se pudo cerrar la solicitud automáticamente: " + entity.getMotivoFallaCierre());
         }
-        if (entity.getEstado() == EstadoSolicitudCotizacion.PLANES_GENERADOS && planes.stream().noneMatch(PlanCompraResponseDTO::isCubreTodo)) {
-            avisos.add("Ningún plan cubre todo el faltante: revise la cantidad sin cubrir de cada insumo");
+        if (entity.getEstado() == EstadoSolicitudCotizacion.PLAN_GENERADO && plan != null && !plan.isCubreTodo()) {
+            avisos.add("El plan no cubre todo el faltante: revise la cantidad sin cubrir de cada insumo");
         }
         return avisos;
     }
@@ -292,7 +291,6 @@ public final class MapperSolicitudCotizacion {
         List<CoberturaInsumoPlanResponseDTO> coberturas = calcularCoberturas(plan, lineas);
         return PlanCompraResponseDTO.builder()
                 .id(plan.getId())
-                .numero(plan.getNumero())
                 .estado(plan.getEstado())
                 .costoTotal(ordenes.stream().map(OrdenCompraPropuestaResponseDTO::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add))
                 .cubreTodo(coberturas.stream().allMatch(cobertura -> cobertura.getCantidadSinCubrir() <= SALDO_MINIMO))

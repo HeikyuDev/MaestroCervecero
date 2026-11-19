@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  * La respuesta bloquea la solicitud antes de volver a validar el enlace: no se cruza con el cierre programado, de modo
  * que una respuesta nunca se registra en una solicitud que ya cerró. Un proveedor puede ofrecer un mismo insumo en varias
  * presentaciones de su catálogo: cada presentación con precio y cantidad es una oferta, y una presentación con cantidad
- * 0 y sin precio es una oferta sin stock, que los planes no usan. Las ofertas se actualizan en su
+ * 0 y sin precio es una oferta sin stock, que el plan no usa. Las ofertas se actualizan en su
  * lugar (no se borran y se vuelven a crear) para respetar la unicidad de una oferta por invitación, insumo y presentación.
  * </p>
  */

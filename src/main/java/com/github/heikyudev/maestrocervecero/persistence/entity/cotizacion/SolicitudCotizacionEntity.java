@@ -16,7 +16,7 @@ import java.util.List;
  * <p>
  * Tiene una línea por insumo faltante ({@link LineaSolicitudCotizacionEntity}), una invitación por cada proveedor
  * activo que ofrece alguno de esos insumos ({@link InvitacionCotizacionEntity}, con las ofertas que respondió) y, una
- * vez cerrada, los planes de órdenes de compra generados ({@link PlanCompraEntity}). Su estado se guarda en la base de
+ * vez cerrada, el plan de órdenes de compra generado ({@link PlanCompraEntity}). Su estado se guarda en la base de
  * datos: el cierre por vencimiento del plazo no depende de que la aplicación siga corriendo.
  * </p>
  */
@@ -56,9 +56,9 @@ public class SolicitudCotizacionEntity extends AuditableEntity<String> {
     @Column(name = "fecha_cierre")
     private LocalDateTime fechaCierre;
 
-    // Momento en que se generaron los planes; nula si todavía no tiene planes
-    @Column(name = "fecha_generacion_planes")
-    private LocalDateTime fechaGeneracionPlanes;
+    // Momento en que se generó el plan; nula si todavía no tiene plan
+    @Column(name = "fecha_generacion_plan")
+    private LocalDateTime fechaGeneracionPlan;
 
     @Column(name = "fecha_cancelacion")
     private LocalDateTime fechaCancelacion;
@@ -87,8 +87,7 @@ public class SolicitudCotizacionEntity extends AuditableEntity<String> {
     @Builder.Default
     private List<InvitacionCotizacionEntity> invitaciones = new ArrayList<>();
 
-    @OneToMany(mappedBy = "solicitud", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("numero ASC")
-    @Builder.Default
-    private List<PlanCompraEntity> planes = new ArrayList<>();
+    // Plan de órdenes de compra; nulo mientras no se generó (o si la solicitud cerró sin ofertas útiles)
+    @OneToOne(mappedBy = "solicitud", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private PlanCompraEntity plan;
 }

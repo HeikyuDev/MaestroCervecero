@@ -5,7 +5,7 @@
 <body>
 
 <div id="solicitud-detalle-content" class="space-y-6"
-     th:with="planesVigentes=${solicitud.estado.name() == 'PLANES_GENERADOS'}">
+     th:with="planVigente=${solicitud.estado.name() == 'PLAN_GENERADO'}">
 
     <!-- Encabezado de la página -->
     <div class="flex items-start justify-between gap-4">
@@ -15,10 +15,10 @@
             <span th:text="|Volver a ${T(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra).ENTRADA.toLowerCase()}|">Volver a solicitudes de cotización</span>
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="|Solicitud de cotización #${solicitud.id}|">Solicitud de cotización #3</h1>
-        <p class="text-sm text-slate-500">Insumos faltantes solicitados a los proveedores, la situación de cada proveedor y los planes de órdenes de compra generados.</p>
+        <p class="text-sm text-slate-500">Insumos faltantes solicitados a los proveedores, la situación de cada proveedor y el plan de órdenes de compra generado.</p>
     </div>
-        <!-- Confirmar el envío (pendiente de confirmación) y cancelar (pendiente, abierta o con planes sin elegir) -->
-        <div th:if="${solicitud.estado.name() == 'PENDIENTE_DE_CONFIRMACION' or solicitud.estado.name() == 'ABIERTA' or (solicitud.estado.name() == 'PLANES_GENERADOS' and !solicitud.planElegido)}"
+        <!-- Confirmar el envío (pendiente de confirmación) y cancelar (pendiente, abierta o con el plan sin elegir) -->
+        <div th:if="${solicitud.estado.name() == 'PENDIENTE_DE_CONFIRMACION' or solicitud.estado.name() == 'ABIERTA' or (solicitud.estado.name() == 'PLAN_GENERADO' and !solicitud.planElegido)}"
              class="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <form th:if="${solicitud.estado.name() == 'PENDIENTE_DE_CONFIRMACION'}" method="post"
                   th:action="@{/solicitudes-cotizacion/{id}/confirmar-envio(id=${solicitud.id})}">
@@ -94,8 +94,8 @@
                     <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${solicitud.fechaCierre})}"></th:block></dd>
                 </div>
                 <div>
-                    <dt class="text-xs font-medium text-slate-500">Planes generados</dt>
-                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${solicitud.fechaGeneracionPlanes})}"></th:block></dd>
+                    <dt class="text-xs font-medium text-slate-500">Plan generado</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${solicitud.fechaGeneracionPlan})}"></th:block></dd>
                 </div>
             </dl>
         </div>
@@ -185,39 +185,31 @@
         </div>
     </section>
 
-    <!-- Planes de órdenes de compra: uno por pestaña -->
-    <section th:if="${planActivo != null}" class="space-y-6" data-planes>
+    <!-- Plan de órdenes de compra -->
+    <section th:if="${solicitud.plan != null}" th:with="plan=${solicitud.plan}" class="space-y-6" data-plan>
         <div>
-            <h2 class="text-lg font-semibold text-slate-900">Planes de órdenes de compra</h2>
-            <p class="text-sm text-slate-500">El plan 1 es el mejor según el criterio de la configuración de compras. Confirme cada orden propuesta en el alta de órdenes de compra: la primera que confirme elige su plan y descarta los demás.</p>
+            <h2 class="text-lg font-semibold text-slate-900">Plan de órdenes de compra</h2>
+            <p class="text-sm text-slate-500">Es el mejor plan según el criterio de la configuración de compras. Confirme cada orden propuesta en el alta de órdenes de compra: la primera que confirme elige el plan y desde ese momento la solicitud no se puede cancelar.</p>
         </div>
-
-        <th:block th:replace="~{fragments/pestanas :: pestanas('Planes de órdenes de compra', 'planes', ~{::enlacesPlanes})}">
-            <th:block th:fragment="enlacesPlanes">
-                <th:block th:each="p : ${solicitud.planes}">
-                    <a th:replace="~{fragments/pestanas :: pestana(@{/solicitudes-cotizacion/{id}(id=${solicitud.id},plan=${p.numero})}, ${p.numero == planActivo.numero}, 'plan', ~{fragments/pestanas :: bi('bi-diagram-3')}, |Plan ${p.numero}|)}"></a>
-                </th:block>
-            </th:block>
-        </th:block>
 
         <!-- Resumen del plan -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
-            <h3 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700" th:text="|Plan ${planActivo.numero}|">Plan 1</h3>
+            <h3 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Resumen del plan</h3>
             <div class="space-y-5 p-5">
                 <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div>
                         <dt class="text-xs font-medium text-slate-500">Estado</dt>
-                        <dd class="mt-1"><span th:replace="~{cotizacion/formato :: estadoPlan(${planActivo.estado})}"></span></dd>
+                        <dd class="mt-1"><span th:replace="~{cotizacion/formato :: estadoPlan(${plan.estado})}"></span></dd>
                     </div>
                     <div>
                         <dt class="text-xs font-medium text-slate-500">Órdenes propuestas</dt>
-                        <dd class="mt-1 text-slate-900" th:text="${#lists.size(planActivo.ordenes)}">2</dd>
+                        <dd class="mt-1 text-slate-900" th:text="${#lists.size(plan.ordenes)}">2</dd>
                     </div>
                 </dl>
                 <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div>
                         <dt class="text-xs font-medium text-slate-500">Costo total</dt>
-                        <dd class="mt-1 text-lg font-semibold text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(planActivo.costoTotal)}">$ 12.500,00</dd>
+                        <dd class="mt-1 text-lg font-semibold text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(plan.costoTotal)}">$ 12.500,00</dd>
                     </div>
                 </dl>
             </div>
@@ -237,7 +229,7 @@
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                <tr th:each="c : ${planActivo.coberturas}">
+                <tr th:each="c : ${plan.coberturas}">
                     <td class="px-4 py-3 font-medium text-slate-900" th:text="${c.nombreInsumo}">Malta Pilsen</td>
                     <td class="px-4 py-3 text-right text-slate-700"><th:block th:replace="~{receta/formato :: medida(${c.cantidadFaltante}, ${c.unidad})}"></th:block></td>
                     <td class="px-4 py-3 text-right text-slate-700"><th:block th:replace="~{receta/formato :: medida(${c.cantidadCubierta}, ${c.unidad})}"></th:block></td>
@@ -251,7 +243,7 @@
         </div>
 
         <!-- Órdenes propuestas: una por proveedor, cada una en su fila -->
-        <div th:each="o : ${planActivo.ordenes}" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden" data-orden-propuesta>
+        <div th:each="o : ${plan.ordenes}" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden" data-orden-propuesta>
             <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-slate-200">
                 <div class="min-w-0">
                     <h3 class="text-sm font-semibold text-slate-700">
@@ -268,9 +260,9 @@
                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors">
                         <i class="bi bi-eye"></i> <span th:text="|Ver orden de compra #${o.idOrdenCompra}|">Ver orden de compra #12</span>
                     </a>
-                    <th:block th:if="${planesVigentes and o.estado.name() == 'PROPUESTA' and (planActivo.estado.name() == 'PROPUESTO' or planActivo.estado.name() == 'ELEGIDO')}">
-                        <form th:if="${planActivo.estado.name() == 'ELEGIDO'}" method="post"
-                              th:action="@{/solicitudes-cotizacion/{id}/ordenes-propuestas/{idOrden}/descartar(id=${solicitud.id},idOrden=${o.id},plan=${planActivo.numero})}">
+                    <th:block th:if="${planVigente and o.estado.name() == 'PROPUESTA' and (plan.estado.name() == 'PROPUESTO' or plan.estado.name() == 'ELEGIDO')}">
+                        <form th:if="${plan.estado.name() == 'ELEGIDO'}" method="post"
+                              th:action="@{/solicitudes-cotizacion/{id}/ordenes-propuestas/{idOrden}/descartar(id=${solicitud.id},idOrden=${o.id})}">
                             <button type="submit" data-confirmar-titulo="Descartar orden propuesta"
                                     th:data-confirmar-mensaje="|No se registrará la orden de compra propuesta a ${o.razonSocial}. Esta acción no se puede deshacer.|"
                                     class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-colors">
@@ -320,7 +312,7 @@
 
     <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
     <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-cancelar', 'Cancelar solicitud de cotización',
-            'Se cancela y queda registrado el motivo. Los enlaces de los proveedores dejan de servir en el momento y sus planes quedan cancelados. Esta acción no se puede deshacer.',
+            'Se cancela y queda registrado el motivo. Los enlaces de los proveedores dejan de servir en el momento y su plan queda cancelado. Esta acción no se puede deshacer.',
             'Confirmar cancelación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
             'Se consiguió el insumo por otro medio')}"></div>
 </div>

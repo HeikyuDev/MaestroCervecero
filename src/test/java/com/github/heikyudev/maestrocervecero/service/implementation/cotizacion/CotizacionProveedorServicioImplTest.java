@@ -173,7 +173,7 @@ class CotizacionProveedorServicioImplTest {
     void enlace_solicitudCerradaOVencida() {
         String mensaje = "La solicitud de cotización ya cerró: el plazo para responder venció";
 
-        solicitud.setEstado(EstadoSolicitudCotizacion.PLANES_GENERADOS);
+        solicitud.setEstado(EstadoSolicitudCotizacion.PLAN_GENERADO);
         assertThatThrownBy(() -> servicio.buscarCotizacion(TOKEN)).isInstanceOf(EnlaceCotizacionInvalidoException.class).hasMessage(mensaje);
 
         solicitud.setEstado(EstadoSolicitudCotizacion.ABIERTA);

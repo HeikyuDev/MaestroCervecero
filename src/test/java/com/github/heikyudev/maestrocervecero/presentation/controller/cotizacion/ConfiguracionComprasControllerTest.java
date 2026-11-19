@@ -53,7 +53,7 @@ class ConfiguracionComprasControllerTest {
     private UserDetailServiceImpl userDetailService;
 
     private static ConfiguracionComprasResponseDTO configuracion() {
-        return ConfiguracionComprasResponseDTO.builder().id(1L).plazoRespuestaHoras(48).cantidadPlanes(3)
+        return ConfiguracionComprasResponseDTO.builder().id(1L).plazoRespuestaHoras(48)
                 .criterioPlanCompra(CriterioPlanCompra.PONDERADO).pesoPrecio(50.0).build();
     }
 
@@ -74,15 +74,15 @@ class ConfiguracionComprasControllerTest {
         assertThat(html)
                 .contains("Configuración de Compras")
                 .contains("action=\"/configuracion-compras\"").contains("novalidate")
-                .contains("Solicitudes de cotización").contains("Planes de órdenes de compra")
-                .contains("Plazo de respuesta " + OBLIGATORIO).contains("Cantidad de planes " + OBLIGATORIO)
-                .contains("Criterio de los planes " + OBLIGATORIO).contains("Peso del precio " + OBLIGATORIO)
-                .contains("name=\"plazoRespuestaHoras\" value=\"48\"").contains("name=\"cantidadPlanes\" value=\"3\"")
+                .contains("Solicitudes de cotización").contains("Plan de órdenes de compra")
+                .contains("Plazo de respuesta " + OBLIGATORIO).doesNotContain("Cantidad de planes")
+                .contains("Criterio del plan " + OBLIGATORIO).contains("Peso del precio " + OBLIGATORIO)
+                .contains("name=\"plazoRespuestaHoras\" value=\"48\"").doesNotContain("cantidadPlanes")
                 .contains("name=\"pesoPrecio\" value=\"50\"").doesNotContain("value=\"50.0\"")
-                .contains("placeholder=\"Ej: 48\"").contains("placeholder=\"Ej: 3\"").contains("placeholder=\"Ej: 50\"")
+                .contains("placeholder=\"Ej: 48\"").contains("placeholder=\"Ej: 50\"")
                 .contains("<option value=\"PONDERADO\" selected=\"selected\">Ponderado entre precio y cantidad</option>")
                 .contains("Menor precio").contains("Mayor cantidad disponible")
-                .contains("Un número entero mayor a 0 y hasta 720").contains("Un número entero mayor a 0 y hasta 10")
+                .contains("Un número entero mayor a 0 y hasta 720")
                 .contains("Solo se usa con el criterio ponderado")
                 .contains("href=\"/configuracion-compras\"")
                 .doesNotContain("No se pudo guardar");
@@ -93,7 +93,7 @@ class ConfiguracionComprasControllerTest {
     @DisplayName("CP-CCC-02: guardar delega el formulario completo en el service y redirige con alerta de éxito")
     void caso_cp_ccc_02() throws Exception {
         // Act + Assert
-        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "24").param("cantidadPlanes", "5")
+        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "24")
                         .param("criterioPlanCompra", "MENOR_PRECIO").param("pesoPrecio", "70.5"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL))
@@ -103,7 +103,6 @@ class ConfiguracionComprasControllerTest {
         ArgumentCaptor<ConfiguracionComprasFormDTO> captor = ArgumentCaptor.forClass(ConfiguracionComprasFormDTO.class);
         verify(configuracionComprasServicio).actualizarConfiguracion(captor.capture());
         assertThat(captor.getValue().getPlazoRespuestaHoras()).isEqualTo(24);
-        assertThat(captor.getValue().getCantidadPlanes()).isEqualTo(5);
         assertThat(captor.getValue().getCriterioPlanCompra()).isEqualTo(CriterioPlanCompra.MENOR_PRECIO);
         assertThat(captor.getValue().getPesoPrecio()).isEqualTo(70.5);
     }
@@ -112,14 +111,13 @@ class ConfiguracionComprasControllerTest {
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
     @DisplayName("CP-CCC-03: sin datos vuelve al formulario con cada mensaje obligatorio, sin llamar al service")
     void caso_cp_ccc_03() throws Exception {
-        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "").param("cantidadPlanes", "")
+        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "")
                         .param("criterioPlanCompra", "").param("pesoPrecio", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
                 .andExpect(content().string(containsString("El plazo de respuesta es obligatorio")))
-                .andExpect(content().string(containsString("La cantidad de planes es obligatoria")))
-                .andExpect(content().string(containsString("El criterio de los planes es obligatorio")))
+                .andExpect(content().string(containsString("El criterio del plan es obligatorio")))
                 .andExpect(content().string(containsString("El peso del precio es obligatorio")));
 
         verify(configuracionComprasServicio, never()).actualizarConfiguracion(any());
@@ -129,17 +127,15 @@ class ConfiguracionComprasControllerTest {
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
     @DisplayName("CP-CCC-04: los topes y rangos se rechazan en el formulario con el mensaje de cada campo")
     void caso_cp_ccc_04() throws Exception {
-        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "721").param("cantidadPlanes", "11")
+        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "721")
                         .param("criterioPlanCompra", "PONDERADO").param("pesoPrecio", "100.5"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("El plazo de respuesta no puede superar 720 horas")))
-                .andExpect(content().string(containsString("La cantidad de planes no puede superar 10 planes")))
                 .andExpect(content().string(containsString("El peso del precio debe estar entre 0 y 100")));
-        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "0").param("cantidadPlanes", "0")
+        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "0")
                         .param("criterioPlanCompra", "PONDERADO").param("pesoPrecio", "-1"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("El plazo de respuesta debe ser mayor a 0")))
-                .andExpect(content().string(containsString("La cantidad de planes debe ser mayor a 0")))
                 .andExpect(content().string(containsString("El peso del precio debe estar entre 0 y 100")));
 
         verify(configuracionComprasServicio, never()).actualizarConfiguracion(any());
@@ -151,7 +147,7 @@ class ConfiguracionComprasControllerTest {
     void caso_cp_ccc_05() throws Exception {
         when(configuracionComprasServicio.actualizarConfiguracion(any())).thenThrow(new ReglaNegocioException("El peso del precio debe estar entre 0 y 100"));
 
-        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "24").param("cantidadPlanes", "5")
+        mockMvc.perform(post(URL).with(csrf()).param("plazoRespuestaHoras", "24")
                         .param("criterioPlanCompra", "MENOR_PRECIO").param("pesoPrecio", "30"))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA))

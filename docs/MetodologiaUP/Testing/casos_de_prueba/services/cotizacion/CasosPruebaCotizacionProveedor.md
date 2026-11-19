@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 |**CP-CPV-01**|Token inválido|Token nulo, vacío, en blanco, de 129 caracteres o desconocido|Enlace existente $\rightarrow$ **No**|Lanza `EnlaceCotizacionInvalidoException` ("El enlace de la solicitud de cotización no es válido").|
 |**CP-CPV-02**|Solicitud cancelada|Solicitud `CANCELADA`|Estado $\rightarrow$ **CANCELADA**|Lanza "La solicitud de cotización fue cancelada: ya no se reciben respuestas".|
-|**CP-CPV-03**|Solicitud cerrada o vencida|Solicitud con planes generados; abierta con la fecha límite vencida; y abierta con el enlace vencido|Abierta y vigente $\rightarrow$ **No**|Lanza "La solicitud de cotización ya cerró: el plazo para responder venció" en los tres casos.|
+|**CP-CPV-03**|Solicitud cerrada o vencida|Solicitud con el plan generado; abierta con la fecha límite vencida; y abierta con el enlace vencido|Abierta y vigente $\rightarrow$ **No**|Lanza "La solicitud de cotización ya cerró: el plazo para responder venció" en los tres casos.|
 |**CP-CPV-04**|Proveedor dado de baja|Proveedor `BAJA`|Proveedor activo $\rightarrow$ **No**|Lanza "El enlace ya no está habilitado para responder la solicitud de cotización".|
 
 ### 2. `buscarCotizacion(String token)`

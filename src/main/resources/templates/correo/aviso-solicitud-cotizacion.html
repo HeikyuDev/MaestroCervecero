@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    Correo con el que se avisa a un gerente de compras una novedad de una solicitud de cotización (planes listos para
+    Correo con el que se avisa a un gerente de compras una novedad de una solicitud de cotización (plan listo para
     revisar, insumos sin proveedor, cierre sin ofertas). Lo procesa ICorreoServicio fuera de una request HTTP, por lo
     que el enlace llega completo en la variable "enlace".
     Variables: nombre, titulo, mensaje, detalles (lista de textos, puede estar vacía), enlace.
@@ -22,15 +22,15 @@
                     <td style="background-color:#0f172a;padding:24px;text-align:center;">
                         <span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;">MAESTRO</span><span
                             style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#f59e0b;">CERVECERO</span>
-                        <div style="font-size:13px;color:#94a3b8;margin-top:4px;" th:text="${titulo}">Planes de órdenes de compra listos para revisar</div>
+                        <div style="font-size:13px;color:#94a3b8;margin-top:4px;" th:text="${titulo}">Plan de órdenes de compra listo para revisar</div>
                     </td>
                 </tr>
                 <tr>
                     <td style="padding:32px 32px 8px 32px;font-size:15px;line-height:1.6;">
                         <p style="margin:0 0 16px 0;">Hola <span th:text="${nombre}">Juan</span>:</p>
-                        <p style="margin:0 0 12px 0;" th:text="${mensaje}">La solicitud de cotización #3 cerró y sus planes están listos para revisar</p>
+                        <p style="margin:0 0 12px 0;" th:text="${mensaje}">La solicitud de cotización #3 cerró y su plan de órdenes de compra está listo para revisar</p>
                         <ul th:if="${detalles != null and !#lists.isEmpty(detalles)}" style="margin:0 0 16px 0;padding-left:20px;">
-                            <li th:each="detalle : ${detalles}" th:text="${detalle}">Planes generados: 3</li>
+                            <li th:each="detalle : ${detalles}" th:text="${detalle}">Órdenes de compra propuestas: 2</li>
                         </ul>
                     </td>
                 </tr>

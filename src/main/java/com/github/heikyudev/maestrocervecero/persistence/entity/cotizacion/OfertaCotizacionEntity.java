@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 /**
  * Oferta de un proveedor para un insumo de una solicitud de cotización: el ítem de su catálogo (insumo y presentación
  * comercial), el precio de cada unidad de esa presentación y cuántas unidades puede entregar. Con cantidad 0 el
- * proveedor indica que no tiene stock de esa presentación: no lleva precio y los planes no la usan.
+ * proveedor indica que no tiene stock de esa presentación: no lleva precio y el plan no la usa.
  */
 @Entity
 @Table(name = "oferta_cotizacion")

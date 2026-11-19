@@ -25,7 +25,6 @@ public final class MapperConfiguracionCompras {
         return ConfiguracionComprasResponseDTO.builder()
                 .id(entity.getId())
                 .plazoRespuestaHoras(entity.getPlazoRespuestaHoras())
-                .cantidadPlanes(entity.getCantidadPlanes())
                 .criterioPlanCompra(entity.getCriterioPlanCompra())
                 .pesoPrecio(entity.getPesoPrecio())
                 .build();

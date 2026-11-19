@@ -142,15 +142,15 @@ class ProcesosCotizacionTest {
         NotificadorCotizaciones notificador = new NotificadorCotizaciones(correo, usuarios, "https://cerveceria.com");
         ArgumentCaptor<Map<String, Object>> variables = ArgumentCaptor.forClass(Map.class);
 
-        notificador.avisarGerentesDeCompras(90L, "Planes listos", "La solicitud cerró", List.of("Planes generados: 3"));
+        notificador.avisarGerentesDeCompras(90L, "Plan listo", "La solicitud cerró", List.of("Órdenes de compra propuestas: 2"));
 
-        verify(correo).enviarCorreoHtml(eq("ana@cerveceria.com"), eq("Planes listos"), eq(NotificadorCotizaciones.PLANTILLA_AVISO), variables.capture());
-        verify(correo).enviarCorreoHtml(eq("luis@cerveceria.com"), eq("Planes listos"), eq(NotificadorCotizaciones.PLANTILLA_AVISO), org.mockito.ArgumentMatchers.anyMap());
+        verify(correo).enviarCorreoHtml(eq("ana@cerveceria.com"), eq("Plan listo"), eq(NotificadorCotizaciones.PLANTILLA_AVISO), variables.capture());
+        verify(correo).enviarCorreoHtml(eq("luis@cerveceria.com"), eq("Plan listo"), eq(NotificadorCotizaciones.PLANTILLA_AVISO), org.mockito.ArgumentMatchers.anyMap());
         assertThat(variables.getValue())
                 .containsEntry("nombre", "Ana")
                 .containsEntry("mensaje", "La solicitud cerró")
                 .containsEntry("enlace", "https://cerveceria.com/solicitudes-cotizacion/90")
-                .containsEntry("detalles", List.of("Planes generados: 3"));
+                .containsEntry("detalles", List.of("Órdenes de compra propuestas: 2"));
 
         // Sin solicitud (no se pudo generar) el enlace lleva al listado de procesos de compra
         notificador.avisarGerentesDeCompras(null, "Sin solicitud", "No se generó", List.of());

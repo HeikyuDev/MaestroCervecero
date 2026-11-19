@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.cotizacion
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.service.implementation.cotizacion.EnvioInvitacionesCotizacion;
 import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISolicitudCotizacionServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.PlanCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
@@ -33,7 +32,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * <p>
  * El listado muestra primero las solicitudes pendientes de confirmación, después las abiertas con el tiempo que les
  * queda y luego las demás, de la más nueva a la más vieja. Una solicitud pendiente de confirmación se confirma (envío a
- * los proveedores) o se cancela desde su detalle. El detalle muestra cada plan en su pestaña ({@code ?plan=N}); cada orden propuesta se confirma en el alta
+ * los proveedores) o se cancela desde su detalle. El detalle muestra el plan de órdenes de compra generado; cada orden propuesta se confirma en el alta
  * de órdenes de compra prearmada ({@code /ordenes-compra/nuevo?idOrdenPropuesta=X}) y las del plan elegido se pueden
  * descartar.
  * </p>
@@ -70,36 +69,26 @@ public class SolicitudCotizacionController {
     }
 
     /**
-     * Muestra el detalle de una solicitud: sus datos, los insumos solicitados, los proveedores invitados y los planes,
-     * uno por pestaña. Sin {@code plan} (o con uno que no existe) se muestra el primero. Si la solicitud no existe, el
-     * {@code ControllerAdvices} vuelve al origen con el motivo.
+     * Muestra el detalle de una solicitud: sus datos, los insumos solicitados, los proveedores invitados y su plan de
+     * órdenes de compra. Si la solicitud no existe, el {@code ControllerAdvices} vuelve al origen con el motivo.
      */
     @GetMapping("/{id}")
-    public String mostrarDetalle(@PathVariable Long id,
-                                 @RequestParam(required = false) Integer plan,
-                                 Model model) {
-        SolicitudCotizacionResponseDTO solicitud = solicitudCotizacionServicio.buscarPorId(id);
-        PlanCompraResponseDTO planActivo = solicitud.getPlanes().stream()
-                .filter(p -> p.getNumero().equals(plan))
-                .findFirst()
-                .orElse(solicitud.getPlanes().isEmpty() ? null : solicitud.getPlanes().get(0));
-        model.addAttribute("solicitud", solicitud);
-        model.addAttribute("planActivo", planActivo);
+    public String mostrarDetalle(@PathVariable Long id, Model model) {
+        model.addAttribute("solicitud", solicitudCotizacionServicio.buscarPorId(id));
         return VISTA_DETALLE;
     }
 
     /**
-     * Descarta una orden propuesta del plan elegido y vuelve a la pestaña del plan. Si el service la rechaza, el
+     * Descarta una orden propuesta del plan elegido y vuelve al detalle de la solicitud. Si el service la rechaza, el
      * {@code ControllerAdvices} vuelve al origen con el motivo.
      */
     @PostMapping("/{id}/ordenes-propuestas/{idOrdenPropuesta}/descartar")
     public String descartarOrdenPropuesta(@PathVariable Long id,
                                           @PathVariable Long idOrdenPropuesta,
-                                          @RequestParam(required = false) Integer plan,
                                           RedirectAttributes redirectAttributes) {
         solicitudCotizacionServicio.descartarOrdenPropuesta(id, idOrdenPropuesta);
         agregarMensaje(redirectAttributes, "Orden propuesta descartada correctamente", TipoAlerta.SUCCESS);
-        return "redirect:" + URL_LISTA + "/" + id + (plan == null ? "" : "?plan=" + plan);
+        return "redirect:" + URL_LISTA + "/" + id;
     }
 
     /**
@@ -116,7 +105,7 @@ public class SolicitudCotizacionController {
     }
 
     /**
-     * Cancela a mano una solicitud pendiente de confirmación, abierta o con planes sin elegir y vuelve a su detalle. El motivo es obligatorio: si
+     * Cancela a mano una solicitud pendiente de confirmación, abierta o con el plan sin elegir y vuelve a su detalle. El motivo es obligatorio: si
      * falta o el service rechaza la cancelación, el {@code ControllerAdvices} vuelve al origen con el motivo del rechazo.
      */
     @PostMapping("/{id}/cancelar")

@@ -84,11 +84,11 @@ import java.util.stream.Collectors;
 /**
  * Implementación de {@link ISolicitudCotizacionServicio}.
  * <p>
- * Los avisos a los gerentes de compras se envían recién cuando la transacción se confirma: si la solicitud o sus planes
+ * Los avisos a los gerentes de compras se envían recién cuando la transacción se confirma: si la solicitud o su plan
  * no llegan a guardarse, no se avisa nada. Las invitaciones a los proveedores nunca se envían con la solicitud
  * bloqueada: {@link #prepararEnvios(Long)} guarda el token de cada intento en una transacción corta, el correo se envía
  * fuera de toda transacción ({@code EnvioInvitacionesCotizacion}) y {@link #registrarResultadosEnvio(Long, Map)} guarda
- * el resultado en otra. El cálculo de los planes lo hace
+ * el resultado en otra. El cálculo del plan lo hace
  * {@link GeneradorPlanesCompra}, que es puro.
  * </p>
  * <p>
@@ -107,13 +107,13 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
     static final String MOTIVO_CANCELACION = "Se anuló la planificación de producción";
     static final String ASUNTO_SIN_PROVEEDOR = "Insumos sin proveedor en una solicitud de cotización";
     static final String ASUNTO_SIN_RESPUESTAS = "Solicitud de cotización cerrada sin ofertas";
-    static final String ASUNTO_PLANES_LISTOS = "Planes de órdenes de compra listos para revisar";
+    static final String ASUNTO_PLAN_LISTO = "Plan de órdenes de compra listo para revisar";
     static final String ASUNTO_PENDIENTE_CONFIRMACION = "Solicitud de cotización pendiente de confirmación";
     static final String ASUNTO_SIN_SOLICITUD = "No se generó la solicitud de cotización de una planificación";
     static final String ASUNTO_DATOS_INCOMPLETOS = "Insumos sin estimar en una solicitud de cotización";
     static final String ASUNTO_CORREO_NO_ENTREGADO = "Solicitud de cotización no entregada a proveedores";
     static final String ASUNTO_FALLA_CIERRE = "No se pudo cerrar una solicitud de cotización";
-    static final String MOTIVO_FALLA_CIERRE = "Ocurrió un error inesperado al generar los planes";
+    static final String MOTIVO_FALLA_CIERRE = "Ocurrió un error inesperado al generar el plan";
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -122,7 +122,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
 
     private static final Set<EstadoSolicitudCotizacion> ESTADOS_CANCELABLES =
             EnumSet.of(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION, EstadoSolicitudCotizacion.ABIERTA, EstadoSolicitudCotizacion.CERRADA,
-                    EstadoSolicitudCotizacion.PLANES_GENERADOS);
+                    EstadoSolicitudCotizacion.PLAN_GENERADO);
 
     private final ISolicitudCotizacionRepository solicitudRepository;
     private final IInvitacionCotizacionRepository invitacionRepository;
@@ -543,7 +543,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
     @Override
     @Transactional(readOnly = true)
     public List<SolicitudCotizacionResponseDTO> buscarPendientesDeDecision() {
-        return solicitudRepository.buscarConPlanesPendientesDeDecision().stream().map(MapperSolicitudCotizacion::toDTOResumen).toList();
+        return solicitudRepository.buscarConPlanPendienteDeDecision().stream().map(MapperSolicitudCotizacion::toDTOResumen).toList();
     }
 
     @Override
@@ -552,7 +552,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         return solicitudRepository.buscarIdsVencidas(EstadoSolicitudCotizacion.ABIERTA, LocalDateTime.now());
     }
 
-    // ==================== Cierre y generación de planes ====================
+    // ==================== Cierre y generación del plan ====================
 
     @Override
     @Transactional
@@ -590,17 +590,17 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             }
         }
 
-        // 4. Generar los planes con la configuración de compras vigente
+        // 4. Generar el plan con la configuración de compras vigente
         ConfiguracionComprasEntity configuracion = buscarConfiguracion();
         List<GeneradorPlanesCompra.Demanda> demandas = solicitud.getLineas().stream()
                 .map(linea -> new GeneradorPlanesCompra.Demanda(linea.getId(), linea.getCantidadFaltante()))
                 .toList();
-        List<GeneradorPlanesCompra.Plan> planes = GeneradorPlanesCompra.generar(demandas, ofertas,
-                configuracion.getCriterioPlanCompra(), configuracion.getPesoPrecio(), configuracion.getCantidadPlanes());
+        Optional<GeneradorPlanesCompra.Plan> plan = GeneradorPlanesCompra.generar(demandas, ofertas,
+                configuracion.getCriterioPlanCompra(), configuracion.getPesoPrecio());
 
-        // 5. Sin ofertas útiles la solicitud queda cerrada sin planes y se avisa a los gerentes de compras
+        // 5. Sin ofertas útiles la solicitud queda cerrada sin plan y se avisa a los gerentes de compras
         Long idSolicitud = solicitud.getId();
-        if (planes.isEmpty()) {
+        if (plan.isEmpty()) {
             solicitudRepository.save(solicitud);
             String mensaje = mensajeCierreSinOfertas(solicitud);
             List<String> insumos = solicitud.getLineas().stream().map(linea -> linea.getInsumo().getNombre()).toList();
@@ -608,24 +608,23 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             return;
         }
 
-        // 6. Guardar los planes (una orden propuesta por proveedor en cada uno) y avisar que están listos
+        // 6. Guardar el plan (una orden propuesta por proveedor) y avisar que está listo
         Map<Long, LineaSolicitudCotizacionEntity> lineasPorId = solicitud.getLineas().stream()
                 .collect(Collectors.toMap(LineaSolicitudCotizacionEntity::getId, linea -> linea));
-        for (int i = 0; i < planes.size(); i++) {
-            solicitud.getPlanes().add(armarPlan(solicitud, i + 1, planes.get(i), ofertasPorId, lineasPorId));
-        }
-        solicitud.setEstado(EstadoSolicitudCotizacion.PLANES_GENERADOS);
-        solicitud.setFechaGeneracionPlanes(ahora);
+        PlanCompraEntity planEntity = armarPlan(solicitud, plan.get(), ofertasPorId, lineasPorId);
+        solicitud.setPlan(planEntity);
+        solicitud.setEstado(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        solicitud.setFechaGeneracionPlan(ahora);
         solicitudRepository.save(solicitud);
 
         List<String> detalles = new ArrayList<>(MapperSolicitudCotizacion.toDTO(solicitud).getAvisos());
-        detalles.add(0, "Planes generados: " + planes.size());
-        String mensaje = "La solicitud de cotización #" + idSolicitud + " cerró y sus planes de órdenes de compra están listos para revisar";
-        ejecutarAlConfirmar(() -> notificador.avisarGerentesDeCompras(idSolicitud, ASUNTO_PLANES_LISTOS, mensaje, detalles));
+        detalles.add(0, "Órdenes de compra propuestas: " + planEntity.getOrdenes().size());
+        String mensaje = "La solicitud de cotización #" + idSolicitud + " cerró y su plan de órdenes de compra está listo para revisar";
+        ejecutarAlConfirmar(() -> notificador.avisarGerentesDeCompras(idSolicitud, ASUNTO_PLAN_LISTO, mensaje, detalles));
     }
 
     /**
-     * El motivo por el que una solicitud cerró sin planes. Distingue los correos que no se pudieron entregar de los
+     * El motivo por el que una solicitud cerró sin plan. Distingue los correos que no se pudieron entregar de los
      * proveedores que recibieron la solicitud y no respondieron.
      */
     static String mensajeCierreSinOfertas(SolicitudCotizacionEntity solicitud) {
@@ -634,19 +633,19 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 .filter(invitacion -> invitacion.getFechaRespuesta() != null).toList();
         if (!respondieron.isEmpty()) {
             return respondieron.stream().noneMatch(MapperSolicitudCotizacion::ofreceConStock)
-                    ? prefijo + "porque los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados: no se generaron planes"
-                    : prefijo + "sin ofertas de proveedores activos para los insumos solicitados: no se generaron planes";
+                    ? prefijo + "porque los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados: no se generó el plan"
+                    : prefijo + "sin ofertas de proveedores activos para los insumos solicitados: no se generó el plan";
         }
         long invitados = solicitud.getInvitaciones().stream().filter(invitacion -> invitacion.getEstadoEnvio() != EstadoEnvioInvitacion.OMITIDA).count();
         long noEntregadas = solicitud.getInvitaciones().stream().filter(invitacion -> invitacion.getEstadoEnvio() == EstadoEnvioInvitacion.FALLIDA).count();
         if (noEntregadas > 0 && noEntregadas == invitados) {
-            return prefijo + "sin ofertas porque no se pudo entregar el correo a ningún proveedor invitado: no se generaron planes";
+            return prefijo + "sin ofertas porque no se pudo entregar el correo a ningún proveedor invitado: no se generó el plan";
         }
         if (noEntregadas > 0) {
             return prefijo + "sin que ningún proveedor respondiera; además, no se pudo entregar el correo a " + noEntregadas
-                    + (noEntregadas == 1 ? " proveedor" : " proveedores") + ": no se generaron planes";
+                    + (noEntregadas == 1 ? " proveedor" : " proveedores") + ": no se generó el plan";
         }
-        return prefijo + "sin que ningún proveedor respondiera: no se generaron planes";
+        return prefijo + "sin que ningún proveedor respondiera: no se generó el plan";
     }
 
     @Override
@@ -671,12 +670,11 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
     }
 
     /** Convierte un plan del generador en su entidad: una orden propuesta por proveedor, con sus ítems. */
-    private static PlanCompraEntity armarPlan(SolicitudCotizacionEntity solicitud, int numero, GeneradorPlanesCompra.Plan plan,
+    private static PlanCompraEntity armarPlan(SolicitudCotizacionEntity solicitud, GeneradorPlanesCompra.Plan plan,
                                               Map<Long, OfertaCotizacionEntity> ofertasPorId,
                                               Map<Long, LineaSolicitudCotizacionEntity> lineasPorId) {
         PlanCompraEntity planEntity = PlanCompraEntity.builder()
                 .solicitud(solicitud)
-                .numero(numero)
                 .estado(EstadoPlanCompra.PROPUESTO)
                 .build();
         Map<Long, OrdenCompraPropuestaEntity> ordenPorProveedor = new LinkedHashMap<>();
@@ -707,18 +705,19 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
     public void cancelarPorAnulacionDePlanificacion(Long idPlanificacion) {
         LocalDateTime ahora = LocalDateTime.now();
         for (Long idSolicitud : solicitudRepository.buscarIdsPorPlanificacionYEstados(idPlanificacion, ESTADOS_CANCELABLES)) {
-            // Se carga recién al bloquearla: un cierre que terminó mientras tanto ya dejó sus planes guardados
+            // Se carga recién al bloquearla: un cierre que terminó mientras tanto ya dejó su plan guardado
             Optional<SolicitudCotizacionEntity> bloqueada = solicitudRepository.buscarPorIdParaActualizar(idSolicitud);
             if (bloqueada.isEmpty() || !ESTADOS_CANCELABLES.contains(bloqueada.get().getEstado())) {
                 continue;
             }
             SolicitudCotizacionEntity solicitud = bloqueada.get();
             marcarCancelada(solicitud, MOTIVO_CANCELACION, ahora);
-            for (PlanCompraEntity plan : solicitud.getPlanes()) {
+            PlanCompraEntity plan = solicitud.getPlan();
+            if (plan != null) {
                 // El plan elegido con órdenes ya confirmadas conserva su estado: esas órdenes de compra siguen vigentes
                 boolean elegidoConConfirmadas = plan.getEstado() == EstadoPlanCompra.ELEGIDO && plan.getOrdenes().stream()
                         .anyMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.CONFIRMADA);
-                if (!elegidoConConfirmadas && (plan.getEstado() == EstadoPlanCompra.PROPUESTO || plan.getEstado() == EstadoPlanCompra.ELEGIDO)) {
+                if (!elegidoConConfirmadas) {
                     plan.setEstado(EstadoPlanCompra.CANCELADO);
                 }
                 descartarPendientes(plan);
@@ -744,21 +743,20 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         SolicitudCotizacionEntity solicitud = solicitudRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la solicitud de cotización con ID: " + id));
 
-        // 3. Validar que esté abierta o con planes sin elegir
+        // 3. Validar que esté pendiente de confirmación, abierta o con el plan generado sin elegir
         if (solicitud.getEstado() != EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION && solicitud.getEstado() != EstadoSolicitudCotizacion.ABIERTA
-                && solicitud.getEstado() != EstadoSolicitudCotizacion.PLANES_GENERADOS) {
-            throw new ReglaNegocioException("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación, abiertas o con planes generados");
+                && solicitud.getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
+            throw new ReglaNegocioException("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación, abiertas o con el plan generado");
         }
-        if (solicitud.getPlanes().stream().anyMatch(plan -> plan.getEstado() == EstadoPlanCompra.ELEGIDO)) {
-            throw new ReglaNegocioException("No se puede cancelar la solicitud de cotización porque ya tiene un plan elegido");
+        PlanCompraEntity plan = solicitud.getPlan();
+        if (plan != null && plan.getEstado() == EstadoPlanCompra.ELEGIDO) {
+            throw new ReglaNegocioException("No se puede cancelar la solicitud de cotización porque su plan ya fue elegido");
         }
 
-        // 4. Cancelarla: los enlaces vencen en el momento y los planes quedan cancelados
+        // 4. Cancelarla: los enlaces vencen en el momento y el plan queda cancelado
         marcarCancelada(solicitud, motivoCancelacion, LocalDateTime.now());
-        for (PlanCompraEntity plan : solicitud.getPlanes()) {
-            if (plan.getEstado() == EstadoPlanCompra.PROPUESTO) {
-                plan.setEstado(EstadoPlanCompra.CANCELADO);
-            }
+        if (plan != null) {
+            plan.setEstado(EstadoPlanCompra.CANCELADO);
             descartarPendientes(plan);
         }
         return MapperSolicitudCotizacion.toDTO(solicitudRepository.save(solicitud));
@@ -818,7 +816,6 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         return OrdenCompraPrearmadaResponseDTO.builder()
                 .idOrdenPropuesta(orden.getId())
                 .idSolicitud(plan.getSolicitud().getId())
-                .numeroPlan(plan.getNumero())
                 .idPlanificacion(plan.getSolicitud().getPlanificacionProduccion().getId())
                 .idProveedor(orden.getProveedor().getId())
                 .items(items)
@@ -874,16 +871,10 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         orden.setOrdenCompra(ordenCompraRepository.getReferenceById(ordenCompra.getId()));
         orden.setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
 
-        // 6. La primera orden confirmada elige el plan y descarta los demás planes propuestos de la solicitud
+        // 6. La primera orden confirmada elige el plan: desde ese momento la solicitud no se puede cancelar
         PlanCompraEntity plan = orden.getPlan();
         if (plan.getEstado() == EstadoPlanCompra.PROPUESTO) {
             plan.setEstado(EstadoPlanCompra.ELEGIDO);
-            for (PlanCompraEntity otro : plan.getSolicitud().getPlanes()) {
-                if (!otro.getId().equals(plan.getId()) && otro.getEstado() == EstadoPlanCompra.PROPUESTO) {
-                    otro.setEstado(EstadoPlanCompra.DESCARTADO);
-                    descartarPendientes(otro);
-                }
-            }
         }
         ordenPropuestaRepository.save(orden);
         return ordenCompra;
@@ -913,7 +904,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
 
     /**
      * Valida que una orden propuesta se pueda confirmar: está pendiente, su plan está propuesto o elegido, su solicitud
-     * tiene los planes vigentes y el proveedor sigue activo.
+     * tiene el plan vigente y el proveedor sigue activo.
      */
     private static void validarConfirmable(OrdenCompraPropuestaEntity orden) {
         if (orden.getEstado() != EstadoOrdenCompraPropuesta.PROPUESTA) {
@@ -923,7 +914,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         if (plan.getEstado() != EstadoPlanCompra.PROPUESTO && plan.getEstado() != EstadoPlanCompra.ELEGIDO) {
             throw new ReglaNegocioException("No se puede confirmar la orden propuesta porque su plan está " + plan.getEstado().getEtiqueta().toLowerCase());
         }
-        if (plan.getSolicitud().getEstado() != EstadoSolicitudCotizacion.PLANES_GENERADOS) {
+        if (plan.getSolicitud().getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
             throw new ReglaNegocioException("No se puede confirmar la orden propuesta porque la solicitud de cotización está "
                     + plan.getSolicitud().getEstado().getEtiqueta().toLowerCase());
         }

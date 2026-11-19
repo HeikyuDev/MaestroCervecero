@@ -44,21 +44,16 @@ public class ConfiguracionComprasServicioImpl implements IConfiguracionComprasSe
         if (configuracionComprasFormDTO.getPlazoRespuestaHoras() == null) {
             throw new ReglaNegocioException("El plazo de respuesta es obligatorio");
         }
-        if (configuracionComprasFormDTO.getCantidadPlanes() == null) {
-            throw new ReglaNegocioException("La cantidad de planes es obligatoria");
-        }
         if (configuracionComprasFormDTO.getCriterioPlanCompra() == null) {
-            throw new ReglaNegocioException("El criterio de los planes es obligatorio");
+            throw new ReglaNegocioException("El criterio del plan es obligatorio");
         }
         if (configuracionComprasFormDTO.getPesoPrecio() == null) {
             throw new ReglaNegocioException("El peso del precio es obligatorio");
         }
 
-        // 2. Validar el plazo de respuesta y la cantidad de planes: enteros mayores a 0 que no superan su máximo
+        // 2. Validar el plazo de respuesta: un entero mayor a 0 que no supera su máximo
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(configuracionComprasFormDTO.getPlazoRespuestaHoras(),
                 LimitesTecnicos.PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS, "El plazo de respuesta", "horas");
-        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(configuracionComprasFormDTO.getCantidadPlanes(),
-                LimitesTecnicos.CANTIDAD_PLANES_COMPRA_MAXIMA, "La cantidad de planes", "planes");
 
         // 3. Validar que el peso del precio sea un número entre 0 y 100 (ambos inclusive)
         double peso = configuracionComprasFormDTO.getPesoPrecio();
@@ -69,7 +64,6 @@ public class ConfiguracionComprasServicioImpl implements IConfiguracionComprasSe
         // 4. Aplicar los valores sobre la fila única y persistirla
         ConfiguracionComprasEntity configuracion = buscarEntidadSingleton();
         configuracion.setPlazoRespuestaHoras(configuracionComprasFormDTO.getPlazoRespuestaHoras());
-        configuracion.setCantidadPlanes(configuracionComprasFormDTO.getCantidadPlanes());
         configuracion.setCriterioPlanCompra(configuracionComprasFormDTO.getCriterioPlanCompra());
         configuracion.setPesoPrecio(peso);
         return MapperConfiguracionCompras.toDTO(configuracionComprasRepository.save(configuracion));

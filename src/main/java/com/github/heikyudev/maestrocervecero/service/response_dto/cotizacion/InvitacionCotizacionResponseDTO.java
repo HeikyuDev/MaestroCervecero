@@ -40,7 +40,7 @@ public class InvitacionCotizacionResponseDTO {
     private String cuit;
 
     /**
-     * {@code false} si el proveedor se dio de baja: sus ofertas no cuentan para los planes.
+     * {@code false} si el proveedor se dio de baja: sus ofertas no cuentan para el plan.
      */
     private boolean proveedorActivo;
 

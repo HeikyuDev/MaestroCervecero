@@ -24,11 +24,6 @@ public class PlanCompraResponseDTO {
     private Long id;
 
     /**
-     * Posición del plan entre los de su solicitud (el 1 es el mejor según el criterio).
-     */
-    private Integer numero;
-
-    /**
      * Estado del plan.
      */
     private EstadoPlanCompra estado;

@@ -24,14 +24,14 @@ public interface IConfiguracionComprasServicio {
     /**
      * Actualiza la configuración de compras.
      * <p>
-     * Postcondiciones: la configuración queda con los cuatro valores informados. Las solicitudes de cotización ya
-     * enviadas conservan su fecha límite de respuesta; la cantidad de planes y el criterio se aplican a las solicitudes
-     * que se cierren desde ese momento.
+     * Postcondiciones: la configuración queda con los tres valores informados. Las solicitudes de cotización ya
+     * enviadas conservan su fecha límite de respuesta; el criterio y el peso del precio se aplican a las solicitudes que
+     * se cierren desde ese momento.
      * </p>
      *
      * @param configuracionComprasFormDTO Los nuevos valores de configuración.
      * @return La configuración de compras actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado; si el plazo de respuesta no es mayor a 0 o supera {@code LimitesTecnicos.PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS} horas; si la cantidad de planes no es mayor a 0 o supera {@code LimitesTecnicos.CANTIDAD_PLANES_COMPRA_MAXIMA}; o si el peso del precio no es un número entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado; si el plazo de respuesta no es mayor a 0 o supera {@code LimitesTecnicos.PLAZO_RESPUESTA_COTIZACION_MAXIMO_HORAS} horas; o si el peso del precio no es un número entre 0 y 100.
      */
     ConfiguracionComprasResponseDTO actualizarConfiguracion(ConfiguracionComprasFormDTO configuracionComprasFormDTO);
 }

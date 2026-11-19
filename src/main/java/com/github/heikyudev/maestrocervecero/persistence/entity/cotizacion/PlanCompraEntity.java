@@ -9,8 +9,7 @@ import java.util.List;
 /**
  * Plan de órdenes de compra generado al cerrar una solicitud de cotización: un conjunto de órdenes de compra
  * propuestas, una por proveedor ({@link OrdenCompraPropuestaEntity}). Un mismo insumo puede repartirse entre varios
- * proveedores. {@code numero} es su posición entre los planes de la solicitud (el 1 es el mejor según el criterio de
- * la configuración de compras).
+ * proveedores. Cada solicitud tiene a lo sumo un plan, el mejor según el criterio de la configuración de compras.
  */
 @Entity
 @Table(name = "plan_compra")
@@ -27,12 +26,9 @@ public class PlanCompraEntity {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "solicitud_cotizacion_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "solicitud_cotizacion_id", nullable = false, unique = true)
     private SolicitudCotizacionEntity solicitud;
-
-    @Column(nullable = false)
-    private Integer numero;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

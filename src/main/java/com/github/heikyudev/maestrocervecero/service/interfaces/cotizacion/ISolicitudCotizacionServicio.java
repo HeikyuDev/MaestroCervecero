@@ -21,8 +21,8 @@ import java.util.Optional;
  * necesita más insumo del que hay disponible o en camino, se genera una solicitud de cotización consolidada pendiente de
  * confirmación y se avisa a los gerentes de compras. Cuando un gerente confirma el envío, se invita por correo a los
  * proveedores activos que ofrecen esos insumos. Al vencer el plazo de respuesta, un proceso programado
- * la cierra y genera los planes de órdenes de compra, y se avisa a los gerentes de compras. El gerente revisa los planes
- * y confirma cada orden propuesta en el alta de órdenes de compra: el proceso nunca registra órdenes de compra ni pagos
+ * la cierra y genera su plan de órdenes de compra, y se avisa a los gerentes de compras. El gerente revisa el plan y
+ * confirma cada orden propuesta en el alta de órdenes de compra: el proceso nunca registra órdenes de compra ni pagos
  * por sí mismo.
  * </p>
  */
@@ -124,12 +124,12 @@ public interface ISolicitudCotizacionServicio {
      * @param estado Estado a filtrar, o {@code null} para no filtrar por él.
      * @param idPlanificacion ID de la planificación a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Paginación y orden.
-     * @return Una página de solicitudes, sin líneas, invitaciones ni planes.
+     * @return Una página de solicitudes, sin líneas, invitaciones ni plan.
      */
     Page<SolicitudCotizacionResponseDTO> filtrarSolicitudes(EstadoSolicitudCotizacion estado, Long idPlanificacion, Pageable pageable);
 
     /**
-     * Obtiene una solicitud de cotización completa: líneas, invitaciones con su respuesta, planes y avisos.
+     * Obtiene una solicitud de cotización completa: líneas, invitaciones con su respuesta, plan y avisos.
      *
      * @param id ID de la solicitud.
      * @return La solicitud.
@@ -138,8 +138,8 @@ public interface ISolicitudCotizacionServicio {
     SolicitudCotizacionResponseDTO buscarPorId(Long id);
 
     /**
-     * Las solicitudes que esperan una decisión del gerente de compras: tienen planes generados y ninguno elegido. Es el
-     * aviso dentro del sistema de que hay planes listos para revisar.
+     * Las solicitudes que esperan una decisión del gerente de compras: tienen el plan generado y todavía no elegido. Es
+     * el aviso dentro del sistema de que hay planes listos para revisar.
      *
      * @return Las solicitudes pendientes de decisión, de la más nueva a la más vieja.
      */
@@ -154,16 +154,16 @@ public interface ISolicitudCotizacionServicio {
     List<Long> buscarIdsVencidas();
 
     /**
-     * Cierra una solicitud abierta vencida y genera sus planes de órdenes de compra.
+     * Cierra una solicitud abierta vencida y genera su plan de órdenes de compra.
      * <p>
-     * Solo cuentan las ofertas de los proveedores activos; las de proveedores dados de baja se descartan. Se generan
-     * hasta la cantidad de planes de la configuración de compras, todos distintos, ordenados por el criterio
-     * configurado. Si las ofertas no cubren el faltante, los planes se generan igual con lo disponible.
+     * Solo cuentan las ofertas de los proveedores activos; las de proveedores dados de baja se descartan. Se genera un
+     * único plan, el mejor según el criterio y el peso del precio de la configuración de compras. Si las ofertas no
+     * cubren el faltante, el plan se genera igual con lo disponible.
      * </p>
      * <p>
      * Postcondiciones: si la solicitud no existe, no está abierta o todavía no venció, no cambia nada. Si no hay ofertas
-     * útiles queda {@code CERRADA} sin planes y se avisa a los gerentes de compras; si las hay, queda
-     * {@code PLANES_GENERADOS} con sus planes en estado {@code PROPUESTO} y se avisa a los gerentes con el enlace a la
+     * útiles queda {@code CERRADA} sin plan y se avisa a los gerentes de compras; si las hay, queda
+     * {@code PLAN_GENERADO} con su plan en estado {@code PROPUESTO} y se avisa a los gerentes con el enlace a la
      * solicitud.
      * </p>
      *
@@ -188,9 +188,8 @@ public interface ISolicitudCotizacionServicio {
      * Cancela las solicitudes de una planificación de producción que se anula.
      * <p>
      * Postcondiciones: cada solicitud no cancelada de la planificación queda {@code CANCELADA} con la fecha y el
-     * motivo y sus enlaces dejan de servir. El plan elegido que ya tiene órdenes confirmadas sigue {@code ELEGIDO}; los
-     * demás planes propuestos o elegidos quedan {@code CANCELADO}; los descartados no cambian. Las órdenes propuestas sin
-     * confirmar quedan {@code DESCARTADA} y las órdenes de compra ya confirmadas no se modifican.
+     * motivo y sus enlaces dejan de servir. Un plan elegido que ya tiene órdenes confirmadas sigue {@code ELEGIDO}; en
+     * cualquier otro caso el plan queda {@code CANCELADO}. Las órdenes propuestas sin confirmar quedan {@code DESCARTADA} y las órdenes de compra ya confirmadas no se modifican.
      * </p>
      *
      * @param idPlanificacion ID de la planificación que se anula.
@@ -200,10 +199,10 @@ public interface ISolicitudCotizacionServicio {
     /**
      * Cancela a mano una solicitud de cotización que el gerente de compras ya no necesita.
      * <p>
-     * Procede sobre una solicitud pendiente de confirmación, {@code ABIERTA} o con planes generados que todavía no
-     * tiene un plan elegido.
+     * Procede sobre una solicitud pendiente de confirmación, {@code ABIERTA} o con el plan generado que todavía no fue
+     * elegido.
      * Postcondiciones: queda {@code CANCELADA} con la fecha y el motivo (el usuario queda en la auditoría de la última
-     * modificación); los enlaces de los proveedores dejan de servir en el momento; sus planes quedan {@code CANCELADO} y
+     * modificación); los enlaces de los proveedores dejan de servir en el momento; su plan queda {@code CANCELADO} y
      * sus órdenes propuestas sin confirmar, {@code DESCARTADA}.
      * </p>
      *
@@ -211,7 +210,7 @@ public interface ISolicitudCotizacionServicio {
      * @param motivo Motivo de la cancelación.
      * @return La solicitud cancelada.
      * @throws RecursoNoEncontradoException Si la solicitud no existe.
-     * @throws ReglaNegocioException Si el motivo falta o supera {@code LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO} caracteres, si la solicitud no está abierta ni con planes generados, o si ya tiene un plan elegido.
+     * @throws ReglaNegocioException Si el motivo falta o supera {@code LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO} caracteres, si la solicitud no está pendiente de confirmación, abierta ni con el plan generado, o si su plan ya fue elegido.
      */
     SolicitudCotizacionResponseDTO cancelarSolicitud(Long id, String motivo);
 
@@ -223,7 +222,7 @@ public interface ISolicitudCotizacionServicio {
      * @param idOrdenPropuesta ID de la orden propuesta.
      * @return Los datos de la orden prearmada, con un aviso por cada ítem que el proveedor ya no ofrece.
      * @throws RecursoNoEncontradoException Si no existe la orden propuesta.
-     * @throws ReglaNegocioException Si la orden propuesta no está pendiente de confirmar, si su plan no está propuesto ni elegido, si su solicitud no tiene los planes vigentes o si el proveedor fue dado de baja.
+     * @throws ReglaNegocioException Si la orden propuesta no está pendiente de confirmar, si su plan no está propuesto ni elegido, si su solicitud no tiene el plan vigente o si el proveedor fue dado de baja.
      */
     OrdenCompraPrearmadaResponseDTO prepararOrdenCompra(Long idOrdenPropuesta);
 
@@ -235,14 +234,14 @@ public interface ISolicitudCotizacionServicio {
      * <p>
      * Postcondiciones: la orden de compra queda registrada (con las reglas del alta de órdenes de compra) y vinculada a
      * la orden propuesta, que pasa a {@code CONFIRMADA}. Si era la primera orden confirmada del plan, el plan pasa a
-     * {@code ELEGIDO} y los demás planes propuestos de la solicitud a {@code DESCARTADO}.
+     * {@code ELEGIDO} y la solicitud ya no se puede cancelar.
      * </p>
      *
      * @param idOrdenPropuesta ID de la orden propuesta.
      * @param ordenCompraFormDTO Los datos de la orden de compra.
      * @return La orden de compra registrada.
      * @throws RecursoNoEncontradoException Si no existe la orden propuesta, o si el alta de la orden de compra no encuentra alguno de sus datos.
-     * @throws ReglaNegocioException Si faltan los datos de la orden; si la orden propuesta no está pendiente de confirmar, su plan no está propuesto ni elegido o su solicitud no tiene los planes vigentes; si la orden es para otro proveedor u otra planificación; o si el alta de la orden de compra la rechaza.
+     * @throws ReglaNegocioException Si faltan los datos de la orden; si la orden propuesta no está pendiente de confirmar, su plan no está propuesto ni elegido o su solicitud no tiene el plan vigente; si la orden es para otro proveedor u otra planificación; o si el alta de la orden de compra la rechaza.
      */
     OrdenCompraResponseDTO confirmarOrdenPropuesta(Long idOrdenPropuesta, OrdenCompraFormDTO ordenCompraFormDTO);
 

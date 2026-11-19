@@ -49,7 +49,7 @@ public interface ISolicitudCotizacionRepository extends JpaRepository<SolicitudC
      * <p>
      * Se usa en toda operación que decide según el estado de la solicitud o lo cambia (cerrarla, cancelarla, registrar
      * la respuesta de un proveedor, confirmar o descartar una orden propuesta): una respuesta no se cruza con el cierre
-     * y dos confirmaciones de planes distintos no eligen dos planes a la vez.
+     * y dos confirmaciones simultáneas del mismo plan no se cruzan.
      * </p>
      *
      * @param id El ID de la solicitud.
@@ -85,14 +85,14 @@ public interface ISolicitudCotizacionRepository extends JpaRepository<SolicitudC
                                                  @Param("estados") Collection<EstadoSolicitudCotizacion> estados);
 
     /**
-     * Las solicitudes que esperan una decisión del gerente de compras: tienen planes generados y ninguno elegido
-     * todavía, de la más nueva a la más vieja.
+     * Las solicitudes que esperan una decisión del gerente de compras: tienen el plan generado y todavía no elegido, de
+     * la más nueva a la más vieja.
      *
-     * @return Las solicitudes con planes listos para revisar.
+     * @return Las solicitudes con el plan listo para revisar.
      */
-    @Query("SELECT s FROM SolicitudCotizacionEntity s WHERE s.estado = 'PLANES_GENERADOS' AND NOT EXISTS "
+    @Query("SELECT s FROM SolicitudCotizacionEntity s WHERE s.estado = 'PLAN_GENERADO' AND NOT EXISTS "
             + "(SELECT p FROM PlanCompraEntity p WHERE p.solicitud = s AND p.estado = 'ELEGIDO') ORDER BY s.id DESC")
-    List<SolicitudCotizacionEntity> buscarConPlanesPendientesDeDecision();
+    List<SolicitudCotizacionEntity> buscarConPlanPendienteDeDecision();
 
     /**
      * Si la planificación tiene alguna solicitud en un estado distinto del indicado (la generación busca una solicitud

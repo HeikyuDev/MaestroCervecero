@@ -27,11 +27,6 @@ public class ConfiguracionComprasResponseDTO {
     private Integer plazoRespuestaHoras;
 
     /**
-     * Cantidad de planes de órdenes de compra que se generan al cerrar una solicitud.
-     */
-    private Integer cantidadPlanes;
-
-    /**
      * Criterio con el que se ordenan las ofertas de cada insumo.
      */
     private CriterioPlanCompra criterioPlanCompra;

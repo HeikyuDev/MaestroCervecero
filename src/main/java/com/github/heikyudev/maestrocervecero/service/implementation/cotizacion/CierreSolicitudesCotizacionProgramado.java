@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Proceso programado de las solicitudes de cotización: reintenta el envío de las invitaciones cuyo correo falló y
- * cierra las solicitudes abiertas cuyo plazo de respuesta venció, generando sus planes de órdenes de compra.
+ * cierra las solicitudes abiertas cuyo plazo de respuesta venció, generando su plan de órdenes de compra.
  * <p>
  * Corre cada {@code cotizacion.cierre.intervalo-ms} milisegundos (por defecto, un minuto) desde que termina la corrida
  * anterior. El estado de cada solicitud vive en la base de datos, así que una solicitud que venció con la aplicación

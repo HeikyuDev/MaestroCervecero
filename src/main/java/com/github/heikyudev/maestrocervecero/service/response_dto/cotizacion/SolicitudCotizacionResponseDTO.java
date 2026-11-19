@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO de respuesta con una solicitud de cotización. Los listados la informan sin líneas, invitaciones ni planes.
+ * DTO de respuesta con una solicitud de cotización. Los listados la informan sin líneas, invitaciones ni plan.
  */
 @Getter
 @Builder
@@ -54,9 +54,9 @@ public class SolicitudCotizacionResponseDTO {
     private LocalDateTime fechaCierre;
 
     /**
-     * Momento en que se generaron los planes, o {@code null}.
+     * Momento en que se generó el plan, o {@code null}.
      */
-    private LocalDateTime fechaGeneracionPlanes;
+    private LocalDateTime fechaGeneracionPlan;
 
     /**
      * Momento en que se canceló, o {@code null}.
@@ -84,17 +84,12 @@ public class SolicitudCotizacionResponseDTO {
     private int cantidadRespuestas;
 
     /**
-     * Cantidad de planes generados.
-     */
-    private int cantidadPlanes;
-
-    /**
-     * {@code true} si alguno de sus planes ya fue elegido.
+     * {@code true} si su plan ya fue elegido.
      */
     private boolean planElegido;
 
     /**
-     * Situaciones que el gerente de compras debe conocer (insumos sin proveedor, sin respuestas, planes que no cubren todo).
+     * Situaciones que el gerente de compras debe conocer (insumos sin proveedor, sin respuestas, plan que no cubre todo).
      */
     private List<String> avisos;
 
@@ -109,9 +104,9 @@ public class SolicitudCotizacionResponseDTO {
     private List<InvitacionCotizacionResponseDTO> invitaciones;
 
     /**
-     * Planes generados; {@code null} en los listados.
+     * Plan generado; {@code null} en los listados o si todavía no tiene plan.
      */
-    private List<PlanCompraResponseDTO> planes;
+    private PlanCompraResponseDTO plan;
 
     /**
      * {@code true} si el cierre programado falló el máximo de intentos y dejó de reintentarse.

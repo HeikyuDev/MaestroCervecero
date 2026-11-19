@@ -114,7 +114,7 @@ public class OrdenCompraController {
      * Lista las órdenes de compra, paginadas de a {@code TAMANIO_PAGINA} y con la última registrada arriba. Los criterios (planificación,
      * proveedor, estado y fecha de entrega estimada) son opcionales. Una planificación o un proveedor que ya no existe
      * no restringe el listado. Al GERENTE_DE_COMPRAS le muestra además el acceso a los procesos de compra (solicitudes de
-     * cotización) y el aviso de los que tienen planes listos para revisar.
+     * cotización) y el aviso de los que tienen el plan listo para revisar.
      */
     @GetMapping
     @PreAuthorize(GERENTE_O_ENCARGADO)
@@ -142,7 +142,7 @@ public class OrdenCompraController {
         model.addAttribute("filtroProveedorTexto", proveedor == null ? null : textoDeProveedor(proveedor.getVersion()));
         model.addAttribute("filtroEstado", estado);
         model.addAttribute("filtroFechaEntregaEstimada", fechaEntregaEstimada);
-        // Aviso dentro del sistema de los procesos de compra con planes listos para revisar: solo para quien los decide
+        // Aviso dentro del sistema de los procesos de compra con el plan listo para revisar: solo para quien los decide
         boolean gerente = esGerenteDeCompras(authentication);
         model.addAttribute("procesosPendientes", gerente ? solicitudCotizacionServicio.buscarPendientesDeDecision() : List.of());
         model.addAttribute("solicitudesPorConfirmar", gerente ? solicitudCotizacionServicio.buscarPendientesDeConfirmacion() : List.of());
@@ -258,8 +258,7 @@ public class OrdenCompraController {
     private static void cargarOrdenPropuesta(Model model, OrdenCompraPrearmadaResponseDTO prearmada) {
         model.addAttribute("ordenPropuesta", prearmada);
         if (prearmada.getIdSolicitud() != null) {
-            model.addAttribute("urlCancelar", URL_SOLICITUDES_COTIZACION + "/" + prearmada.getIdSolicitud()
-                    + (prearmada.getNumeroPlan() == null ? "" : "?plan=" + prearmada.getNumeroPlan()));
+            model.addAttribute("urlCancelar", URL_SOLICITUDES_COTIZACION + "/" + prearmada.getIdSolicitud());
         }
     }
 

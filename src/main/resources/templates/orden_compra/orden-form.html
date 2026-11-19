@@ -21,10 +21,10 @@
          class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         <i class="bi bi-lightbulb text-lg"></i>
         <p>
-            <span th:if="${ordenPropuesta.numeroPlan != null}"
-                  th:text="|Orden propuesta por el plan ${ordenPropuesta.numeroPlan} de la solicitud de cotización #${ordenPropuesta.idSolicitud}.|">Orden propuesta por el plan 1 de la solicitud de cotización #3.</span>
+            <span th:if="${ordenPropuesta.idSolicitud != null}"
+                  th:text="|Orden propuesta por el plan de la solicitud de cotización #${ordenPropuesta.idSolicitud}.|">Orden propuesta por el plan de la solicitud de cotización #3.</span>
             Revise la fecha de entrega estimada que indicó el proveedor y, si hace falta, modifíquela junto con cantidades, costos o ítems antes de registrarla.
-            Al registrar la primera orden de un plan, ese plan queda elegido y los demás se descartan.
+            Al registrar la primera orden del plan, el plan queda elegido y la solicitud de cotización ya no se puede cancelar.
         </p>
     </div>
 

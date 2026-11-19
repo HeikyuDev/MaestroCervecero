@@ -28,11 +28,6 @@ public class OrdenCompraPrearmadaResponseDTO {
     private Long idSolicitud;
 
     /**
-     * Número del plan al que pertenece la orden propuesta.
-     */
-    private Integer numeroPlan;
-
-    /**
      * Planificación de producción de la solicitud.
      */
     private Long idPlanificacion;

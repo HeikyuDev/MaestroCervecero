@@ -39,17 +39,17 @@
         </ul>
     </div>
 
-    <!-- Aviso: solicitudes de cotización con planes de órdenes de compra listos para revisar (sin plan elegido) -->
+    <!-- Aviso: solicitudes de cotización con el plan de órdenes de compra listo para revisar (sin elegir) -->
     <div th:if="${procesosPendientes != null and !#lists.isEmpty(procesosPendientes)}" data-aviso-planes-pendientes
          class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
         <p class="flex items-center gap-2 font-semibold">
             <i class="bi bi-bell"></i>
-            <span th:text="${#lists.size(procesosPendientes) == 1} ? 'Hay 1 solicitud de cotización con planes de órdenes de compra listos para revisar' : |Hay ${#lists.size(procesosPendientes)} solicitudes de cotización con planes de órdenes de compra listos para revisar|">Hay 1 proceso de compra con planes listos para revisar</span>
+            <span th:text="${#lists.size(procesosPendientes) == 1} ? 'Hay 1 solicitud de cotización con el plan de órdenes de compra listo para revisar' : |Hay ${#lists.size(procesosPendientes)} solicitudes de cotización con el plan de órdenes de compra listo para revisar|">Hay 1 solicitud de cotización con el plan de órdenes de compra listo para revisar</span>
         </p>
         <ul class="mt-2 space-y-1">
             <li th:each="p : ${procesosPendientes}">
                 <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id})}" class="font-medium text-amber-700 hover:text-amber-900 hover:underline"
-                   th:text="|Solicitud #${p.id} - ${p.etiquetaPlanificacion} (${p.cantidadPlanes} planes)|">Solicitud #3 - Plan #7 - Pale Ale (3 planes)</a>
+                   th:text="|Solicitud #${p.id} - ${p.etiquetaPlanificacion}|">Solicitud #3 - Plan #7 - Pale Ale</a>
             </li>
         </ul>
     </div>

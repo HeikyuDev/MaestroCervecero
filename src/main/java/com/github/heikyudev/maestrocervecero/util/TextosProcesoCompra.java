@@ -1,7 +1,7 @@
 package com.github.heikyudev.maestrocervecero.util;
 
 /**
- * Textos de la pantalla de los procesos de compra (solicitudes de cotización y sus planes de órdenes de compra) que se
+ * Textos de la pantalla de los procesos de compra (solicitudes de cotización y su plan de órdenes de compra) que se
  * repiten en varias plantillas: el botón del listado de órdenes de compra que lleva a ellos, el título de su listado y
  * el regreso desde el detalle. Cambiar la etiqueta aquí la cambia en todas las pantallas.
  */

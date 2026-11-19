@@ -3,21 +3,18 @@ package com.github.heikyudev.maestrocervecero.service.implementation.cotizacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.CriterioPlanCompra;
 
 import java.math.BigDecimal;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.Optional;
 
 /**
- * Algoritmo de la generación de planes de órdenes de compra. Es puro: no consulta repositorios ni guarda nada; recibe
- * los faltantes y las ofertas ya convertidas a la unidad de medida de cada insumo y devuelve los planes.
+ * Algoritmo de la generación del plan de órdenes de compra. Es puro: no consulta repositorios ni guarda nada; recibe
+ * los faltantes y las ofertas ya convertidas a la unidad de medida de cada insumo y devuelve el plan.
  * <p>
  * <b>Orden de las ofertas de cada insumo.</b> Las ofertas se comparan siempre por unidad de medida del insumo: el precio
  * por kilogramo (o gramo) y la cantidad disponible en esa unidad. Dentro de cada insumo, ambos valores se normalizan
@@ -38,23 +35,12 @@ import java.util.TreeSet;
  * valor normalizado y, por último, por el orden de las ofertas.
  * </p>
  * <p>
- * <b>Armado de un plan.</b> Para cada insumo se recorren sus ofertas en orden y se toman unidades enteras de la
+ * <b>Armado del plan.</b> Para cada insumo se recorren todas sus ofertas en orden y se toman unidades enteras de la
  * presentación hasta cubrir el faltante (la última puede excederlo por el contenido de la presentación). Si las ofertas
- * no alcanzan, el plan se arma igual con lo disponible.
- * </p>
- * <p>
- * <b>Planes distintos.</b> El primer plan armado usa todas las ofertas. Los siguientes se buscan excluyendo, de a
- * una, las ofertas que usó un plan ya armado (búsqueda a lo ancho, con un máximo de {@value #MAXIMO_EVALUACIONES}
- * armados), sin excluir nunca la última oferta de un insumo, y se descartan los que repiten exactamente las mismas
- * asignaciones. Todos los planes se ordenan por la proporción del faltante que dejan sin cubrir, luego por su puntaje
- * (el promedio, por insumo, del puntaje de sus ofertas ponderado por la parte del faltante que cubre cada una; lo que
- * queda sin cubrir cuenta con el peor puntaje) y luego por su costo total; el primero es el mejor.
+ * no alcanzan, el plan se arma igual con lo disponible e informa la cantidad que queda sin cubrir de cada insumo.
  * </p>
  */
 public final class GeneradorPlanesCompra {
-
-    /** Cantidad máxima de planes que se arman al buscar planes distintos. */
-    static final int MAXIMO_EVALUACIONES = 500;
 
     /** Saldo a partir del cual un faltante se considera cubierto (la mitad de la última cifra de las cantidades). */
     private static final double SALDO_MINIMO = 0.00005;
@@ -114,37 +100,24 @@ public final class GeneradorPlanesCompra {
      * Plan generado.
      *
      * @param asignaciones Unidades asignadas a cada oferta usada, por línea y en el orden en que se tomaron.
-     * @param proporcionSinCubrir Suma, por línea, de la parte del faltante que el plan no cubre (0 si cubre todo).
-     * @param puntaje Promedio por línea del puntaje de sus ofertas ponderado por lo que cubre cada una (menor es mejor).
+     * @param cantidadSinCubrirPorLinea Cantidad que el plan no cubre de cada línea, en la unidad del insumo (0 si la
+     *                                  cubre toda).
      * @param costoTotal Suma del costo de sus asignaciones.
      */
-    public record Plan(List<Asignacion> asignaciones, double proporcionSinCubrir, double puntaje, BigDecimal costoTotal) {
+    public record Plan(List<Asignacion> asignaciones, Map<Long, Double> cantidadSinCubrirPorLinea, BigDecimal costoTotal) {
     }
 
     /**
-     * Genera hasta {@code cantidadPlanes} planes distintos.
+     * Genera el plan de órdenes de compra con todas las ofertas útiles, ordenadas por el criterio configurado.
      *
      * @param demandas Faltante de cada línea de la solicitud.
      * @param ofertas Ofertas de los proveedores activos.
      * @param criterio Criterio de orden de las ofertas.
      * @param pesoPrecio Peso del precio (0 a 100) del criterio ponderado.
-     * @param cantidadPlanes Cantidad máxima de planes.
-     * @return Los planes, el mejor primero; vacío si ninguna oferta sirve para ninguna línea.
+     * @return El plan, o vacío si ninguna oferta sirve para ninguna línea.
      */
-    public static List<Plan> generar(List<Demanda> demandas, List<Oferta> ofertas, CriterioPlanCompra criterio,
-                                     double pesoPrecio, int cantidadPlanes) {
-        return generar(demandas, ofertas, criterio, pesoPrecio, cantidadPlanes, MAXIMO_EVALUACIONES);
-    }
-
-    /**
-     * Igual que {@link #generar(List, List, CriterioPlanCompra, double, int)} con un máximo de planes armados propio.
-     */
-    static List<Plan> generar(List<Demanda> demandas, List<Oferta> ofertas, CriterioPlanCompra criterio,
-                              double pesoPrecio, int cantidadPlanes, int maximoEvaluaciones) {
-        Map<Long, Double> faltantePorLinea = new HashMap<>();
-        demandas.forEach(demanda -> faltantePorLinea.put(demanda.idLinea(), demanda.cantidadFaltante()));
-
-        // 1. Ordenar las ofertas útiles de cada línea por el criterio, con su puntaje
+    public static Optional<Plan> generar(List<Demanda> demandas, List<Oferta> ofertas, CriterioPlanCompra criterio, double pesoPrecio) {
+        // 1. Ordenar las ofertas útiles de cada línea por el criterio
         Map<Long, List<OfertaPuntuada>> ofertasPorLinea = new HashMap<>();
         for (Demanda demanda : demandas) {
             List<Oferta> deLaLinea = ofertas.stream()
@@ -154,47 +127,12 @@ public final class GeneradorPlanesCompra {
                     .toList();
             ofertasPorLinea.put(demanda.idLinea(), puntuarYOrdenar(deLaLinea, criterio, pesoPrecio, demanda.cantidadFaltante()));
         }
-        if (ofertasPorLinea.values().stream().allMatch(List::isEmpty) || cantidadPlanes <= 0) {
-            return List.of();
+        if (ofertasPorLinea.values().stream().allMatch(List::isEmpty)) {
+            return Optional.empty();
         }
 
-        // 2. Buscar planes distintos: el primero con todas las ofertas y los siguientes excluyendo ofertas de a una
-        List<Plan> planes = new ArrayList<>();
-        Set<String> firmas = new HashSet<>();
-        Set<Set<Long>> exclusionesVistas = new HashSet<>();
-        Deque<Set<Long>> pendientes = new ArrayDeque<>();
-        pendientes.add(Set.of());
-        exclusionesVistas.add(Set.of());
-        int evaluaciones = 0;
-        while (!pendientes.isEmpty() && evaluaciones < maximoEvaluaciones && planes.size() < cantidadPlanes * 4) {
-            Set<Long> excluidas = pendientes.poll();
-            evaluaciones++;
-            Plan plan = armarPlan(demandas, ofertasPorLinea, faltantePorLinea, excluidas);
-            if (plan.asignaciones().isEmpty()) {
-                continue;
-            }
-            if (firmas.add(firma(plan))) {
-                planes.add(plan);
-            }
-            for (Asignacion asignacion : plan.asignaciones()) {
-                Set<Long> siguiente = new TreeSet<>(excluidas);
-                siguiente.add(asignacion.oferta().idOferta());
-                // Nunca se excluye la última oferta de un insumo: un plan alternativo no deja sin cubrir lo que se puede cubrir
-                if (quedaOtraOferta(ofertasPorLinea.get(asignacion.oferta().idLinea()), siguiente) && exclusionesVistas.add(siguiente)) {
-                    pendientes.add(siguiente);
-                }
-            }
-        }
-
-        // 3. Ordenar todos los planes por cobertura, puntaje y costo (el orden es estable: ante un empate total queda
-        //    primero el que se armó antes)
-        if (planes.isEmpty()) {
-            return List.of();
-        }
-        planes.sort(Comparator.comparingDouble(Plan::proporcionSinCubrir)
-                .thenComparingDouble(Plan::puntaje)
-                .thenComparing(Plan::costoTotal));
-        return List.copyOf(planes.subList(0, Math.min(cantidadPlanes, planes.size())));
+        // 2. Armar el plan con todas las ofertas
+        return Optional.of(armarPlan(demandas, ofertasPorLinea));
     }
 
     /** Oferta con su puntaje y el valor de desempate dentro de su línea. */
@@ -245,60 +183,35 @@ public final class GeneradorPlanesCompra {
         return puntuadas;
     }
 
-    /** Si a la línea le queda alguna oferta sin excluir. */
-    private static boolean quedaOtraOferta(List<OfertaPuntuada> ofertasDeLaLinea, Set<Long> excluidas) {
-        return ofertasDeLaLinea.stream().anyMatch(puntuada -> !excluidas.contains(puntuada.oferta().idOferta()));
-    }
-
     private static double normalizar(double diferencia, double rango) {
         return rango > 0 ? diferencia / rango : 0.0;
     }
 
     /**
-     * Arma un plan tomando, para cada línea, las ofertas en orden (sin las excluidas) hasta cubrir el faltante.
+     * Arma el plan tomando, para cada línea, las ofertas en orden hasta cubrir el faltante.
      */
-    static Plan armarPlan(List<Demanda> demandas, Map<Long, List<OfertaPuntuada>> ofertasPorLinea,
-                          Map<Long, Double> faltantePorLinea, Set<Long> excluidas) {
+    private static Plan armarPlan(List<Demanda> demandas, Map<Long, List<OfertaPuntuada>> ofertasPorLinea) {
         List<Asignacion> asignaciones = new ArrayList<>();
-        double proporcionSinCubrir = 0.0;
-        double sumaPuntajes = 0.0;
+        Map<Long, Double> sinCubrirPorLinea = new LinkedHashMap<>();
         BigDecimal costo = BigDecimal.ZERO;
 
         for (Demanda demanda : demandas) {
-            double faltante = faltantePorLinea.get(demanda.idLinea());
-            double restante = faltante;
-            double puntajeLinea = 0.0;
+            double restante = demanda.cantidadFaltante();
             for (OfertaPuntuada puntuada : ofertasPorLinea.getOrDefault(demanda.idLinea(), List.of())) {
                 if (restante <= SALDO_MINIMO) {
                     break;
                 }
                 Oferta oferta = puntuada.oferta();
-                if (excluidas.contains(oferta.idOferta())) {
-                    continue;
-                }
                 int necesarias = (int) Math.ceil((restante - SALDO_MINIMO) / oferta.contenidoPorPresentacion());
                 int unidades = Math.min(oferta.unidadesDisponibles(), Math.max(1, necesarias));
-                double cubierto = Math.min(restante, unidades * oferta.contenidoPorPresentacion());
                 Asignacion asignacion = new Asignacion(oferta, unidades);
                 asignaciones.add(asignacion);
                 costo = costo.add(asignacion.costo());
-                puntajeLinea += puntuada.puntaje() * (cubierto / faltante);
                 restante -= unidades * oferta.contenidoPorPresentacion();
             }
             // Un residuo de punto flotante (por ejemplo 3 x 0,7 contra 2,1) no cuenta como faltante sin cubrir
-            double sinCubrir = restante <= SALDO_MINIMO ? 0.0 : restante;
-            proporcionSinCubrir += faltante > 0 ? sinCubrir / faltante : 0.0;
-            // Lo que queda sin cubrir cuenta con el peor puntaje (1)
-            sumaPuntajes += puntajeLinea + (faltante > 0 ? sinCubrir / faltante : 0.0);
+            sinCubrirPorLinea.put(demanda.idLinea(), restante <= SALDO_MINIMO ? 0.0 : restante);
         }
-        double puntaje = demandas.isEmpty() ? 0.0 : sumaPuntajes / demandas.size();
-        return new Plan(List.copyOf(asignaciones), proporcionSinCubrir, puntaje, costo);
-    }
-
-    /** Las asignaciones del plan sin importar su orden: dos planes con la misma firma son el mismo plan. */
-    private static String firma(Plan plan) {
-        Set<String> partes = new TreeSet<>();
-        plan.asignaciones().forEach(asignacion -> partes.add(asignacion.oferta().idOferta() + "x" + asignacion.unidades()));
-        return String.join(",", new LinkedHashSet<>(partes));
+        return new Plan(List.copyOf(asignaciones), Collections.unmodifiableMap(sinCubrirPorLinea), costo);
     }
 }

@@ -22,7 +22,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 
 /**
  * Controller de la pantalla "Configuración de Compras": los parámetros de la generación automática de planes de
- * órdenes de compra (plazo de respuesta de los proveedores, cantidad de planes y criterio), editables por el
+ * órdenes de compra (plazo de respuesta de los proveedores y criterio del plan con el peso del precio), editables por el
  * GERENTE_DE_COMPRAS. No es un CRUD: la configuración es un registro único que siempre existe, así que solo se
  * consulta y se actualiza por completo.
  */
@@ -46,7 +46,6 @@ public class ConfiguracionComprasController {
         ConfiguracionComprasResponseDTO actual = configuracionComprasServicio.buscarConfiguracion();
         model.addAttribute(ATRIBUTO_FORMULARIO, ConfiguracionComprasFormDTO.builder()
                 .plazoRespuestaHoras(actual.getPlazoRespuestaHoras())
-                .cantidadPlanes(actual.getCantidadPlanes())
                 .criterioPlanCompra(actual.getCriterioPlanCompra())
                 .pesoPrecio(actual.getPesoPrecio())
                 .build());

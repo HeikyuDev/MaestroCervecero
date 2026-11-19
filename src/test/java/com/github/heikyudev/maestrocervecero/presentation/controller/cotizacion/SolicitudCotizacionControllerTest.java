@@ -76,7 +76,7 @@ class SolicitudCotizacionControllerTest {
     private static SolicitudCotizacionResponseDTO resumen(Long id, EstadoSolicitudCotizacion estado, List<String> avisos) {
         return SolicitudCotizacionResponseDTO.builder().id(id).estado(estado).idPlanificacion(7L).etiquetaPlanificacion("Plan #7 - Pale Ale")
                 .fechaSolicitud(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0))
-                .cantidadInsumos(2).cantidadInvitaciones(3).cantidadRespuestas(1).cantidadPlanes(3).avisos(avisos)
+                .cantidadInsumos(2).cantidadInvitaciones(3).cantidadRespuestas(1).avisos(avisos)
                 .tiempoRestante(estado == EstadoSolicitudCotizacion.ABIERTA ? "1 día y 3 horas" : null).build();
     }
 
@@ -89,23 +89,23 @@ class SolicitudCotizacionControllerTest {
                 .build();
     }
 
-    private static PlanCompraResponseDTO plan(int numero, EstadoPlanCompra estado, OrdenCompraPropuestaResponseDTO... ordenes) {
-        return PlanCompraResponseDTO.builder().id(700L + numero).numero(numero).estado(estado).costoTotal(new BigDecimal("120000"))
+    private static PlanCompraResponseDTO plan(EstadoPlanCompra estado, OrdenCompraPropuestaResponseDTO... ordenes) {
+        return PlanCompraResponseDTO.builder().id(701L).estado(estado).costoTotal(new BigDecimal("120000"))
                 .cubreTodo(false).ordenes(List.of(ordenes))
                 .coberturas(List.of(CoberturaInsumoPlanResponseDTO.builder().idInsumo(1L).nombreInsumo("Malta Pilsen").unidad("kg")
                         .cantidadFaltante(150.0).cantidadCubierta(100.0).cantidadSinCubrir(50.0).build()))
                 .build();
     }
 
-    private static SolicitudCotizacionResponseDTO detalle(EstadoSolicitudCotizacion estado, List<PlanCompraResponseDTO> planes) {
+    private static SolicitudCotizacionResponseDTO detalle(EstadoSolicitudCotizacion estado, PlanCompraResponseDTO plan) {
         return SolicitudCotizacionResponseDTO.builder().id(90L).estado(estado).idPlanificacion(7L).etiquetaPlanificacion("Plan #7 - Pale Ale")
                 .fechaSolicitud(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0))
                 .tiempoRestante(estado == EstadoSolicitudCotizacion.ABIERTA ? "1 día y 3 horas" : null)
-                .planElegido(planes.stream().anyMatch(p -> p.getEstado() == EstadoPlanCompra.ELEGIDO))
+                .planElegido(plan != null && plan.getEstado() == EstadoPlanCompra.ELEGIDO)
                 .fechaCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? LocalDateTime.of(2026, 11, 19, 8, 0) : null)
                 .motivoCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "Se consiguió el insumo" : null)
                 .usuarioCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "compras1" : null)
-                .avisos(List.of("Ningún plan cubre todo el faltante: revise la cantidad sin cubrir de cada insumo"))
+                .avisos(List.of("El plan no cubre todo el faltante: revise la cantidad sin cubrir de cada insumo"))
                 .lineas(List.of(LineaSolicitudCotizacionResponseDTO.builder().id(501L).idInsumo(1L).nombreInsumo("Malta Pilsen").tipoInsumo("Malta")
                         .unidad("kg").cantidadRequerida(200.0).cantidadDisponible(30.0).cantidadPendienteRecepcion(20.0).cantidadFaltante(150.0).build()))
                 .invitaciones(List.of(
@@ -118,7 +118,7 @@ class SolicitudCotizacionControllerTest {
                                 .proveedorActivo(false).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).cantidadOfertas(0)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
                                 .estadoParticipacion("Dado de baja").insumosCotizados(List.of()).build()))
-                .planes(planes)
+                .plan(plan)
                 .build();
     }
 
@@ -131,7 +131,7 @@ class SolicitudCotizacionControllerTest {
         // Arrange
         when(solicitudCotizacionServicio.filtrarSolicitudes(isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(resumen(91L, EstadoSolicitudCotizacion.ABIERTA, List.of()),
-                        resumen(90L, EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of("Ningún proveedor activo ofrece Cascade"))), PageRequest.of(0, 20), 2));
+                        resumen(90L, EstadoSolicitudCotizacion.PLAN_GENERADO, List.of("Ningún proveedor activo ofrece Cascade"))), PageRequest.of(0, 20), 2));
 
         // Act
         String html = mockMvc.perform(get(URL))
@@ -145,7 +145,7 @@ class SolicitudCotizacionControllerTest {
                 .doesNotContain("data-aviso-planes-pendientes")
                 .contains("Tiempo restante").contains("1 día y 3 horas")
                 .contains("href=\"/solicitudes-cotizacion/90\"")
-                .contains("Planes generados").contains("1 de 3").contains("18/11/2026 09:00").contains("20/11/2026 09:00")
+                .contains("Plan generado").contains("1 de 3").contains("18/11/2026 09:00").contains("20/11/2026 09:00")
                 .contains("data-tooltip=\"Ningún proveedor activo ofrece Cascade\"")
                 .containsPattern("href=\"/ordenes-compra\"[^>]*bg-amber-500/10");
         assertThat(html.indexOf("href=\"/solicitudes-cotizacion/91\"")).isLessThan(html.indexOf("href=\"/solicitudes-cotizacion/90\""));
@@ -178,12 +178,11 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con su fecha estimada de entrega y cada presentación que cotizó, los avisos, la cancelación y el primer plan en su pestaña")
+    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con su fecha estimada de entrega y cada presentación que cotizó, los avisos, la cancelación y el plan de órdenes de compra")
     void caso_cp_scc_03() throws Exception {
         // Arrange
-        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of(
-                plan(1, EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null)),
-                plan(2, EstadoPlanCompra.PROPUESTO, orden(802L, EstadoOrdenCompraPropuesta.PROPUESTA, null)))));
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
+                plan(EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
 
         // Act
         String html = mockMvc.perform(get(URL + "/90"))
@@ -194,7 +193,7 @@ class SolicitudCotizacionControllerTest {
         // Assert
         assertThat(html)
                 .contains("Solicitud de cotización #90").contains("Plan #7 - Pale Ale")
-                .contains("Ningún plan cubre todo el faltante: revise la cantidad sin cubrir de cada insumo")
+                .contains("El plan no cubre todo el faltante: revise la cantidad sin cubrir de cada insumo")
                 .contains("Insumos solicitados").contains("Malta Pilsen").contains("200 kg").contains("30 kg").contains("20 kg").contains("150 kg")
                 .contains("href=\"/planificaciones-produccion/7\"")
                 .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
@@ -202,46 +201,46 @@ class SolicitudCotizacionControllerTest {
                 .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
                 .contains("Entrega estimada").containsPattern("data-fecha-entrega>\\s*05/12/2026")
                 .contains("data-boton-cancelar").contains("dialogo-cancelar")
-                .contains("href=\"/solicitudes-cotizacion/90?plan=1\"").contains("href=\"/solicitudes-cotizacion/90?plan=2\"")
-                .contains("bi-diagram-3")
+                .contains("data-plan>").contains("Plan de órdenes de compra").contains("Resumen del plan").contains("Propuesto")
+                .doesNotContain("?plan=").doesNotContain("Plan 1").doesNotContain("Planes de órdenes de compra")
                 .contains("Cobertura de los insumos").contains("50 kg")
                 .contains("Bolsa (25 kg)").contains("$ 1.200,00 / kg").contains("$ 120.000,00")
                 .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=801\"")
-                .doesNotContain("idOrdenPropuesta=802")
                 .doesNotContain("/descartar");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-04: con ?plan=N se muestra ese plan; en el plan elegido cada orden pendiente ofrece confirmar y descartar y la confirmada enlaza a su orden de compra")
+    @DisplayName("CP-SCC-04: en el plan elegido cada orden pendiente ofrece confirmar y descartar, la confirmada enlaza a su orden de compra, la descartada no ofrece acciones y la solicitud ya no se puede cancelar")
     void caso_cp_scc_04() throws Exception {
         // Arrange
-        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLANES_GENERADOS, List.of(
-                plan(1, EstadoPlanCompra.DESCARTADO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null)),
-                plan(2, EstadoPlanCompra.ELEGIDO, orden(802L, EstadoOrdenCompraPropuesta.CONFIRMADA, 12L), orden(803L, EstadoOrdenCompraPropuesta.PROPUESTA, null)))));
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
+                plan(EstadoPlanCompra.ELEGIDO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null),
+                        orden(802L, EstadoOrdenCompraPropuesta.CONFIRMADA, 12L), orden(803L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
 
         // Act
-        String html = mockMvc.perform(get(URL + "/90").param("plan", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String html = mockMvc.perform(get(URL + "/90")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
         assertThat(html)
                 .contains("Elegido").contains("Confirmada")
                 .contains("href=\"/ordenes-compra/12\"").contains("Ver orden de compra #12")
                 .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=803\"")
-                .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/803/descartar?plan=2\"")
+                .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/803/descartar\"")
                 .contains("data-confirmar-titulo=\"Descartar orden propuesta\"")
                 .doesNotContain("idOrdenPropuesta=801").doesNotContain("idOrdenPropuesta=802")
+                .doesNotContain("ordenes-propuestas/801/descartar").doesNotContain("ordenes-propuestas/802/descartar")
                 .doesNotContain("data-boton-cancelar");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-05: una solicitud cancelada muestra el detalle de su cancelación en un diálogo y no ofrece acciones; una abierta muestra el tiempo restante y ofrece cancelar, sin sección de planes")
+    @DisplayName("CP-SCC-05: una solicitud cancelada muestra el detalle de su cancelación en un diálogo y no ofrece acciones; una abierta muestra el tiempo restante y ofrece cancelar, sin sección del plan")
     void caso_cp_scc_05() throws Exception {
         // Arrange
-        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.CANCELADA, List.of(
-                plan(1, EstadoPlanCompra.CANCELADO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null)))));
-        when(solicitudCotizacionServicio.buscarPorId(91L)).thenReturn(detalle(EstadoSolicitudCotizacion.ABIERTA, List.of()));
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.CANCELADA,
+                plan(EstadoPlanCompra.CANCELADO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null))));
+        when(solicitudCotizacionServicio.buscarPorId(91L)).thenReturn(detalle(EstadoSolicitudCotizacion.ABIERTA, null));
 
         // Act
         String cancelada = mockMvc.perform(get(URL + "/90")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -252,7 +251,7 @@ class SolicitudCotizacionControllerTest {
                 .doesNotContain("data-boton-cancelar")
                 .contains("data-detalle-motivo=\"Se consiguió el insumo\"").contains("data-detalle-usuario=\"compras1\"")
                 .contains("Detalle de la cancelación").doesNotContain(">Se consiguió el insumo<");
-        assertThat(abierta).doesNotContain("data-planes").doesNotContain("Cobertura de los insumos")
+        assertThat(abierta).doesNotContain("data-plan>").doesNotContain("Cobertura de los insumos")
                 .contains("data-tiempo-restante").contains("1 día y 3 horas").contains("data-boton-cancelar");
     }
 
@@ -271,11 +270,11 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-07: descartar una orden propuesta delega en el service y vuelve a la pestaña del plan con alerta de éxito")
+    @DisplayName("CP-SCC-07: descartar una orden propuesta delega en el service y vuelve al detalle de la solicitud con alerta de éxito")
     void caso_cp_scc_07() throws Exception {
-        mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()).param("plan", "2"))
+        mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/solicitudes-cotizacion/90?plan=2"))
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/90"))
                 .andExpect(flash().attribute("mensaje", "Orden propuesta descartada correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
@@ -360,7 +359,7 @@ class SolicitudCotizacionControllerTest {
         SolicitudCotizacionResponseDTO pendiente = SolicitudCotizacionResponseDTO.builder().id(12L).estado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION)
                 .idPlanificacion(45L).etiquetaPlanificacion("Plan #45 - Pale Ale").avisos(List.of())
                 .explicacion("Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg). Confirme el envío a los proveedores o cancele la solicitud")
-                .lineas(List.of()).invitaciones(List.of()).planes(List.of()).build();
+                .lineas(List.of()).invitaciones(List.of()).build();
         when(solicitudCotizacionServicio.buscarPorId(12L)).thenReturn(pendiente);
 
         // Act
