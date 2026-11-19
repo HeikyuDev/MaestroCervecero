@@ -1887,7 +1887,7 @@ class CronogramaControllerTest {
         // Assert
         assertThat(html).doesNotContain("<html").contains("Buscar receta").contains(">Nombre</label>").contains("placeholder=\"Ej: Pale Ale\"")
                 .contains("action=\"/cronograma-produccion/buscador/recetas\"").contains("data-modal-buscar")
-                .contains("Incluir dados de baja").contains("Nombre</th>").contains("Volumen base (L)</th>")
+                .contains("Incluir dados de baja").contains("Nombre</th>").doesNotContain("Volumen base (L)")
                 .contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"")
                 .doesNotContain("data-receta-dada-de-baja");
         Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);

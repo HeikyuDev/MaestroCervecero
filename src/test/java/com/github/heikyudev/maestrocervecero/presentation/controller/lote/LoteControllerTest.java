@@ -2534,8 +2534,8 @@ class LoteControllerTest {
         // Assert
         assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/buscador/recetas\"").contains("data-modal-buscar")
                 .doesNotContain("incluirDadosDeBaja");
-        assertThat(texto(html)).contains("Buscar receta", "Nombre", "Nombre Volumen base (L)").doesNotContain("Incluir dados de baja");
-        assertThat(celdas(html, "Pale Ale")).startsWith("Pale Ale", "20");
+        assertThat(texto(html)).contains("Buscar receta", "Nombre").doesNotContain("Incluir dados de baja", "Volumen base (L)");
+        assertThat(celdas(html, "Pale Ale")).containsExactly("Pale Ale", "Elegir");
         assertThat(html).contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"");
     }
 
@@ -2722,7 +2722,7 @@ class LoteControllerTest {
         // Assert
         assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/filtros/recetas\"").contains("data-modal-buscar")
                 .doesNotContain("data-receta-dada-de-baja");
-        assertThat(texto(html)).contains("Buscar receta", "Incluir dados de baja", "Nombre Volumen base (L)");
+        assertThat(texto(html)).contains("Buscar receta", "Incluir dados de baja", "Nombre").doesNotContain("Volumen base (L)");
         Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
         assertThat(casilla.find()).isTrue();
         assertThat(casilla.group()).contains("type=\"checkbox\"").doesNotContain("checked");
