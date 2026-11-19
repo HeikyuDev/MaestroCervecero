@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -59,8 +58,6 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
     static final String MENSAJE_PRECIO_OBLIGATORIO = "El precio unitario es obligatorio si indica una cantidad disponible";
     static final String MENSAJE_CANTIDAD_OBLIGATORIA = "La cantidad disponible es obligatoria si indica un precio unitario";
     static final String MENSAJE_PROVEEDOR_INACTIVO = "El enlace ya no está habilitado para responder la solicitud de cotización";
-
-    private static final String CAMPO_FECHA_ENTREGA = "fechaEntregaEstimada";
 
     private final IInvitacionCotizacionRepository invitacionRepository;
     private final ISolicitudCotizacionRepository solicitudRepository;
@@ -143,15 +140,7 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                     .build());
         }
 
-        // 4. Validar la fecha estimada de entrega: obligatoria si ofrece alguna presentación con stock (cantidad mayor a 0),
-        //    no anterior a la fecha actual y a no más del máximo de una orden de compra (la usa la orden que se le propone)
-        boolean ofreceConStock = nuevas.values().stream().anyMatch(oferta -> oferta.getCantidadDisponible() > 0);
-        LocalDate fechaEntregaEstimada = ofreceConStock ? cotizacionProveedorFormDTO.getFechaEntregaEstimada() : null;
-        if (ofreceConStock) {
-            validarFechaEntregaEstimada(fechaEntregaEstimada);
-        }
-
-        // 5. Reemplazar las ofertas: se actualizan las de las presentaciones que se vuelven a cotizar, se quitan las demás
+        // 4. Reemplazar las ofertas: se actualizan las de las presentaciones que se vuelven a cotizar, se quitan las demás
         //    y se agregan las nuevas
         invitacion.getOfertas().removeIf(oferta -> !nuevas.containsKey(ClaveOferta.de(oferta)));
         for (OfertaCotizacionEntity existente : invitacion.getOfertas()) {
@@ -164,26 +153,8 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                         .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
                 .forEach(invitacion.getOfertas()::add);
         invitacion.setFechaRespuesta(ahora);
-        invitacion.setFechaEntregaEstimada(fechaEntregaEstimada);
 
         return armarCotizacion(invitacionRepository.save(invitacion));
-    }
-
-    /**
-     * Valida la fecha estimada de entrega con las mismas reglas que el alta de órdenes de compra: informada, no anterior
-     * a la fecha actual y a no más de {@code LimitesTecnicos.ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA} días.
-     */
-    private static void validarFechaEntregaEstimada(LocalDate fecha) {
-        if (fecha == null) {
-            throw new ReglaNegocioException("La fecha estimada de entrega es obligatoria", CAMPO_FECHA_ENTREGA);
-        }
-        LocalDate hoy = LocalDate.now();
-        if (fecha.isBefore(hoy)) {
-            throw new ReglaNegocioException("La fecha estimada de entrega no puede ser anterior a la fecha actual", CAMPO_FECHA_ENTREGA);
-        }
-        if (fecha.isAfter(hoy.plusDays(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA))) {
-            throw new ReglaNegocioException("La fecha estimada de entrega no puede superar un año desde la fecha actual", CAMPO_FECHA_ENTREGA);
-        }
     }
 
     /** Identidad de una oferta dentro de la respuesta de un proveedor: el insumo solicitado y la presentación. */
@@ -334,7 +305,6 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                 .nombreComercial(version == null ? null : version.getNombreComercial())
                 .fechaLimiteRespuesta(solicitud.getFechaLimiteRespuesta())
                 .fechaRespuesta(invitacion.getFechaRespuesta())
-                .fechaEntregaEstimada(invitacion.getFechaEntregaEstimada())
                 .lineas(lineas)
                 .build();
     }

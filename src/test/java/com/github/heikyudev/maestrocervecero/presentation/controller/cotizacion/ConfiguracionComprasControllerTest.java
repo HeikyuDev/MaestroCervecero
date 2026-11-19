@@ -81,7 +81,7 @@ class ConfiguracionComprasControllerTest {
                 .contains("name=\"pesoPrecio\" value=\"50\"").doesNotContain("value=\"50.0\"")
                 .contains("placeholder=\"Ej: 48\"").contains("placeholder=\"Ej: 50\"")
                 .contains("<option value=\"PONDERADO\" selected=\"selected\">Ponderado entre precio y cantidad</option>")
-                .contains("Menor precio").contains("Mayor cantidad disponible")
+                .contains("Menor precio").contains("Mayor cantidad disponible").doesNotContain("Seleccione criterio")
                 .contains("Un número entero mayor a 0 y hasta 720")
                 .contains("Solo se usa con el criterio ponderado")
                 .contains("href=\"/configuracion-compras\"")

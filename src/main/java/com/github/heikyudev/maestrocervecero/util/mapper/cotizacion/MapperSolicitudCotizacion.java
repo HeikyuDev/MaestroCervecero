@@ -38,7 +38,6 @@ import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -204,7 +203,6 @@ public final class MapperSolicitudCotizacion {
                                 .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
                         .map(MapperSolicitudCotizacion::descripcionOferta)
                         .toList())
-                .fechaEntregaEstimada(invitacion.getFechaEntregaEstimada())
                 .estadoEnvio(invitacion.getEstadoEnvio())
                 .intentosEnvio(invitacion.getIntentosEnvio() == null ? 0 : invitacion.getIntentosEnvio())
                 .build();
@@ -343,7 +341,6 @@ public final class MapperSolicitudCotizacion {
                 .idOrdenCompra(orden.getOrdenCompra() == null ? null : orden.getOrdenCompra().getId())
                 .total(items.stream().map(ItemOrdenCompraPropuestaResponseDTO::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add))
                 .items(items)
-                .fechaEntregaEstimada(fechaEntregaEstimada(orden))
                 .build();
     }
 
@@ -368,18 +365,6 @@ public final class MapperSolicitudCotizacion {
         return oferta.getLineaSolicitud().getInsumo().getNombre() + ": " + oferta.getCantidadDisponible() + " x "
                 + nombrePresentacion(oferta.getCatalogoProveedor().getPresentacionComercial()) + " a "
                 + FormatoImporte.conSimbolo(oferta.getPrecioUnitario());
-    }
-
-    /**
-     * La fecha estimada de entrega que indicó en su cotización el proveedor de una orden propuesta, o {@code null}.
-     */
-    public static LocalDate fechaEntregaEstimada(OrdenCompraPropuestaEntity orden) {
-        return orden.getPlan().getSolicitud().getInvitaciones().stream()
-                .filter(invitacion -> invitacion.getProveedor().getId().equals(orden.getProveedor().getId()))
-                .map(InvitacionCotizacionEntity::getFechaEntregaEstimada)
-                .filter(java.util.Objects::nonNull)
-                .findFirst()
-                .orElse(null);
     }
 
     /**

@@ -112,8 +112,7 @@ class SolicitudCotizacionControllerTest {
                         InvitacionCotizacionResponseDTO.builder().id(1L).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
                                 .proveedorActivo(true).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.ENVIADA).intentosEnvio(1)
-                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00"))
-                                .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5)).build(),
+                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00")).build(),
                         InvitacionCotizacionResponseDTO.builder().id(2L).idProveedor(2L).razonSocial("LUPULOS DEL VALLE").cuit("30-87654321-0")
                                 .proveedorActivo(false).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).cantidadOfertas(0)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
@@ -144,7 +143,7 @@ class SolicitudCotizacionControllerTest {
                 .contains("Solicitudes de cotización").contains("Volver a órdenes de compra").contains("href=\"/ordenes-compra\"")
                 .doesNotContain("data-aviso-planes-pendientes")
                 .contains("Tiempo restante").contains("1 día y 3 horas")
-                .contains("href=\"/solicitudes-cotizacion/90\"")
+                .contains("href=\"/solicitudes-cotizacion/90\"").contains("data-boton-abrir").contains("aria-label=\"Abrir solicitud 90\"").doesNotContain("bi-eye")
                 .contains("Plan generado").contains("1 de 3").contains("18/11/2026 09:00").contains("20/11/2026 09:00")
                 .contains("data-tooltip=\"Ningún proveedor activo ofrece Cascade\"")
                 .containsPattern("href=\"/ordenes-compra\"[^>]*bg-amber-500/10");
@@ -178,7 +177,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con su fecha estimada de entrega y cada presentación que cotizó, los avisos, la cancelación y el plan de órdenes de compra")
+    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con cada presentación que cotizó, los avisos, la cancelación y el plan de órdenes de compra")
     void caso_cp_scc_03() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
@@ -199,7 +198,7 @@ class SolicitudCotizacionControllerTest {
                 .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
                 .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
                 .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
-                .contains("Entrega estimada").containsPattern("data-fecha-entrega>\\s*05/12/2026")
+                .doesNotContain("Entrega estimada").doesNotContain("data-fecha-entrega")
                 .contains("data-boton-cancelar").contains("dialogo-cancelar")
                 .contains("data-plan>").contains("Plan de órdenes de compra").contains("Resumen del plan").contains("Propuesto")
                 .doesNotContain("?plan=").doesNotContain("Plan 1").doesNotContain("Planes de órdenes de compra")

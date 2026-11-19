@@ -11,6 +11,10 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISoli
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -188,5 +192,31 @@ class ProcesosCotizacionTest {
         when(servicio.prepararEnvios(91L)).thenReturn(List.of());
         envio.enviarPendientes(91L);
         verify(servicio, never()).registrarResultadosEnvio(eq(91L), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("CP-PRC-08: la plantilla real de la invitación pide precio y cantidad por presentación, sin la fecha estimada de entrega")
+    void plantillaInvitacion_pidePrecioYCantidadPorPresentacion() {
+        // === PREPARACION DE DATOS ===
+        ClassLoaderTemplateResolver resolutor = new ClassLoaderTemplateResolver();
+        resolutor.setPrefix("templates/");
+        resolutor.setSuffix(".html");
+        resolutor.setTemplateMode(TemplateMode.HTML);
+        resolutor.setCharacterEncoding("UTF-8");
+        SpringTemplateEngine motor = new SpringTemplateEngine();
+        motor.setTemplateResolver(resolutor);
+        Context contexto = new Context();
+        contexto.setVariables(Map.of("razonSocial", "MALTERIA SUR", "enlace", "https://cerveceria.com/cotizacion/abc123",
+                "fechaLimite", "20/11/2026 10:30", "insumos", List.of("Malta Pilsen")));
+
+        // === EJECUCION ===
+        String html = motor.process(NotificadorCotizaciones.PLANTILLA_INVITACION, contexto);
+
+        // === ASSERTS ===
+        assertThat(html).contains("Hola MALTERIA SUR:").contains("Malta Pilsen")
+                .contains("Para indicar el precio y la cantidad que puede entregar en cada presentación, presione el botón.")
+                .contains("href=\"https://cerveceria.com/cotizacion/abc123\"")
+                .doesNotContain("puede combinar varias")
+                .doesNotContain("fecha estimada de entrega");
     }
 }

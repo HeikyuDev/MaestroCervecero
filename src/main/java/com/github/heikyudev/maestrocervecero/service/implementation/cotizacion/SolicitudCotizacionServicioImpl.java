@@ -68,7 +68,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -114,8 +113,6 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
     static final String ASUNTO_CORREO_NO_ENTREGADO = "Solicitud de cotización no entregada a proveedores";
     static final String ASUNTO_FALLA_CIERRE = "No se pudo cerrar una solicitud de cotización";
     static final String MOTIVO_FALLA_CIERRE = "Ocurrió un error inesperado al generar el plan";
-
-    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     static final int MAXIMO_INTENTOS_ENVIO = LimitesTecnicos.INTENTOS_ENVIO_INVITACION_MAXIMO;
     static final int MAXIMO_INTENTOS_CIERRE = LimitesTecnicos.INTENTOS_CIERRE_SOLICITUD_MAXIMO;
@@ -806,12 +803,6 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                         + ": el ítem no se incluyó");
             }
         }
-        // La fecha que indicó el proveedor solo se propone si todavía no pasó; si pasó, el gerente indica una nueva
-        LocalDate fechaEntrega = MapperSolicitudCotizacion.fechaEntregaEstimada(orden);
-        if (fechaEntrega != null && fechaEntrega.isBefore(LocalDate.now())) {
-            avisos.add("La fecha de entrega indicada por el proveedor (" + fechaEntrega.format(FORMATO_FECHA) + ") ya pasó; indique una nueva");
-            fechaEntrega = null;
-        }
         PlanCompraEntity plan = orden.getPlan();
         return OrdenCompraPrearmadaResponseDTO.builder()
                 .idOrdenPropuesta(orden.getId())
@@ -820,7 +811,6 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 .idProveedor(orden.getProveedor().getId())
                 .items(items)
                 .avisos(avisos)
-                .fechaEntregaEstimada(fechaEntrega)
                 .build();
     }
 

@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Provee
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,11 +74,6 @@ public class InvitacionCotizacionEntity extends AuditableEntity<String> {
     // Momento del último envío de la respuesta; nula mientras el proveedor no respondió
     @Column(name = "fecha_respuesta")
     private LocalDateTime fechaRespuesta;
-
-    // Fecha en que el proveedor estima entregar lo que ofrece (una sola por respuesta: su orden de compra tiene una sola
-    // fecha); nula mientras no respondió o si respondió sin ofertas
-    @Column(name = "fecha_entrega_estimada")
-    private LocalDate fechaEntregaEstimada;
 
     @OneToMany(mappedBy = "invitacion", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")

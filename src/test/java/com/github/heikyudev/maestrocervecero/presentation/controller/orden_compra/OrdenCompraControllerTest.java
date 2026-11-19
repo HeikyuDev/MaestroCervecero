@@ -1532,7 +1532,6 @@ class OrdenCompraControllerTest {
     private static com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO prearmada(List<String> avisos) {
         return com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO.builder()
                 .idOrdenPropuesta(801L).idSolicitud(90L).idPlanificacion(7L).idProveedor(4L)
-                .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5))
                 .items(List.of(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO.builder()
                         .idCatalogoProveedor(100L).cantidad(4).precioUnitario(new java.math.BigDecimal("30000")).build()))
                 .avisos(avisos)
@@ -1541,7 +1540,7 @@ class OrdenCompraControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-OCC-62: con una orden propuesta el alta llega prearmada con su planificación, su proveedor, la fecha estimada de entrega del proveedor y sus ítems, el aviso del plan y el regreso a la solicitud")
+    @DisplayName("CP-OCC-62: con una orden propuesta el alta llega prearmada con su planificación, su proveedor y sus ítems, la fecha estimada de entrega vacía para que la indique el gerente, el aviso del plan y el regreso a la solicitud")
     void caso_cp_occ_62() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenReturn(prearmada(List.of("El proveedor ya no ofrece Cascade en Bolsa (1 kg): el ítem no se incluyó")));
@@ -1562,7 +1561,7 @@ class OrdenCompraControllerTest {
                 .contains("Volver a la solicitud de cotización")
                 .contains("name=\"idPlanificacionProduccion\" value=\"7\"")
                 .contains("name=\"idProveedor\" value=\"4\"")
-                .contains("name=\"fechaEntregaEstimada\" value=\"2026-12-05\"")
+                .contains("name=\"fechaEntregaEstimada\" value=\"\"")
                 .contains("name=\"detallesCompra[0].idCatalogoProveedor\" value=\"100\"")
                 .contains("name=\"detallesCompra[0].cantidad\" value=\"4\"")
                 .contains("El proveedor ya no ofrece Cascade en Bolsa (1 kg): el ítem no se incluyó")
@@ -1769,30 +1768,5 @@ class OrdenCompraControllerTest {
 
     private static PageImpl<OrdenCompraResponseDTO> paginaVacia() {
         return new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-OCC-69: si la fecha del proveedor ya pasó, el alta prearmada llega con la fecha vacía y el aviso para indicar una nueva")
-    void caso_cp_occ_69() throws Exception {
-        // Arrange
-        String aviso = "La fecha de entrega indicada por el proveedor (10/11/2026) ya pasó; indique una nueva";
-        when(solicitudCotizacionServicio.prepararOrdenCompra(801L)).thenReturn(
-                com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO.builder()
-                        .idOrdenPropuesta(801L).idSolicitud(90L).idPlanificacion(7L).idProveedor(4L)
-                        .items(List.of(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO.builder()
-                                .idCatalogoProveedor(100L).cantidad(4).precioUnitario(new java.math.BigDecimal("30000")).build()))
-                        .avisos(List.of(aviso))
-                        .build());
-        cargarProveedorYPlanificacion();
-
-        // Act
-        String html = mockMvc.perform(get(URL + "/nuevo").param("idOrdenPropuesta", "801"))
-                .andExpect(status().isOk())
-                .andExpect(view().name(VISTA_FORMULARIO))
-                .andReturn().getResponse().getContentAsString();
-
-        // Assert
-        assertThat(html).contains(aviso).contains("name=\"fechaEntregaEstimada\" value=\"\"");
     }
 }

@@ -85,11 +85,9 @@ La planificación se escala como un único lote virtual de su cantidad a produci
 |---|---|---|---|---|
 |**CP-SCO-25**|Listado, detalle y procesos programados|Solicitud 90 con el plan generado: dos órdenes de 4 bolsas a $ 30.000; 91 inexistente; vencidas 3 y 4; con envíos pendientes la 5|Consultas|El listado devuelve el resumen sin líneas ni plan (plan sin elegir); el detalle, el plan con dos órdenes, costo $ 240.000, cobertura completa y $ 1.200/kg; 1 con el plan por decidir y ninguna por confirmar; vencidas 3 y 4; con envíos pendientes la 5; la 91 lanza "No se encontró la solicitud de cotización con ID: 91".|
 
-### Varias presentaciones y fecha estimada de entrega
+### Varias presentaciones y ofertas sin stock
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-SCO-43**|Varias presentaciones del mismo proveedor al cerrar|Solicitud vencida con 100 kg de malta; MALTERIA SUR ofrece 2 bolsas de 25 kg a $ 20.000 ($ 800/kg) y 6 bolsas de 10 kg a $ 9.000 ($ 900/kg)|Cada presentación es una oferta|La solicitud queda con el plan generado; el plan tiene una sola orden propuesta para el proveedor con un ítem por presentación: 2 bolsas de 25 kg y 5 de 10 kg (100 kg).|
-|**CP-SCO-44**|Fecha estimada de entrega en la orden propuesta|Solicitud con el plan generado; MALTERIA SUR respondió con entrega estimada en 12 días y LUPULOS DEL VALLE sin fecha|Fecha del proveedor|`prepararOrdenCompra` y la orden propuesta de MALTERIA SUR llevan esa fecha; la orden propuesta de LUPULOS DEL VALLE no lleva fecha.|
 |**CP-SCO-45**|Ofertas sin stock|Solicitud vencida donde MALTERIA SUR respondió solo con la Bolsa sin stock; y otra donde además LUPULOS DEL VALLE ofrece 10 bolsas|Cantidad mayor a 0|La primera cierra sin plan con "los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados"; la oferta se muestra como "Malta Pilsen: Sin stock en Bolsa (25 kg)" y no cuenta como oferta. En la segunda el plan solo usa a LUPULOS DEL VALLE.|
-|**CP-SCO-46**|Fecha del proveedor vencida|MALTERIA SUR indicó como fecha estimada de entrega el día de ayer; después, la de hoy|Fecha anterior a hoy|La orden prearmada llega sin fecha y con el aviso "La fecha de entrega indicada por el proveedor (dd/MM/yyyy) ya pasó; indique una nueva"; la orden propuesta del detalle conserva la fecha del proveedor. Con la fecha de hoy se prearma con esa fecha.|

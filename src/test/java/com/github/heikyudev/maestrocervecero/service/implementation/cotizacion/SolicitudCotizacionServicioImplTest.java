@@ -1326,7 +1326,7 @@ class SolicitudCotizacionServicioImplTest {
                 .hasMessage("No se encontró la solicitud de cotización con ID: 91");
     }
 
-    // ==================== Varias presentaciones y fecha estimada de entrega ====================
+    // ==================== Varias presentaciones y ofertas sin stock ====================
 
     @Test
     @DisplayName("CP-SCO-43: cerrarSolicitud combina varias presentaciones del mismo proveedor y su orden propuesta lleva un ítem por presentación")
@@ -1362,26 +1362,6 @@ class SolicitudCotizacionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SCO-44: la orden prearmada y la orden propuesta llevan la fecha estimada de entrega que indicó el proveedor")
-    void preparar_llevaLaFechaEstimadaDeEntregaDelProveedor() {
-        // === PREPARACION DE DATOS ===
-        ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
-        ProveedorEntity p2 = proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta);
-        SolicitudCotizacionEntity solicitud = solicitudConPlan(p1, p2);
-        java.time.LocalDate entrega = java.time.LocalDate.now().plusDays(12);
-        invitar(solicitud, p1, LocalDateTime.now()).setFechaEntregaEstimada(entrega);
-        invitar(solicitud, p2, LocalDateTime.now());
-        OrdenCompraPropuestaEntity orden = solicitud.getPlan().getOrdenes().get(0);
-        OrdenCompraPropuestaEntity sinFecha = solicitud.getPlan().getOrdenes().get(1);
-        conOrdenPropuesta(orden);
-
-        // === EJECUCION Y VERIFICACION ===
-        assertThat(servicio.prepararOrdenCompra(801L).getFechaEntregaEstimada()).isEqualTo(entrega);
-        assertThat(MapperSolicitudCotizacion.toOrdenDTO(orden).getFechaEntregaEstimada()).isEqualTo(entrega);
-        assertThat(MapperSolicitudCotizacion.toOrdenDTO(sinFecha).getFechaEntregaEstimada()).isNull();
-    }
-
-    @Test
     @DisplayName("CP-SCO-45: las ofertas sin stock no entran en el plan y una respuesta solo sin stock cuenta como respuesta sin ofertas")
     void cerrar_ignoraOfertasSinStock() {
         // === PREPARACION DE DATOS ===
@@ -1412,30 +1392,5 @@ class SolicitudCotizacionServicioImplTest {
         servicio.cerrarSolicitud(90L);
         assertThat(otra.getPlan()).isNotNull();
         assertThat(otra.getPlan().getOrdenes()).extracting(orden -> orden.getProveedor().getId()).containsExactly(2L);
-    }
-
-    @Test
-    @DisplayName("CP-SCO-46: si la fecha estimada de entrega del proveedor ya pasó, la orden prearmada llega sin fecha y con un aviso para indicar una nueva")
-    void preparar_fechaDelProveedorVencida() {
-        // === PREPARACION DE DATOS ===
-        ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
-        SolicitudCotizacionEntity solicitud = solicitudConPlan(p1, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
-        java.time.LocalDate vencida = java.time.LocalDate.now().minusDays(1);
-        invitar(solicitud, p1, LocalDateTime.now().minusDays(5)).setFechaEntregaEstimada(vencida);
-        OrdenCompraPropuestaEntity orden = solicitud.getPlan().getOrdenes().get(0);
-        conOrdenPropuesta(orden);
-
-        // === EJECUCION ===
-        OrdenCompraPrearmadaResponseDTO prearmada = servicio.prepararOrdenCompra(801L);
-
-        // === ASSERTS ===
-        assertThat(prearmada.getFechaEntregaEstimada()).isNull();
-        assertThat(prearmada.getAvisos()).containsExactly("La fecha de entrega indicada por el proveedor ("
-                + vencida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ") ya pasó; indique una nueva");
-        // El detalle de la solicitud sigue mostrando la fecha que indicó el proveedor
-        assertThat(MapperSolicitudCotizacion.toOrdenDTO(orden).getFechaEntregaEstimada()).isEqualTo(vencida);
-        // La de hoy todavía sirve
-        solicitud.getInvitaciones().get(0).setFechaEntregaEstimada(java.time.LocalDate.now());
-        assertThat(servicio.prepararOrdenCompra(801L).getFechaEntregaEstimada()).isEqualTo(java.time.LocalDate.now());
     }
 }
