@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.distribucion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitudBusquedaServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.cliente.IClienteServicio;
@@ -116,11 +117,18 @@ public class SolicitudRetiroController {
     }
 
     /**
-     * Muestra el detalle de una solicitud, de solo lectura. Si no existe, el {@code ControllerAdvices} muestra el aviso.
+     * Muestra el detalle de una solicitud, de solo lectura. Si no existe, el {@code ControllerAdvices} muestra el aviso
+     * con el nombre que la solicitud tiene en esta pantalla ("solicitud de retiro").
      */
     @GetMapping("/{id}")
     public String verSolicitud(@PathVariable Long id, Model model) {
-        model.addAttribute("solicitud", solicitudBusquedaServicio.buscarPorId(id));
+        SolicitudBusquedaResponseDTO solicitud;
+        try {
+            solicitud = solicitudBusquedaServicio.buscarPorId(id);
+        } catch (RecursoNoEncontradoException e) {
+            throw new RecursoNoEncontradoException("No se encontró la solicitud de retiro con ID: " + id, e);
+        }
+        model.addAttribute("solicitud", solicitud);
         model.addAttribute("urlPantalla", URL_LISTA);
         return VISTA_DETALLE;
     }

@@ -143,7 +143,7 @@ class DashboardEncargadoDistribucionPlantillasTest {
         assertThat(bloque).contains("Retiros coordinados pendientes").contains("${dashboard.retirosPendientes.total}")
                 .contains("th:if=\"${dashboard.retirosVencidos > 0}\"").contains("con la fecha propuesta vencida")
                 .contains("@{/solicitudes-retiro(estado='PENDIENTE')}").contains("@{/solicitudes-retiro/{id}(id=${r.idSolicitud})}")
-                .contains("${r.vencida} ? 'text-rose-700 font-semibold'").contains(">Vencido</span>")
+                .contains("${r.vencida} ? 'text-rose-700 font-semibold'").contains(">Pendiente vencida</span>")
                 .contains("${r.numeroSerie}").contains("${r.identificadorInterno}").contains("${r.nombreCliente}");
     }
 

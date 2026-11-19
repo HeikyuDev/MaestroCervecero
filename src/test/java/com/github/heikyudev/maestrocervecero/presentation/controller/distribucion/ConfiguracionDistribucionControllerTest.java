@@ -73,6 +73,7 @@ class ConfiguracionDistribucionControllerTest {
 
         // Assert
         assertThat(html)
+                .contains("<title>Configuración de distribución - Maestro Cervecero</title>")
                 .contains("Configuración de Distribución")
                 .contains("action=\"/configuracion-distribucion\"").contains("novalidate")
                 .contains("Retiro de barriles")

@@ -20,7 +20,7 @@
 
     <div>
         <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Retiro de barriles</h1>
-        <p class="mt-1 text-sm text-slate-600" th:if="${!retiro.registrado}">
+        <p class="mt-1 text-sm text-slate-600" th:if="${!retiro.registrado and !#lists.isEmpty(retiro.barrilesPendientes)}">
             <span th:text="${retiro.nombreCliente}">Bar Don Jorge</span>: los siguientes barriles superaron la fecha de devolución acordada.
             Indique la fecha y hora en que podemos pasar a retirarlos.
         </p>
@@ -81,10 +81,14 @@
     </th:block>
 
     <!-- ==================== SIN BARRILES PENDIENTES ==================== -->
-    <div th:if="${!retiro.registrado and #lists.isEmpty(retiro.barrilesPendientes)}" data-sin-barriles
-         class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-sm text-slate-600">
-        Los barriles de este recordatorio ya fueron devueltos o su retiro ya está coordinado: no hace falta coordinar nada
-    </div>
+    <!-- Solo el aviso: si un envío fue rechazado por este motivo, se muestra el mensaje del service en lugar del texto fijo -->
+    <th:block th:if="${!retiro.registrado and #lists.isEmpty(retiro.barrilesPendientes)}" th:object="${retiroForm}">
+        <div data-sin-barriles
+             class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-sm text-slate-600"
+             th:text="${#fields.hasGlobalErrors()} ? ${#fields.globalErrors()[0]} : 'Ninguno de los barriles sigue pendiente de retiro: ya fueron devueltos o su retiro ya está coordinado'">
+            Ninguno de los barriles sigue pendiente de retiro: ya fueron devueltos o su retiro ya está coordinado
+        </div>
+    </th:block>
 
     <!-- ==================== FORMULARIO ==================== -->
     <th:block th:if="${!retiro.registrado and !#lists.isEmpty(retiro.barrilesPendientes)}">

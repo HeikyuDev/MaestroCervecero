@@ -41,6 +41,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -147,19 +148,20 @@ class SolicitudRetiroControllerTest {
                 .andExpect(view().name(VISTA_DETALLE))
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(html).contains("Solicitud de retiro #71").contains("25/11/2030 10:30").contains("Bar Don Jorge")
+        assertThat(html).contains("<title>Solicitudes de retiro - Maestro Cervecero</title>").contains("Solicitud de retiro #71").contains("25/11/2030 10:30").contains("Bar Don Jorge")
                 .contains("SN-1001").contains("(BRL-01)").contains("10/11/2026").contains("Tocar timbre en el depósito")
                 .contains("data-estado-solicitud").contains(">Pendiente<").contains("href=\"/solicitudes-retiro\"")
                 .doesNotContain("data-aviso-vencida").doesNotContain("<form method=\"post\"");
     }
 
     @Test
-    @DisplayName("CP-SRC-05: una solicitud inexistente muestra el aviso del ControllerAdvices")
+    @DisplayName("CP-SRC-05: una solicitud inexistente muestra el aviso del ControllerAdvices con el nombre de la pantalla (solicitud de retiro)")
     void caso_cp_src_05() throws Exception {
         when(solicitudBusquedaServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la solicitud de búsqueda con ID: 99"));
 
         mockMvc.perform(get(URL + "/99").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("mensaje", "No se encontró la solicitud de retiro con ID: 99"));
     }
 
     @Test

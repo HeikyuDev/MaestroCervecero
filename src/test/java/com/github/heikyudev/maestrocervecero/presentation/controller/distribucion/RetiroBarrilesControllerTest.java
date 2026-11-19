@@ -114,7 +114,7 @@ class RetiroBarrilesControllerTest {
     }
 
     @Test
-    @DisplayName("CP-RBC-03: si ningún barril sigue pendiente se muestra el aviso, sin formulario")
+    @DisplayName("CP-RBC-03: si ningún barril sigue pendiente se muestra solo el aviso, sin la indicación de elegir la fecha ni el formulario")
     void caso_cp_rbc_03() throws Exception {
         RetiroBarrilesResponseDTO sinBarriles = RetiroBarrilesResponseDTO.builder().nombreCliente("Bar Don Jorge").registrado(false)
                 .barrilesPendientes(List.of()).barrilesRegistrados(List.of()).diasMaximosAnticipacionRetiro(7)
@@ -123,7 +123,9 @@ class RetiroBarrilesControllerTest {
 
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
-        assertThat(html).contains("data-sin-barriles").contains("ya fueron devueltos o su retiro ya está coordinado").doesNotContain("<form");
+        assertThat(html).contains("data-sin-barriles")
+                .contains("Ninguno de los barriles sigue pendiente de retiro: ya fueron devueltos o su retiro ya está coordinado")
+                .doesNotContain("superaron la fecha de devolución").doesNotContain("Indique la fecha").doesNotContain("<form");
     }
 
     @Test
@@ -213,6 +215,26 @@ class RetiroBarrilesControllerTest {
         mockMvc.perform(post(URL).with(csrf()).param("fechaRetiro", "2026-11-25T10:30"))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA_INVALIDO));
+    }
+
+    @Test
+    @DisplayName("CP-RBC-11: un envío rechazado porque ningún barril sigue pendiente muestra solo el mensaje del service, sin formulario")
+    void caso_cp_rbc_11() throws Exception {
+        when(retiroBarrilesServicio.registrarRetiro(eq(TOKEN), any()))
+                .thenThrow(new ReglaNegocioException("Ninguno de los barriles sigue pendiente de retiro: ya fueron devueltos o su retiro ya está coordinado"));
+        RetiroBarrilesResponseDTO sinBarriles = RetiroBarrilesResponseDTO.builder().nombreCliente("Bar Don Jorge").registrado(false)
+                .barrilesPendientes(List.of()).barrilesRegistrados(List.of()).diasMaximosAnticipacionRetiro(7)
+                .fechaMaximaRetiro(LocalDateTime.of(2026, 11, 26, 9, 0)).build();
+        when(retiroBarrilesServicio.buscarRetiro(TOKEN)).thenReturn(sinBarriles);
+
+        String html = mockMvc.perform(post(URL).with(csrf()).param("fechaRetiro", "2026-11-25T10:30"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("data-sin-barriles")
+                .contains("Ninguno de los barriles sigue pendiente de retiro: ya fueron devueltos o su retiro ya está coordinado")
+                .doesNotContain("superaron la fecha de devolución").doesNotContain("Indique la fecha").doesNotContain("<form");
     }
 
     @Test

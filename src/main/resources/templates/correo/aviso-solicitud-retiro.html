@@ -27,11 +27,12 @@
                 </tr>
                 <tr>
                     <td style="padding:32px 32px 8px 32px;font-size:15px;line-height:1.6;">
-                        <p style="margin:0 0 16px 0;">Hola <span th:text="${nombre}">Juan</span>:</p>
+                        <p style="margin:0 0 16px 0;" th:text="|Hola ${nombre}:|">Hola Juan:</p>
                         <p style="margin:0 0 12px 0;">
-                            <strong th:text="${nombreCliente}">Bar Don Jorge</strong> propuso retirar sus barriles el
-                            <strong th:text="${fechaRetiro}">25/11/2026 10:30</strong>:
+                            <strong th:text="${nombreCliente}">Bar Don Jorge</strong> indicó la fecha y hora en que se pueden retirar sus barriles:
+                            <strong th:text="${fechaRetiro}">25/11/2026 10:30</strong>
                         </p>
+                        <p style="margin:0 0 8px 0;">Barriles a retirar:</p>
                         <ul style="margin:0 0 16px 0;padding-left:20px;">
                             <li th:each="barril : ${barriles}" th:text="${barril}">N.º de serie SN-1001 (BRL-01)</li>
                         </ul>
