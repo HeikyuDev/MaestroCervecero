@@ -15,14 +15,6 @@
     <!-- Acciones y Perfil de Usuario -->
     <div class="flex items-center gap-5" sec:authorize="isAuthenticated()">
 
-        <!-- Botón de Notificaciones -->
-        <button type="button" class="relative p-2 text-slate-400 hover:text-amber-500 transition-colors"
-            aria-label="Notificaciones">
-            <i class="bi bi-bell text-lg"></i>
-        </button>
-
-        <div class="h-6 w-px bg-slate-800"></div>
-
         <!-- Info de Usuario -->
         <div class="text-right text-xs select-none">
             <p class="font-semibold text-slate-200" sec:authentication="name">Usuario</p>
