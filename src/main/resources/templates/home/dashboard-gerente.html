@@ -3,14 +3,16 @@
 
 <!--
     Panel de control del gerente de producción en la pantalla de inicio: el estado de la fábrica. Es solo de lectura: no registra
-    nada y cada elemento lleva a la pantalla de consulta correspondiente. Se lee de arriba abajo en cuatro
-    filas, con un bloque por fila a todo el ancho:
+    nada y cada elemento lleva a la pantalla de consulta correspondiente. Se lee de arriba abajo, con un bloque por fila a todo
+    el ancho:
+      0. avisoPlanesPendientes(dashboard): el aviso de las planificaciones pendientes con litros sin planificar, cada una con un
+         enlace a sus planes de producción. Solo se muestra si hay alguna y con el permiso LOTE_REGISTRAR (el de los planes).
       1. contadores(dashboard): cuatro tarjetas con los lotes en ejecución, los lotes atrasados, los fermentadores ocupados sobre el
          total y los equipos y barriles fuera de servicio.
       2. produccionEnCurso(dashboard).
       3. colaDeFermentadores(dashboard).
       4. planificacionesPendientes(dashboard).
-    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardGerenteResponseDTO que el HomeController carga
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma el aviso y las cuatro filas. El parámetro dashboard es el DashboardGerenteResponseDTO que el HomeController carga
     solo para el rol GERENTE_DE_PRODUCCION.
 
     Cada enlace se protege con el mismo permiso que el destino ("Abrir" un lote con LOTE_CONSULTAR, la lista de equipos con
@@ -22,6 +24,7 @@
 
 <!-- ===================================================================== PANEL -->
 <div th:fragment="panel(dashboard)" data-dashboard-gerente class="space-y-6">
+    <th:block th:replace="~{home/dashboard-gerente :: avisoPlanesPendientes(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-gerente :: contadores(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-gerente :: produccionEnCurso(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-gerente :: colaDeFermentadores(${dashboard})}"></th:block>
@@ -200,6 +203,13 @@
         <p th:if="${dashboard.planificacionesPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay planificaciones pendientes</p>
     </div>
 </section>
+
+<!-- ===================================================================== FILA 0: AVISO DE PLANES DE PRODUCCIÓN POR CONFIRMAR -->
+<th:block th:fragment="avisoPlanesPendientes(dashboard)">
+    <th:block sec:authorize="hasAuthority('LOTE_REGISTRAR')">
+        <th:block th:replace="~{planificacion_produccion/aviso-planes-pendientes :: aviso(${dashboard.planificacionesConLitrosAPlanificar})}"></th:block>
+    </th:block>
+</th:block>
 
 <!-- ===================================================================== PIEZAS COMPARTIDAS -->
 

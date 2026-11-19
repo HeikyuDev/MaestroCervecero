@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRe
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.dashboard.IDashboardGerenteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.BloqueDashboardResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
@@ -46,7 +47,8 @@ import java.util.stream.Collectors;
  * Es de solo lectura y corre en una única transacción de lectura. Los lotes se paginan por ID con las consultas del
  * panel y se cargan con sus relaciones en una sola consulta por bloque; los equipos, los barriles y las planificaciones
  * salen de los servicios de listado, de los que solo se lee el total (con una página de un registro) o las
- * primeras filas. La cola de los fermentadores visibles se arma con una sola consulta de lotes vivos.
+ * primeras filas. El aviso de las planificaciones con litros sin planificar sale del servicio de planes de producción,
+ * que los calcula con la misma regla que la generación de planes. La cola de los fermentadores visibles se arma con una sola consulta de lotes vivos.
  * </p>
  */
 @Slf4j
@@ -60,6 +62,7 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
     private final IControlEquipamientoServicio controlEquipamientoServicio;
     private final IControlBarrilServicio controlBarrilServicio;
     private final IPlanificacionProduccionServicio planificacionProduccionServicio;
+    private final IPlanProduccionServicio planProduccionServicio;
 
     @Override
     @Transactional(readOnly = true)
@@ -79,6 +82,7 @@ public class DashboardGerenteServicioImpl implements IDashboardGerenteServicio {
                 .produccionEnCurso(armarProduccionEnCurso(hoy))
                 .colaDeFermentadores(armarColaDeFermentadores(fermentadores, hoy))
                 .planificacionesPendientes(armarBloqueDePlanificaciones())
+                .planificacionesConLitrosAPlanificar(planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar())
                 .build();
     }
 

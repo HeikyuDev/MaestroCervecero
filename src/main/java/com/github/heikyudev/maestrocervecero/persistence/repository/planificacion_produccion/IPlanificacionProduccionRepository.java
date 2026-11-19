@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -166,4 +167,14 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
             countQuery = "SELECT COUNT(p) FROM PlanificacionProduccionEntity p WHERE p.estado = 'PENDIENTE' "
                     + "AND NOT EXISTS (SELECT 1 FROM OrdenCompraEntity o WHERE o.planificacionProduccion = p AND o.estado <> 'ANULADA')")
     Page<PlanificacionProduccionEntity> buscarPendientesSinOrdenDeCompraParaPanel(Pageable pageable);
+
+    /**
+     * Obtiene todas las planificaciones PENDIENTE con su versión de receta cargada, por fecha de inicio estimada
+     * ascendente (la que arranca antes primero) y, ante igual fecha, por ID ascendente.
+     *
+     * @return Las planificaciones pendientes, en ese orden.
+     */
+    @Query("SELECT p FROM PlanificacionProduccionEntity p JOIN FETCH p.versionReceta WHERE p.estado = 'PENDIENTE' "
+            + "ORDER BY p.fechaInicioEstimada ASC, p.id ASC")
+    List<PlanificacionProduccionEntity> buscarPendientesConVersionReceta();
 }

@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacio
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -25,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -74,7 +76,10 @@ public class PlanificacionProduccionController {
     private static final String URL_BUSCADOR_RECETAS = "/planificaciones-produccion/buscador/recetas";
     private static final String URL_FILTRO_RECETAS = "/planificaciones-produccion/filtros/recetas";
 
+    private static final String PERMISO_PLANES_DE_PRODUCCION = "LOTE_REGISTRAR";
+
     private final IPlanificacionProduccionServicio planificacionServicio;
+    private final IPlanProduccionServicio planProduccionServicio;
     private final IRecetaServicio recetaServicio;
     private final ILoteServicio loteServicio;
 
@@ -88,13 +93,18 @@ public class PlanificacionProduccionController {
      * planificaciones: un {@code idReceta} que ese buscador no ofrece (inexistente, o dada de baja sin
      * planificaciones) se ignora y se lista sin filtrar por receta.
      * </p>
+     * <p>
+     * A quien tiene el permiso {@code LOTE_REGISTRAR} (el de los planes de producción) le muestra además el aviso de las
+     * planificaciones Pendiente con litros sin planificar, con un enlace a los planes de cada una.
+     * </p>
      */
     @GetMapping
     public String listarPlanificaciones(@RequestParam(required = false) Long idReceta,
                                         @RequestParam(required = false) EstadoSolicitud estado,
                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                         @RequestParam(defaultValue = "0") int pagina,
-                                        Model model) {
+                                        Model model,
+                                        Authentication authentication) {
         RecetaResponseDTO receta = recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId);
         Long idRecetaFiltro = receta != null ? idReceta : null;
         Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio.filtrarPlanificacionesProduccion(
@@ -107,6 +117,9 @@ public class PlanificacionProduccionController {
         model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
         model.addAttribute("filtroEstado", estado);
         model.addAttribute("filtroFechaInicio", fechaInicio);
+        // Aviso de las planificaciones con litros sin planificar: solo para quien confirma los planes de producción
+        model.addAttribute("planificacionesConLitrosAPlanificar",
+                tienePermiso(authentication, PERMISO_PLANES_DE_PRODUCCION) ? planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar() : List.of());
         return VISTA_LISTA;
     }
 
@@ -170,7 +183,8 @@ public class PlanificacionProduccionController {
         model.addAttribute("lotesFinalizados", contar(lotes, EstadoLote.FINALIZADO));
         model.addAttribute("lotesCancelados", contar(lotes, EstadoLote.CANCELADO));
         cargarAvanceProduccion(model, planificacion);
-        model.addAttribute("puedeGenerarPlan", puedeGenerarPlan(planificacion, lotes));
+        // La misma regla que la generación de planes y el aviso de planificaciones con litros sin planificar
+        model.addAttribute("puedeGenerarPlan", planProduccionServicio.buscarMotivoSinLitrosAPlanificar(id).isEmpty());
         model.addAttribute("gantt", GanttPlanificacionBuilder.construir(lotes,
                 planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada(), LocalDate.now()));
         return VISTA_DETALLE;
@@ -336,20 +350,9 @@ public class PlanificacionProduccionController {
         model.addAttribute("porcentajeBarra", Math.min(100, porcentaje));
     }
 
-    /**
-     * Una planificación admite generar un plan si está Pendiente y lo producido más el volumen objetivo de sus lotes
-     * pendientes y en ejecución todavía no cubre la cantidad a producir.
-     */
-    private static boolean puedeGenerarPlan(PlanificacionProduccionResponseDTO planificacion, List<LoteCronogramaResponseDTO> lotes) {
-        if (planificacion.getEstado() != EstadoSolicitud.PENDIENTE || planificacion.getCantidadAProducir() == null) {
-            return false;
-        }
-        double producido = planificacion.getLitrosProducidos() != null ? planificacion.getLitrosProducidos() : 0.0;
-        double comprometido = lotes.stream()
-                .filter(l -> l.getEstado() == EstadoLote.PENDIENTE || l.getEstado() == EstadoLote.EN_EJECUCION)
-                .mapToDouble(l -> l.getVolumenObjetivo() != null ? l.getVolumenObjetivo() : 0.0)
-                .sum();
-        return redondear(producido + comprometido) < redondear(planificacion.getCantidadAProducir());
+    private static boolean tienePermiso(Authentication authentication, String permiso) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> permiso.equals(authority.getAuthority()));
     }
 
     private static double redondear(double valor) {

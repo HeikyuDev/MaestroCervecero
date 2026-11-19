@@ -40,6 +40,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.Insu
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteInsumoVencidoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.OrdenCompraPendienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardGerenteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.EtapaEnCursoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.PlanificacionPendienteResponseDTO;
@@ -344,6 +345,32 @@ class HomeControllerTest {
                 .contains("Plan #7 - Pale Ale").contains("href=\"/planificaciones-produccion/7\"").contains("aria-label=\"Ver Plan #7 - Pale Ale\"").contains("href=\"/planificaciones-produccion?estado=PENDIENTE\"")
                 .contains("href=\"/lotes/12?etapa=fermentacion\"");
         assertThat(html).doesNotContain("No hay lotes en ejecución").doesNotContain("data-boton-registrar");
+    }
+
+    @Test
+    @DisplayName("CP-HCT-41: el panel del gerente muestra primero el aviso de las planificaciones con litros sin planificar, con el enlace a los planes de cada una y los litros que faltan; sin planificaciones no muestra el aviso")
+    void home_debeMostrarElAvisoDePlanesPendientesDelGerente() throws Exception {
+        // Arrange
+        DashboardGerenteResponseDTO conAviso = DashboardGerenteResponseDTO.builder()
+                .produccionEnCurso(List.of()).colaDeFermentadores(bloque(0)).planificacionesPendientes(bloque(0))
+                .planificacionesConLitrosAPlanificar(List.of(PlanificacionConLitrosAPlanificarResponseDTO.builder().id(7L).etiqueta("Plan #7 - Pale Ale")
+                        .fechaInicioEstimada(LocalDate.of(2027, 8, 1)).litrosAPlanificar(400.0).build()))
+                .build();
+        when(dashboardGerenteServicio.obtenerDashboardGerente()).thenReturn(conAviso).thenReturn(panelGerenteVacio());
+
+        // Act
+        String html = mockMvc.perform(get("/home").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String vacio = mockMvc.perform(get("/home").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).contains("data-aviso-planes-produccion-pendientes").contains("Hay 1 planificación de producción con litros sin planificar")
+                .contains("href=\"/planificaciones-produccion/7/planes\"").contains("Plan #7 - Pale Ale: faltan 400 L");
+        assertThat(html.indexOf("data-aviso-planes-produccion-pendientes")).isLessThan(html.indexOf("data-dashboard-contadores"));
+        assertThat(vacio).contains("data-dashboard-gerente").doesNotContain("data-aviso-planes-produccion-pendientes").doesNotContain("litros sin planificar");
     }
 
     @Test

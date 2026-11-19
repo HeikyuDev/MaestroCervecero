@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServic
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanesProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +79,20 @@ public interface IPlanProduccionServicio {
      * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
      */
     Optional<String> buscarMotivoSinLitrosAPlanificar(Long idPlanificacion);
+
+    /**
+     * Obtiene las planificaciones que esperan un plan de producción: las que están en estado Pendiente y todavía tienen
+     * litros a planificar mayores a 0, con la misma regla de la generación (la cantidad a producir menos los litros
+     * producidos y el volumen objetivo de sus lotes pendientes y en ejecución). Es el aviso que recuerda al gerente de
+     * producción las planificaciones registradas sin un plan confirmado. No calcula ningún plan.
+     * <p>
+     * Orden: por fecha de inicio estimada ascendente (la más urgente primero) y, a igualdad, por ID ascendente.
+     * </p>
+     *
+     * @return Las planificaciones con litros sin planificar y sus litros a planificar, o una lista vacía si no hay
+     *         ninguna.
+     */
+    List<PlanificacionConLitrosAPlanificarResponseDTO> buscarPlanificacionesConLitrosAPlanificar();
 
     /**
      * Recalcula un plan de producción con los lotes que indica el gerente de producción (los propuestos o los que

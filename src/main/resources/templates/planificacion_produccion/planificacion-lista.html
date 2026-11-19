@@ -18,6 +18,9 @@
         </a>
     </div>
 
+    <!-- Aviso: planificaciones pendientes con litros sin planificar (solo para quien confirma los planes de producción) -->
+    <th:block th:replace="~{planificacion_produccion/aviso-planes-pendientes :: aviso(${planificacionesConLitrosAPlanificar})}"></th:block>
+
     <!-- Criterios de búsqueda -->
     <form th:action="@{/planificaciones-produccion}" method="get"
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">

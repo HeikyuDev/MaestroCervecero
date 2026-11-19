@@ -4,18 +4,23 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.LotePlanProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.PlanProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.LotePlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 
 /**
  * MapperPlanProduccion tiene la responsabilidad de mapear los lotes de un plan de producción (calculado al momento,
- * nunca persistido) entre sus equipos, su DTO de respuesta y sus DTOs de formulario.
+ * nunca persistido) entre sus equipos, su DTO de respuesta y sus DTOs de formulario, y de armar el aviso de una
+ * planificación con litros sin planificar.
  */
 public class MapperPlanProduccion {
 
@@ -99,6 +104,27 @@ public class MapperPlanProduccion {
                 .idMolino(lote.getIdMolino())
                 .idMacerador(lote.getIdMacerador())
                 .idOllaHervor(lote.getIdOllaHervor())
+                .build();
+    }
+
+    /**
+     * Arma el DTO de respuesta de una planificación con litros sin planificar.
+     *
+     * @param planificacion La planificación de producción, con su versión de receta cargada.
+     * @param litrosAPlanificar Los litros que le faltan planificar.
+     * @return El DTO de respuesta, o {@code null} si la planificación es nula.
+     */
+    public static PlanificacionConLitrosAPlanificarResponseDTO toPlanificacionConLitrosAPlanificarDTO(PlanificacionProduccionEntity planificacion,
+                                                                                                     double litrosAPlanificar) {
+        if (planificacion == null) {
+            return null;
+        }
+        VersionRecetaEntity versionReceta = planificacion.getVersionReceta();
+        return PlanificacionConLitrosAPlanificarResponseDTO.builder()
+                .id(planificacion.getId())
+                .etiqueta(EtiquetaPlanificacion.de(planificacion.getId(), versionReceta != null ? versionReceta.getNombre() : null))
+                .fechaInicioEstimada(planificacion.getFechaInicioEstimada())
+                .litrosAPlanificar(litrosAPlanificar)
                 .build();
     }
 }

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.dashboard;
 
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -8,8 +9,9 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * DTO de respuesta con el panel del gerente de producción: el estado de la fábrica. Reúne cuatro contadores y tres
- * tarjetas (producción en curso, cola de fermentadores y planificaciones pendientes).
+ * DTO de respuesta con el panel del gerente de producción: el estado de la fábrica. Reúne el aviso de las planificaciones
+ * con litros sin planificar, cuatro contadores y tres tarjetas (producción en curso, cola de fermentadores y
+ * planificaciones pendientes).
  */
 @Getter
 @Builder
@@ -40,4 +42,10 @@ public class DashboardGerenteResponseDTO {
 
     /** Planificaciones de producción Pendiente, con su total real y hasta 5 filas. */
     private BloqueDashboardResponseDTO<PlanificacionPendienteResponseDTO> planificacionesPendientes;
+
+    /**
+     * Planificaciones de producción Pendiente con litros sin planificar (el aviso de los planes de producción por
+     * confirmar), todas, de la más urgente a la menos urgente. Nunca es nula.
+     */
+    private List<PlanificacionConLitrosAPlanificarResponseDTO> planificacionesConLitrosAPlanificar;
 }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    aviso(planificaciones): aviso dentro del sistema de las planificaciones de producción Pendiente que todavía tienen litros
+    sin planificar, es decir, que esperan que el gerente de producción confirme un plan de producción. Cada planificación es
+    un enlace a sus planes de producción, con su etiqueta y los litros que le faltan planificar. El parámetro es la lista de
+    PlanificacionConLitrosAPlanificarResponseDTO que devuelve IPlanProduccionServicio#buscarPlanificacionesConLitrosAPlanificar;
+    con la lista vacía (o nula) no se muestra nada.
+
+    Lo usan el listado de planificaciones y el panel del gerente de producción, siempre solo para quien tiene el permiso
+    LOTE_REGISTRAR (el de los planes de producción).
+
+    Uso: <th:block th:replace="~{planificacion_produccion/aviso-planes-pendientes :: aviso(${planificacionesConLitrosAPlanificar})}"></th:block>
+-->
+<div th:fragment="aviso(planificaciones)" th:if="${planificaciones != null and !#lists.isEmpty(planificaciones)}" data-aviso-planes-produccion-pendientes
+     class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
+    <p class="flex items-center gap-2 font-semibold">
+        <i class="bi bi-bell"></i>
+        <span th:text="${#lists.size(planificaciones) == 1} ? 'Hay 1 planificación de producción con litros sin planificar' : |Hay ${#lists.size(planificaciones)} planificaciones de producción con litros sin planificar|">Hay 1 planificación de producción con litros sin planificar</span>
+    </p>
+    <ul class="mt-2 space-y-1">
+        <li th:each="p : ${planificaciones}" data-planificacion-con-litros-a-planificar>
+            <a th:href="@{/planificaciones-produccion/{id}/planes(id=${p.id})}" class="font-medium text-amber-700 hover:text-amber-900 hover:underline"><th:block th:text="${p.etiqueta}">Plan #7 - Pale Ale</th:block>: faltan <th:block th:replace="~{receta/formato :: numero(${p.litrosAPlanificar})}"></th:block> L</a>
+        </li>
+    </ul>
+</div>
+
+</html>

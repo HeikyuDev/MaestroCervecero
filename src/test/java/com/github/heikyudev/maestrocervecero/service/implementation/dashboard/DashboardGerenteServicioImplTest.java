@@ -16,12 +16,14 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.ColaFermentadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardGerenteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.EtapaEnCursoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.LoteEnProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,9 @@ class DashboardGerenteServicioImplTest {
 
     @Mock
     private IPlanificacionProduccionServicio planificacionProduccionServicio;
+
+    @Mock
+    private IPlanProduccionServicio planProduccionServicio;
 
     @InjectMocks
     private DashboardGerenteServicioImpl dashboardGerenteServicio;
@@ -247,6 +252,27 @@ class DashboardGerenteServicioImplTest {
         assertThat(resultado.getProduccionEnCurso()).hasSize(1);
         assertThat(resultado.getProduccionEnCurso().get(0).getLotes().getTotal()).isEqualTo(2);
         assertThat(resultado.getProduccionEnCurso().get(0).getLotes().getFilas()).extracting(LoteEnProduccionResponseDTO::getId).containsExactly(2L);
+    }
+
+    @Test
+    @DisplayName("CP-DGE-12: el aviso de planificaciones con litros sin planificar trae todas las que informa el servicio de planes de producción, en su mismo orden y sin tope de filas")
+    void obtener_debeInformarLasPlanificacionesConLitrosAPlanificar() {
+        // === PREPARACION DE DATOS ===
+        prepararSistemaVacio();
+        List<PlanificacionConLitrosAPlanificarResponseDTO> planificaciones = new java.util.ArrayList<>();
+        for (long id = 1; id <= 6; id++) {
+            planificaciones.add(PlanificacionConLitrosAPlanificarResponseDTO.builder().id(id).etiqueta("Plan #" + id + " - Pale Ale")
+                    .fechaInicioEstimada(LocalDate.of(2027, 8, (int) id)).litrosAPlanificar(100.0 * id).build());
+        }
+        when(planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar()).thenReturn(planificaciones);
+
+        // === EJECUCION ===
+        DashboardGerenteResponseDTO resultado = dashboardGerenteServicio.obtenerDashboardGerente();
+
+        // === ASSERTS ===
+        assertThat(resultado.getPlanificacionesConLitrosAPlanificar()).hasSize(6)
+                .extracting(PlanificacionConLitrosAPlanificarResponseDTO::getId).containsExactly(1L, 2L, 3L, 4L, 5L, 6L);
+        assertThat(resultado.getPlanificacionesConLitrosAPlanificar().get(0).getLitrosAPlanificar()).isEqualTo(100.0);
     }
 
     // ==================== helpers ====================

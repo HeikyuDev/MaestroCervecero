@@ -4,10 +4,10 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.Dash
 
 /**
  * Interfaz que define la consulta del panel del gerente de producción: el estado de la fábrica (producción en curso,
- * cola de fermentadores, equipamiento y barriles por estado y planificaciones pendientes).
+ * cola de fermentadores, equipamiento y barriles por estado, planificaciones pendientes y planificaciones con litros sin planificar).
  * <p>
  * Es un servicio de solo lectura: no registra ni modifica nada. Compone los servicios de lotes, de control de
- * equipamiento y de barriles y de planificaciones de producción, y corre en una única transacción
+ * equipamiento y de barriles, de planificaciones de producción y de planes de producción, y corre en una única transacción
  * de lectura.
  * </p>
  */
@@ -30,6 +30,9 @@ public interface IDashboardGerenteServicio {
      *   uso, En limpieza, En mantenimiento) y de barriles activos por estado operativo (Disponible, En uso, Con
      *   cerveza, Despachado, En limpieza, En mantenimiento), siempre todos los estados, en ese orden.</li>
      *   <li>Planificaciones pendientes: las planificaciones Pendiente, con su total real y hasta 5 filas.</li>
+     *   <li>Planificaciones con litros sin planificar: todas las que informa
+     *   {@code IPlanProduccionServicio#buscarPlanificacionesConLitrosAPlanificar}, en su mismo orden (sin tope de
+     *   filas).</li>
      * </ul>
      * <p>
      * Precondiciones: ninguna. No recibe parámetros (el rol que puede ver el panel lo decide el Controller) y no

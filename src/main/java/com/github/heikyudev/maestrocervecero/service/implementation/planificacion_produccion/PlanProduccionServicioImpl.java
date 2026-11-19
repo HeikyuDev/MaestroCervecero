@@ -34,6 +34,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteRespo
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.LotePlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanesProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.FormatoCantidad;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanProduccion;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
@@ -145,6 +146,29 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
             return Optional.of(mensajePlanificacionCubierta(planificacion));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Obtiene las planificaciones Pendiente con litros sin planificar. Ver
+     * {@link IPlanProduccionServicio#buscarPlanificacionesConLitrosAPlanificar()}.
+     * <p>
+     * Los litros a planificar se calculan con el mismo método que la generación y la confirmación
+     * ({@code calcularLitrosAPlanificar}), de modo que el aviso y los planes nunca difieren.
+     * </p>
+     *
+     * @return Las planificaciones con litros sin planificar, de la más urgente a la menos urgente.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlanificacionConLitrosAPlanificarResponseDTO> buscarPlanificacionesConLitrosAPlanificar() {
+        List<PlanificacionConLitrosAPlanificarResponseDTO> resultado = new ArrayList<>();
+        for (PlanificacionProduccionEntity planificacion : planificacionProduccionRepository.buscarPendientesConVersionReceta()) {
+            double litrosAPlanificar = calcularLitrosAPlanificar(planificacion);
+            if (litrosAPlanificar > 0) {
+                resultado.add(MapperPlanProduccion.toPlanificacionConLitrosAPlanificarDTO(planificacion, litrosAPlanificar));
+            }
+        }
+        return resultado;
     }
 
     /**

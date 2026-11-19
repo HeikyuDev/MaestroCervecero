@@ -160,6 +160,29 @@ class DashboardGerentePlantillasTest {
                     }
     }
 
+    @Test
+    @DisplayName("CP-PDG-11: el panel arma primero, en su propia fila, el aviso de planificaciones con litros sin planificar, con el fragmento compartido con el listado de planificaciones y protegido por el permiso LOTE_REGISTRAR")
+    void avisoDePlanesPendientes() throws IOException {
+        String html = leer(PANEL);
+        String panel = html.substring(html.indexOf("th:fragment=\"panel(dashboard)\""), html.indexOf("th:fragment=\"contadores(dashboard)\""));
+        String aviso = html.substring(html.indexOf("th:fragment=\"avisoPlanesPendientes(dashboard)\""));
+        String compartido = leer("planificacion_produccion/aviso-planes-pendientes.html");
+
+        assertThat(panel.indexOf(":: avisoPlanesPendientes(")).isNotNegative().isLessThan(panel.indexOf(":: contadores("));
+        assertThat(aviso.substring(0, aviso.indexOf("</th:block>\n</th:block>")))
+                .contains("sec:authorize=\"hasAuthority('LOTE_REGISTRAR')\"")
+                .contains("planificacion_produccion/aviso-planes-pendientes :: aviso(${dashboard.planificacionesConLitrosAPlanificar})");
+        assertThat(leer("planificacion_produccion/planificacion-lista.html"))
+                .contains("planificacion_produccion/aviso-planes-pendientes :: aviso(${planificacionesConLitrosAPlanificar})");
+        assertThat(compartido).contains("th:fragment=\"aviso(planificaciones)\"").contains("!#lists.isEmpty(planificaciones)")
+                .contains("bi bi-bell").contains("border-amber-200 bg-amber-50")
+                .contains("'Hay 1 planificación de producción con litros sin planificar'")
+                .contains("|Hay ${#lists.size(planificaciones)} planificaciones de producción con litros sin planificar|")
+                .contains("@{/planificaciones-produccion/{id}/planes(id=${p.id})}")
+                .contains("receta/formato :: numero(${p.litrosAPlanificar})");
+        compartido.codePoints().forEach(cp -> assertThat(esEmoji(cp)).as("U+%04X", cp).isFalse());
+    }
+
     /** El valor del atributo class de cada etiqueta que empieza con el prefijo dado. */
     private static List<String> clases(String html, String prefijo) {
         List<String> clases = new java.util.ArrayList<>();

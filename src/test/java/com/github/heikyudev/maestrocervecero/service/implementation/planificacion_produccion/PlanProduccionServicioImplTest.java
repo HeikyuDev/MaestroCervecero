@@ -33,6 +33,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteRespo
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.LotePlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanesProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -645,6 +646,55 @@ class PlanProduccionServicioImplTest {
         verify(planificacionProduccionRepository, never()).buscarPorIdParaActualizar(any());
     }
 
+    // ==================== buscarPlanificacionesConLitrosAPlanificar ====================
+
+    @Test
+    @DisplayName("CP-PPL-01: buscarPlanificacionesConLitrosAPlanificar informa solo las pendientes con litros a planificar mayores a 0, en el orden de la consulta, con su etiqueta, su fecha de inicio y sus litros a planificar")
+    void conLitros_debeInformarSoloLasQueTienenLitrosAPlanificar() {
+        PlanificacionProduccionEntity sinLotes = planificacionPendiente(3L, 400.0, HOY.plusDays(2));
+        PlanificacionProduccionEntity parcial = planificacionPendiente(1L, 1000.0, HOY.plusDays(5));
+        PlanificacionProduccionEntity cubierta = planificacionPendiente(2L, 600.0, HOY.plusDays(6));
+        PlanificacionProduccionEntity excedida = planificacionPendiente(4L, 500.0, HOY.plusDays(7));
+        when(planificacionProduccionRepository.buscarPendientesConVersionReceta()).thenReturn(List.of(sinLotes, parcial, cubierta, excedida));
+        mockearComprometidos(3L, 0.0, 0.0);
+        mockearComprometidos(1L, 200.0, 300.0);
+        mockearComprometidos(2L, 0.0, 600.0);
+        mockearComprometidos(4L, 300.0, 400.0);
+
+        List<PlanificacionConLitrosAPlanificarResponseDTO> resultado = planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar();
+
+        assertThat(resultado).extracting(PlanificacionConLitrosAPlanificarResponseDTO::getId).containsExactly(3L, 1L);
+        assertThat(resultado).extracting(PlanificacionConLitrosAPlanificarResponseDTO::getLitrosAPlanificar).containsExactly(400.0, 500.0);
+        assertThat(resultado).extracting(PlanificacionConLitrosAPlanificarResponseDTO::getEtiqueta).containsExactly("Plan #3 - Pale Ale", "Plan #1 - Pale Ale");
+        assertThat(resultado).extracting(PlanificacionConLitrosAPlanificarResponseDTO::getFechaInicioEstimada).containsExactly(HOY.plusDays(2), HOY.plusDays(5));
+    }
+
+    @Test
+    @DisplayName("CP-PPL-02: los litros a planificar del aviso son los mismos que usa generarPlanes, con el mismo redondeo")
+    void conLitros_debeCoincidirConLaGeneracion() {
+        PlanificacionProduccionEntity planificacion = planificacionPendiente(1L, 1000.004, HOY);
+        when(planificacionProduccionRepository.buscarPendientesConVersionReceta()).thenReturn(List.of(planificacion));
+        lenient().when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        mockearComprometidos(1L, 333.333, 0.001);
+        mockearEquipos(List.of(), List.of(), List.of(), List.of());
+
+        List<PlanificacionConLitrosAPlanificarResponseDTO> resultado = planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar();
+        double litrosDeLaGeneracion = planProduccionServicio.generarPlanes(1L).getLitrosAPlanificar();
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getLitrosAPlanificar()).isEqualTo(litrosDeLaGeneracion).isEqualTo(666.67);
+    }
+
+    @Test
+    @DisplayName("CP-PPL-03: sin planificaciones pendientes buscarPlanificacionesConLitrosAPlanificar devuelve una lista vacía y no suma litros")
+    void conLitros_sinPendientes() {
+        when(planificacionProduccionRepository.buscarPendientesConVersionReceta()).thenReturn(List.of());
+
+        assertThat(planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar()).isEmpty();
+        verify(envasadoLoteRepository, never()).sumarLitrosProducidosDePlanificacion(any());
+        verify(loteRepository, never()).sumarVolumenObjetivoDeLotesVivosDePlanificacion(any());
+    }
+
     // ==================== Helpers ====================
 
     private void assertNoDisponibles(PlanesProduccionResponseDTO planes, String motivo) {
@@ -659,6 +709,23 @@ class PlanProduccionServicioImplTest {
         PlanificacionProduccionEntity planificacion = planificacion(estado, cantidad);
         lenient().when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
         return planificacion;
+    }
+
+    private void mockearComprometidos(Long idPlanificacion, double producidos, double lotesVivos) {
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(idPlanificacion)).thenReturn(producidos);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(idPlanificacion)).thenReturn(lotesVivos);
+    }
+
+    private static PlanificacionProduccionEntity planificacionPendiente(Long id, double cantidad, LocalDate fechaInicio) {
+        PlanificacionProduccionEntity base = planificacion(EstadoSolicitud.PENDIENTE, cantidad);
+        return PlanificacionProduccionEntity.builder()
+                .id(id)
+                .estado(EstadoSolicitud.PENDIENTE)
+                .cantidadAProducir(cantidad)
+                .fechaInicioEstimada(fechaInicio)
+                .fechaFinalizacionEstimada(fechaInicio.plusDays(200))
+                .versionReceta(base.getVersionReceta())
+                .build();
     }
 
     private void mockearPlanificacionBloqueada(EstadoSolicitud estado, double cantidad) {

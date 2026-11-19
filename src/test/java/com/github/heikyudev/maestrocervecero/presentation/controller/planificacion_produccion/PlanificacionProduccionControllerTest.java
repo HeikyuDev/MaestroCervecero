@@ -19,9 +19,11 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
@@ -56,6 +58,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -92,6 +95,9 @@ class PlanificacionProduccionControllerTest {
 
     @MockitoBean
     private IPlanificacionProduccionServicio planificacionServicio;
+
+    @MockitoBean
+    private IPlanProduccionServicio planProduccionServicio;
 
     @MockitoBean
     private IRecetaServicio recetaServicio;
@@ -1972,6 +1978,7 @@ class PlanificacionProduccionControllerTest {
     void detalle_pendienteConLitrosSinCubrirMuestraGenerarPlan() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01")));
+        when(planProduccionServicio.buscarMotivoSinLitrosAPlanificar(7L)).thenReturn(Optional.empty());
 
         String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().isOk())
@@ -1989,6 +1996,7 @@ class PlanificacionProduccionControllerTest {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01"),
                 lote(2L, "LOT-R7-02", EstadoLote.EN_EJECUCION, "F-02")));
+        when(planProduccionServicio.buscarMotivoSinLitrosAPlanificar(7L)).thenReturn(Optional.of("Los lotes de la planificación ya cubren la cantidad a producir"));
         mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Generar plan"))));
@@ -1996,6 +2004,7 @@ class PlanificacionProduccionControllerTest {
         // Planificación finalizada
         when(planificacionServicio.buscarPorId(8L)).thenReturn(planificacion(8L, "Pale Ale", EstadoSolicitud.FINALIZADA));
         when(loteServicio.listarLotesDePlanificacion(8L)).thenReturn(List.of());
+        when(planProduccionServicio.buscarMotivoSinLitrosAPlanificar(8L)).thenReturn(Optional.of("La planificación no está en estado Pendiente"));
         mockMvc.perform(get("/planificaciones-produccion/8").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Generar plan"))));
@@ -2003,6 +2012,7 @@ class PlanificacionProduccionControllerTest {
         // Sin LOTE_REGISTRAR
         when(planificacionServicio.buscarPorId(9L)).thenReturn(planificacion(9L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(9L)).thenReturn(List.of());
+        when(planProduccionServicio.buscarMotivoSinLitrosAPlanificar(9L)).thenReturn(Optional.empty());
         mockMvc.perform(get("/planificaciones-produccion/9").with(como(Rol.GERENTE_DE_COMPRAS)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Generar plan"))));
@@ -2237,6 +2247,59 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*data-prioridad><span[^>]*>Alta</span>.*")));
     }
 
+    // ==================== Aviso de planificaciones con litros sin planificar ====================
+
+    @Test
+    @DisplayName("CP-PPC-117: con una planificación con litros sin planificar el listado muestra el aviso en singular, antes de los criterios de búsqueda, con el enlace a sus planes y los litros que faltan")
+    void listado_debeMostrarElAvisoEnSingular() throws Exception {
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        when(planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar()).thenReturn(List.of(conLitrosAPlanificar(7L, "Pale Ale", 1250.5)));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("data-aviso-planes-produccion-pendientes").contains("bi bi-bell")
+                .contains("Hay 1 planificación de producción con litros sin planificar")
+                .contains("href=\"/planificaciones-produccion/7/planes\"")
+                .contains("Plan #7 - Pale Ale: faltan 1.250,5 L");
+        assertThat(html.indexOf("data-aviso-planes-produccion-pendientes")).isLessThan(html.indexOf("action=\"/planificaciones-produccion\""));
+        verify(planProduccionServicio).buscarPlanificacionesConLitrosAPlanificar();
+    }
+
+    @Test
+    @DisplayName("CP-PPC-118: con varias planificaciones con litros sin planificar el aviso usa el plural y lista una por línea en el orden del service")
+    void listado_debeMostrarElAvisoEnPlural() throws Exception {
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        when(planProduccionServicio.buscarPlanificacionesConLitrosAPlanificar())
+                .thenReturn(List.of(conLitrosAPlanificar(9L, "Stout", 300.0), conLitrosAPlanificar(7L, "Pale Ale", 600.0)));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("Hay 2 planificaciones de producción con litros sin planificar");
+        assertThat(html.split("data-planificacion-con-litros-a-planificar", -1).length - 1).isEqualTo(2);
+        assertThat(html.indexOf("Plan #9 - Stout: faltan 300 L")).isPositive().isLessThan(html.indexOf("Plan #7 - Pale Ale: faltan 600 L"));
+    }
+
+    @Test
+    @DisplayName("CP-PPC-119: sin planificaciones con litros sin planificar, o sin el permiso LOTE_REGISTRAR, el listado no muestra el aviso; sin el permiso no se consulta el service")
+    void listado_noDebeMostrarElAviso() throws Exception {
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        mockMvc.perform(get("/planificaciones-produccion").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-aviso-planes-produccion-pendientes"))));
+        verify(planProduccionServicio).buscarPlanificacionesConLitrosAPlanificar();
+
+        mockMvc.perform(get("/planificaciones-produccion").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-aviso-planes-produccion-pendientes"))))
+                .andExpect(content().string(not(containsString("con litros sin planificar</span>"))));
+        verifyNoMoreInteractions(planProduccionServicio);
+    }
+
     // ==================== Datos de prueba ====================
 
     private static RequestPostProcessor como(Rol rol) {
@@ -2244,6 +2307,15 @@ class PlanificacionProduccionControllerTest {
         autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
         rol.getPermisos().forEach(permiso -> autoridades.add(new SimpleGrantedAuthority(permiso.name())));
         return user(rol.name()).authorities(autoridades);
+    }
+
+    private static PlanificacionConLitrosAPlanificarResponseDTO conLitrosAPlanificar(Long id, String nombreReceta, double litros) {
+        return PlanificacionConLitrosAPlanificarResponseDTO.builder()
+                .id(id)
+                .etiqueta("Plan #" + id + " - " + nombreReceta)
+                .fechaInicioEstimada(LocalDate.of(2027, 7, 1))
+                .litrosAPlanificar(litros)
+                .build();
     }
 
     private static org.springframework.test.web.servlet.ResultMatcher matchesMensajeVacioDosVeces() {

@@ -4,7 +4,7 @@ Este documento define el panel que el gerente de producción ve en la pantalla d
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
-El panel responde a una pregunta: cuál es el estado de la fábrica. Muestra qué se está produciendo y en qué etapa, qué va atrasado, cómo están las colas de los fermentadores, cuántos equipos y barriles están en cada estado, y qué planificaciones esperan. Los lotes a iniciar son responsabilidad del operario de producción y no figuran en este panel.
+El panel responde a una pregunta: cuál es el estado de la fábrica. Muestra qué se está produciendo y en qué etapa, qué va atrasado, cómo están las colas de los fermentadores, cuántos equipos y barriles están en cada estado, qué planificaciones esperan y cuáles todavía no tienen un plan de producción confirmado. Los lotes a iniciar son responsabilidad del operario de producción y no figuran en este panel.
 
 ## 1. Roles y permisos
 
@@ -15,6 +15,7 @@ El panel responde a una pregunta: cuál es el estado de la fábrica. Muestra qu�
 | Ver el identificador de un equipo como enlace a su detalle | `EQUIPAMIENTO_CONSULTAR` | Sí | No ve el panel | No (texto plano) |
 | Recorrer la lista de fermentadores (contador de fermentadores) | `LIMPIEZA_EQUIPAMIENTO_CONSULTAR` | Sí | No ve el panel | No |
 | Ver una planificación y recorrer la lista de planificaciones | `PLANIFICACION_PRODUCCION_CONSULTAR` | Sí | No ve el panel | No |
+| Ver el aviso de planificaciones con litros sin planificar y entrar a sus planes de producción | `LOTE_REGISTRAR` | Sí | No ve el panel | No |
 
 - El panel se muestra con `sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"` y el `HomeController` carga sus datos solo para ese rol: los demás roles no reciben el modelo del panel, de modo que ningún dato de planta llega a una vista que no lo muestra.
 - Cada contador, enlace "Ver todos" y botón "Abrir" lleva `sec:authorize="hasAuthority(...)"` con el permiso de la tabla. Es la misma condición que el `@PreAuthorize` del método de destino, que sigue siendo la fuente de verdad: un acceso no autorizado no devuelve un 403, el `ControllerAdvices` redirige con la alerta `danger` "No tiene permisos para realizar esta acción". Sin el permiso, el contador queda como texto plano.
@@ -36,6 +37,7 @@ El panel no tiene rutas propias: es un fragmento de la pantalla de inicio. Sus e
 | 8 | Lista de fermentadores | `/control-equipamiento?tipo=FERMENTADOR` | GET | `control_equipamiento/control-lista` | `LIMPIEZA_EQUIPAMIENTO_CONSULTAR` |
 | 9 | Lista de planificaciones pendientes | `/planificaciones-produccion?estado=PENDIENTE` | GET | `planificacion_produccion/planificacion-lista` | `PLANIFICACION_PRODUCCION_CONSULTAR` |
 | 12 | Estado actual de una planificación | `/planificaciones-produccion/{id}` | GET | `planificacion_produccion/planificacion-detalle` | `PLANIFICACION_PRODUCCION_CONSULTAR` |
+| 13 | Planes de producción de una planificación | `/planificaciones-produccion/{id}/planes` | GET | `planificacion_produccion/planes` | `LOTE_REGISTRAR` |
 
 ## 3. Reglas específicas
 
@@ -49,13 +51,15 @@ El panel no tiene rutas propias: es un fragmento de la pantalla de inicio. Sus e
 - **Producción en curso.** Los lotes En ejecución se agrupan por etapa en curso, en el orden de las etapas (Molienda, Maceración, Hervido, Fermentación, Maduración, Envasado); una etapa sin lotes no se muestra. Dentro de cada etapa, los lotes van por fecha de finalización estimada ascendente (el más atrasado arriba) y, ante igual fecha, por ID.
 - **Cola de fermentadores.** Cada fermentador activo muestra su lote En ejecución (si lo tiene, con su atraso), su próximo lote Pendiente (el de fecha de inicio estimada más temprana, como ordena el cronograma) y la cantidad de lotes Pendiente que esperan. Los fermentadores van en el orden natural por identificador de Control de Equipamientos. El enlace "Ver cronograma" lleva al diagrama completo.
 - **Planificaciones pendientes.** Son las planificaciones de estado Pendiente.
+- **Planificaciones con litros sin planificar.** Son las planificaciones Pendiente cuyos litros a planificar son mayores a 0, con la misma regla de la generación de planes de producción: la cantidad a producir menos los litros producidos (envasados registrados) y el volumen objetivo de sus lotes Pendiente y En ejecución. Van por fecha de inicio estimada ascendente (la más urgente primero) y, ante igual fecha, por ID; se muestran todas, sin tope. Es el mismo aviso del listado de planificaciones.
 - **Tamaño de cada bloque.** Hasta `LimitesTecnicos.PANEL_GERENTE_FILAS_POR_BLOQUE` filas. El contador muestra el total real, no las filas visibles, y "Ver todos" lleva a la lista filtrada completa.
 - **Permisos.** Todo enlace respeta los permisos de la sección 1 y el servidor los vuelve a exigir en el destino.
 
 ## 4. Descripción de la pantalla
 
-La pantalla se lee de arriba abajo en cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
+La pantalla se lee de arriba abajo: el aviso de planificaciones con litros sin planificar (cuando hay alguna) y cuatro filas. Cada bloque ocupa una fila entera a todo el ancho; no se colocan dos bloques en la misma fila.
 
+- **Aviso, antes de la fila 1:** recuadro ámbar (`rounded-xl border border-amber-200 bg-amber-50`, `role="status"`) con el ícono `bi-bell` y el título "Hay 1 planificación de producción con litros sin planificar" o "Hay N planificaciones de producción con litros sin planificar". Debajo, una línea por planificación con el enlace a sus planes de producción y el texto "Plan #7 - Pale Ale: faltan 400 L" (los litros con el formato numérico de `receta/formato :: numero`). Solo se muestra con el permiso `LOTE_REGISTRAR` y si hay alguna planificación; si no, no se muestra nada.
 - **Fila 1, contadores:** cuatro tarjetas (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`) con título en mayúsculas pequeñas, ícono y número grande: "Lotes en ejecución", "Lotes atrasados" (ícono rosa si hay atrasados), "Fermentadores ocupados" (con el formato "3 / 5") y "Fuera de servicio". "Lotes atrasados" es una tarjeta sin enlace; "Lotes en ejecución" y "Fermentadores ocupados" lleva a la lista de fermentadores y sin el permiso queda como texto plano. "Fuera de servicio" es una tarjeta sin enlace.
 - **Fila 2, producción:** "Producción en curso" a todo el ancho.
 - **Fila 3:** "Cola de fermentadores" a todo el ancho.
@@ -71,12 +75,13 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
 
 **DTOs de respuesta** (paquete `service/response_dto/dashboard`, con Lombok `@Getter @Builder @NoArgsConstructor @AllArgsConstructor` como los demás):
 
-- `DashboardGerenteResponseDTO`. Campos: `lotesEnEjecucion`, `lotesAtrasados`, `fermentadoresOcupados`, `fermentadoresTotal` y `fueraDeServicio` (todos `long`); `produccionEnCurso` (`List<EtapaEnCursoResponseDTO>`); `colaDeFermentadores` (`BloqueDashboardResponseDTO<ColaFermentadorResponseDTO>`); `planificacionesPendientes` (`BloqueDashboardResponseDTO<PlanificacionPendienteResponseDTO>`).
+- `DashboardGerenteResponseDTO`. Campos: `lotesEnEjecucion`, `lotesAtrasados`, `fermentadoresOcupados`, `fermentadoresTotal` y `fueraDeServicio` (todos `long`); `produccionEnCurso` (`List<EtapaEnCursoResponseDTO>`); `colaDeFermentadores` (`BloqueDashboardResponseDTO<ColaFermentadorResponseDTO>`); `planificacionesPendientes` (`BloqueDashboardResponseDTO<PlanificacionPendienteResponseDTO>`); `planificacionesConLitrosAPlanificar` (`List<PlanificacionConLitrosAPlanificarResponseDTO>`, nunca nula).
 - `BloqueDashboardResponseDTO<T>`: `total` (`long`) y `filas` (`List<T>`), el mismo del panel del operario.
 - `EtapaEnCursoResponseDTO`: `etapa` (`TipoEtapa`) y `lotes` (`BloqueDashboardResponseDTO<LoteEnProduccionResponseDTO>`).
 - `LoteEnProduccionResponseDTO`: `id`, `identificadorInterno`, `nombreReceta`, `etapaActual` (nula en un lote Pendiente), `idFermentador`, `identificadorInternoFermentador`, `fechaInicioEstimada`, `fechaFinalizacionEstimada`, `diasDeAtraso` (`int`) y `prioridad` (`PrioridadPlanificacion`).
 - `ColaFermentadorResponseDTO`: `id`, `identificadorInterno`, `estadoOperativo`, `loteEnEjecucion` y `proximoLote` (`LoteEnProduccionResponseDTO`, nulos si no hay) y `lotesPendientes` (`long`).
 - `PlanificacionPendienteResponseDTO`: `id`, `etiqueta`, `prioridad`, `fechaInicioEstimada` y `fechaFinalizacionEstimada`.
+- `PlanificacionConLitrosAPlanificarResponseDTO` (paquete `service/response_dto/planificacion_produccion`): `id`, `etiqueta`, `fechaInicioEstimada` y `litrosAPlanificar`.
 
 **Mapper** (`util/mapper/dashboard/MapperDashboardGerente`): de un lote del listado a `LoteEnProduccionResponseDTO` (con el atraso ya calculado), de un fermentador de control con sus lotes a `ColaFermentadorResponseDTO` y de una planificación a `PlanificacionPendienteResponseDTO`.
 
@@ -87,6 +92,7 @@ Las capas siguen el orden de la metodología: DTOs, mapper, interfaz del service
 - `IControlEquipamientoServicio.filtrarEquipamientosParaControl`: los fermentadores ocupados y los equipos En limpieza y En mantenimiento usan una página de un registro y leen `getTotalElements()`; la cola usa la primera página de fermentadores.
 - `IControlBarrilServicio.filtrarBarrilesParaControl`: los barriles En limpieza y En mantenimiento, con una página de un registro.
 - `IPlanificacionProduccionServicio.filtrarPlanificacionesProduccion(null, PENDIENTE, null, tope)`: las planificaciones pendientes.
+- `IPlanProduccionServicio.buscarPlanificacionesConLitrosAPlanificar()`: el aviso de planificaciones con litros sin planificar. Calcula los litros a planificar con el mismo método que la generación y la confirmación de planes, de modo que el aviso y los planes nunca difieren.
 
 **Consultas** (en `ILoteRepository`):
 
@@ -103,7 +109,7 @@ Las consultas 1 y 2 usan el índice de `V20__indices_consultas_panel_y_ciclo_de_
 **Plantillas.**
 
 - `home.html`: no tiene tarjetas de resumen. Incluye el panel de cada uno de los seis roles con `sec:authorize="hasRole('...')"` y su fragmento `panel`; el de este rol se incluye con `sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"`.
-- `home/dashboard-gerente.html`: fragmentos `panel(dashboard)`, `contadores(dashboard)`, `produccionEnCurso(dashboard)`, `colaDeFermentadores(dashboard)` y `planificacionesPendientes(dashboard)`, más la pieza compartida `encabezado`.
+- `home/dashboard-gerente.html`: fragmentos `panel(dashboard)`, `avisoPlanesPendientes(dashboard)` (incluye `planificacion_produccion/aviso-planes-pendientes :: aviso` con `sec:authorize="hasAuthority('LOTE_REGISTRAR')"`), `contadores(dashboard)`, `produccionEnCurso(dashboard)`, `colaDeFermentadores(dashboard)` y `planificacionesPendientes(dashboard)`, más la pieza compartida `encabezado`.
 - Reutiliza `fragments/boton-abrir`, `fragments/enlace-equipo`, `lote/formato :: duracion`, `planificacion_produccion/formato :: fecha` y `prioridadPlanificacion`, y los mismos estilos de tarjeta y de tabla de las listas.
 
 **Pruebas y casos de prueba.** `../../Testing/casos_de_prueba/services/dashboard/CasosPruebaDashboardGerente.md`, `../../Testing/casos_de_prueba/controllers/dashboard/CasosPruebaMapperDashboardGerente.md`, `CasosPruebaDashboardGerenteController.md` y `CasosPruebaPlantillasDashboardGerente.md` documentan los casos con los mismos IDs de los tests.
@@ -119,3 +125,4 @@ Las consultas 1 y 2 usan el índice de `V20__indices_consultas_panel_y_ciclo_de_
 | Ver qué viene después en un fermentador | Pantalla de inicio, "Cola de fermentadores" | 0 |
 | Ver el cronograma completo | Pantalla de inicio, "Ver cronograma" | 1 |
 | Ver las planificaciones pendientes | Pantalla de inicio, "Ver todas" de Planificaciones pendientes | 1 |
+| Confirmar el plan de producción de una planificación que quedó sin planificar | Pantalla de inicio, enlace de la planificación en el aviso | 1 |
