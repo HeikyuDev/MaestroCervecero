@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#solicitudes-retiro-content}, 'solicitudes-retiro')}">
+<body>
+
+<!--
+    Pantalla de solicitudes de retiro: las solicitudes de búsqueda que registran los clientes al coordinar el retiro desde
+    el enlace del recordatorio, con la última registrada arriba, y los criterios de búsqueda (cliente, rango de fecha
+    propuesta y estado). Es de solo lectura: una solicitud queda buscada al registrar la devolución del barril y
+    cancelada al anular el despacho. Una
+    solicitud pendiente cuya fecha propuesta ya pasó se resalta como vencida. "Ver" abre el detalle con las observaciones.
+-->
+<div id="solicitudes-retiro-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Solicitudes de Retiro</h1>
+        <p class="text-sm text-slate-500">Retiros de barriles coordinados por los clientes, con la última solicitud arriba.</p>
+    </div>
+
+    <section data-solicitudes-retiro class="space-y-4">
+
+        <!-- Criterios de búsqueda -->
+        <form th:action="@{${urlPantalla}}" method="get" novalidate data-filtro-solicitudes
+              class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <span class="block text-xs font-medium text-slate-500 mb-1">Cliente</span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idCliente', ${filtroIdCliente}, ${filtroClienteTexto},
+                            @{${urlBuscadorClientes}}, null, null, true, false, 'Seleccione cliente')}"></div>
+                </div>
+                <div>
+                    <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+                    <select id="estado" name="estado"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                        <option value="">Todos</option>
+                        <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Pendiente</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label for="fechaDesde" class="block text-xs font-medium text-slate-500 mb-1">Retiro desde</label>
+                <input type="date" id="fechaDesde" name="fechaDesde" th:value="${filtroFechaDesde}" autocomplete="off" placeholder="Ej: 01/11/2026"
+                       class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            </div>
+            <div>
+                <label for="fechaHasta" class="block text-xs font-medium text-slate-500 mb-1">Retiro hasta</label>
+                <input type="date" id="fechaHasta" name="fechaHasta" th:value="${filtroFechaHasta}" autocomplete="off" placeholder="Ej: 30/11/2026"
+                       class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            </div>
+            <div class="md:col-span-2 flex items-center justify-end gap-3">
+                <a th:href="@{${urlPantalla}}"
+                   class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+                <button type="submit"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+
+        <!-- Solicitudes -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-3 py-3">Retiro propuesto</th>
+                        <th class="px-3 py-3">Cliente</th>
+                        <th class="px-3 py-3">Barril</th>
+                        <th class="px-3 py-3">Estado</th>
+                        <th class="px-3 py-3">Observaciones</th>
+                        <th class="col-acciones px-3 py-3 text-right">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="s : ${solicitudes.content}" th:attr="data-solicitud=${s.id}" class="hover:bg-slate-50"
+                        th:with="vencida=${s.estado.name() == 'PENDIENTE' and s.fechaBusqueda.isBefore(#temporals.createNow())}">
+                        <td class="px-3 py-3 align-top whitespace-nowrap" th:classappend="${vencida} ? 'text-rose-700 font-semibold' : 'text-slate-700'">
+                            <th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${s.fechaBusqueda})}"></th:block>
+                            <span class="block text-xs font-normal text-slate-500">Registrada <th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${s.fechaRegistro})}"></th:block></span>
+                        </td>
+                        <td class="px-3 py-3 align-top font-medium text-slate-900 break-words" th:text="${s.despachoBarril.cliente.nombre}">Bar Don Jorge</td>
+                        <td class="px-3 py-3 align-top text-slate-700">
+                            <div class="font-medium text-slate-900 whitespace-nowrap" th:text="${s.despachoBarril.barril.numeroSerie}">SN-1001</div>
+                            <div class="text-xs text-slate-500 whitespace-nowrap" th:text="${s.despachoBarril.barril.identificadorInterno}">BRL-01</div>
+                        </td>
+                        <td class="px-3 py-3 align-top whitespace-nowrap" data-estado-solicitud>
+                            <span th:if="${s.estado.name() == 'BUSCADA'}" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700" th:text="${s.estado.etiqueta}">Buscada</span>
+                            <span th:if="${s.estado.name() == 'CANCELADA'}" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600" th:text="${s.estado.etiqueta}">Cancelada</span>
+                            <span th:if="${s.estado.name() == 'PENDIENTE' and !vencida}" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700" th:text="${s.estado.etiqueta}">Pendiente</span>
+                            <span th:if="${vencida}" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">Pendiente vencida</span>
+                        </td>
+                        <td class="px-3 py-3 align-top text-slate-700">
+                            <div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${s.observaciones}" th:text="${s.observaciones != null} ? ${s.observaciones} : '-'">Tocar timbre</div>
+                        </td>
+                        <td class="col-acciones px-3 py-3 text-right align-top">
+                            <div class="flex items-center justify-end gap-1">
+                                <a th:href="@{/solicitudes-retiro/{id}(id=${s.id})}" title="Ver detalle" aria-label="Ver detalle"
+                                   class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                    <i class="bi bi-eye text-lg"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${solicitudes.empty}">
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                            <i class="bi bi-calendar-check block text-3xl mb-2"></i>
+                            No se encontraron solicitudes de retiro con los criterios indicados
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:replace="~{fragments/paginacion :: paginacion(${solicitudes}, 'solicitud|solicitudes',
+                    ${solicitudes.hasPrevious()} ? @{${urlPantalla}(pagina=${solicitudes.number - 1}, idCliente=${filtroIdCliente}, estado=${filtroEstado}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta})} : null,
+                    ${solicitudes.hasNext()} ? @{${urlPantalla}(pagina=${solicitudes.number + 1}, idCliente=${filtroIdCliente}, estado=${filtroEstado}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta})} : null,
+                    false)}"></div>
+        </div>
+    </section>
+</div>
+
+</body>
+</html>

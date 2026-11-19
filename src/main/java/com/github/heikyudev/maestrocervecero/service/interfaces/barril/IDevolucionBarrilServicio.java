@@ -19,6 +19,10 @@ import java.time.LocalDateTime;
  * motivos sanitarios, sin importar el contenido restante. No es un CRUD: solo admite su registro
  * inicial y una anulación excepcional, nunca modificación.
  * </p>
+ * <p>
+ * Registrar la devolución da por buscada la solicitud de búsqueda pendiente del despacho vigente del
+ * barril, si la tiene; anularla la vuelve a dejar pendiente.
+ * </p>
  */
 public interface IDevolucionBarrilServicio {
 

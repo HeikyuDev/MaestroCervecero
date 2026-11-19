@@ -5,11 +5,14 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAu
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionDespachoBarrilFormDTO;
@@ -43,6 +46,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IClienteRepository clienteRepository;
     private final IBarrilRepository barrilRepository;
+    private final ISolicitudBusquedaRepository solicitudBusquedaRepository;
 
     /**
      * Filtra los despachos de barril, opcionalmente por estado, barril, cliente y/o rango de
@@ -179,7 +183,8 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
      * entre sus limpiezas, fallas, mantenimientos, fraccionamientos, despachos y devoluciones), si el barril no está en uso por un lote y
      * si es posterior al último envasado del barril. Restablece al barril afectado a estado
      * operativo {@code CON_CERVEZA}: solo procede si ese barril todavía se encuentra en {@code DESPACHADO}, para
-     * garantizar que la transición de vuelta sea coherente.
+     * garantizar que la transición de vuelta sea coherente. Si el despacho tiene una solicitud de búsqueda pendiente, la
+     * deja {@code CANCELADA} (no cuenta como buscada).
      * </p>
      * <p>
      * Orden de locks: se bloquea primero el barril (el ID se resuelve con una consulta escalar, sin cargar el
@@ -241,6 +246,14 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         despachoBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         despachoBarrilEntity.setFechaAnulacion(LocalDateTime.now());
         despachoBarrilEntity.setMotivoAnulacion(motivoAnulacion);
+
+        // 11. Cancelar la solicitud de búsqueda pendiente del despacho, si tiene una: el barril vuelve a la fábrica sin
+        //     haber estado en poder del cliente, así que no hay nada que buscar (no cuenta como buscada). El barril ya está
+        //     bloqueado, igual que al registrar la solicitud o la devolución
+        solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(id, EstadoSolicitudBusqueda.PENDIENTE).ifPresent(solicitud -> {
+            solicitud.setEstado(EstadoSolicitudBusqueda.CANCELADA);
+            solicitudBusquedaRepository.save(solicitud);
+        });
 
         return MapperDespachoBarril.toDTO(despachoBarrilRepository.save(despachoBarrilEntity));
     }

@@ -36,20 +36,20 @@ class DashboardEncargadoDistribucionPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PDE-02: el panel define los fragmentos panel, contadores, devolucionesPendientes, clientesConBarriles y barrilesListos, y los arma uno debajo de otro, cada bloque en una fila entera")
+    @DisplayName("CP-PDE-02: el panel define los fragmentos panel, contadores, devolucionesPendientes, retirosPendientes, clientesConBarriles y barrilesListos, y los arma uno debajo de otro, cada bloque en una fila entera")
     void fragmentosYFilas() throws IOException {
         String html = leer(PANEL);
 
-        for (String fragmento : List.of("panel(dashboard)", "contadores(dashboard)", "devolucionesPendientes(dashboard)", "clientesConBarriles(dashboard)", "barrilesListos(dashboard)")) {
+        for (String fragmento : List.of("panel(dashboard)", "contadores(dashboard)", "devolucionesPendientes(dashboard)", "retirosPendientes(dashboard)", "clientesConBarriles(dashboard)", "barrilesListos(dashboard)")) {
             assertThat(html).as(fragmento).contains("th:fragment=\"" + fragmento + "\"");
         }
         String panel = html.substring(html.indexOf("th:fragment=\"panel(dashboard)\""), html.indexOf("th:fragment=\"contadores(dashboard)\""));
-        List<String> orden = List.of(":: contadores(", ":: devolucionesPendientes(", ":: clientesConBarriles(", ":: barrilesListos(");
+        List<String> orden = List.of(":: contadores(", ":: devolucionesPendientes(", ":: retirosPendientes(", ":: clientesConBarriles(", ":: barrilesListos(");
         for (int i = 1; i < orden.size(); i++) {
             assertThat(panel.indexOf(orden.get(i - 1))).as(orden.get(i - 1)).isNotNegative().isLessThan(panel.indexOf(orden.get(i)));
         }
         assertThat(panel.substring(0, panel.indexOf("</div>"))).as("los bloques son hijos directos del panel, cada uno en su propia fila: ninguna grilla ni envoltorio de varias columnas").doesNotContain("grid").doesNotContain("<div");
-        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(3);
+        assertThat(count(html, "data-bloque=\"")).as("un bloque por fragmento de datos").isEqualTo(4);
         assertThat(html).doesNotContain("col-span").doesNotContain("xl:grid-cols");
         assertThat(html).contains("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4");
         assertThat(count(html, "data-contador=\"")).isEqualTo(6);
@@ -80,6 +80,8 @@ class DashboardEncargadoDistribucionPlantillasTest {
         assertThat(botonProtegidoPor(html, "registrar(@{/control-barriles/{id}/devoluciones/nueva(id=${d.idBarril})}")).isEqualTo("hasAuthority('DEVOLUCION_BARRIL_REGISTRAR')");
         assertThat(botonProtegidoPor(html, "registrar(@{/control-barriles/{id}/despachos/nuevo(id=${b.id})}")).isEqualTo("hasAuthority('DESPACHO_BARRIL_REGISTRAR')");
         assertThat(botonProtegidoPor(html, "abrir(@{/clientes(nombre=${c.nombre})}")).isEqualTo("hasAuthority('CLIENTE_CONSULTAR')");
+        assertThat(botonProtegidoPor(html, "registrar(@{/control-barriles/{id}/devoluciones/nueva(id=${r.idBarril})}")).isEqualTo("hasAuthority('DEVOLUCION_BARRIL_REGISTRAR')");
+        assertThat(count(html, "sec:authorize=\"hasAuthority('SOLICITUD_BUSQUEDA_CONSULTAR')\"")).as("Ver todas y Ver de las solicitudes de retiro").isEqualTo(2);
     }
 
     @Test
@@ -87,12 +89,12 @@ class DashboardEncargadoDistribucionPlantillasTest {
     void atajosDeRegistroYDeConsulta() throws IOException {
         String html = leer(PANEL);
 
-        assertThat(count(html, "fragments/boton-registrar :: registrar(")).isEqualTo(2);
+        assertThat(count(html, "fragments/boton-registrar :: registrar(")).isEqualTo(3);
         assertThat(html).contains("'Registrar devolución', 'bi-box-arrow-in-down-left'").contains("'Registrar despacho', 'bi-box-arrow-up-right'");
         assertThat(count(html, "fragments/boton-abrir :: abrir(")).isEqualTo(3);
         assertThat(html).doesNotContain("<form").doesNotContain("<button").doesNotContain("Situación").doesNotContain("data-atraso");
-        assertThat(count(html, "<td class=\"col-acciones px-2 py-3\">")).isEqualTo(3);
-        assertThat(count(html, "<table class=\"w-full text-sm text-left\">")).isEqualTo(3);
+        assertThat(count(html, "<td class=\"col-acciones px-2 py-3\">")).isEqualTo(4);
+        assertThat(count(html, "<table class=\"w-full text-sm text-left\">")).isEqualTo(4);
         assertThat(html).contains("data-dias-de-atraso").contains("data-cliente-barriles");
     }
 
@@ -104,22 +106,22 @@ class DashboardEncargadoDistribucionPlantillasTest {
         List<String> celdas = clases(html, "<td class=\"col-acciones");
         List<String> contenedores = clases(html, "<div class=\"flex items-center justify-").stream().filter(c -> c.endsWith("gap-1")).toList();
 
-        assertThat(encabezados).hasSize(3).hasSameSizeAs(celdas);
+        assertThat(encabezados).hasSize(4).hasSameSizeAs(celdas);
         assertThat(encabezados).allSatisfy(c -> assertThat(c).contains("px-2 py-3").contains("text-center").doesNotContain("text-right"));
         assertThat(celdas).allSatisfy(c -> assertThat(c).contains("px-2 py-3").doesNotContain("text-right"));
-        assertThat(contenedores).hasSize(3).allSatisfy(c -> assertThat(c).contains("justify-center").doesNotContain("justify-end"));
+        assertThat(contenedores).hasSize(4).allSatisfy(c -> assertThat(c).contains("justify-center").doesNotContain("justify-end"));
     }
 
     @Test
-    @DisplayName("CP-PDE-07: cada sub-bloque sin filas muestra una sola línea de texto gris, sin tabla ni encabezado de columnas, con los tres textos del diseño")
+    @DisplayName("CP-PDE-07: cada sub-bloque sin filas muestra una sola línea de texto gris, sin tabla ni encabezado de columnas, con los cuatro textos del diseño")
     void estadosVacios() throws IOException {
         String html = leer(PANEL);
 
-        for (String texto : List.of("No hay devoluciones vencidas ni que venzan hoy", "No hay clientes con barriles en su poder", "No hay barriles con cerveza listos para despachar")) {
+        for (String texto : List.of("No hay devoluciones vencidas ni que venzan hoy", "No hay retiros coordinados pendientes", "No hay clientes con barriles en su poder", "No hay barriles con cerveza listos para despachar")) {
             assertThat(html).as(texto).contains(">" + texto + "</p>");
         }
-        assertThat(count(html, "data-estado-vacio")).isEqualTo(3);
-        assertThat(count(html, "<div class=\"overflow-x-auto\" th:if=\"${!dashboard.")).isEqualTo(3);
+        assertThat(count(html, "data-estado-vacio")).isEqualTo(4);
+        assertThat(count(html, "<div class=\"overflow-x-auto\" th:if=\"${!dashboard.")).isEqualTo(4);
         assertThat(html).doesNotContain("bg-slate-50 rounded").doesNotContain("border-dashed");
     }
 
@@ -130,6 +132,19 @@ class DashboardEncargadoDistribucionPlantillasTest {
 
         html.codePoints().forEach(cp -> assertThat(esEmoji(cp)).as("U+%04X", cp).isFalse());
         assertThat(html).doesNotContain(".</p>").doesNotContain("hoy.<").doesNotContain("poder.<").doesNotContain("despachar.<");
+    }
+
+    @Test
+    @DisplayName("CP-PDE-09: los retiros coordinados pendientes muestran el total y los vencidos, resaltan la fila vencida y llevan a las solicitudes pendientes y al detalle")
+    void retirosPendientes() throws IOException {
+        String html = leer(PANEL);
+        String bloque = html.substring(html.indexOf("th:fragment=\"retirosPendientes(dashboard)\""), html.indexOf("th:fragment=\"clientesConBarriles(dashboard)\""));
+
+        assertThat(bloque).contains("Retiros coordinados pendientes").contains("${dashboard.retirosPendientes.total}")
+                .contains("th:if=\"${dashboard.retirosVencidos > 0}\"").contains("con la fecha propuesta vencida")
+                .contains("@{/solicitudes-retiro(estado='PENDIENTE')}").contains("@{/solicitudes-retiro/{id}(id=${r.idSolicitud})}")
+                .contains("${r.vencida} ? 'text-rose-700 font-semibold'").contains(">Vencido</span>")
+                .contains("${r.numeroSerie}").contains("${r.identificadorInterno}").contains("${r.nombreCliente}");
     }
 
     /** El permiso del bloque sec:authorize que envuelve el botón identificado por el texto dado. */

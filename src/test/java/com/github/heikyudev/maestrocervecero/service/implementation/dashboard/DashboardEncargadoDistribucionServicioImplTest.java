@@ -1,10 +1,13 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.dashboard;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IControlBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.ContenidoBarrilResponseDTO;
@@ -43,6 +46,9 @@ class DashboardEncargadoDistribucionServicioImplTest {
     @Mock
     private IControlBarrilServicio controlBarrilServicio;
 
+    @Mock
+    private ISolicitudBusquedaRepository solicitudBusquedaRepository;
+
     @InjectMocks
     private DashboardEncargadoDistribucionServicioImpl dashboardServicio;
 
@@ -65,6 +71,9 @@ class DashboardEncargadoDistribucionServicioImplTest {
         assertThat(resultado.getClientesConBarriles().getFilas()).isEmpty();
         assertThat(resultado.getBarrilesListos().getTotal()).isZero();
         assertThat(resultado.getBarrilesListos().getFilas()).isEmpty();
+        assertThat(resultado.getRetirosVencidos()).isZero();
+        assertThat(resultado.getRetirosPendientes().getTotal()).isZero();
+        assertThat(resultado.getRetirosPendientes().getFilas()).isEmpty();
     }
 
     @Test
@@ -158,6 +167,38 @@ class DashboardEncargadoDistribucionServicioImplTest {
         assertThat(resultado.getBarrilesListos().getFilas().get(1).getCodigoLote()).isNull();
     }
 
+    @Test
+    @DisplayName("CP-DDI-06: los retiros pendientes se piden con el tope de 5 filas, con el total real, el cliente, el barril, la fecha propuesta y si ya venció, y se cuentan los vencidos")
+    void obtener_debeInformarLosRetirosPendientes() {
+        // === PREPARACION DE DATOS ===
+        prepararSistemaVacio();
+        java.time.LocalDateTime antes = java.time.LocalDateTime.now();
+        SolicitudBusquedaEntity vencida = SolicitudBusquedaEntity.builder().id(70L).fechaBusqueda(antes.minusHours(2)).estado(EstadoSolicitudBusqueda.PENDIENTE)
+                .despachoBarril(despacho(30L, 21L, "BRL-01", "Bar Don Jorge", LocalDate.now().minusDays(5))).build();
+        vencida.getDespachoBarril().getBarril().setNumeroSerie("SN-1001");
+        SolicitudBusquedaEntity futura = SolicitudBusquedaEntity.builder().id(71L).fechaBusqueda(antes.plusDays(2)).estado(EstadoSolicitudBusqueda.PENDIENTE)
+                .despachoBarril(despacho(31L, 22L, "BRL-02", "La Birrería", LocalDate.now().minusDays(3))).build();
+        when(solicitudBusquedaRepository.buscarPendientesParaPanel(TOPE)).thenReturn(new PageImpl<>(List.of(vencida, futura), TOPE, 6));
+        when(solicitudBusquedaRepository.contarPendientesVencidas(any(java.time.LocalDateTime.class))).thenReturn(2L);
+
+        // === EJECUCION ===
+        DashboardEncargadoDistribucionResponseDTO resultado = dashboardServicio.obtenerDashboardEncargadoDistribucion();
+
+        // === ASSERTS ===
+        org.mockito.ArgumentCaptor<java.time.LocalDateTime> ahora = org.mockito.ArgumentCaptor.forClass(java.time.LocalDateTime.class);
+        verify(solicitudBusquedaRepository).contarPendientesVencidas(ahora.capture());
+        assertThat(ahora.getValue()).isAfterOrEqualTo(antes);
+        assertThat(resultado.getRetirosVencidos()).isEqualTo(2);
+        assertThat(resultado.getRetirosPendientes().getTotal()).isEqualTo(6);
+        assertThat(resultado.getRetirosPendientes().getFilas()).hasSize(2);
+        assertThat(resultado.getRetirosPendientes().getFilas().get(0).getIdSolicitud()).isEqualTo(70L);
+        assertThat(resultado.getRetirosPendientes().getFilas().get(0).getIdBarril()).isEqualTo(21L);
+        assertThat(resultado.getRetirosPendientes().getFilas().get(0).getNumeroSerie()).isEqualTo("SN-1001");
+        assertThat(resultado.getRetirosPendientes().getFilas().get(0).getNombreCliente()).isEqualTo("Bar Don Jorge");
+        assertThat(resultado.getRetirosPendientes().getFilas().get(0).isVencida()).isTrue();
+        assertThat(resultado.getRetirosPendientes().getFilas().get(1).isVencida()).isFalse();
+    }
+
     // ==================== helpers ====================
 
     /** Deja todos los contadores y bloques en cero; cada test pisa solo lo que ejercita. */
@@ -167,6 +208,8 @@ class DashboardEncargadoDistribucionServicioImplTest {
         lenient().when(despachoBarrilRepository.contarVigentesConDevolucionEn(any(LocalDate.class))).thenReturn(0L);
         lenient().when(despachoBarrilRepository.buscarVigentesConDevolucionHastaParaPanel(any(LocalDate.class), any(Pageable.class))).thenReturn(Page.empty(TOPE));
         lenient().when(despachoBarrilRepository.buscarClientesConBarrilesEnPoderParaPanel(any(Pageable.class))).thenReturn(Page.empty(TOPE));
+        lenient().when(solicitudBusquedaRepository.contarPendientesVencidas(any(java.time.LocalDateTime.class))).thenReturn(0L);
+        lenient().when(solicitudBusquedaRepository.buscarPendientesParaPanel(any(Pageable.class))).thenReturn(Page.empty(TOPE));
     }
 
     private static DespachoBarrilEntity despacho(Long id, Long idBarril, String identificador, String cliente, LocalDate devolucion) {

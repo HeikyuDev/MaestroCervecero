@@ -80,6 +80,36 @@ class MapperDashboardEncargadoDistribucionTest {
         assertThat(MapperDashboardEncargadoDistribucion.toDevolucionPendienteDTO(null, LocalDate.now())).isNull();
         assertThat(MapperDashboardEncargadoDistribucion.toClienteConBarrilesDTO(null)).isNull();
         assertThat(MapperDashboardEncargadoDistribucion.toBarrilListoDTO(null)).isNull();
+        assertThat(MapperDashboardEncargadoDistribucion.toRetiroPendienteDTO(null, java.time.LocalDateTime.now())).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-MDI-05: el retiro pendiente lleva la solicitud, el barril, el cliente y la fecha propuesta, y está vencido solo si la fecha es anterior al momento de referencia")
+    void toRetiroPendienteDTO_llevaLosDatosYSiVencio() {
+        // Arrange
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.of(2027, 7, 10, 12, 0);
+        DespachoBarrilEntity despacho = despacho(LocalDate.of(2027, 7, 7));
+        despacho.getBarril().setNumeroSerie("SN-1001");
+        com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity vencida =
+                com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity.builder().id(70L)
+                        .fechaBusqueda(ahora.minusMinutes(1)).despachoBarril(despacho).build();
+        com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity justoAhora =
+                com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity.builder().id(71L)
+                        .fechaBusqueda(ahora).despachoBarril(despacho).build();
+
+        // Act
+        com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.RetiroPendienteResponseDTO dto =
+                MapperDashboardEncargadoDistribucion.toRetiroPendienteDTO(vencida, ahora);
+
+        // Assert
+        assertThat(dto.getIdSolicitud()).isEqualTo(70L);
+        assertThat(dto.getIdBarril()).isEqualTo(21L);
+        assertThat(dto.getIdentificadorInterno()).isEqualTo("BRL-01");
+        assertThat(dto.getNumeroSerie()).isEqualTo("SN-1001");
+        assertThat(dto.getNombreCliente()).isEqualTo("Bar Don Jorge");
+        assertThat(dto.getFechaBusqueda()).isEqualTo(ahora.minusMinutes(1));
+        assertThat(dto.isVencida()).isTrue();
+        assertThat(MapperDashboardEncargadoDistribucion.toRetiroPendienteDTO(justoAhora, ahora).isVencida()).isFalse();
     }
 
     private static DespachoBarrilEntity despacho(LocalDate devolucion) {

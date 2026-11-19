@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.barril;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
@@ -38,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -69,11 +71,11 @@ class SolicitudBusquedaServicioImplTest {
         LocalDateTime hasta = LocalDateTime.of(2026, 2, 28, 23, 59);
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
         SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, LocalDateTime.of(2026, 2, 15, 10, 0), "Horario tarde", false, despacho);
-        when(solicitudBusquedaRepository.filtrarSolicitudesBusqueda(1L, desde, hasta, false, pageable))
+        when(solicitudBusquedaRepository.filtrarSolicitudesBusqueda(1L, desde, hasta, EstadoSolicitudBusqueda.PENDIENTE, pageable))
                 .thenReturn(new PageImpl<>(List.of(solicitud), pageable, 1));
 
         // === EJECUCION ===
-        Page<SolicitudBusquedaResponseDTO> resultado = solicitudBusquedaServicio.filtrarSolicitudesBusqueda(1L, desde, hasta, false, pageable);
+        Page<SolicitudBusquedaResponseDTO> resultado = solicitudBusquedaServicio.filtrarSolicitudesBusqueda(1L, desde, hasta, EstadoSolicitudBusqueda.PENDIENTE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
@@ -81,7 +83,7 @@ class SolicitudBusquedaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FSB-02: Los 4 parámetros nulos no restringen la búsqueda, incluyendo mezcla de buscado")
+    @DisplayName("CP-FSB-02: Los 4 parámetros nulos no restringen la búsqueda, incluyendo mezcla de estados")
     void filtrar_debePropagarParametrosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
@@ -99,21 +101,21 @@ class SolicitudBusquedaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FSB-03: El usuario puede acotar explícitamente por buscado")
+    @DisplayName("CP-FSB-03: El usuario puede acotar explícitamente por estado")
     void filtrar_debeAcotarPorBuscado() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
         SolicitudBusquedaEntity buscada = crearSolicitudEntity(1L, LocalDateTime.of(2026, 2, 15, 10, 0), "Obs A", true, despacho);
-        when(solicitudBusquedaRepository.filtrarSolicitudesBusqueda(null, null, null, true, pageable))
+        when(solicitudBusquedaRepository.filtrarSolicitudesBusqueda(null, null, null, EstadoSolicitudBusqueda.BUSCADA, pageable))
                 .thenReturn(new PageImpl<>(List.of(buscada), pageable, 1));
 
         // === EJECUCION ===
-        Page<SolicitudBusquedaResponseDTO> resultado = solicitudBusquedaServicio.filtrarSolicitudesBusqueda(null, null, null, true, pageable);
+        Page<SolicitudBusquedaResponseDTO> resultado = solicitudBusquedaServicio.filtrarSolicitudesBusqueda(null, null, null, EstadoSolicitudBusqueda.BUSCADA, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
-        assertThat(resultado.getContent().get(0).isBuscado()).isTrue();
+        assertThat(resultado.getContent().get(0).getEstado()).isEqualTo(EstadoSolicitudBusqueda.BUSCADA);
     }
 
     @Test
@@ -133,8 +135,8 @@ class SolicitudBusquedaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FSB-05: Filtra por un despacho de barril específico")
-    void filtrar_debeFiltrarPorDespachoEspecifico() {
+    @DisplayName("CP-FSB-05: Filtra por un cliente específico")
+    void filtrar_debeFiltrarPorClienteEspecifico() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
@@ -149,6 +151,20 @@ class SolicitudBusquedaServicioImplTest {
         assertThat(resultado.getContent()).hasSize(1);
     }
 
+    @Test
+    @DisplayName("CP-FSB-06: filtrarSolicitudesBusqueda rechaza un rango de fechas invertido sin consultar el repositorio")
+    void filtrar_debeRechazarRangoInvertido() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime desde = LocalDateTime.of(2026, 3, 1, 0, 0);
+        LocalDateTime hasta = LocalDateTime.of(2026, 2, 1, 0, 0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.filtrarSolicitudesBusqueda(null, desde, hasta, null, PageRequest.of(0, 10)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha desde no puede ser posterior a la fecha hasta");
+        verifyNoInteractions(solicitudBusquedaRepository);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -157,6 +173,7 @@ class SolicitudBusquedaServicioImplTest {
         // === PREPARACION DE DATOS ===
         DespachoBarrilEntity despacho = crearDespachoEntity(1L);
         SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, LocalDateTime.of(2026, 2, 15, 10, 0), "Horario tarde", false, despacho);
+        solicitud.setCreatedDate(LocalDateTime.of(2026, 2, 10, 8, 30));
         when(solicitudBusquedaRepository.findById(1L)).thenReturn(Optional.of(solicitud));
 
         // === EJECUCION ===
@@ -165,6 +182,7 @@ class SolicitudBusquedaServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getObservaciones()).isEqualTo("Horario tarde");
+        assertThat(resultado.getFechaRegistro()).isEqualTo(LocalDateTime.of(2026, 2, 10, 8, 30));
     }
 
     @Test
@@ -249,10 +267,10 @@ class SolicitudBusquedaServicioImplTest {
         SolicitudBusquedaEntity solicitudGuardada = captor.getValue();
         assertThat(solicitudGuardada.getFechaBusqueda()).isEqualTo(fechaBusqueda);
         assertThat(solicitudGuardada.getObservaciones()).isEqualTo("Cliente prefiere horario de la tarde");
-        assertThat(solicitudGuardada.isBuscado()).isFalse();
+        assertThat(solicitudGuardada.getEstado()).isEqualTo(EstadoSolicitudBusqueda.PENDIENTE);
         assertThat(solicitudGuardada.getDespachoBarril()).isSameAs(despacho);
 
-        assertThat(resultado.isBuscado()).isFalse();
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudBusqueda.PENDIENTE);
         assertThat(resultado.getObservaciones()).isEqualTo("Cliente prefiere horario de la tarde");
     }
 
@@ -271,7 +289,7 @@ class SolicitudBusquedaServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getObservaciones()).isNull();
-        assertThat(resultado.isBuscado()).isFalse();
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudBusqueda.PENDIENTE);
     }
 
     @Test
@@ -390,6 +408,42 @@ class SolicitudBusquedaServicioImplTest {
         orden.verify(solicitudBusquedaRepository).save(any(SolicitudBusquedaEntity.class));
     }
 
+    @Test
+    @DisplayName("CP-RSB-13: registrarSolicitudBusqueda lanza ReglaNegocioException cuando el despacho no es el vigente del barril")
+    void registrar_debeRechazarDespachoQueNoEsElVigente() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L);
+        stubDespachoYBarrilBloqueado(despacho);
+        DespachoBarrilEntity posterior = crearDespachoEntity(2L);
+        when(despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(1L, EstadoTransaccion.REGISTRADO)).thenReturn(Optional.of(posterior));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede registrar una solicitud de búsqueda sobre el despacho vigente del barril");
+
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RSB-14: registrarSolicitudBusqueda lanza ReglaNegocioException cuando el despacho ya tiene una solicitud pendiente")
+    void registrar_debeRechazarDespachoConSolicitudPendiente() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "Cliente prefiere horario de la tarde");
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L);
+        stubDespachoYBarrilBloqueado(despacho);
+        when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(1L, EstadoSolicitudBusqueda.PENDIENTE))
+                .thenReturn(Optional.of(crearSolicitudEntity(9L, LocalDateTime.now().plusDays(2), null, false, despacho)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El despacho ya tiene una solicitud de búsqueda pendiente");
+
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
     // ==================== Helpers ====================
 
     private void stubDespachoYBarrilBloqueado(DespachoBarrilEntity despacho) {
@@ -397,6 +451,10 @@ class SolicitudBusquedaServicioImplTest {
         when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(despacho.getId())).thenReturn(Optional.of(idBarril));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)).thenReturn(Optional.of(despacho.getBarril()));
         when(despachoBarrilRepository.findById(despacho.getId())).thenReturn(Optional.of(despacho));
+        // Por defecto es el despacho vigente del barril y no tiene una solicitud pendiente
+        lenient().when(despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(idBarril, EstadoTransaccion.REGISTRADO))
+                .thenReturn(Optional.of(despacho));
+        lenient().when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(despacho.getId(), EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.empty());
     }
 
     private static SolicitudBusquedaFormDTO solicitudBusquedaFormDTO(Long idDespachoBarril, LocalDateTime fechaBusqueda, String observaciones) {
@@ -412,7 +470,7 @@ class SolicitudBusquedaServicioImplTest {
                 .id(id)
                 .fechaBusqueda(fechaBusqueda)
                 .observaciones(observaciones)
-                .buscado(buscado)
+                .estado(buscado ? EstadoSolicitudBusqueda.BUSCADA : EstadoSolicitudBusqueda.PENDIENTE)
                 .despachoBarril(despachoBarril)
                 .build();
     }

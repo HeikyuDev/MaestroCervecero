@@ -3,7 +3,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.dashboard;
 import com.github.heikyudev.maestrocervecero.service.response_dto.dashboard.DashboardEncargadoDistribucionResponseDTO;
 
 /**
- * Interfaz que define la consulta del panel del encargado de distribución: qué barriles hay que retirar de los clientes,
+ * Interfaz que define la consulta del panel del encargado de distribución: qué barriles hay que retirar de los clientes
+ * (y cuáles tienen el retiro coordinado),
  * qué clientes tienen barriles en su poder y qué barriles con cerveza están listos para despachar.
  * <p>
  * Es un servicio de solo lectura: no registra ni modifica nada. Corre en una única transacción de lectura.
@@ -20,6 +21,10 @@ public interface IDashboardEncargadoDistribucionServicio {
      *   fecha de devolución estimada de hoy o anterior, por fecha de devolución estimada ascendente (el más atrasado
      *   primero) y, a igualdad, por ID de despacho. Cada fila informa el cliente y sus días de atraso (0 si vence hoy).
      *   Además informa cuántas devoluciones vencieron (fecha anterior a hoy) y cuántas vencen hoy.</li>
+     *   <li>Retiros pendientes: las solicitudes de búsqueda sin buscar cuyo despacho sigue vigente (el barril sigue en
+     *   poder del cliente), por fecha y hora propuesta ascendente (la más atrasada primero) y, a igualdad, por ID. Cada
+     *   fila informa el cliente, el barril y si la fecha propuesta ya pasó. Además informa cuántos retiros pendientes
+     *   tienen la fecha propuesta vencida.</li>
      *   <li>Clientes con barriles: un registro por cliente con la cantidad de barriles que tiene en su poder y su
      *   próxima fecha de devolución estimada, por esa fecha ascendente y, a igualdad, por nombre.</li>
      *   <li>Barriles listos: los barriles activos Con cerveza, por identificador interno, con la receta y el lote de la

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#solicitud-retiro-detalle-content}, 'solicitudes-retiro')}">
+<body>
+
+<!--
+    Detalle de solo lectura de una solicitud de retiro: el cliente, el barril, la fecha y hora propuesta, las observaciones
+    del cliente y su estado (pendiente, buscada o cancelada). Una solicitud pendiente cuya fecha propuesta ya pasó se resalta como vencida.
+-->
+<div id="solicitud-retiro-detalle-content" class="space-y-6"
+     th:with="vencida=${solicitud.estado.name() == 'PENDIENTE' and solicitud.fechaBusqueda.isBefore(#temporals.createNow())}">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="@{${urlPantalla}}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>Volver a solicitudes de retiro</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="|Solicitud de retiro #${solicitud.id}|">Solicitud de retiro #3</h1>
+        <p class="text-sm text-slate-500">Retiro de un barril coordinado por el cliente desde el enlace del recordatorio.</p>
+    </div>
+
+    <div th:if="${vencida}" data-aviso-vencida role="status"
+         class="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <i class="bi bi-exclamation-triangle text-lg"></i>
+        <p>La fecha propuesta ya pasó y todavía no se registró la devolución del barril</p>
+    </div>
+
+    <!-- Datos de la solicitud: una fila por tema -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la solicitud</h2>
+        <div class="space-y-5 p-5 text-sm">
+            <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Retiro propuesto</dt>
+                    <dd class="mt-1 font-semibold" th:classappend="${vencida} ? 'text-rose-700' : 'text-slate-900'"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${solicitud.fechaBusqueda})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Registrada</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${solicitud.fechaRegistro})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                    <dd class="mt-1 text-slate-900" data-estado-solicitud th:text="${vencida} ? 'Pendiente vencida' : ${solicitud.estado.etiqueta}">Pendiente</dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Cliente</dt>
+                    <dd class="mt-1 text-slate-900 break-words" th:text="${solicitud.despachoBarril.cliente.nombre}">Bar Don Jorge</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Barril</dt>
+                    <dd class="mt-1 text-slate-900">
+                        <span th:text="${solicitud.despachoBarril.barril.numeroSerie}">SN-1001</span>
+                        <span class="text-xs text-slate-500" th:text="|(${solicitud.despachoBarril.barril.identificadorInterno})|">(BRL-01)</span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Devolución acordada</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${solicitud.despachoBarril.fechaDevolucionEstimada})}"></th:block></dd>
+                </div>
+            </dl>
+            <div>
+                <p class="text-xs font-medium text-slate-500">Observaciones</p>
+                <p class="mt-1 text-slate-900 break-words whitespace-pre-line" data-observaciones th:text="${solicitud.observaciones != null} ? ${solicitud.observaciones} : '-'">Tocar timbre en el depósito</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+</body>
+</html>

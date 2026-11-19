@@ -8,6 +8,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteE
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
@@ -57,6 +60,8 @@ class DespachoBarrilServicioImplTest {
     private IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
     @Mock
     private IBarrilRepository barrilRepository;
+    @Mock
+    private ISolicitudBusquedaRepository solicitudBusquedaRepository;
 
     @InjectMocks
     private DespachoBarrilServicioImpl despachoBarrilServicio;
@@ -794,6 +799,57 @@ class DespachoBarrilServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         verify(barrilRepository).save(barril);
         verify(despachoBarrilRepository).save(despacho);
+    }
+
+    @Test
+    @DisplayName("CP-ADB-18: anularDespachoBarril deja CANCELADA la solicitud de búsqueda pendiente del despacho, sin darla por buscada")
+    void anular_debeCancelarLaSolicitudPendiente() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.DESPACHADO);
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Retiro programado", LocalDate.of(2026, 2, 1), barril, crearClienteEntity(1L));
+        SolicitudBusquedaEntity solicitud = SolicitudBusquedaEntity.builder().id(70L).despachoBarril(despacho)
+                .estado(EstadoSolicitudBusqueda.PENDIENTE).fechaBusqueda(LocalDateTime.of(2026, 2, 3, 10, 0)).build();
+        stubBarrilBloqueadoYDespacho(barril, despacho);
+        stubSinOperacionesPosterioresNiEnvasados(1L, 2L);
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(despachoBarrilRepository.save(despacho)).thenReturn(despacho);
+        when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(1L, EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        despachoBarrilServicio.anularDespachoBarril(1L, anulacionFormDTO("Despacho cargado por error"));
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudBusqueda.CANCELADA);
+        assertThat(solicitud.getDevolucionBarril()).isNull();
+        verify(solicitudBusquedaRepository).save(solicitud);
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(barrilRepository, solicitudBusquedaRepository);
+        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(2L);
+        orden.verify(solicitudBusquedaRepository).findFirstByDespachoBarril_IdAndEstado(1L, EstadoSolicitudBusqueda.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-ADB-19: anularDespachoBarril no modifica ninguna solicitud cuando el despacho no tiene una pendiente, y no la toca si la anulación se rechaza")
+    void anular_sinSolicitudPendiente_noModificaSolicitudes() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.DESPACHADO);
+        DespachoBarrilEntity despacho = crearDespachoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Retiro programado", LocalDate.of(2026, 2, 1), barril, crearClienteEntity(1L));
+        stubBarrilBloqueadoYDespacho(barril, despacho);
+        stubSinOperacionesPosterioresNiEnvasados(1L, 2L);
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(despachoBarrilRepository.save(despacho)).thenReturn(despacho);
+        when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(1L, EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        despachoBarrilServicio.anularDespachoBarril(1L, anulacionFormDTO("Despacho cargado por error"));
+
+        // === ASSERTS ===
+        verify(solicitudBusquedaRepository, never()).save(any());
+
+        // Una anulación rechazada (motivo en blanco) no consulta ni modifica las solicitudes
+        org.mockito.Mockito.clearInvocations(solicitudBusquedaRepository);
+        assertThatThrownBy(() -> despachoBarrilServicio.anularDespachoBarril(1L, anulacionFormDTO("   ")))
+                .isInstanceOf(ReglaNegocioException.class);
+        org.mockito.Mockito.verifyNoInteractions(solicitudBusquedaRepository);
     }
 
     @Test

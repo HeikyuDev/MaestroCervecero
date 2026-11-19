@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:replace="~{fragments/pantalla-publica :: cabecera('Retiro de barriles')}"></head>
+<!--
+    Pantalla pública con la que un cliente coordina el retiro de sus barriles con la devolución vencida desde el enlace del
+    recordatorio. No usa el layout de la aplicación: la usa alguien externo, así que muestra solo lo necesario: los
+    barriles (por número de serie) y la fecha y hora del retiro con observaciones opcionales. Una vez coordinado, muestra el
+    retiro registrado en solo lectura. El token del enlace va en la dirección del formulario.
+-->
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+<header class="bg-slate-900">
+    <div class="max-w-4xl mx-auto px-4 py-5 flex items-center gap-3">
+        <img th:src="@{/img/logo-256x256.png}" alt="Logo Maestro Cervecero" class="w-10 h-10" />
+        <p class="text-lg font-extrabold tracking-tight text-white">MAESTRO<span class="text-amber-500">CERVECERO</span></p>
+    </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Retiro de barriles</h1>
+        <p class="mt-1 text-sm text-slate-600" th:if="${!retiro.registrado}">
+            <span th:text="${retiro.nombreCliente}">Bar Don Jorge</span>: los siguientes barriles superaron la fecha de devolución acordada.
+            Indique la fecha y hora en que podemos pasar a retirarlos.
+        </p>
+        <p class="mt-1 text-sm text-slate-600" th:if="${retiro.registrado}">
+            <span th:text="${retiro.nombreCliente}">Bar Don Jorge</span>: este es el retiro que coordinó.
+        </p>
+    </div>
+
+    <!-- Aviso tras confirmar el retiro -->
+    <div th:if="${mensaje != null}" role="alert" data-aviso-retiro
+         class="p-3.5 rounded-xl text-sm flex items-center gap-3 border bg-emerald-50 border-emerald-200 text-emerald-800">
+        <i class="bi bi-check-circle-fill text-lg flex-shrink-0"></i>
+        <span th:text="${mensaje}">Retiro coordinado correctamente</span>
+    </div>
+
+    <!-- ==================== RETIRO REGISTRADO (solo lectura) ==================== -->
+    <th:block th:if="${retiro.registrado}">
+        <!-- Un envío sobre un retiro ya coordinado muestra el motivo del rechazo -->
+        <th:block th:object="${retiroForm}">
+            <div th:replace="~{fragments/form-errors :: resumen('No se pudo coordinar el retiro')}"></div>
+        </th:block>
+
+        <section data-retiro-registrado class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5 text-sm">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Fecha y hora del retiro</dt>
+                    <dd class="mt-1 text-base font-semibold text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${retiro.fechaRetiro})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Coordinado el</dt>
+                    <dd class="mt-1 text-base text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${retiro.fechaRespuesta})}"></th:block></dd>
+                </div>
+            </dl>
+            <div>
+                <p class="text-xs font-medium text-slate-500">Observaciones</p>
+                <p class="mt-1 text-slate-900 break-words" th:text="${retiro.observaciones != null} ? ${retiro.observaciones} : '-'">Tocar timbre en el depósito</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-3 py-3">N.º de serie</th>
+                        <th class="px-3 py-3">Identificador</th>
+                        <th class="px-3 py-3">Estado</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="b : ${retiro.barrilesRegistrados}" data-barril-registrado>
+                        <td class="px-3 py-3 font-medium text-slate-900" th:text="${b.numeroSerie}">SN-1001</td>
+                        <td class="px-3 py-3 text-slate-700" th:text="${b.identificadorInterno}">BRL-01</td>
+                        <td class="px-3 py-3 text-slate-700" th:text="${b.estado != null and b.estado.name() == 'BUSCADA'} ? 'Retirado' : (${b.estado != null and b.estado.name() == 'CANCELADA'} ? 'Cancelado' : 'Pendiente de retiro')">Pendiente de retiro</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-slate-500">El retiro ya está coordinado y no se puede modificar. Si necesita cambiarlo, comuníquese con la cervecería.</p>
+        </section>
+    </th:block>
+
+    <!-- ==================== SIN BARRILES PENDIENTES ==================== -->
+    <div th:if="${!retiro.registrado and #lists.isEmpty(retiro.barrilesPendientes)}" data-sin-barriles
+         class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-sm text-slate-600">
+        Los barriles de este recordatorio ya fueron devueltos o su retiro ya está coordinado: no hace falta coordinar nada
+    </div>
+
+    <!-- ==================== FORMULARIO ==================== -->
+    <th:block th:if="${!retiro.registrado and !#lists.isEmpty(retiro.barrilesPendientes)}">
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <h2 class="px-6 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Barriles a retirar</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3">N.º de serie</th>
+                        <th class="px-6 py-3">Identificador</th>
+                        <th class="px-6 py-3">Devolución acordada</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="b : ${retiro.barrilesPendientes}" data-barril-pendiente>
+                        <td class="px-6 py-3 font-medium text-slate-900" th:text="${b.numeroSerie}">SN-1001</td>
+                        <td class="px-6 py-3 text-slate-700" th:text="${b.identificadorInterno}">BRL-01</td>
+                        <td class="px-6 py-3 text-slate-700"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${b.fechaDevolucionEstimada})}"></th:block></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <form th:action="@{/retiro-barriles/{token}(token=${token})}" th:object="${retiroForm}" method="post" novalidate data-un-solo-envio
+              class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+            <!-- Resumen de todos los errores: campos inválidos y reglas rechazadas -->
+            <div th:replace="~{fragments/form-errors :: resumen('No se pudo coordinar el retiro')}"></div>
+
+            <section class="p-6 space-y-5">
+                <!-- Una fila por tema: fecha y hora del retiro -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="fechaRetiro" class="block text-sm font-medium text-slate-700 mb-1">Fecha y hora del retiro <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="datetime-local" id="fechaRetiro" th:field="*{fechaRetiro}" autocomplete="off" placeholder="Ej: 25/11/2026 10:30"
+                               th:max="${retiro.fechaMaximaRetiro != null} ? ${#temporals.format(retiro.fechaMaximaRetiro, 'yyyy-MM-dd') + 'T' + #temporals.format(retiro.fechaMaximaRetiro, 'HH:mm')}"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('fechaRetiro')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('fechaRetiro')}" th:errors="*{fechaRetiro}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('fechaRetiro')}" class="mt-1 text-xs text-slate-500">
+                            Desde ahora y hasta <th:block th:text="${retiro.diasMaximosAnticipacionRetiro == 1} ? '1 día' : ${retiro.diasMaximosAnticipacionRetiro} + ' días'">7 días</th:block> hacia adelante
+                            (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${retiro.fechaMaximaRetiro})}"></th:block>).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Una fila por tema: observaciones -->
+                <div>
+                    <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
+                    <textarea id="observaciones" th:field="*{observaciones}" rows="3" autocomplete="off" placeholder="Ej: Tocar timbre en el depósito de la calle lateral"
+                              class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                              th:classappend="${#fields.hasErrors('observaciones')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
+                    <p th:if="${#fields.hasErrors('observaciones')}" th:errors="*{observaciones}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('observaciones')}" class="mt-1 text-xs text-slate-500">Opcional. Horario, acceso o persona de contacto. Hasta 255 caracteres.</p>
+                </div>
+            </section>
+
+            <!-- ACCIONES -->
+            <div class="p-6 flex flex-wrap items-center justify-between gap-3 bg-slate-50 rounded-b-xl">
+                <p class="text-xs text-slate-500">Una vez confirmado, el retiro no se puede modificar desde este enlace.</p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-check2-circle"></i> Confirmar retiro
+                </button>
+            </div>
+        </form>
+    </th:block>
+
+    <p class="text-center text-xs text-slate-500">&copy; 2026 Maestro Cervecero. Todos los derechos reservados.</p>
+</main>
+
+</body>
+</html>

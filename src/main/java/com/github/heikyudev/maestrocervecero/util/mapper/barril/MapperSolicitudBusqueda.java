@@ -25,7 +25,8 @@ public class MapperSolicitudBusqueda {
                 .id(solicitudBusquedaEntity.getId())
                 .fechaBusqueda(solicitudBusquedaEntity.getFechaBusqueda())
                 .observaciones(solicitudBusquedaEntity.getObservaciones())
-                .buscado(solicitudBusquedaEntity.isBuscado())
+                .estado(solicitudBusquedaEntity.getEstado())
+                .fechaRegistro(solicitudBusquedaEntity.getCreatedDate())
                 .despachoBarril(MapperDespachoBarril.toDTO(solicitudBusquedaEntity.getDespachoBarril()))
                 .build();
     }

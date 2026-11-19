@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.barril;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.SolicitudBusquedaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -15,23 +17,25 @@ import java.time.LocalDateTime;
  * <p>
  * No es un CRUD: una solicitud de búsqueda es un registro que el cliente crea a través del
  * enlace que le llega por correo cuando su barril supera la fecha de devolución estimada, y solo
- * admite su registro inicial, nunca modificación ni anulación.
+ * admite su registro inicial, nunca modificación ni anulación. Queda pendiente hasta que se
+ * registra la devolución del barril, que la da por buscada, o se anula el despacho, que la cancela.
  * </p>
  */
 public interface ISolicitudBusquedaServicio {
 
     /**
-     * Filtra las solicitudes de búsqueda de barril, opcionalmente por despacho de barril, rango
-     * de fecha de búsqueda y/o si ya fueron buscadas.
+     * Filtra las solicitudes de búsqueda de barril, opcionalmente por cliente, rango de fecha de
+     * búsqueda y/o estado.
      *
-     * @param idDespachoBarril El ID del despacho de barril a filtrar, o {@code null} para no filtrar por él.
+     * @param idCliente El ID del cliente del despacho a filtrar, o {@code null} para no filtrar por él.
      * @param fechaBusquedaDesde Límite inferior (inclusive) del rango de fecha de búsqueda, o {@code null} para no acotarlo.
      * @param fechaBusquedaHasta Límite superior (inclusive) del rango de fecha de búsqueda, o {@code null} para no acotarlo.
-     * @param buscado Si ya se realizó la búsqueda del barril, o {@code null} para no filtrar por él.
+     * @param estado El estado de la solicitud, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de solicitudes de búsqueda en formato DTO que cumplen los criterios indicados.
+     * @throws ReglaNegocioException Si la fecha desde es posterior a la fecha hasta.
      */
-    Page<SolicitudBusquedaResponseDTO> filtrarSolicitudesBusqueda(Long idDespachoBarril, LocalDateTime fechaBusquedaDesde, LocalDateTime fechaBusquedaHasta, Boolean buscado, Pageable pageable);
+    Page<SolicitudBusquedaResponseDTO> filtrarSolicitudesBusqueda(Long idCliente, LocalDateTime fechaBusquedaDesde, LocalDateTime fechaBusquedaHasta, EstadoSolicitudBusqueda estado, Pageable pageable);
 
     /**
      * Obtiene una solicitud de búsqueda de barril por su ID.
@@ -47,7 +51,7 @@ public interface ISolicitudBusquedaServicio {
      *
      * @param solicitudBusquedaFormDTO Los datos de la solicitud a registrar.
      * @return La solicitud de búsqueda registrada.
-     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, o si es anterior a la fecha y hora actual.
+     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada o es anterior a la fecha y hora actual; si las observaciones superan los 255 caracteres; si el despacho no está {@code REGISTRADO}, su barril ya no está {@code DESPACHADO} o no es el despacho vigente del barril; o si el despacho ya tiene una solicitud de búsqueda pendiente.
      * @throws RecursoNoEncontradoException Si el despacho de barril referenciado no existe.
      */
     SolicitudBusquedaResponseDTO registrarSolicitudBusqueda(SolicitudBusquedaFormDTO solicitudBusquedaFormDTO);

@@ -5,9 +5,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * DTO de respuesta con el panel del encargado de distribución: los barriles en poder de clientes, las devoluciones que
- * vencen hoy o ya vencieron, los clientes con barriles en su poder y los barriles listos para despachar. Los contadores de
+ * vencen hoy o ya vencieron, los retiros coordinados por los clientes pendientes de realizar, los clientes con barriles en
+ * su poder y los barriles listos para despachar. Los contadores de
  * la pantalla salen de los contadores propios y de los {@code total} de los bloques.
  */
 @Getter
@@ -30,6 +33,17 @@ public class DashboardEncargadoDistribucionResponseDTO {
      * {@link #devolucionesVencidas} y {@link #devolucionesQueVencenHoy}.
      */
     private BloqueDashboardResponseDTO<DevolucionPendienteResponseDTO> devolucionesPendientes;
+
+    /** Cantidad de retiros pendientes cuya fecha y hora propuesta ya pasó. */
+    private long retirosVencidos;
+
+    /**
+     * Retiros coordinados por los clientes pendientes de realizar, el de fecha propuesta más antigua primero. Vacío por
+     * defecto.
+     */
+    @Builder.Default
+    private BloqueDashboardResponseDTO<RetiroPendienteResponseDTO> retirosPendientes =
+            BloqueDashboardResponseDTO.<RetiroPendienteResponseDTO>builder().total(0).filas(List.of()).build();
 
     /** Clientes con barriles en su poder, uno por cliente, el de la devolución más próxima primero. */
     private BloqueDashboardResponseDTO<ClienteConBarrilesResponseDTO> clientesConBarriles;

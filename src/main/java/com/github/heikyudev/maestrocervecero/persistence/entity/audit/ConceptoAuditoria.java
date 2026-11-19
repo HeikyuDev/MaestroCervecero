@@ -46,6 +46,7 @@ public enum ConceptoAuditoria {
     SOLICITUD_BUSQUEDA("Solicitud de búsqueda"),
     CONFIGURACION_PRODUCCION("Configuración de producción"),
     CONFIGURACION_COMPRAS("Configuración de compras"),
+    CONFIGURACION_DISTRIBUCION("Configuración de distribución"),
     MOTIVO_AJUSTE("Motivo de ajuste"),
     AJUSTE_INSUMO("Ajuste de insumo"),
     USUARIO("Usuario");

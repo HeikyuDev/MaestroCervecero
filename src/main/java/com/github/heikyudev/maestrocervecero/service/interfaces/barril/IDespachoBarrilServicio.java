@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
  * {@code DESPACHADO}. No es un CRUD: solo admite su registro inicial y una anulación excepcional,
  * nunca modificación.
  * </p>
+ * <p>
+ * Anular un despacho cancela su solicitud de búsqueda pendiente, si la tiene.
+ * </p>
  */
 public interface IDespachoBarrilServicio {
 

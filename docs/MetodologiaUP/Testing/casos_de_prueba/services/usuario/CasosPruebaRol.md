@@ -28,8 +28,8 @@ El Encargado de Distribución gestiona clientes, consulta los barriles y registr
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-RO-08** | El Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril, la consulta de barriles y ningún otro | `Rol.ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $
-ightarrow$ **Contiene exactamente** `CLIENTE_CREAR`, `CLIENTE_MODIFICAR`, `CLIENTE_ELIMINAR`, `CLIENTE_CONSULTAR`, `DESPACHO_BARRIL_REGISTRAR`, `DESPACHO_BARRIL_ANULAR`, `DESPACHO_BARRIL_CONSULTAR`, `DEVOLUCION_BARRIL_REGISTRAR`, `DEVOLUCION_BARRIL_ANULAR` y `DEVOLUCION_BARRIL_CONSULTAR` | El conjunto tiene esos once permisos y ningún otro. |
+| **CP-RO-08** | El Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril, la consulta de barriles y de solicitudes de búsqueda, y ningún otro | `Rol.ENCARGADO_DE_DISTRIBUCION` | `getPermisos()` $
+ightarrow$ **Contiene exactamente** `CLIENTE_CREAR`, `CLIENTE_MODIFICAR`, `CLIENTE_ELIMINAR`, `CLIENTE_CONSULTAR`, `BARRIL_CONSULTAR`, `DESPACHO_BARRIL_REGISTRAR`, `DESPACHO_BARRIL_ANULAR`, `DESPACHO_BARRIL_CONSULTAR`, `DEVOLUCION_BARRIL_REGISTRAR`, `DEVOLUCION_BARRIL_ANULAR`, `DEVOLUCION_BARRIL_CONSULTAR` y `SOLICITUD_BUSQUEDA_CONSULTAR` | El conjunto tiene esos doce permisos y ningún otro. |
 
 ### 4. `getPermisos()` del control de barriles
 

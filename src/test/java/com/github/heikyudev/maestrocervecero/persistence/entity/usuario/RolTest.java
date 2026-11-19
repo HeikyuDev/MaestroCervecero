@@ -110,14 +110,15 @@ class RolTest {
     }
 
     @Test
-    @DisplayName("CP-RO-08: el Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril, la consulta de barriles y ningún otro")
+    @DisplayName("CP-RO-08: el Encargado de Distribución tiene los permisos de clientes, despachos y devoluciones de barril, la consulta de barriles y de solicitudes de búsqueda, y ningún otro")
     void permisos_encargadoDeDistribucionGestionaClientesYMueveBarriles() {
         // === EJECUCION Y VERIFICACION ===
         assertThat(Rol.ENCARGADO_DE_DISTRIBUCION.getPermisos()).containsExactlyInAnyOrder(
                 Permiso.CLIENTE_CREAR, Permiso.CLIENTE_MODIFICAR, Permiso.CLIENTE_ELIMINAR, Permiso.CLIENTE_CONSULTAR,
                 Permiso.BARRIL_CONSULTAR,
                 Permiso.DESPACHO_BARRIL_REGISTRAR, Permiso.DESPACHO_BARRIL_ANULAR, Permiso.DESPACHO_BARRIL_CONSULTAR,
-                Permiso.DEVOLUCION_BARRIL_REGISTRAR, Permiso.DEVOLUCION_BARRIL_ANULAR, Permiso.DEVOLUCION_BARRIL_CONSULTAR);
+                Permiso.DEVOLUCION_BARRIL_REGISTRAR, Permiso.DEVOLUCION_BARRIL_ANULAR, Permiso.DEVOLUCION_BARRIL_CONSULTAR,
+                Permiso.SOLICITUD_BUSQUEDA_CONSULTAR);
     }
 
     // ==================== permisos del control de barriles ====================

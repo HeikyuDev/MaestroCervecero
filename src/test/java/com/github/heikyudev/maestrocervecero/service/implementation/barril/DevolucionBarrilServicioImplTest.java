@@ -1,13 +1,18 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.barril;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DevolucionBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.FabricanteBarrilEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ISolicitudBusquedaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionDevolucionBarrilFormDTO;
@@ -52,6 +57,10 @@ class DevolucionBarrilServicioImplTest {
     private IEnvasadoLoteRepository envasadoLoteRepository;
     @Mock
     private IBarrilRepository barrilRepository;
+    @Mock
+    private IDespachoBarrilRepository despachoBarrilRepository;
+    @Mock
+    private ISolicitudBusquedaRepository solicitudBusquedaRepository;
 
     @InjectMocks
     private DevolucionBarrilServicioImpl devolucionBarrilServicio;
@@ -735,7 +744,120 @@ class DevolucionBarrilServicioImplTest {
         verify(devolucionBarrilRepository, never()).save(any());
     }
 
+    // ==================== solicitud de búsqueda del despacho vigente ====================
+
+    @Test
+    @DisplayName("CP-RDVB-13: registrarDevolucionBarril deja BUSCADA la solicitud pendiente del despacho vigente y la vincula a la devolución")
+    void registrar_debeDarPorBuscadaLaSolicitudPendiente() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
+        stubRegistroValido(barril);
+        DespachoBarrilEntity despacho = DespachoBarrilEntity.builder().id(30L).barril(barril).estado(EstadoTransaccion.REGISTRADO).build();
+        SolicitudBusquedaEntity solicitud = SolicitudBusquedaEntity.builder().id(70L).despachoBarril(despacho).estado(EstadoSolicitudBusqueda.PENDIENTE)
+                .fechaBusqueda(LocalDateTime.of(2026, 2, 6, 10, 0)).build();
+        when(despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(1L, EstadoTransaccion.REGISTRADO)).thenReturn(Optional.of(despacho));
+        when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(30L, EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito"));
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudBusqueda.BUSCADA);
+        assertThat(solicitud.getDevolucionBarril()).isNotNull();
+        assertThat(solicitud.getDevolucionBarril().getId()).isEqualTo(1L);
+        verify(solicitudBusquedaRepository).save(solicitud);
+    }
+
+    @Test
+    @DisplayName("CP-RDVB-14: registrarDevolucionBarril no modifica ninguna solicitud cuando el despacho vigente no tiene una pendiente")
+    void registrar_noDebeModificarSolicitudesSinPendiente() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
+        stubRegistroValido(barril);
+        DespachoBarrilEntity despacho = DespachoBarrilEntity.builder().id(30L).barril(barril).estado(EstadoTransaccion.REGISTRADO).build();
+        when(despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(1L, EstadoTransaccion.REGISTRADO)).thenReturn(Optional.of(despacho));
+        when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(30L, EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(
+                devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito"));
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RDVB-15: registrarDevolucionBarril no busca solicitudes cuando una validación rechaza la devolución")
+    void registrar_noDebeTocarSolicitudesSiLaDevolucionSeRechaza() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(
+                devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito")))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(despachoBarrilRepository, solicitudBusquedaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ADVB-19: anularDevolucionBarril vuelve a dejar pendiente la solicitud que la devolución había dado por buscada")
+    void anular_debeVolverPendienteLaSolicitud() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_LIMPIEZA);
+        DevolucionBarrilEntity devolucion = crearDevolucionEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito", barril);
+        SolicitudBusquedaEntity solicitud = SolicitudBusquedaEntity.builder().id(70L).estado(EstadoSolicitudBusqueda.BUSCADA).devolucionBarril(devolucion)
+                .fechaBusqueda(LocalDateTime.of(2026, 2, 6, 10, 0)).build();
+        stubBarrilBloqueadoYDevolucion(barril, devolucion);
+        stubSinOperacionesPosterioresNiEnvasados(1L, 2L);
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(devolucionBarrilRepository.save(devolucion)).thenReturn(devolucion);
+        when(solicitudBusquedaRepository.findFirstByDevolucionBarril_Id(1L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        devolucionBarrilServicio.anularDevolucionBarril(1L, anulacionFormDTO("Devolución cargada por error"));
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudBusqueda.PENDIENTE);
+        assertThat(solicitud.getDevolucionBarril()).isNull();
+        verify(solicitudBusquedaRepository).save(solicitud);
+    }
+
+    @Test
+    @DisplayName("CP-ADVB-20: anularDevolucionBarril no modifica ninguna solicitud cuando la devolución no dio por buscada ninguna")
+    void anular_noDebeModificarSolicitudesSiNoHay() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_LIMPIEZA);
+        DevolucionBarrilEntity devolucion = crearDevolucionEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito", barril);
+        stubBarrilBloqueadoYDevolucion(barril, devolucion);
+        stubSinOperacionesPosterioresNiEnvasados(1L, 2L);
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(devolucionBarrilRepository.save(devolucion)).thenReturn(devolucion);
+        when(solicitudBusquedaRepository.findFirstByDevolucionBarril_Id(1L)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        devolucionBarrilServicio.anularDevolucionBarril(1L, anulacionFormDTO("Devolución cargada por error"));
+
+        // === ASSERTS ===
+        assertThat(devolucion.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        verify(solicitudBusquedaRepository, never()).save(any());
+    }
+
     // ==================== helpers de construcción ====================
+
+    /** Un barril Despachado sin actividad previa, con los guardados del barril y de la devolución (que recibe el ID 1). */
+    private void stubRegistroValido(BarrilEntity barril) {
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(barril.getId())).thenReturn(Optional.of(barril));
+        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(barril.getId())).thenReturn(Optional.empty());
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(barril.getId())).thenReturn(Optional.empty());
+        when(barrilRepository.save(barril)).thenReturn(barril);
+        when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> {
+            DevolucionBarrilEntity entidad = invocation.getArgument(0);
+            entidad.setId(1L);
+            return entidad;
+        });
+    }
 
     private void stubBarrilBloqueadoYDevolucion(BarrilEntity barril, DevolucionBarrilEntity devolucion) {
         when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(devolucion.getId())).thenReturn(Optional.of(barril.getId()));

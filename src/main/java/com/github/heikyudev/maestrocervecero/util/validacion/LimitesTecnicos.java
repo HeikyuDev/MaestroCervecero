@@ -200,6 +200,18 @@ public final class LimitesTecnicos {
     /** Intentos fallidos del cierre programado de una solicitud de cotización antes de marcar la falla y dejar de reintentarlo. */
     public static final int INTENTOS_CIERRE_SOLICITUD_MAXIMO = 3;
 
+    /** Mínimo de días hacia adelante en los que un cliente puede proponer el retiro de sus barriles. */
+    public static final int DIAS_ANTICIPACION_RETIRO_MINIMO = 1;
+
+    /** Máximo de días hacia adelante en los que un cliente puede proponer el retiro de sus barriles. */
+    public static final int DIAS_ANTICIPACION_RETIRO_MAXIMO = 30;
+
+    /**
+     * Minutos a partir de los cuales un recordatorio de retiro que sigue en envío se considera trabado (la aplicación se
+     * detuvo antes de registrar el resultado): se vuelve a intentar y deja de invalidar los enlaces anteriores.
+     */
+    public static final int ENVIO_RECORDATORIO_RETIRO_TRABADO_MINUTOS = 15;
+
     private LimitesTecnicos() {
     }
 }

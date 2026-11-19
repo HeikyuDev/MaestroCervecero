@@ -940,7 +940,7 @@ class ClienteControllerTest {
 
     @Test
     @WithMockUser(roles = "ENCARGADO_DE_DISTRIBUCION")
-    @DisplayName("CP-CLC-39: la sidebar del ENCARGADO_DE_DISTRIBUCION ofrece \"Gestión de Clientes\" en Administración (no resaltada en el panel de control) y \"Control de Barriles\" en Operación, y ninguna otra opción")
+    @DisplayName("CP-CLC-39: la sidebar del ENCARGADO_DE_DISTRIBUCION ofrece \"Gestión de Clientes\" en Administración (no resaltada en el panel de control), \"Control de Barriles\" y \"Solicitudes de Retiro\" en Operación y \"Configuración de Distribución\" en Configuración, y ninguna otra opción")
     void caso_cp_clc_39() throws Exception {
         // Act
         String html = mockMvc.perform(get("/home").with(com.github.heikyudev.maestrocervecero.presentation.controller.control_barril.ControlBarrilControllerTest.como(com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol.ENCARGADO_DE_DISTRIBUCION)))
@@ -953,8 +953,10 @@ class ClienteControllerTest {
         assertThat(html).doesNotContain("Gestión de Insumos").doesNotContain("Gestión de Recetas").doesNotContain("Gestión de Barriles")
                 .doesNotContain("Gestión de Equipamientos").doesNotContain("Gestión de Proveedores").doesNotContain("Gestión de Presentaciones")
                 .doesNotContain("Gestión de Ubicaciones").doesNotContain("Gestión de Usuarios")
-                .contains(">Operación<").contains("Control de Barriles").doesNotContain("Control de Equipamientos").doesNotContain("Control de Lotes")
-                .doesNotContain(">Configuración<").doesNotContain(">Sistema<");
+                .contains(">Operación<").contains("Control de Barriles").contains("href=\"/solicitudes-retiro\"").contains("Solicitudes de Retiro")
+                .doesNotContain("Control de Equipamientos").doesNotContain("Control de Lotes")
+                .contains(">Configuración<").contains("href=\"/configuracion-distribucion\"").contains("Configuración de Distribución")
+                .doesNotContain("Configuración de Producción").doesNotContain("Configuración de Compras").doesNotContain(">Sistema<");
     }
 
     @ParameterizedTest

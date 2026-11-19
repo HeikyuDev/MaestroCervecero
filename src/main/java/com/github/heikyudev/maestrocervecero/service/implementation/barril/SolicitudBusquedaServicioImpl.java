@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAu
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.SolicitudBusquedaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
@@ -19,8 +21,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitu
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.SolicitudBusquedaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,20 +39,25 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
     private final IBarrilRepository barrilRepository;
 
     /**
-     * Filtra las solicitudes de búsqueda de barril, opcionalmente por despacho de barril, rango
-     * de fecha de búsqueda y/o si ya fueron buscadas.
+     * Filtra las solicitudes de búsqueda de barril, opcionalmente por cliente, rango de fecha de
+     * búsqueda y/o estado.
      *
-     * @param idDespachoBarril El ID del despacho de barril a filtrar, o {@code null} para no filtrar por él.
+     * @param idCliente El ID del cliente del despacho a filtrar, o {@code null} para no filtrar por él.
      * @param fechaBusquedaDesde Límite inferior (inclusive) del rango de fecha de búsqueda, o {@code null} para no acotarlo.
      * @param fechaBusquedaHasta Límite superior (inclusive) del rango de fecha de búsqueda, o {@code null} para no acotarlo.
-     * @param buscado Si ya se realizó la búsqueda del barril, o {@code null} para no filtrar por él.
+     * @param estado El estado de la solicitud, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link SolicitudBusquedaResponseDTO} correspondientes.
+     * @throws ReglaNegocioException Si la fecha desde es posterior a la fecha hasta.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<SolicitudBusquedaResponseDTO> filtrarSolicitudesBusqueda(Long idDespachoBarril, LocalDateTime fechaBusquedaDesde, LocalDateTime fechaBusquedaHasta, Boolean buscado, Pageable pageable) {
-        return solicitudBusquedaRepository.filtrarSolicitudesBusqueda(idDespachoBarril, fechaBusquedaDesde, fechaBusquedaHasta, buscado, pageable)
+    public Page<SolicitudBusquedaResponseDTO> filtrarSolicitudesBusqueda(Long idCliente, LocalDateTime fechaBusquedaDesde, LocalDateTime fechaBusquedaHasta, EstadoSolicitudBusqueda estado, Pageable pageable) {
+        // Un rango invertido no tiene resultados posibles: se informa en lugar de devolver una lista vacía sin motivo
+        if (fechaBusquedaDesde != null && fechaBusquedaHasta != null && fechaBusquedaDesde.isAfter(fechaBusquedaHasta)) {
+            throw new ReglaNegocioException("La fecha desde no puede ser posterior a la fecha hasta");
+        }
+        return solicitudBusquedaRepository.filtrarSolicitudesBusqueda(idCliente, fechaBusquedaDesde, fechaBusquedaHasta, estado, pageable)
                 .map(MapperSolicitudBusqueda::toDTO);
     }
 
@@ -74,7 +79,7 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
      * Registra una nueva solicitud de búsqueda de barril.
      * <p>
      * La crea el cliente a través del enlace que le llega por correo cuando su barril supera la
-     * fecha de devolución estimada pactada en el despacho. Queda con {@code buscado = false} hasta
+     * fecha de devolución estimada pactada en el despacho. Queda {@code PENDIENTE} hasta
      * que efectivamente se realice la búsqueda.
      * </p>
      * <p>
@@ -85,59 +90,59 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
      *
      * @param solicitudBusquedaFormDTO Los datos de la solicitud a registrar.
      * @return La solicitud de búsqueda registrada.
-     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, si es anterior a la fecha y hora actual, si las observaciones superan los 255 caracteres, si el despacho no se encuentra en estado {@code REGISTRADO}, o si el barril ya no se encuentra en estado operativo {@code DESPACHADO}.
+     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, si es anterior a la fecha y hora actual, si las observaciones superan los 255 caracteres, si el despacho no se encuentra en estado {@code REGISTRADO}, si el barril ya no se encuentra en estado operativo {@code DESPACHADO}, si el despacho no es el vigente del barril (su último despacho registrado) o si el despacho ya tiene una solicitud de búsqueda pendiente.
      * @throws RecursoNoEncontradoException Si el despacho de barril referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.SOLICITUD_BUSQUEDA)
     public SolicitudBusquedaResponseDTO registrarSolicitudBusqueda(SolicitudBusquedaFormDTO solicitudBusquedaFormDTO) {
-        // 1. Validar que se haya informado la fecha de búsqueda
-        if (solicitudBusquedaFormDTO.getFechaBusqueda() == null) {
-            throw new ReglaNegocioException("La fecha de búsqueda es obligatoria");
-        }
+        // 1. Validar la fecha de búsqueda: informada y no anterior a la fecha y hora actual
+        ValidacionesSolicitudBusqueda.validarFechaBusqueda(solicitudBusquedaFormDTO.getFechaBusqueda(), LocalDateTime.now(), null, "La fecha de búsqueda", null);
 
-        // 2. Validar que la fecha de búsqueda no sea anterior a la fecha y hora actual
-        if (solicitudBusquedaFormDTO.getFechaBusqueda().isBefore(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de búsqueda no puede ser anterior a la fecha y hora actual");
-        }
+        // 2. Normalizar las observaciones (opcionales: en blanco equivalen a no informadas) y validar su longitud
+        String observaciones = ValidacionesSolicitudBusqueda.normalizarObservaciones(solicitudBusquedaFormDTO.getObservaciones(), null);
 
-        // 3. Normalizar las observaciones (opcionales: en blanco equivale a no informadas) y validar su longitud
-        String observaciones = NormalizacionTexto.nombrePropio(solicitudBusquedaFormDTO.getObservaciones());
-        if (observaciones != null && observaciones.isEmpty()) {
-            observaciones = null;
-        }
-        if (observaciones != null && observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
-            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
-        }
-
-        // 4. Resolver el barril del despacho sin cargarlo y bloquearlo para escritura, con el mismo lock que usan
+        // 3. Resolver el barril del despacho sin cargarlo y bloquearlo para escritura, con el mismo lock que usan
         //    registrar y anular una operación del barril. Si el despacho no existe, se dispara RecursoNoEncontradoException
         Long idDespachoBarril = solicitudBusquedaFormDTO.getIdDespachoBarril();
         Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(idDespachoBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + idDespachoBarril));
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 5. Localizar el despacho, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el despacho, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         DespachoBarrilEntity despachoBarrilEntity = despachoBarrilRepository.findById(idDespachoBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + idDespachoBarril));
 
-        // 6. Validar que el despacho se encuentre en estado REGISTRADO: sobre un despacho anulado no hay barril afuera
+        // 5. Validar que el despacho se encuentre en estado REGISTRADO: sobre un despacho anulado no hay barril afuera
         if (despachoBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
             throw new ReglaNegocioException("Solo se puede registrar una solicitud de búsqueda sobre un despacho en estado Registrado");
         }
 
-        // 7. Validar que el barril siga despachado: si ya fue devuelto no hay nada que buscar
+        // 6. Validar que el barril siga despachado: si ya fue devuelto no hay nada que buscar
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
             throw new ReglaNegocioException("Solo se puede registrar una solicitud de búsqueda sobre un barril despachado");
         }
 
-        // 8. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
+        // 7. Validar que sea el despacho vigente del barril (su último despacho registrado): uno anterior ya no tiene al
+        //    barril en poder del cliente
+        Long idDespachoVigente = despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(idBarril, EstadoTransaccion.REGISTRADO)
+                .map(DespachoBarrilEntity::getId).orElse(null);
+        if (!idDespachoBarril.equals(idDespachoVigente)) {
+            throw new ReglaNegocioException("Solo se puede registrar una solicitud de búsqueda sobre el despacho vigente del barril");
+        }
+
+        // 8. Validar que el despacho no tenga ya una solicitud pendiente: a lo sumo una por despacho (ver V35)
+        if (solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(idDespachoBarril, EstadoSolicitudBusqueda.PENDIENTE).isPresent()) {
+            throw new ReglaNegocioException("El despacho ya tiene una solicitud de búsqueda pendiente");
+        }
+
+        // 9. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
         SolicitudBusquedaEntity solicitudBusquedaEntity = SolicitudBusquedaEntity.builder()
                 .fechaBusqueda(solicitudBusquedaFormDTO.getFechaBusqueda())
                 .observaciones(observaciones)
                 .despachoBarril(despachoBarrilEntity)
-                .buscado(false)
+                .estado(EstadoSolicitudBusqueda.PENDIENTE)
                 .build();
 
         return MapperSolicitudBusqueda.toDTO(solicitudBusquedaRepository.save(solicitudBusquedaEntity));

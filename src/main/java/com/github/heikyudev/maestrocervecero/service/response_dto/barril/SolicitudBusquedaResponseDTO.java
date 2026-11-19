@@ -1,5 +1,8 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.barril;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,9 +35,14 @@ public class SolicitudBusquedaResponseDTO {
     private String observaciones;
 
     /**
-     * Indica si ya se realizó la búsqueda del barril sobre la que se hizo esta solicitud.
+     * Estado de la solicitud: pendiente, buscada (se registró la devolución del barril) o cancelada (se anuló el despacho).
      */
-    private boolean buscado;
+    private EstadoSolicitudBusqueda estado;
+
+    /**
+     * Fecha y hora en la que se registró la solicitud.
+     */
+    private LocalDateTime fechaRegistro;
 
     /**
      * Despacho de barril sobre el que se solicitó la búsqueda.

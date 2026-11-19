@@ -151,6 +151,60 @@ public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilE
     boolean clienteTieneBarrilEnSuPoder(@Param("idCliente") Long idCliente);
 
     /**
+     * Condición de un despacho {@code d} sin solicitud de búsqueda pendiente: ninguna solicitud en estado {@code PENDIENTE}
+     * lo referencia.
+     */
+    String SIN_SOLICITUD_PENDIENTE = "NOT EXISTS (SELECT 1 FROM SolicitudBusquedaEntity s WHERE s.despachoBarril.id = d.id AND s.estado = 'PENDIENTE')";
+
+    /**
+     * Los IDs de los clientes activos que deben recibir el recordatorio de retiro del día indicado: tienen algún despacho
+     * vigente con la devolución vencida (fecha de devolución estimada anterior a ese día) y sin solicitud de búsqueda
+     * pendiente, y todavía no tienen un recordatorio ese día. De menor a mayor.
+     *
+     * @param hoy El día del recordatorio.
+     * @return Los IDs de los clientes a invitar.
+     */
+    @Query("SELECT DISTINCT d.cliente.id FROM DespachoBarrilEntity d WHERE " + DESPACHO_VIGENTE
+            + " AND d.fechaDevolucionEstimada < :hoy AND d.cliente.estado = 'ACTIVO' AND " + SIN_SOLICITUD_PENDIENTE
+            + " AND NOT EXISTS (SELECT 1 FROM InvitacionRetiroBarrilesEntity i WHERE i.cliente.id = d.cliente.id AND i.fechaInvitacion = :hoy)"
+            + " ORDER BY d.cliente.id")
+    List<Long> buscarIdsClientesAInvitarAlRetiro(@Param("hoy") LocalDate hoy);
+
+    /**
+     * Los despachos vigentes de un cliente con la devolución vencida (fecha de devolución estimada anterior al día
+     * indicado) y sin solicitud de búsqueda pendiente, con el barril cargado, por fecha de devolución estimada y por ID
+     * ascendentes.
+     *
+     * @param idCliente El ID del cliente.
+     * @param hoy El día de referencia.
+     * @return Los despachos vencidos del cliente que el recordatorio lista.
+     */
+    @Query("SELECT d FROM DespachoBarrilEntity d JOIN FETCH d.barril WHERE d.cliente.id = :idCliente AND " + DESPACHO_VIGENTE
+            + " AND d.fechaDevolucionEstimada < :hoy AND " + SIN_SOLICITUD_PENDIENTE + " ORDER BY d.fechaDevolucionEstimada ASC, d.id ASC")
+    List<DespachoBarrilEntity> buscarVencidosSinSolicitudPendienteDelCliente(@Param("idCliente") Long idCliente, @Param("hoy") LocalDate hoy);
+
+    /**
+     * Verifica si un despacho sigue vigente (ver {@link #DESPACHO_VIGENTE}) y no tiene una solicitud de búsqueda
+     * pendiente: es decir, si su barril sigue en poder del cliente y todavía hay que coordinar su retiro.
+     *
+     * @param idDespacho El ID del despacho.
+     * @return {@code true} si el despacho está pendiente de coordinar su retiro.
+     */
+    @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM DespachoBarrilEntity d WHERE d.id = :idDespacho AND "
+            + DESPACHO_VIGENTE + " AND " + SIN_SOLICITUD_PENDIENTE)
+    boolean estaPendienteDeRetiro(@Param("idDespacho") Long idDespacho);
+
+    /**
+     * El último despacho registrado de un barril: el de mayor fecha y, ante igual fecha, el de mayor ID. Con el barril
+     * Despachado, es el despacho que lo tiene en poder del cliente.
+     *
+     * @param idBarril El ID del barril.
+     * @param estado El estado del despacho ({@code REGISTRADO}).
+     * @return El último despacho del barril en ese estado, o vacío si no tiene ninguno.
+     */
+    Optional<DespachoBarrilEntity> findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(Long idBarril, EstadoTransaccion estado);
+
+    /**
      * Lista todos los despachos de un barril, anulados incluidos, con su cliente cargado, del de fecha más reciente
      * al más antiguo (ante igual fecha, el de mayor ID).
      *

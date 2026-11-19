@@ -81,6 +81,40 @@ public class SecurityConfig {
         return repositorio;
     }
 
+    /**
+     * Cadena propia de la pantalla pública con la que los clientes coordinan el retiro de sus barriles
+     * ({@code /retiro-barriles/**}). Se evalúa antes que la cadena general.
+     * <p>
+     * Es pública por el mismo motivo que la de cotización: el enlace del recordatorio identifica al cliente con su token,
+     * sin iniciar sesión. No usa la sesión de la aplicación y el token CSRF del formulario viaja en una cookie propia,
+     * limitada a {@code /retiro-barriles}.
+     * </p>
+     */
+    @Bean
+    @Order(2)
+    public SecurityFilterChain retiroBarrilesFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher("/retiro-barriles/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .csrf(csrf -> csrf.csrfTokenRepository(cookieCsrfPublica("/retiro-barriles")))
+                // El enlace lleva el token del cliente: ningún pedido a otro sitio informa la dirección de la pantalla
+                .headers(headers -> headers.referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
+                .build();
+    }
+
+    /**
+     * Repositorio del token CSRF de una pantalla pública: una cookie propia, no legible desde JavaScript, limitada a la
+     * ruta indicada y enviada solo en navegación del mismo sitio (ver {@link #cookieCsrfCotizacion()}).
+     */
+    private static CookieCsrfTokenRepository cookieCsrfPublica(String ruta) {
+        CookieCsrfTokenRepository repositorio = new CookieCsrfTokenRepository();
+        repositorio.setCookiePath(ruta);
+        repositorio.setCookieCustomizer(cookie -> cookie.sameSite("Strict"));
+        return repositorio;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionRegistry sessionRegistry,
                                                    SesionesCerradasPorRestablecimiento sesionesCerradasPorRestablecimiento) throws Exception {

@@ -1,0 +1,16 @@
+## Casos de prueba de `RetiroBarrilesController`
+
+**Tipo de prueba:** unitaria de la capa web (`@WebMvcTest`, clase `RetiroBarrilesControllerTest`) con `SecurityConfig` y `ControllerAdvices`, y el service simulado. La pantalla `/retiro-barriles/{token}` es pública: la protege su propia cadena de seguridad (sin sesión, CSRF en una cookie propia y `Referrer-Policy: no-referrer`).
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-RBC-01** | Pantalla pública con el formulario | Retiro sin responder de "Bar Don Jorge" con SN-1001 y SN-1002, fecha máxima 26/11/2026 09:00 | `GET` sin sesión | Vista `retiro_barriles/retiro-barriles` sin el menú de la aplicación, con los barriles por número de serie, el formulario `novalidate` con CSRF, la fecha y hora del retiro con asterisco rojo en un campo `datetime-local` con `max="2026-11-26T09:00"`, los placeholders y el botón "Confirmar retiro". |
+| **CP-RBC-02** | Retiro ya coordinado | Retiro registrado para el 25/11/2026 10:30, respondido el 19/11/2026 11:05, con un barril con la solicitud buscada, otro pendiente y otro cancelada | `registrado: true` | Muestra el retiro en solo lectura (fechas, observaciones, "Retirado", "Pendiente de retiro" y "Cancelado", "no se puede modificar"), sin formulario. |
+| **CP-RBC-03** | Sin barriles pendientes | Retiro sin responder y sin barriles pendientes | Lista vacía | Muestra el aviso "ya fueron devueltos o su retiro ya está coordinado", sin formulario. |
+| **CP-RBC-04** | Enlace que no sirve | El service lanza `EnlaceRetiroInvalidoException` | `GET` | Vista `retiro_barriles/enlace-invalido` con "El enlace no está disponible" y el motivo, sin formulario. |
+| **CP-RBC-05** | Confirmación _(Camino feliz)_ | Fecha 2026-11-25T10:30 y observaciones | `POST` válido | Delega la fecha y las observaciones en el service y redirige a la misma dirección con "Retiro coordinado correctamente para el 25/11/2026 10:30" (`success`). |
+| **CP-RBC-06** | Datos inválidos en el formulario | Fecha vacía y observaciones de 256 caracteres | Bean Validation | Vuelve al formulario con "No se pudo coordinar el retiro", "La fecha y hora del retiro es obligatoria" y "Las observaciones no pueden superar 255 caracteres", sin llamar al registro. |
+| **CP-RBC-07** | Regla de la fecha rechazada por el service | El service rechaza la fecha con el campo `fechaRetiro` | Error de campo | Vuelve al formulario con el motivo y lo cargado (`2026-12-30T10:30` y las observaciones). |
+| **CP-RBC-08** | Envío sobre un retiro ya coordinado | El service rechaza el registro porque ya se coordinó | Error global con el retiro registrado | Muestra el retiro registrado con el motivo del rechazo. |
+| **CP-RBC-09** | Enlace que dejó de servir al confirmar | El service lanza `EnlaceRetiroInvalidoException` | `POST` | Vista `retiro_barriles/enlace-invalido`. |
+| **CP-RBC-10** | Seguridad de la pantalla pública | `GET` y `POST` sin token CSRF | Cadena propia de `/retiro-barriles/**` | El `GET` responde `Referrer-Policy: no-referrer` sin la cookie `JSESSIONID`; el `POST` sin CSRF se rechaza con 403 sin llamar al registro. |

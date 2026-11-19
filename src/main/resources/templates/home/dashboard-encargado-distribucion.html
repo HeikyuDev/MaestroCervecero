@@ -3,20 +3,22 @@
 
 <!--
     Panel de control del encargado de distribución en la pantalla de inicio: qué barriles hay que retirar de los clientes, qué
-    clientes tienen barriles en su poder y qué barriles con cerveza están listos para despachar. Es un panel de trabajo: cada
-    barril ofrece el atajo a la operación que corresponde (registrar su devolución o su despacho) y el acceso a la consulta. Se
-    lee de arriba abajo en cuatro filas, con un bloque por fila a todo el ancho:
+    retiros coordinaron los clientes, qué clientes tienen barriles en su poder y qué barriles con cerveza están listos para
+    despachar. Es un panel de trabajo: cada barril ofrece el atajo a la operación que corresponde (registrar su devolución o su
+    despacho) y el acceso a la consulta. Se lee de arriba abajo en cinco filas, con un bloque por fila a todo el ancho:
       1. contadores(dashboard): cuatro tarjetas con los barriles en poder de clientes, las devoluciones vencidas, las que vencen
          hoy y los barriles listos para despachar.
       2. devolucionesPendientes(dashboard).
-      3. clientesConBarriles(dashboard).
-      4. barrilesListos(dashboard).
-    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cuatro filas. El parámetro dashboard es el DashboardEncargadoDistribucionResponseDTO que el
+      3. retirosPendientes(dashboard).
+      4. clientesConBarriles(dashboard).
+      5. barrilesListos(dashboard).
+    Nunca hay dos bloques en la misma fila. panel(dashboard) arma las cinco filas. El parámetro dashboard es el DashboardEncargadoDistribucionResponseDTO que el
     HomeController carga solo para el rol ENCARGADO_DE_DISTRIBUCION.
 
     Cada atajo se protege con el mismo permiso que el destino ("Registrar devolución" con DEVOLUCION_BARRIL_REGISTRAR, "Registrar
     despacho" con DESPACHO_BARRIL_REGISTRAR, "Abrir" un barril con alguno de los permisos de consulta de barril, "Abrir" un
-    cliente con CLIENTE_CONSULTAR); el servidor vuelve a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin
+    cliente con CLIENTE_CONSULTAR, "Ver" una solicitud de retiro y su "Ver todas" con SOLICITUD_BUSQUEDA_CONSULTAR); el servidor
+    vuelve a exigirlo. Un sub-bloque sin filas muestra una sola línea de texto, sin
     tabla ni encabezado de columnas. La columna Acciones va centrada, igual que su encabezado.
 
     Uso: <th:block th:replace="~{home/dashboard-encargado-distribucion :: panel(${dashboardEncargadoDistribucion})}"></th:block>
@@ -26,6 +28,7 @@
 <div th:fragment="panel(dashboard)" data-dashboard-encargado-distribucion class="space-y-6">
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: contadores(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: devolucionesPendientes(${dashboard})}"></th:block>
+    <th:block th:replace="~{home/dashboard-encargado-distribucion :: retirosPendientes(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: clientesConBarriles(${dashboard})}"></th:block>
     <th:block th:replace="~{home/dashboard-encargado-distribucion :: barrilesListos(${dashboard})}"></th:block>
 </div>
@@ -117,7 +120,58 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 3: CLIENTES CON BARRILES -->
+<!-- ===================================================================== FILA 3: RETIROS COORDINADOS PENDIENTES -->
+<section th:fragment="retirosPendientes(dashboard)" data-bloque="retiros-pendientes" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Retiros coordinados pendientes</h2>
+
+    <div data-subbloque="retiros-pendientes" class="p-4 min-w-0">
+        <th:block th:replace="~{home/dashboard-encargado-distribucion :: encabezado('Solicitudes de retiro', ${dashboard.retirosPendientes.total}, 'retiros', @{/solicitudes-retiro(estado='PENDIENTE')}, 'Ver todas las solicitudes de retiro pendientes')}"></th:block>
+        <p th:if="${dashboard.retirosVencidos > 0}" data-retiros-vencidos class="mb-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-50 text-xs font-semibold text-rose-700">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <span><span data-retiros-vencidos-total th:text="${dashboard.retirosVencidos}">1</span> con la fecha propuesta vencida</span>
+        </p>
+        <div class="overflow-x-auto" th:if="${!dashboard.retirosPendientes.filas.empty}">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3">Cliente</th>
+                    <th class="px-2 py-3">Barril</th>
+                    <th class="px-2 py-3">Retiro propuesto</th>
+                    <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="r : ${dashboard.retirosPendientes.filas}" class="hover:bg-slate-50 align-top" data-fila-retiro th:classappend="${r.vencida} ? 'bg-rose-50'">
+                    <td class="px-2 py-3 font-medium text-slate-900 break-words" data-cliente-nombre th:text="${r.nombreCliente}">Bar Don Jorge</td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap">
+                        <div class="font-medium text-slate-900" data-barril-numero-serie th:text="${r.numeroSerie}">SN-1001</div>
+                        <div class="text-xs text-slate-500" data-barril-identificador th:text="${r.identificadorInterno}">BRL-01</div>
+                    </td>
+                    <td class="px-2 py-3 whitespace-nowrap" data-fecha-retiro th:classappend="${r.vencida} ? 'text-rose-700 font-semibold' : 'text-slate-700'">
+                        <th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${r.fechaBusqueda})}"></th:block>
+                        <span th:if="${r.vencida}" data-retiro-vencido class="block text-xs font-medium">Vencido</span>
+                    </td>
+                    <td class="col-acciones px-2 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <th:block sec:authorize="hasAuthority('DEVOLUCION_BARRIL_REGISTRAR')">
+                                <th:block th:replace="~{fragments/boton-registrar :: registrar(@{/control-barriles/{id}/devoluciones/nueva(id=${r.idBarril})}, 'Registrar devolución', 'bi-box-arrow-in-down-left', 'Registrar devolución de ' + ${r.identificadorInterno})}"></th:block>
+                            </th:block>
+                            <a sec:authorize="hasAuthority('SOLICITUD_BUSQUEDA_CONSULTAR')" th:href="@{/solicitudes-retiro/{id}(id=${r.idSolicitud})}"
+                               title="Ver detalle" th:aria-label="'Ver solicitud de retiro de ' + ${r.identificadorInterno}"
+                               class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                <i class="bi bi-eye text-lg"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${dashboard.retirosPendientes.filas.empty}" data-estado-vacio class="px-4 py-6 text-center text-sm text-slate-400">No hay retiros coordinados pendientes</p>
+    </div>
+</section>
+
+<!-- ===================================================================== FILA 4: CLIENTES CON BARRILES -->
 <section th:fragment="clientesConBarriles(dashboard)" data-bloque="clientes-con-barriles" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Clientes con barriles en poder</h2>
 
@@ -153,7 +207,7 @@
     </div>
 </section>
 
-<!-- ===================================================================== FILA 4: BARRILES LISTOS PARA DESPACHAR -->
+<!-- ===================================================================== FILA 5: BARRILES LISTOS PARA DESPACHAR -->
 <section th:fragment="barrilesListos(dashboard)" data-bloque="barriles-listos" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <h2 class="px-4 py-3 border-b border-slate-200 text-base font-semibold text-slate-900">Barriles listos para despachar</h2>
 
@@ -202,7 +256,7 @@
 
 <!--
     Encabezado de un sub-bloque: título, contador con el total real y enlace "Ver todos" a la lista completa. El tipo de lista
-    ('barriles' o 'clientes') decide el permiso del enlace, que sin él no se muestra.
+    ('barriles', 'clientes' o 'retiros') decide el permiso del enlace, que sin él no se muestra.
 -->
 <div th:fragment="encabezado(titulo, total, lista, url, etiquetaAccesible)" class="flex items-center justify-between gap-3 mb-3">
     <div class="flex items-center gap-2">
@@ -217,6 +271,10 @@
     <th:block th:if="${lista == 'clientes'}">
         <a sec:authorize="hasAuthority('CLIENTE_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
            class="text-xs font-medium text-amber-700 hover:underline">Ver todos</a>
+    </th:block>
+    <th:block th:if="${lista == 'retiros'}">
+        <a sec:authorize="hasAuthority('SOLICITUD_BUSQUEDA_CONSULTAR')" data-ver-todos th:href="${url}" th:aria-label="${etiquetaAccesible}"
+           class="text-xs font-medium text-amber-700 hover:underline">Ver todas</a>
     </th:block>
 </div>
 
