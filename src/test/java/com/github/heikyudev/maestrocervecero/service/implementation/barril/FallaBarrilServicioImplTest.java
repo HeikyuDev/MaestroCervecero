@@ -185,22 +185,9 @@ class FallaBarrilServicioImplTest {
     // ==================== registrarFallaBarril ====================
 
     @Test
-    @DisplayName("CP-RFB-01: registrarFallaBarril lanza ReglaNegocioException con campo fecha cuando la fecha de falla es nula")
-    void registrar_debeRechazarFechaNula() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, null, "Pérdida de presión");
-
-        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, fallaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
     @DisplayName("CP-RFB-02: registrarFallaBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), null);
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, null);
 
         assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -213,7 +200,7 @@ class FallaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFB-03: registrarFallaBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "   ");
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, "   ");
 
         assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -225,7 +212,7 @@ class FallaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFB-04: registrarFallaBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "a".repeat(256));
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, "a".repeat(256));
 
         assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -238,7 +225,7 @@ class FallaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFB-05: registrarFallaBarril lanza RecursoNoEncontradoException con campo idBarril cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(99L, "Pérdida de presión");
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
@@ -253,7 +240,7 @@ class FallaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFB-06: registrarFallaBarril lanza ReglaNegocioException con campo idBarril cuando el barril no está en estado operativo DISPONIBLE")
     void registrar_debeRechazarBarrilEnEstadoDeOrigenIncorrecto() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, "Pérdida de presión");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -271,8 +258,7 @@ class FallaBarrilServicioImplTest {
     @DisplayName("CP-RFB-07: registrarFallaBarril registra la falla y pasa el barril a EN_MANTENIMIENTO (camino feliz)")
     void registrar_debeRegistrarCorrectamente() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 15, 10, 0);
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, fecha, "Pérdida de presión");
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, "Pérdida de presión");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(barrilRepository.save(barril)).thenReturn(barril);
@@ -283,7 +269,9 @@ class FallaBarrilServicioImplTest {
         });
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         FallaBarrilResponseDTO resultado = fallaBarrilServicio.registrarFallaBarril(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_MANTENIMIENTO);
@@ -292,97 +280,12 @@ class FallaBarrilServicioImplTest {
         ArgumentCaptor<FallaBarrilEntity> captor = ArgumentCaptor.forClass(FallaBarrilEntity.class);
         verify(fallaBarrilRepository).save(captor.capture());
         FallaBarrilEntity guardada = captor.getValue();
-        assertThat(guardada.getFecha()).isEqualTo(fecha);
+        assertThat(guardada.getFecha()).isBetween(antes, despues);
         assertThat(guardada.getObservaciones()).isEqualTo("Pérdida de presión");
         assertThat(guardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(guardada.getBarril()).isSameAs(barril);
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-    }
-
-    @Test
-    @DisplayName("CP-RFB-08: registrarFallaBarril lanza ReglaNegocioException con campo fecha cuando existe un envasado posterior del mismo barril")
-    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
-
-        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(fallaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFB-09: registrarFallaBarril lanza ReglaNegocioException con campo fecha cuando existe una operación registrada posterior de cualquier tipo")
-    void registrar_debeRechazarSiExisteOperacionPosterior() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(fallaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFB-10: registrarFallaBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la del último envasado")
-    void registrar_debeRechazarFechaIgualALaDelUltimoEnvasado() {
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 15, 10, 0);
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, fecha, "Pérdida de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fecha));
-
-        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
-
-        verify(fallaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFB-11: registrarFallaBarril lanza ReglaNegocioException con campo fecha cuando la fecha de falla es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaFutura() {
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Pérdida de presión");
-
-        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, fallaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RFB-12: registrarFallaBarril bloquea el barril antes de leer la última operación y el último envasado")
-    void registrar_debeBloquearElBarrilAntesDeLeerLaActividad() {
-        // === PREPARACION DE DATOS ===
-        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(fallaBarrilRepository.save(any(FallaBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        fallaBarrilServicio.registrarFallaBarril(formDTO);
-
-        // === ASSERTS ===
-        InOrder orden = inOrder(barrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
     }
 
     // ==================== anularFallaBarril ====================
@@ -716,10 +619,9 @@ class FallaBarrilServicioImplTest {
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril)).thenReturn(Optional.empty());
     }
 
-    private static FallaBarrilFormDTO fallaBarrilFormDTO(Long idBarril, LocalDateTime fecha, String observaciones) {
+    private static FallaBarrilFormDTO fallaBarrilFormDTO(Long idBarril, String observaciones) {
         return FallaBarrilFormDTO.builder()
                 .idBarril(idBarril)
-                .fecha(fecha)
                 .observaciones(observaciones)
                 .build();
     }

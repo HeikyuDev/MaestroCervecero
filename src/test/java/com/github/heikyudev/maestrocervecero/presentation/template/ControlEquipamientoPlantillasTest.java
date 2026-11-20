@@ -33,14 +33,13 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-02: el formulario de registro lleva la fecha en una fila y las observaciones en otra, con asterisco y ejemplo, y es novalidate")
+    @DisplayName("CP-PEQ-02: el formulario de registro lleva solo las observaciones, sin campo de fecha, con asterisco y ejemplo, y es novalidate")
     void formularioPorTema() throws IOException {
         String html = leer("control_equipamiento/control-form.html");
         List<String> filas = filas(html);
 
-        assertThat(filaCon(filas, "for=\"fecha\"")).doesNotContain("observaciones").doesNotContain("fechaFin");
-        assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("fecha\"").contains("th:placeholder");
-        assertThat(html).contains("novalidate").contains("datetime-local").contains("text-rose-600");
+        assertThat(filaCon(filas, "for=\"observaciones\"")).contains("th:placeholder");
+        assertThat(html).contains("novalidate").doesNotContain("for=\"fecha\"").doesNotContain("datetime-local").contains("text-rose-600");
     }
 
     @Test

@@ -189,39 +189,10 @@ class MantenimientoEquipamientoServicioImplTest {
     // ==================== registrarMantenimientoEquipamiento ====================
 
     @Test
-    @DisplayName("CP-RME-01: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha es nula")
-    void registrar_debeRechazarFechaInicioNula() {
-        // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, null, "Ruido anormal");
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .extracting("campo").isEqualTo("fecha");
-        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RME-04: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFinFuturo() {
-        // === PREPARACION DE DATOS ===
-        LocalDateTime manana = LocalDateTime.now().plusDays(1);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, manana, "Ruido anormal");
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .extracting("campo").isEqualTo("fecha");
-        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
-    }
-
-    @Test
     @DisplayName("CP-RME-05: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
         // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, null);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, null);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
@@ -235,7 +206,7 @@ class MantenimientoEquipamientoServicioImplTest {
     @DisplayName("CP-RME-06: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
         // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "   ");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "   ");
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
@@ -248,7 +219,7 @@ class MantenimientoEquipamientoServicioImplTest {
     @DisplayName("CP-RME-07: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
         // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "a".repeat(256));
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "a".repeat(256));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
@@ -262,7 +233,7 @@ class MantenimientoEquipamientoServicioImplTest {
     @DisplayName("CP-RME-08: registrarMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void registrar_debeLanzarExcepcionSiElEquipamientoNoExiste() {
         // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(99L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(99L, "Ruido anormal");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
@@ -279,7 +250,7 @@ class MantenimientoEquipamientoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
         macerador.setEstado(Estado.BAJA);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "Ruido anormal");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
 
         // === EJECUCION Y ASSERTS ===
@@ -295,7 +266,7 @@ class MantenimientoEquipamientoServicioImplTest {
     void registrar_debeRechazarEquipamientoEnUso() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_USO);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "Ruido anormal");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
 
         // === EJECUCION Y ASSERTS ===
@@ -311,7 +282,7 @@ class MantenimientoEquipamientoServicioImplTest {
     void registrar_debeOrientarSegunElEstadoOperativo1() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "Ruido anormal");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
 
         // === EJECUCION Y ASSERTS ===
@@ -327,7 +298,7 @@ class MantenimientoEquipamientoServicioImplTest {
     void registrar_debeOrientarSegunElEstadoOperativo2() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "Ruido anormal");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
 
         // === EJECUCION Y ASSERTS ===
@@ -339,90 +310,35 @@ class MantenimientoEquipamientoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RME-13: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha coincide con la de la última operación registrada")
-    void registrar_debeRechazarInicioIgualAlFinDeLaUltimaOperacion() {
+    @DisplayName("CP-RME-17: registrarMantenimientoEquipamiento registra la operación con la fecha y hora actual y deja el equipamiento en el estado operativo esperado (camino feliz)")
+    void registrar_debeRegistrarConLaFechaYHoraActual() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, "  ruido anormal en el motor  ");
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
-        when(operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento")
-                .extracting("campo").isEqualTo("fecha");
-        verify(equipamientoRepository, never()).save(any());
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RME-14: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha es anterior a la de la última operación registrada")
-    void registrar_debeRechazarInicioAnteriorAlFinDeLaUltimaOperacion() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
-        when(operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.plusHours(1)));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
-        verify(equipamientoRepository, never()).save(any());
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RME-15: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha no es posterior al fin de la última participación en un lote")
-    void registrar_debeRechazarInicioNoPosteriorALaUltimaParticipacionEnLote() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "Ruido anormal");
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
-        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
-        verify(equipamientoRepository, never()).save(any());
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RME-17: registrarMantenimientoEquipamiento registra la operación, deja el equipamiento en el estado operativo esperado y bloquea el equipamiento antes de consultar la última operación (camino feliz)")
-    void registrar_debeRegistrarYBloquearElEquipamientoPrimero() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, "  ruido anormal en el motor  ");
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
-        when(operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(2)));
-        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(1)));
         when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         MantenimientoEquipamientoResponseDTO resultado = mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(resultado.getFecha()).isEqualTo(INICIO);
+        assertThat(resultado.getFecha()).isBetween(antes, despues);
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         verify(equipamientoRepository).save(macerador);
 
         ArgumentCaptor<MantenimientoEquipamientoEntity> captor = ArgumentCaptor.forClass(MantenimientoEquipamientoEntity.class);
         verify(mantenimientoEquipamientoRepository).save(captor.capture());
-        assertThat(captor.getValue().getFecha()).isEqualTo(INICIO);
+        assertThat(captor.getValue().getFecha()).isBetween(antes, despues);
         assertThat(captor.getValue().getObservaciones()).isEqualTo("ruido anormal en el motor");
         assertThat(captor.getValue().getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(captor.getValue().getEquipamiento()).isSameAs(macerador);
 
-        InOrder orden = inOrder(equipamientoRepository, operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
-        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
-        orden.verify(operacionCicloVidaEquipamientoRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(1L);
+        verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
+        verifyNoInteractions(operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
     }
-
 
     // ==================== anularMantenimientoEquipamiento ====================
 
@@ -639,7 +555,6 @@ class MantenimientoEquipamientoServicioImplTest {
         orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdUltimaOperacionRegistrada(2L);
     }
 
-
     @Test
     @DisplayName("CP-AME-13: anularMantenimientoEquipamiento lanza ReglaNegocioException ante un empate de fecha cuando la última es la de mayor ID")
     void anular_debeRechazarSiLaUltimaEsOtraConIgualFecha() {
@@ -824,10 +739,9 @@ class MantenimientoEquipamientoServicioImplTest {
     private static final LocalDateTime INICIO = LocalDateTime.of(2026, 1, 15, 10, 0);
     private static final LocalDateTime FIN = LocalDateTime.of(2026, 1, 15, 12, 0);
 
-    private static MantenimientoEquipamientoFormDTO registroFormDTO(Long idEquipamiento, LocalDateTime fecha, String observaciones) {
+    private static MantenimientoEquipamientoFormDTO registroFormDTO(Long idEquipamiento, String observaciones) {
         return MantenimientoEquipamientoFormDTO.builder()
                 .idEquipamiento(idEquipamiento)
-                .fecha(fecha)
                 .observaciones(observaciones)
                 .build();
     }

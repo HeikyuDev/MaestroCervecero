@@ -90,85 +90,64 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
      * este fraccionamiento puntual dejó.
      * </p>
      * <p>
-     * La fecha debe ser posterior a la última operación registrada, al último envasado del barril y a la finalización
-     * del lote de ese envasado, porque el barril queda {@code CON_CERVEZA} recién al finalizar el lote.
+     * La fecha y hora del fraccionamiento es la del momento del registro.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su contenido, su última
-     * operación y su último envasado. Es el único lock de la operación.
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su contenido. Es el
+     * único lock de la operación.
      * </p>
      *
      * @param fraccionamientoBarrilFormDTO Los datos del fraccionamiento a registrar.
      * @return El fraccionamiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a 0, tiene más de cuatro decimales o supera el contenido actual del barril, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, si la cantidad a extraer no es mayor a 0, tiene más de cuatro decimales o supera el contenido actual del barril, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.FRACCIONAMIENTO_BARRIL)
     public FraccionamientoBarrilResponseDTO registrarFraccionamientoBarril(FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO) {
-        // 1. Validar que se haya informado la fecha
-        if (fraccionamientoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
-        }
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
-        // 2. Validar que la fecha no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(fraccionamientoBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
-
-        // 3. Validar las observaciones
+        // 2. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(fraccionamientoBarrilFormDTO.getObservaciones());
 
-        // 4. Validar que la cantidad a extraer sea mayor a 0 y no tenga más decimales que los permitidos
+        // 3. Validar que la cantidad a extraer sea mayor a 0 y no tenga más decimales que los permitidos
         Double cantidadExtraida = fraccionamientoBarrilFormDTO.getCantidadExtraida();
         if (cantidadExtraida == null || !Double.isFinite(cantidadExtraida) || cantidadExtraida <= 0) {
             throw new ReglaNegocioException("La cantidad extraída debe ser mayor a 0", CAMPO_CANTIDAD_EXTRAIDA);
         }
         ValidacionesNumericas.validarMaximoDecimales(cantidadExtraida, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad extraída", CAMPO_CANTIDAD_EXTRAIDA);
 
-        // 5. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
+        // 4. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = fraccionamientoBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 6. Validar que el barril se encuentre en estado operativo CON_CERVEZA
+        // 5. Validar que el barril se encuentre en estado operativo CON_CERVEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA) {
             throw new ReglaNegocioException("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo Con cerveza", MetodosCicloVida.CAMPO_BARRIL);
         }
 
-        // 7. Validar que la cantidad a extraer no supere el contenido actual del barril. El contenido restante se
+        // 6. Validar que la cantidad a extraer no supere el contenido actual del barril. El contenido restante se
         //    redondea a la escala de las cantidades, de modo que un residuo de punto flotante no cuente como contenido
         double contenidoRestante = Redondeo.redondear(barrilEntity.getContenidoActual() - cantidadExtraida);
         if (contenidoRestante < 0) {
             throw new ReglaNegocioException("La cantidad extraída no puede superar el contenido actual del barril", CAMPO_CANTIDAD_EXTRAIDA);
         }
 
-        // 8. Validar que la fecha sea posterior a la última operación registrada sobre este
-        //    barril, considerando también el último envasado que lo cargó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                fraccionamientoBarrilFormDTO.getFecha(),
-                "barril",
-                MetodosCicloVida.CAMPO_FECHA,
-                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
-                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
-
-        // 9. Validar que la fecha sea posterior a la finalización del lote que dejó la cerveza en el barril
-        MetodosCicloVida.validarPosteriorAFinalizacionDelLote(
-                fraccionamientoBarrilFormDTO.getFecha(),
-                envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(idBarril).orElse(null),
-                MetodosCicloVida.CAMPO_FECHA);
-
-        // 9. Decidir el estado operativo resultante según si el barril quedó completamente vacío tras el redondeo
+        // 7. Decidir el estado operativo resultante según si el barril quedó completamente vacío tras el redondeo
         EstadoOperativoBarril estadoOperativoResultante = contenidoRestante == 0
                 ? EstadoOperativoBarril.EN_LIMPIEZA
                 : EstadoOperativoBarril.CON_CERVEZA;
 
-        // 10. Aplicar el contenido restante y el estado operativo resultante sobre el barril y persistirlo
+        // 8. Aplicar el contenido restante y el estado operativo resultante sobre el barril y persistirlo
         barrilEntity.setContenidoActual(contenidoRestante);
         barrilEntity.setEstadoOperativo(estadoOperativoResultante);
         barrilRepository.save(barrilEntity);
 
-        // 11. Construir y persistir el fraccionamiento, y retornar el DTO de respuesta correspondiente
+        // 9. Construir y persistir el fraccionamiento, y retornar el DTO de respuesta correspondiente
         FraccionamientoBarrilEntity fraccionamientoBarrilEntity = FraccionamientoBarrilEntity.builder()
-                .fecha(fraccionamientoBarrilFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .cantidadFraccionada(cantidadExtraida)
                 .estadoOperativoResultante(estadoOperativoResultante)

@@ -50,7 +50,7 @@ public interface ILimpiezaBarrilServicio {
      *
      * @param limpiezaBarrilFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     LimpiezaBarrilResponseDTO registrarLimpiezaBarril(LimpiezaBarrilFormDTO limpiezaBarrilFormDTO);

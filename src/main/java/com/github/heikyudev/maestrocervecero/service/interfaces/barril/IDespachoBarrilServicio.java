@@ -52,7 +52,7 @@ public interface IDespachoBarrilServicio {
      *
      * @param despachoBarrilFormDTO Los datos del despacho a registrar.
      * @return El despacho de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de despacho, la fecha estimada de devolución o las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
+     * @throws ReglaNegocioException Si la fecha estimada de devolución o las observaciones no fueron informadas, si la fecha estimada de devolución es anterior a la fecha actual, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
      * @throws RecursoNoEncontradoException Si el barril o el cliente referenciados no existen.
      */
     DespachoBarrilResponseDTO registrarDespachoBarril(DespachoBarrilFormDTO despachoBarrilFormDTO);

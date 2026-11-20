@@ -185,22 +185,9 @@ class MantenimientoBarrilServicioImplTest {
     // ==================== registrarMantenimientoBarril ====================
 
     @Test
-    @DisplayName("CP-RMB-01: registrarMantenimientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha de mantenimiento es nula")
-    void registrar_debeRechazarFechaNula() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, null, "Se reemplazó la válvula de presión");
-
-        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
     @DisplayName("CP-RMB-02: registrarMantenimientoBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null);
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, null);
 
         assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -213,7 +200,7 @@ class MantenimientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RMB-03: registrarMantenimientoBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "   ");
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, "   ");
 
         assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -225,7 +212,7 @@ class MantenimientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RMB-04: registrarMantenimientoBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, "a".repeat(256));
 
         assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -238,7 +225,7 @@ class MantenimientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RMB-05: registrarMantenimientoBarril lanza RecursoNoEncontradoException con campo idBarril cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(99L, "Se reemplazó la válvula de presión");
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
@@ -253,7 +240,7 @@ class MantenimientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RMB-06: registrarMantenimientoBarril lanza ReglaNegocioException con campo idBarril cuando el barril no está en estado operativo EN_MANTENIMIENTO")
     void registrar_debeRechazarBarrilEnEstadoDeOrigenIncorrecto() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, "Se reemplazó la válvula de presión");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -271,8 +258,7 @@ class MantenimientoBarrilServicioImplTest {
     @DisplayName("CP-RMB-07: registrarMantenimientoBarril registra el mantenimiento y pasa el barril a DISPONIBLE (camino feliz)")
     void registrar_debeRegistrarCorrectamente() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 20, 9, 0);
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, fecha, "Se reemplazó la válvula de presión");
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, "Se reemplazó la válvula de presión");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_MANTENIMIENTO);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(barrilRepository.save(barril)).thenReturn(barril);
@@ -283,7 +269,9 @@ class MantenimientoBarrilServicioImplTest {
         });
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         MantenimientoBarrilResponseDTO resultado = mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
@@ -292,97 +280,12 @@ class MantenimientoBarrilServicioImplTest {
         ArgumentCaptor<MantenimientoBarrilEntity> captor = ArgumentCaptor.forClass(MantenimientoBarrilEntity.class);
         verify(mantenimientoBarrilRepository).save(captor.capture());
         MantenimientoBarrilEntity guardada = captor.getValue();
-        assertThat(guardada.getFecha()).isEqualTo(fecha);
+        assertThat(guardada.getFecha()).isBetween(antes, despues);
         assertThat(guardada.getObservaciones()).isEqualTo("Se reemplazó la válvula de presión");
         assertThat(guardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(guardada.getBarril()).isSameAs(barril);
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-    }
-
-    @Test
-    @DisplayName("CP-RMB-08: registrarMantenimientoBarril lanza ReglaNegocioException con campo fecha cuando existe un envasado posterior del mismo barril")
-    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_MANTENIMIENTO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 25, 9, 0)));
-
-        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(mantenimientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RMB-09: registrarMantenimientoBarril lanza ReglaNegocioException con campo fecha cuando existe una operación registrada posterior de cualquier tipo")
-    void registrar_debeRechazarSiExisteOperacionPosterior() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_MANTENIMIENTO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 25, 9, 0)));
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(mantenimientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RMB-10: registrarMantenimientoBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la del último envasado")
-    void registrar_debeRechazarFechaIgualALaDelUltimoEnvasado() {
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 20, 9, 0);
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, fecha, "Se reemplazó la válvula de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_MANTENIMIENTO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fecha));
-
-        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
-
-        verify(mantenimientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RMB-11: registrarMantenimientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha de mantenimiento es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaFutura() {
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Se reemplazó la válvula de presión");
-
-        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RMB-12: registrarMantenimientoBarril bloquea el barril antes de leer la última operación y el último envasado")
-    void registrar_debeBloquearElBarrilAntesDeLeerLaActividad() {
-        // === PREPARACION DE DATOS ===
-        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_MANTENIMIENTO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(mantenimientoBarrilRepository.save(any(MantenimientoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO);
-
-        // === ASSERTS ===
-        InOrder orden = inOrder(barrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
     }
 
     // ==================== anularMantenimientoBarril ====================
@@ -716,10 +619,9 @@ class MantenimientoBarrilServicioImplTest {
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril)).thenReturn(Optional.empty());
     }
 
-    private static MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO(Long idBarril, LocalDateTime fecha, String observaciones) {
+    private static MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO(Long idBarril, String observaciones) {
         return MantenimientoBarrilFormDTO.builder()
                 .idBarril(idBarril)
-                .fecha(fecha)
                 .observaciones(observaciones)
                 .build();
     }

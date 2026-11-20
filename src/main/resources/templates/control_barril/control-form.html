@@ -7,9 +7,10 @@
 <!--
     Formulario de registro de una limpieza, una falla, un fraccionamiento, un mantenimiento, un despacho o una devolución de un
     barril. Es una página aparte a la que lleva el botón de alta de la pestaña del panel. Una fila por tema: el fraccionamiento
-    pide primero la cantidad extraída y el despacho el cliente y las fechas; todos terminan con la fecha y hora de la operación
-    y las observaciones. Registrar vuelve a la pestaña con la alerta de éxito (Post-Redirect-Get); un rechazo vuelve a este
-    formulario con el error en su campo y lo escrito. El formulario no valida: lo hace el servidor.
+    pide primero la cantidad extraída y el despacho el cliente y la fecha estimada de devolución; todos terminan con las
+    observaciones. La fecha y hora de la operación la asigna el servidor al registrar. Registrar vuelve a la pestaña con la
+    alerta de éxito (Post-Redirect-Get); un rechazo vuelve a este formulario con el error en su campo y lo escrito. El
+    formulario no valida: lo hace el servidor.
 -->
 <div id="control-form-content" class="space-y-6">
 
@@ -57,18 +58,11 @@
                     </div>
                 </div>
 
-                <!-- Fecha y hora de la operación (y, en el despacho, la fecha estimada de devolución) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Despacho: fecha estimada de devolución -->
+                <div th:if="${pestanaActiva.name() == 'DESPACHOS'}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div>
-                        <label for="fecha" class="block text-sm font-medium text-slate-700 mb-1">Fecha y hora de la operación <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="datetime-local" id="fecha" th:field="*{fecha}" th:autofocus="${pestanaActiva.name() != 'FRACCIONAMIENTOS'}" autocomplete="off" placeholder="Ej: 31/10/2026 08:30"
-                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('fecha')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <p th:if="${#fields.hasErrors('fecha')}" th:errors="*{fecha}" class="mt-1 text-xs text-rose-600"></p>
-                    </div>
-                    <div th:if="${pestanaActiva.name() == 'DESPACHOS'}">
                         <label for="fechaDevolucionEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha estimada de devolución <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <input type="date" id="fechaDevolucionEstimada" th:field="*{fechaDevolucionEstimada}" autocomplete="off" placeholder="Ej: 30/11/2026"
+                        <input type="date" id="fechaDevolucionEstimada" th:field="*{fechaDevolucionEstimada}" autofocus autocomplete="off" placeholder="Ej: 30/11/2026"
                                class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('fechaDevolucionEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <p th:if="${#fields.hasErrors('fechaDevolucionEstimada')}" th:errors="*{fechaDevolucionEstimada}" class="mt-1 text-xs text-rose-600"></p>
@@ -79,7 +73,7 @@
                 <div class="grid grid-cols-1 gap-5">
                     <div>
                         <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones <span class="text-rose-600" title="Obligatorio">*</span></label>
-                        <textarea id="observaciones" th:field="*{observaciones}" rows="3" autocomplete="off" th:placeholder="${pestanaActiva.ejemploObservaciones}"
+                        <textarea id="observaciones" th:field="*{observaciones}" rows="3" th:autofocus="${pestanaActiva.name() != 'FRACCIONAMIENTOS' and pestanaActiva.name() != 'DESPACHOS'}" autocomplete="off" th:placeholder="${pestanaActiva.ejemploObservaciones}"
                                   class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                   th:classappend="${#fields.hasErrors('observaciones')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
                         <p th:if="${#fields.hasErrors('observaciones')}" th:errors="*{observaciones}" class="mt-1 text-xs text-rose-600"></p>

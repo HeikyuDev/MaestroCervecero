@@ -52,7 +52,7 @@ public interface ILimpiezaEquipamientoServicio {
      *
      * @param limpiezaEquipamientoFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, si el equipamiento está dado de baja, o si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     LimpiezaEquipamientoResponseDTO registrarLimpiezaEquipamiento(LimpiezaEquipamientoFormDTO limpiezaEquipamientoFormDTO);

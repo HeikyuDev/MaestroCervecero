@@ -46,7 +46,7 @@ public interface IFallaBarrilServicio {
      *
      * @param fallaBarrilFormDTO Los datos de la falla a registrar.
      * @return La falla de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     FallaBarrilResponseDTO registrarFallaBarril(FallaBarrilFormDTO fallaBarrilFormDTO);

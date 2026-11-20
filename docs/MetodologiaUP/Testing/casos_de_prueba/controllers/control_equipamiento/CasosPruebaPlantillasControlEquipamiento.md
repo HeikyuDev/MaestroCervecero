@@ -5,7 +5,7 @@
 | **ID** | **Nombre del Caso** | **Resultado Esperado** |
 | --- | --- | --- |
 | **CP-PEQ-01** | Bloque de información del equipo | Separa en filas la identidad, los parámetros del tipo y el mantenimiento. |
-| **CP-PEQ-02** | Formulario de registro | Lleva la fecha en una fila y las observaciones en otra, con asterisco y ejemplo, y es novalidate. |
+| **CP-PEQ-02** | Formulario de registro | Lleva solo las observaciones, con asterisco y ejemplo, sin campo de fecha, y es novalidate. |
 | **CP-PEQ-03** | Lista de control | Usa el fragmento del botón Abrir sin copiar su marcado; el ojo es solo del gerente y lleva aria-label sin tooltip. |
 | **CP-PEQ-04** | Pestañas del panel | Usan el fragmento de pestañas con un ícono. |
 | **CP-PEQ-05** | Identificador del equipo | Es un enlace ámbar al detalle solo con `EQUIPAMIENTO_CONSULTAR` y texto plano sin ese permiso. |

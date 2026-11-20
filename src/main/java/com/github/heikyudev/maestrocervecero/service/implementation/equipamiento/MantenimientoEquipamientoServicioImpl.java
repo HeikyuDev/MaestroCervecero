@@ -78,27 +78,27 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
     /**
      * Registra un nuevo mantenimiento de equipamiento.
      * <p>
-     * El mantenimiento tiene una única fecha y hora y deja al equipamiento en estado
+     * El mantenimiento tiene una única fecha y hora, la del momento del registro, y deja al equipamiento en estado
      * operativo {@code DISPONIBLE}. Solo se registra sobre un equipamiento ya en mantenimiento, ya sea por una
      * falla o por haber alcanzado el máximo de usos: no existe el mantenimiento voluntario sobre un equipamiento
      * disponible.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer su última
-     * operación o su última participación en un lote. Es el único lock de la operación.
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer cualquier otro
+     * dato. Es el único lock de la operación.
      * </p>
      *
      * @param mantenimientoEquipamientoFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de equipamiento registrado.
-     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si la fecha no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, o si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MANTENIMIENTO_EQUIPAMIENTO)
     public MantenimientoEquipamientoResponseDTO registrarMantenimientoEquipamiento(MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO) {
-        // 1. Validar la fecha de la operación
-        MetodosCicloVidaEquipamiento.validarFecha(mantenimientoEquipamientoFormDTO.getFecha());
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
         // 2. Validar las observaciones
         String observaciones = MetodosCicloVidaEquipamiento.validarObservaciones(mantenimientoEquipamientoFormDTO.getObservaciones());
@@ -111,20 +111,13 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
         // 4. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
         MetodosCicloVidaEquipamiento.validarEstadoOperativoParaRegistrar(equipamientoEntity.getEstadoOperativo(), EstadoOperativo.EN_MANTENIMIENTO, "un mantenimiento");
 
-        // 5. Validar que la fecha sea posterior a la de la última operación registrada y al fin de la última
-        //    participación del equipamiento en un lote
-        MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(
-                mantenimientoEquipamientoFormDTO.getFecha(),
-                operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(idEquipamiento).orElse(null),
-                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
-
-        // 6. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
+        // 5. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.DISPONIBLE);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 7. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoEquipamientoEntity mantenimientoEquipamientoEntity = MantenimientoEquipamientoEntity.builder()
-                .fecha(mantenimientoEquipamientoFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)

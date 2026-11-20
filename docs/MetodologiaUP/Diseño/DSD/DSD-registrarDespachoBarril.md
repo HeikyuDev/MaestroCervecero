@@ -11,12 +11,10 @@ sequenceDiagram
     participant S as DespachoBarrilServicioImpl
     participant Cliente as IClienteRepository
     participant B as IBarrilRepository
-    participant O as IOperacionCicloVidaBarrilRepository
-    participant E as IEnvasadoLoteRepository
     participant D as IDespachoBarrilRepository
     participant A as ControllerAdvices
 
-    Usuario->>Vista: Elegir cliente e informar despacho, devolución estimada y observaciones
+    Usuario->>Vista: Elegir cliente e informar devolución estimada y observaciones
     Vista->>C: POST /control-barriles/{idBarril}/despachos
     Note over C: Spring MVC enlaza y valida DespachoBarrilFormDTO<br/>El ID del barril se toma de la ruta
     alt Errores de enlace o Bean Validation del formulario
@@ -27,23 +25,16 @@ sequenceDiagram
         Vista-->>Usuario: Formulario para corregir
     else Formulario válido
         C->>S: registrarDespachoBarril(form)
-        Note over S: Validar despacho obligatorio y no futuro<br/>devolución estimada informada y observaciones obligatorias con longitud máxima
+        Note over S: Tomar la fecha y hora actual como fecha del despacho<br/>Validar devolución estimada informada y observaciones obligatorias con longitud máxima
         alt Registro permitido (búsquedas y validaciones satisfactorias)
             S->>Cliente: findById(idCliente)
             Cliente-->>S: ClienteEntity activo, sin bloqueo
             S->>B: buscarPorIdParaCambiarEstadoOperativo(idBarril)
             B-->>S: BarrilEntity activo bajo bloqueo de escritura
-            Note over S: Exigir barril CON_CERVEZA<br/>Devolución estimada no anterior al día del despacho
-            S->>O: buscarFechaUltimaOperacionRegistrada(idBarril)
-            O-->>S: Fecha de última operación registrada, si existe
-            S->>E: buscarFechaUltimoEnvasadoRegistrado(idBarril)
-            E-->>S: Fecha del último envasado registrado, si existe
-            Note over S: Exigir despacho estrictamente posterior a ambas fechas
-            S->>E: buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(idBarril)
-            E-->>S: Fecha de finalización del lote del último envasado, si existe
-            Note over S: Exigir despacho estrictamente posterior al cierre del lote<br/>Cambiar barril a DESPACHADO
+            Note over S: Exigir barril CON_CERVEZA<br/>Devolución estimada no anterior a la fecha actual
+            Note over S: Cambiar barril a DESPACHADO
             S->>B: save(barrilEntity)
-            Note over S: Crear DespachoBarrilEntity REGISTRADO<br/>con fechas, observaciones, cliente y barril
+            Note over S: Crear DespachoBarrilEntity REGISTRADO<br/>con la fecha y hora actual, devolución estimada,<br/>observaciones, cliente y barril
             S->>D: save(despachoBarrilEntity)
             D-->>S: DespachoBarrilEntity registrado
             S-->>C: DespachoBarrilResponseDTO
@@ -75,12 +66,11 @@ sequenceDiagram
 
 - **Interfaz web, OperacionBarrilController y ControlBarrilController:** representan `control_barril/control-form.html`, la petición HTTP y el retorno mediante Post-Redirect-Get al panel `control_barril/control-panel.html`. El barril procede de la ruta y el formulario aporta el cliente y los datos del despacho. El panel de resultado corresponde a un controlador distinto del que registra.
 - **DespachoBarrilServicioImpl e IClienteRepository:** coordinan el registro transaccional y resuelven un cliente activo. El despacho se vincula a `ClienteEntity`, sin una búsqueda de versión de cliente en este caso de uso.
-- **IBarrilRepository:** recupera el barril activo bajo bloqueo, exige `CON_CERVEZA` y guarda el cambio a `DESPACHADO`. Es el único bloqueo de escritura de la operación y se toma antes de consultar la actividad previa del barril.
-- **IOperacionCicloVidaBarrilRepository e IEnvasadoLoteRepository:** aportan las fechas de la última operación, el último envasado y el cierre del lote que dejó la cerveza en el barril. El despacho debe ser estrictamente posterior a esas actividades cuando existen.
+- **IBarrilRepository:** recupera el barril activo bajo bloqueo, exige `CON_CERVEZA` y guarda el cambio a `DESPACHADO`. Es el único bloqueo de escritura de la operación.
 - **IDespachoBarrilRepository:** persiste la operación `REGISTRADO` con cliente, barril, fecha y hora del despacho, fecha estimada de devolución y observaciones.
 - **ControllerAdvices:** maneja los recursos inexistentes propagados por el controlador, mediante `handleRecursoNoEncontrado` y una redirección segura con error.
 
-La fecha y hora del despacho son obligatorias y no pueden ser futuras. La devolución estimada es una fecha obligatoria que puede coincidir con el día del despacho, pero no ser anterior. Las observaciones son obligatorias y se normalizan y limitan en longitud. Las reglas compartidas de `MetodosCicloVida` se agrupan en notas.
+La fecha y hora del despacho es la del momento del registro: la asigna el servicio, no se ingresa en el formulario. La devolución estimada es una fecha obligatoria que puede coincidir con la fecha actual, pero no ser anterior. Las observaciones son obligatorias y se normalizan y limitan en longitud. Las reglas compartidas de `MetodosCicloVida` se agrupan en notas.
 
 El fragmento permitido presenta el recorrido satisfactorio. Cada rechazo interrumpe el primer paso que falle y revierte las escrituras del servicio. Las reglas de negocio se capturan en el controlador y se asocian al campo admitido indicado por la excepción o al resumen global. Los errores MVC y esos rechazos conservan los datos y errores en flash y redirigen al formulario, sin dejar al navegador en la URL del POST.
 
@@ -92,6 +82,6 @@ Las entidades se representan como datos porque no coordinan colaboraciones signi
 
 - [OperacionBarrilController.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/controller/control_barril/OperacionBarrilController.java): `registrarDespacho`, `registrar`, `rechazar` y `mostrarFormulario`.
 - [DespachoBarrilServicioImpl.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/service/implementation/barril/DespachoBarrilServicioImpl.java): `registrarDespachoBarril`.
-- [IClienteRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/cliente/IClienteRepository.java), [IBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IBarrilRepository.java), [IOperacionCicloVidaBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IOperacionCicloVidaBarrilRepository.java), [IEnvasadoLoteRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/lote/IEnvasadoLoteRepository.java) e [IDespachoBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IDespachoBarrilRepository.java): referencias, bloqueo, fechas y persistencia.
-- [MetodosCicloVida.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/util/method/MetodosCicloVida.java): validaciones compartidas de fecha, observaciones y barril.
+- [IClienteRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/cliente/IClienteRepository.java), [IBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IBarrilRepository.java) e [IDespachoBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IDespachoBarrilRepository.java): referencias, bloqueo y persistencia.
+- [MetodosCicloVida.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/util/method/MetodosCicloVida.java): validaciones compartidas de observaciones y barril.
 - [ControlBarrilController.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/controller/control_barril/ControlBarrilController.java) y [ControllerAdvices.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/advice/ControllerAdvices.java): panel de resultado y manejo global de recursos no encontrados.

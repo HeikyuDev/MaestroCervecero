@@ -9,29 +9,23 @@ import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
  * Validaciones compartidas por las seis operaciones del ciclo de vida de un barril (limpieza, falla, mantenimiento,
- * fraccionamiento, despacho y devolución): textos obligatorios, orden temporal respecto de la actividad anterior del
- * barril, localización del barril y reglas para anular una operación.
+ * fraccionamiento, despacho y devolución): textos obligatorios, localización del barril y reglas para anular una
+ * operación. También reúne las validaciones de una fecha ingresada respecto de la actividad anterior del barril, que
+ * usa el envasado de un lote.
  * <p>
- * La "actividad" de un barril son sus operaciones registradas y su último envasado registrado. Cada regla tiene una
- * única redacción, usada por las seis operaciones. Los mensajes de los campos informan el campo del formulario afectado.
+ * La fecha de las seis operaciones la asigna su servicio con la fecha y hora actual. La "actividad" de un barril son
+ * sus operaciones registradas y su último envasado registrado. Cada regla tiene una única redacción. Los mensajes de los
+ * campos informan el campo del formulario afectado.
  * </p>
  */
 public class MetodosCicloVida {
 
-    /** Formato con el que los mensajes muestran una fecha y hora. */
-    private static final DateTimeFormatter FORMATO_FECHA_HORA_SEGUNDOS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
     /** Nombre del campo del formulario con el barril afectado. */
     public static final String CAMPO_BARRIL = "idBarril";
-    /** Nombre del campo del formulario con la fecha y hora de la operación. */
-    public static final String CAMPO_FECHA = "fecha";
-
     /** Sujeto con el que los mensajes de fecha nombran la fecha de una operación del ciclo de vida. */
     public static final String SUJETO_FECHA_OPERACION = "La fecha de la operación";
     /** Nombre del campo del formulario con las observaciones. */
@@ -117,24 +111,6 @@ public class MetodosCicloVida {
     public static void validarPosteriorAlUltimoEnvasado(LocalDateTime fechaOperacion, LocalDateTime fechaUltimoEnvasado) {
         if (!esPosteriorAlUltimoEnvasado(fechaOperacion, fechaUltimoEnvasado)) {
             throw new ReglaNegocioException("No se puede anular la operación porque el barril tuvo un envasado posterior");
-        }
-    }
-
-    /**
-     * Valida que la fecha de una operación a registrar sea estrictamente posterior a la finalización del lote cuyo
-     * envasado dejó la cerveza en el barril: hasta que el lote finaliza el barril está en uso, así que no puede
-     * despacharse ni fraccionarse antes. Si el barril nunca fue envasado o el lote no tiene fecha de finalización,
-     * no hay restricción.
-     *
-     * @param fechaOperacion Fecha y hora de la operación que se quiere registrar.
-     * @param fechaFinalizacionLote Fecha y hora de finalización del lote del último envasado registrado del barril, o {@code null} si no existe.
-     * @param campo Nombre del campo del formulario que contiene la fecha, o {@code null}.
-     * @throws ReglaNegocioException Si la fecha no es posterior a la finalización del lote.
-     */
-    public static void validarPosteriorAFinalizacionDelLote(LocalDateTime fechaOperacion, LocalDateTime fechaFinalizacionLote, String campo) {
-        if (fechaFinalizacionLote != null && !fechaOperacion.isAfter(fechaFinalizacionLote)) {
-            throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la finalización del lote que envasó este barril ("
-                    + FORMATO_FECHA_HORA_SEGUNDOS.format(fechaFinalizacionLote) + ")", campo);
         }
     }
 

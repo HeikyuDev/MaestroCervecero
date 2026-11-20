@@ -98,58 +98,46 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
      * devolución la deja {@code BUSCADA} y queda vinculada a ella, para poder revertirlo al anularla.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su última operación y
-     * su último envasado. Es el único lock de la operación.
+     * La fecha y hora de la devolución es la del momento del registro.
+     * </p>
+     * <p>
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril. Es el único lock de la operación.
      * </p>
      *
      * @param devolucionBarrilFormDTO Los datos de la devolución a registrar.
      * @return La devolución de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de devolución o las observaciones no fueron informadas, si la fecha de devolución es posterior a la fecha y hora actual, si las observaciones superan el máximo, si el barril no se encuentra en estado operativo {@code DESPACHADO}, o si la fecha no es posterior a la última operación registrada ni al último envasado del barril.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, o si el barril no se encuentra en estado operativo {@code DESPACHADO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.DEVOLUCION_BARRIL)
     public DevolucionBarrilResponseDTO registrarDevolucionBarril(DevolucionBarrilFormDTO devolucionBarrilFormDTO) {
-        // 1. Validar que se haya informado la fecha de devolución
-        if (devolucionBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
-        }
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
-        // 2. Validar que la fecha de devolución no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(devolucionBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
-
-        // 3. Validar las observaciones
+        // 2. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(devolucionBarrilFormDTO.getObservaciones());
 
-        // 4. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
+        // 3. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = devolucionBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 5. Validar que el barril se encuentre en estado operativo DESPACHADO (implica que existe
+        // 4. Validar que el barril se encuentre en estado operativo DESPACHADO (implica que existe
         //    un despacho REGISTRADO sobre él, ver nota de diseño en el javadoc de este método)
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
             throw new ReglaNegocioException("Solo se puede registrar una devolución sobre un barril en estado operativo Despachado", MetodosCicloVida.CAMPO_BARRIL);
         }
 
-        // 6. Validar que la fecha de devolución sea posterior a la última operación registrada
-        //    sobre este barril, considerando también el último envasado que lo cargó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                devolucionBarrilFormDTO.getFecha(),
-                "barril",
-                MetodosCicloVida.CAMPO_FECHA,
-                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
-                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
-
-        // 7. Descartar el contenido del barril y cambiar su estado operativo a EN_LIMPIEZA
+        // 5. Descartar el contenido del barril y cambiar su estado operativo a EN_LIMPIEZA
         double litrosDescartados = barrilEntity.getContenidoActual();
         barrilEntity.setContenidoActual(0.0);
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.EN_LIMPIEZA);
         barrilRepository.save(barrilEntity);
 
-        // 8. Construir y persistir la devolución, y retornar el DTO de respuesta correspondiente
+        // 6. Construir y persistir la devolución, y retornar el DTO de respuesta correspondiente
         DevolucionBarrilEntity devolucionBarrilEntity = DevolucionBarrilEntity.builder()
-                .fecha(devolucionBarrilFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .litrosDescartados(litrosDescartados)
                 .barril(barrilEntity)
@@ -157,7 +145,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
                 .build();
         DevolucionBarrilEntity guardada = devolucionBarrilRepository.save(devolucionBarrilEntity);
 
-        // 9. Dar por buscada la solicitud de búsqueda pendiente del despacho vigente del barril, si tiene una
+        // 7. Dar por buscada la solicitud de búsqueda pendiente del despacho vigente del barril, si tiene una
         despachoBarrilRepository.findFirstByBarril_IdAndEstadoOrderByFechaDescIdDesc(idBarril, EstadoTransaccion.REGISTRADO)
                 .flatMap(despacho -> solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(despacho.getId(), EstadoSolicitudBusqueda.PENDIENTE))
                 .ifPresent(solicitud -> {

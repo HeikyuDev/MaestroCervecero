@@ -82,68 +82,6 @@ class MetodosCicloVidaEquipamientoTest {
                 .extracting("campo").isEqualTo("motivoAnulacion");
     }
 
-    // ==================== validarFecha ====================
-
-    @Test
-    @DisplayName("CP-MCV-06: validarFecha acepta una fecha pasada y la fecha y hora actual")
-    void validarFecha_debeAceptarFechaValida() {
-        // === EJECUCION Y ASSERTS ===
-        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarFecha(INICIO)).doesNotThrowAnyException();
-        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarFecha(LocalDateTime.now().minusSeconds(1))).doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("CP-MCV-07: validarFecha rechaza una fecha nula")
-    void validarFecha_debeRechazarFechaNula() {
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarFecha(null))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .extracting("campo").isEqualTo("fecha");
-    }
-
-    @Test
-    @DisplayName("CP-MCV-08: validarFecha rechaza una fecha posterior a la fecha y hora actual")
-    void validarFecha_debeRechazarFechaFutura() {
-        // === PREPARACION DE DATOS ===
-        LocalDateTime futuro = LocalDateTime.now().plusMinutes(5);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarFecha(futuro))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .extracting("campo").isEqualTo("fecha");
-    }
-
-    // ==================== validarFechaPosteriorALaActividadAnterior ====================
-
-    @Test
-    @DisplayName("CP-MCV-11: validarFechaPosteriorALaActividadAnterior acepta una fecha posterior a todas las actividades anteriores o sin actividades")
-    void validarFechaPosterior_debeAceptarFechaPosterior() {
-        // === EJECUCION Y ASSERTS ===
-        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(INICIO, INICIO.minusSeconds(1), INICIO.minusDays(3))).doesNotThrowAnyException();
-        assertThatCode(() -> MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(INICIO, null, null)).doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("CP-MCV-12: validarFechaPosteriorALaActividadAnterior rechaza una fecha igual a la de una actividad anterior")
-    void validarFechaPosterior_debeRechazarFechaIgual() {
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(INICIO, INICIO, null))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento")
-                .extracting("campo").isEqualTo("fecha");
-    }
-
-    @Test
-    @DisplayName("CP-MCV-13: validarFechaPosteriorALaActividadAnterior rechaza una fecha anterior a la de cualquiera de las actividades anteriores")
-    void validarFechaPosterior_debeRechazarFechaAnteriorEnCualquieraDeLasActividades() {
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(INICIO, INICIO.minusDays(1), INICIO.plusHours(1)))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
-    }
-
     // ==================== validarEsLaUltimaOperacion ====================
 
     @Test

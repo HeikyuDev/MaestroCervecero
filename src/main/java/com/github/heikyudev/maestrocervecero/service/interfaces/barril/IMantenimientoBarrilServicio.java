@@ -48,7 +48,7 @@ public interface IMantenimientoBarrilServicio {
      *
      * @param mantenimientoBarrilFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     MantenimientoBarrilResponseDTO registrarMantenimientoBarril(MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO);

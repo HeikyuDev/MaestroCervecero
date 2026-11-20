@@ -10,12 +10,10 @@ sequenceDiagram
     participant Panel as ControlBarrilController
     participant S as DevolucionBarrilServicioImpl
     participant B as IBarrilRepository
-    participant O as IOperacionCicloVidaBarrilRepository
-    participant E as IEnvasadoLoteRepository
     participant D as IDevolucionBarrilRepository
     participant A as ControllerAdvices
 
-    Usuario->>Vista: Informar fecha, hora y observaciones de la devolución
+    Usuario->>Vista: Informar observaciones de la devolución
     Vista->>C: POST /control-barriles/{idBarril}/devoluciones
     Note over C: Spring MVC enlaza y valida DevolucionBarrilFormDTO<br/>El ID del barril se toma de la ruta
     alt Errores de enlace o Bean Validation del formulario
@@ -26,18 +24,14 @@ sequenceDiagram
         Vista-->>Usuario: Formulario para corregir
     else Formulario válido
         C->>S: registrarDevolucionBarril(form)
-        Note over S: Validar fecha y hora obligatorias y no futuras<br/>Normalizar y validar observaciones obligatorias y longitud máxima
+        Note over S: Tomar la fecha y hora actual como fecha de la operación<br/>Normalizar y validar observaciones obligatorias y longitud máxima
         alt Registro permitido (búsquedas y validaciones satisfactorias)
             S->>B: buscarPorIdParaCambiarEstadoOperativo(idBarril)
             B-->>S: BarrilEntity activo bajo bloqueo de escritura
             Note over S: Exigir estado operativo DESPACHADO
-            S->>O: buscarFechaUltimaOperacionRegistrada(idBarril)
-            O-->>S: Fecha de última operación registrada, si existe
-            S->>E: buscarFechaUltimoEnvasadoRegistrado(idBarril)
-            E-->>S: Fecha del último envasado registrado, si existe
-            Note over S: Exigir devolución estrictamente posterior a ambas fechas<br/>Conservar el contenido previo como litrosDescartados<br/>Vaciar barril y cambiar estado a EN_LIMPIEZA
+            Note over S: Conservar el contenido previo como litrosDescartados<br/>Vaciar barril y cambiar estado a EN_LIMPIEZA
             S->>B: save(barrilEntity)
-            Note over S: Crear DevolucionBarrilEntity REGISTRADO<br/>con fecha, observaciones, litros descartados y barril
+            Note over S: Crear DevolucionBarrilEntity REGISTRADO<br/>con la fecha y hora actual, observaciones, litros descartados y barril
             S->>D: save(devolucionBarrilEntity)
             D-->>S: DevolucionBarrilEntity registrada
             S-->>C: DevolucionBarrilResponseDTO
@@ -69,13 +63,12 @@ sequenceDiagram
 
 - **Interfaz web, OperacionBarrilController y ControlBarrilController:** representan `control_barril/control-form.html`, el envío HTTP y el retorno mediante Post-Redirect-Get al panel `control_barril/control-panel.html`. El barril procede de la ruta. El panel de resultado lo atiende un controlador distinto del que registra.
 - **DevolucionBarrilServicioImpl e IBarrilRepository:** coordinan la transacción y recuperan el barril activo bajo bloqueo. Exigen `DESPACHADO`, descartan todo su contenido actual y lo guardan en `EN_LIMPIEZA`. Es el único bloqueo de escritura de la operación y se toma antes de consultar la actividad previa.
-- **IOperacionCicloVidaBarrilRepository e IEnvasadoLoteRepository:** aportan la fecha de la última operación y del último envasado registrado. La devolución debe ser estrictamente posterior a ambas cuando existen.
 - **IDevolucionBarrilRepository:** persiste la devolución `REGISTRADO`, asociada al barril. Conserva los litros descartados para mantener la trazabilidad y permitir su restitución si después se anula la devolución.
 - **ControllerAdvices:** maneja los recursos inexistentes propagados por el controlador mediante `handleRecursoNoEncontrado` y una redirección segura con error.
 
 La devolución no tiene una relación directa con un despacho ni busca un cliente: el modelo exige el estado `DESPACHADO`, que solo deja un despacho registrado. Esa precondición respalda el retorno dentro del ciclo de vida del barril, sin agregar colaboraciones inexistentes al diagrama.
 
-La fecha y hora son obligatorias y no pueden ser futuras. Las observaciones son obligatorias, se normalizan y respetan una longitud máxima. Las reglas compartidas de `MetodosCicloVida` y los cambios de las entidades se agrupan en notas. Registrar la devolución no deja el barril disponible ni ejecuta una limpieza: lo deja vacío y pendiente de limpieza.
+La fecha y hora de la operación es la del momento del registro: la asigna el servicio, no se ingresa en el formulario. Las observaciones son obligatorias, se normalizan y respetan una longitud máxima. Las reglas compartidas de `MetodosCicloVida` y los cambios de las entidades se agrupan en notas. Registrar la devolución no deja el barril disponible ni ejecuta una limpieza: lo deja vacío y pendiente de limpieza.
 
 El fragmento permitido presenta el recorrido satisfactorio. Cada rechazo interrumpe el primer paso que falle y revierte las escrituras del servicio. Las reglas de negocio se capturan en el controlador y se asocian al campo admitido indicado por la excepción o al resumen global. Los errores MVC y esos rechazos conservan datos y errores en flash y redirigen al formulario.
 
@@ -87,6 +80,6 @@ Las entidades se representan como datos porque no coordinan colaboraciones signi
 
 - [OperacionBarrilController.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/controller/control_barril/OperacionBarrilController.java): `registrarDevolucion`, `registrar`, `rechazar` y `mostrarFormulario`.
 - [DevolucionBarrilServicioImpl.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/service/implementation/barril/DevolucionBarrilServicioImpl.java): `registrarDevolucionBarril`.
-- [IBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IBarrilRepository.java), [IOperacionCicloVidaBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IOperacionCicloVidaBarrilRepository.java), [IEnvasadoLoteRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/lote/IEnvasadoLoteRepository.java) e [IDevolucionBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IDevolucionBarrilRepository.java): bloqueo, fechas y persistencia.
-- [MetodosCicloVida.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/util/method/MetodosCicloVida.java): validaciones compartidas de fecha, observaciones y barril.
+- [IBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IBarrilRepository.java) e [IDevolucionBarrilRepository.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/persistence/repository/barril/IDevolucionBarrilRepository.java): bloqueo y persistencia.
+- [MetodosCicloVida.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/util/method/MetodosCicloVida.java): validaciones compartidas de observaciones y barril.
 - [ControlBarrilController.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/controller/control_barril/ControlBarrilController.java) y [ControllerAdvices.java](../../../../src/main/java/com/github/heikyudev/maestrocervecero/presentation/advice/ControllerAdvices.java): panel de resultado y manejo global de recursos no encontrados.

@@ -14,8 +14,8 @@ import java.util.Optional;
 
 /**
  * Validaciones compartidas por las tres operaciones del ciclo de vida de un equipamiento (limpieza, falla y
- * mantenimiento): fecha, orden respecto de la actividad anterior del equipamiento, localización del
- * equipamiento, estado operativo requerido y textos obligatorios.
+ * mantenimiento): localización del equipamiento, estado operativo requerido, textos obligatorios y reglas para
+ * anular una operación.
  * <p>
  * Cada regla tiene una única redacción, usada por las tres operaciones. Los mensajes de los campos informan el campo del
  * formulario afectado.
@@ -25,8 +25,6 @@ public final class MetodosCicloVidaEquipamiento {
 
     /** Nombre del campo del formulario con el equipamiento afectado. */
     public static final String CAMPO_EQUIPAMIENTO = "idEquipamiento";
-    /** Nombre del campo del formulario con la fecha y hora de la operación. */
-    public static final String CAMPO_FECHA = "fecha";
     /** Nombre del campo del formulario con las observaciones. */
     public static final String CAMPO_OBSERVACIONES = "observaciones";
     /** Nombre del campo del formulario con el motivo de anulación. */
@@ -69,38 +67,6 @@ public final class MetodosCicloVidaEquipamiento {
         }
         ValidacionesNumericas.validarLongitudMaxima(normalizado, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación", CAMPO_MOTIVO_ANULACION);
         return normalizado;
-    }
-
-    /**
-     * Valida la fecha y hora de una operación: es obligatoria y no puede ser posterior a la fecha y hora actual.
-     *
-     * @param fecha Fecha y hora en que se realizó la operación.
-     * @throws ReglaNegocioException Si no fue informada o es futura.
-     */
-    public static void validarFecha(LocalDateTime fecha) {
-        if (fecha == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", CAMPO_FECHA);
-        }
-        if (fecha.isAfter(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de la operación no puede ser posterior a la fecha y hora actual", CAMPO_FECHA);
-        }
-    }
-
-    /**
-     * Valida que la operación a registrar sea estrictamente posterior a la actividad anterior del equipamiento: la fecha
-     * de su última operación registrada y el fin de su última participación en un lote. Dos actividades del mismo
-     * equipamiento no pueden ocurrir en el mismo instante ni en orden inverso.
-     *
-     * @param fecha Fecha y hora de la operación a registrar.
-     * @param actividadesAnteriores Fecha de la última operación registrada y fin de la última participación en un lote (cualquiera puede ser {@code null} si no existe).
-     * @throws ReglaNegocioException Si alguna fecha dada es posterior o igual a {@code fecha}.
-     */
-    public static void validarFechaPosteriorALaActividadAnterior(LocalDateTime fecha, LocalDateTime... actividadesAnteriores) {
-        for (LocalDateTime anterior : actividadesAnteriores) {
-            if (anterior != null && !anterior.isBefore(fecha)) {
-                throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", CAMPO_FECHA);
-            }
-        }
     }
 
     /**

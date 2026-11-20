@@ -40,16 +40,16 @@ class ControlBarrilPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PCB-02: el formulario lleva cada tema en su fila (cantidad, cliente, fechas, observaciones), con asterisco y ejemplo, es novalidate y la ayuda de la devolución usa el estilo de las ayudas")
+    @DisplayName("CP-PCB-02: el formulario lleva cada tema en su fila (cantidad, cliente, fecha estimada de devolución, observaciones), sin campo de fecha de la operación, con asterisco y ejemplo, es novalidate y la ayuda de la devolución usa el estilo de las ayudas")
     void formularioPorTema() throws IOException {
         String html = leer("control_barril/control-form.html");
         List<String> filas = filas(html);
 
-        assertThat(filaCon(filas, "for=\"cantidadExtraida\"")).doesNotContain("for=\"fecha\"").doesNotContain("observaciones");
-        assertThat(filaCon(filas, "idCliente")).doesNotContain("for=\"fecha\"").doesNotContain("observaciones");
-        assertThat(filaCon(filas, "for=\"fecha\"")).contains("for=\"fechaDevolucionEstimada\"").doesNotContain("observaciones").doesNotContain("idCliente");
-        assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("for=\"fecha\"").contains("th:placeholder");
-        assertThat(html).contains("novalidate").contains("datetime-local").contains("text-rose-600").contains("fragments/campo-unidad :: medida(")
+        assertThat(filaCon(filas, "for=\"cantidadExtraida\"")).doesNotContain("fechaDevolucionEstimada").doesNotContain("observaciones");
+        assertThat(filaCon(filas, "idCliente")).doesNotContain("fechaDevolucionEstimada").doesNotContain("observaciones");
+        assertThat(filaCon(filas, "for=\"fechaDevolucionEstimada\"")).doesNotContain("observaciones").doesNotContain("idCliente");
+        assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("fechaDevolucionEstimada").contains("th:placeholder");
+        assertThat(html).contains("novalidate").doesNotContain("for=\"fecha\"").doesNotContain("datetime-local").contains("text-rose-600").contains("fragments/campo-unidad :: medida(")
                 .contains("fragments/selector-entidad :: selector('idCliente'").contains("@{/clientes/nuevo}").contains("'Crear nuevo cliente'").contains("mt-1 text-xs text-slate-400\">Al registrar la devolución se descarta el contenido del barril");
     }
 

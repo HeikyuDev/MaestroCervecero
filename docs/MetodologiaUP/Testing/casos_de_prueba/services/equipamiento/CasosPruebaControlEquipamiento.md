@@ -57,7 +57,6 @@ Las consultas JPQL nuevas se verifican contra una base descartable con datos sem
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-CE-20**|`buscarFechaUltimaOperacionRegistrada`|Equipamiento con limpiezas, fallas y mantenimientos `REGISTRADO` y una operación `ANULADO` con fecha posterior|`MAX(fecha)` de las operaciones `REGISTRADO` de las tres tablas|Devuelve la mayor fecha entre las registradas; la anulada no cuenta. Sin operaciones devuelve vacío.|
 |**CP-CE-21**|`contarUsosDesdeUltimoMantenimiento`|Dos equipamientos: uno con limpiezas antes y después de un mantenimiento y otro sin operaciones|Una consulta por lista de IDs|Los usos cuentan solo las limpiezas que empezaron después de la fecha del último mantenimiento. El equipamiento sin operaciones no aparece.|
 |**CP-CE-22**|`buscarEtapasConUsoRealPorInicio`|Etapas `PENDIENTE`, `EN_CURSO`, `FINALIZADA`, `CANCELADA` con y sin fecha de inicio, dentro y fuera del rango de inicio|Solo etapas con fecha de inicio y estado distinto de `PENDIENTE` cuyo inicio cae en el rango (extremos nulos sin acotar)|Devuelve las etapas con uso real de la más reciente a la más antigua, cada una con su lote.|
 |**CP-CE-23**|`buscarRegistradasEnPeriodo`|Operaciones `REGISTRADO` y `ANULADO` dentro y fuera del rango|Solo operaciones `REGISTRADO` cuya fecha cae en el rango|Devuelve las registradas del rango, de la más reciente a la más antigua; las anuladas no aparecen.|

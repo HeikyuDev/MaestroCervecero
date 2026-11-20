@@ -9,14 +9,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.format.annotation.DateTimeFormat;
-
-import java.time.LocalDateTime;
 
 /**
  * DTO de formulario para el registro de un mantenimiento de equipamiento.
  * <p>
- * Contiene únicamente los datos ingresados por el usuario. La operación tiene una única fecha y hora: el momento en que se realizó.
+ * Contiene únicamente los datos ingresados por el usuario. La fecha y hora de la operación la asigna el servicio al momento del registro.
  * </p>
  */
 @Getter
@@ -31,13 +28,6 @@ public class MantenimientoEquipamientoFormDTO {
      */
     @NotNull(message = "El equipamiento es obligatorio")
     private Long idEquipamiento;
-
-    /**
-     * Fecha y hora en la que se realizó la operación.
-     */
-    @NotNull(message = "La fecha y hora de la operación es obligatoria")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    private LocalDateTime fecha;
 
     /**
      * Observaciones sobre el mantenimiento.

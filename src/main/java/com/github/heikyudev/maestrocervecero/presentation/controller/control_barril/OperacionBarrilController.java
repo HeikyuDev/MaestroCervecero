@@ -69,7 +69,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.cont
 public class OperacionBarrilController {
 
     /** Campos del formulario de registro a los que se puede asociar un rechazo del service. */
-    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("fecha", "observaciones", "cantidadExtraida", "idCliente", "fechaDevolucionEstimada");
+    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("observaciones", "cantidadExtraida", "idCliente", "fechaDevolucionEstimada");
 
     private static final String VISTA_FORMULARIO = "control_barril/control-form";
 

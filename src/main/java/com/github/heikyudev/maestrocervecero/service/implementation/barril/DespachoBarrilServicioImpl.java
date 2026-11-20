@@ -88,84 +88,59 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
     /**
      * Registra un nuevo despacho de barril.
      * <p>
-     * Deja al barril afectado en estado operativo {@code DESPACHADO}. La fecha de despacho debe
-     * ser posterior a la fecha de la última operación registrada sobre ese barril, contando tanto
-     * sus operaciones del ciclo de vida (falla, mantenimiento, limpieza, fraccionamiento, despacho, devolución)
-     * como el último envasado de lote que lo llenó: no tiene sentido despachar un barril con una
-     * fecha anterior a la del envasado que lo cargó, ni a cualquier otra operación posterior. Además
-     * debe ser posterior a la finalización del lote de ese último envasado, porque el barril queda
-     * {@code CON_CERVEZA} recién al finalizar el lote.
+     * Deja al barril afectado en estado operativo {@code DESPACHADO}. La fecha y hora del despacho es la del momento
+     * del registro, y la fecha estimada de devolución no puede ser anterior a la fecha actual.
      * </p>
      * <p>
-     * Orden de locks: el cliente se lee sin bloqueo; lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes
-     * de leer su última operación y su último envasado. Es el único lock de la operación.
+     * Orden de locks: el cliente se lee sin bloqueo; lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril. Es el
+     * único lock de la operación.
      * </p>
      *
      * @param despachoBarrilFormDTO Los datos del despacho a registrar.
      * @return El despacho de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de despacho, la fecha estimada de devolución o las observaciones no fueron informadas, si la fecha de despacho es posterior a la fecha y hora actual, si las observaciones superan el máximo, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, si la fecha estimada de devolución es anterior a la fecha de despacho, o si la fecha de despacho no es posterior a la última operación registrada, al último envasado ni a la finalización del lote de ese envasado.
+     * @throws ReglaNegocioException Si la fecha estimada de devolución o las observaciones no fueron informadas, si las observaciones superan el máximo, si el barril no se encuentra en estado operativo {@code CON_CERVEZA}, o si la fecha estimada de devolución es anterior a la fecha actual.
      * @throws RecursoNoEncontradoException Si el barril o el cliente referenciados no existen.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.DESPACHO_BARRIL)
     public DespachoBarrilResponseDTO registrarDespachoBarril(DespachoBarrilFormDTO despachoBarrilFormDTO) {
-        // 1. Validar que se haya informado la fecha de despacho
-        if (despachoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
-        }
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
-        // 2. Validar que la fecha de despacho no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(despachoBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
-
-        // 3. Validar que se haya informado la fecha estimada de devolución
+        // 2. Validar que se haya informado la fecha estimada de devolución
         if (despachoBarrilFormDTO.getFechaDevolucionEstimada() == null) {
             throw new ReglaNegocioException("La fecha estimada de devolución es obligatoria", CAMPO_FECHA_DEVOLUCION_ESTIMADA);
         }
 
-        // 4. Validar las observaciones
+        // 3. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(despachoBarrilFormDTO.getObservaciones());
 
-        // 5. Localizar el cliente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
+        // 4. Localizar el cliente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
         ClienteEntity clienteEntity = clienteRepository.findById(despachoBarrilFormDTO.getIdCliente())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el cliente con ID: " + despachoBarrilFormDTO.getIdCliente(), CAMPO_CLIENTE));
 
-        // 6. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
+        // 5. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = despachoBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 7. Validar que el barril se encuentre en estado operativo CON_CERVEZA
+        // 6. Validar que el barril se encuentre en estado operativo CON_CERVEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA) {
             throw new ReglaNegocioException("Solo se puede registrar un despacho sobre un barril en estado operativo Con cerveza", MetodosCicloVida.CAMPO_BARRIL);
         }
 
-        // 8. Validar que la fecha estimada de devolución sea posterior o igual a la fecha de despacho
-        if (despachoBarrilFormDTO.getFechaDevolucionEstimada().isBefore(despachoBarrilFormDTO.getFecha().toLocalDate())) {
-            throw new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha de la operación", CAMPO_FECHA_DEVOLUCION_ESTIMADA);
+        // 7. Validar que la fecha estimada de devolución sea posterior o igual a la fecha actual
+        if (despachoBarrilFormDTO.getFechaDevolucionEstimada().isBefore(fecha.toLocalDate())) {
+            throw new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha actual", CAMPO_FECHA_DEVOLUCION_ESTIMADA);
         }
 
-        // 9. Validar que la fecha de despacho sea posterior a la última operación registrada sobre
-        //    este barril, considerando también el último envasado que lo cargó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                despachoBarrilFormDTO.getFecha(),
-                "barril",
-                MetodosCicloVida.CAMPO_FECHA,
-                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
-                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
-
-        // 10. Validar que la fecha sea posterior a la finalización del lote que dejó la cerveza en el barril
-        MetodosCicloVida.validarPosteriorAFinalizacionDelLote(
-                despachoBarrilFormDTO.getFecha(),
-                envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(idBarril).orElse(null),
-                MetodosCicloVida.CAMPO_FECHA);
-
-        // 10. Cambiar el estado operativo del barril a DESPACHADO y persistirlo
+        // 8. Cambiar el estado operativo del barril a DESPACHADO y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DESPACHADO);
         barrilRepository.save(barrilEntity);
 
-        // 11. Construir y persistir el despacho, y retornar el DTO de respuesta correspondiente
+        // 9. Construir y persistir el despacho, y retornar el DTO de respuesta correspondiente
         DespachoBarrilEntity despachoBarrilEntity = DespachoBarrilEntity.builder()
-                .fecha(despachoBarrilFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .fechaDevolucionEstimada(despachoBarrilFormDTO.getFechaDevolucionEstimada())
                 .cliente(clienteEntity)

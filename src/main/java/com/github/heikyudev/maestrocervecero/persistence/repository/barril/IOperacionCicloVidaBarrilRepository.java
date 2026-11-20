@@ -26,18 +26,6 @@ import java.util.Optional;
 public interface IOperacionCicloVidaBarrilRepository extends JpaRepository<OperacionCicloVidaBarril, Long> {
 
     /**
-     * Busca la fecha de la última operación registrada (de cualquiera de los seis tipos) de un barril.
-     * <p>
-     * Es la referencia con la que se valida que una operación nueva ocurra después de la última.
-     * </p>
-     *
-     * @param idBarril El ID del barril.
-     * @return La fecha más reciente entre sus operaciones registradas, o vacío si no tiene ninguna.
-     */
-    @Query("SELECT MAX(o.fecha) FROM OperacionCicloVidaBarril o WHERE o.barril.id = :idBarril AND o.estado = 'REGISTRADO'")
-    Optional<LocalDateTime> buscarFechaUltimaOperacionRegistrada(@Param("idBarril") Long idBarril);
-
-    /**
      * Verifica si un barril tiene alguna operación registrada (de cualquiera de los seis tipos). Las anuladas no cuentan.
      *
      * @param idBarril El ID del barril.

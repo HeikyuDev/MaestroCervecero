@@ -76,58 +76,44 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
      * Registra un nuevo mantenimiento de barril.
      * <p>
      * Deja al barril afectado en estado operativo {@code DISPONIBLE}: el mantenimiento cierra el
-     * ciclo abierto por una falla, devolviendo el barril a producción.
+     * ciclo abierto por una falla, devolviendo el barril a producción. La fecha y hora del mantenimiento es la del
+     * momento del registro.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su última operación y
-     * su último envasado. Es el único lock de la operación.
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril. Es el único lock de la operación.
      * </p>
      *
      * @param mantenimientoBarrilFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si la fecha no es posterior a la última operación registrada ni al último envasado del barril.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MANTENIMIENTO_BARRIL)
     public MantenimientoBarrilResponseDTO registrarMantenimientoBarril(MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO) {
-        // 1. Validar que se haya informado la fecha de mantenimiento
-        if (mantenimientoBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
-        }
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
-        // 2. Validar que la fecha de mantenimiento no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(mantenimientoBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
-
-        // 3. Validar las observaciones
+        // 2. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(mantenimientoBarrilFormDTO.getObservaciones());
 
-        // 4. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
+        // 3. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = mantenimientoBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 5. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
+        // 4. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un barril en estado operativo En mantenimiento", MetodosCicloVida.CAMPO_BARRIL);
         }
 
-        // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
-        //    sobre este barril, considerando también el último envasado que lo cargó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                mantenimientoBarrilFormDTO.getFecha(),
-                "barril",
-                MetodosCicloVida.CAMPO_FECHA,
-                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
-                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
-
-        // 7. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
+        // 5. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DISPONIBLE);
         barrilRepository.save(barrilEntity);
 
-        // 8. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoBarrilEntity mantenimientoBarrilEntity = MantenimientoBarrilEntity.builder()
-                .fecha(mantenimientoBarrilFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)

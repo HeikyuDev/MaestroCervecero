@@ -82,52 +82,39 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
      * {@code usosMaximosAntesMantenimiento}: si la alcanza o la supera, el barril pasa a
      * {@code EN_MANTENIMIENTO} en lugar de {@code DISPONIBLE}. Ese resultado queda grabado en la
      * propia limpieza ({@code estadoOperativoResultante}) para que una eventual anulación pueda
-     * validar contra el estado exacto que esta limpieza puntual dejó.
+     * validar contra el estado exacto que esta limpieza puntual dejó. La fecha y hora de la limpieza es la del
+     * momento del registro.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer su última operación,
-     * su último envasado o sus usos. Es el único lock de la operación.
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el barril, antes de leer sus usos. Es el único
+     * lock de la operación.
      * </p>
      *
      * @param limpiezaBarrilFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si la fecha no es posterior a la última operación registrada ni al último envasado del barril.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, o si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LIMPIEZA_BARRIL)
     public LimpiezaBarrilResponseDTO registrarLimpiezaBarril(LimpiezaBarrilFormDTO limpiezaBarrilFormDTO) {
-        // 1. Validar que se haya informado la fecha de limpieza
-        if (limpiezaBarrilFormDTO.getFecha() == null) {
-            throw new ReglaNegocioException("La fecha y hora de la operación es obligatoria", MetodosCicloVida.CAMPO_FECHA);
-        }
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
-        // 2. Validar que la fecha de limpieza no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(limpiezaBarrilFormDTO.getFecha(), MetodosCicloVida.CAMPO_FECHA);
-
-        // 3. Validar las observaciones
+        // 2. Validar las observaciones
         String observaciones = MetodosCicloVida.validarObservaciones(limpiezaBarrilFormDTO.getObservaciones());
 
-        // 4. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
+        // 3. Localizar el barril, bloqueado para escritura, antes de leer cualquier otro dato
         Long idBarril = limpiezaBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
 
-        // 5. Validar que el barril se encuentre en estado operativo EN_LIMPIEZA
+        // 4. Validar que el barril se encuentre en estado operativo EN_LIMPIEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_LIMPIEZA) {
             throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza", MetodosCicloVida.CAMPO_BARRIL);
         }
 
-        // 6. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
-        //    este barril, considerando también el último envasado que lo cargó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                limpiezaBarrilFormDTO.getFecha(),
-                "barril",
-                MetodosCicloVida.CAMPO_FECHA,
-                operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(idBarril).orElse(null),
-                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
-
-        // 7. Contar los usos del barril desde su último mantenimiento (o desde siempre, si nunca
+        // 5. Contar los usos del barril desde su último mantenimiento (o desde siempre, si nunca
         //    tuvo uno), sumando la limpieza que se está registrando, y comparar contra el máximo
         //    de usos antes de mantenimiento para decidir el estado operativo resultante
         LocalDateTime fechaUltimoMantenimiento = mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null);
@@ -136,13 +123,13 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
                 ? EstadoOperativoBarril.EN_MANTENIMIENTO
                 : EstadoOperativoBarril.DISPONIBLE;
 
-        // 8. Aplicar el estado operativo resultante sobre el barril y persistirlo
+        // 6. Aplicar el estado operativo resultante sobre el barril y persistirlo
         barrilEntity.setEstadoOperativo(estadoOperativoResultante);
         barrilRepository.save(barrilEntity);
 
-        // 9. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
+        // 7. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaBarrilEntity limpiezaBarrilEntity = LimpiezaBarrilEntity.builder()
-                .fecha(limpiezaBarrilFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)

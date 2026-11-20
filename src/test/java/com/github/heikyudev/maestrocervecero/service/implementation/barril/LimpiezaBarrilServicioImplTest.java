@@ -190,22 +190,9 @@ class LimpiezaBarrilServicioImplTest {
     // ==================== registrarLimpiezaBarril ====================
 
     @Test
-    @DisplayName("CP-RLB-01: registrarLimpiezaBarril lanza ReglaNegocioException con campo fecha cuando la fecha de limpieza es nula")
-    void registrar_debeRechazarFechaLimpiezaNula() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, null, "Limpieza CIP estándar");
-
-        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
     @DisplayName("CP-RLB-02: registrarLimpiezaBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null);
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, null);
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -218,7 +205,7 @@ class LimpiezaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RLB-03: registrarLimpiezaBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "   ");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "   ");
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -230,7 +217,7 @@ class LimpiezaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RLB-04: registrarLimpiezaBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "a".repeat(256));
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -243,7 +230,7 @@ class LimpiezaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RLB-05: registrarLimpiezaBarril lanza RecursoNoEncontradoException con campo idBarril cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(99L, "Limpieza CIP estándar");
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
@@ -258,7 +245,7 @@ class LimpiezaBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RLB-06: registrarLimpiezaBarril lanza ReglaNegocioException con campo idBarril cuando el barril no está en estado operativo EN_LIMPIEZA")
     void registrar_debeRechazarBarrilNoEnLimpieza() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "Limpieza CIP estándar");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE, 50);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -273,10 +260,10 @@ class LimpiezaBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RLB-07: registrarLimpiezaBarril deja el barril DISPONIBLE cuando la cantidad de usos está por debajo del máximo, sin mantenimiento previo (camino feliz)")
+    @DisplayName("CP-RLB-07: registrarLimpiezaBarril deja el barril DISPONIBLE cuando la cantidad de usos está por debajo del máximo, sin mantenimiento previo, con la fecha y hora actual (camino feliz)")
     void registrar_debeDejarDisponibleCuandoUsosPorDebajoDelMaximo() {
         // === PREPARACION DE DATOS ===
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "Limpieza CIP estándar");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
@@ -289,7 +276,9 @@ class LimpiezaBarrilServicioImplTest {
         });
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         LimpiezaBarrilResponseDTO resultado = limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
@@ -298,6 +287,7 @@ class LimpiezaBarrilServicioImplTest {
         ArgumentCaptor<LimpiezaBarrilEntity> captor = ArgumentCaptor.forClass(LimpiezaBarrilEntity.class);
         verify(limpiezaBarrilRepository).save(captor.capture());
         LimpiezaBarrilEntity limpiezaGuardada = captor.getValue();
+        assertThat(limpiezaGuardada.getFecha()).isBetween(antes, despues);
         assertThat(limpiezaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(limpiezaGuardada.getEstadoOperativoResultante()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
 
@@ -308,7 +298,7 @@ class LimpiezaBarrilServicioImplTest {
     @DisplayName("CP-RLB-08: registrarLimpiezaBarril deja el barril EN_MANTENIMIENTO cuando la cantidad de usos alcanza el máximo, sin mantenimiento previo (límite, camino feliz)")
     void registrar_debeDejarEnMantenimientoCuandoUsosAlcanzanElMaximo() {
         // === PREPARACION DE DATOS ===
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "Limpieza CIP estándar");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
@@ -332,7 +322,7 @@ class LimpiezaBarrilServicioImplTest {
     @DisplayName("CP-RLB-09: registrarLimpiezaBarril acota el conteo a partir del último mantenimiento registrado (camino feliz)")
     void registrar_debeAcotarConteoAlUltimoMantenimiento() {
         // === PREPARACION DE DATOS ===
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, "Limpieza CIP estándar");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
         LocalDateTime fechaUltimoMantenimiento = LocalDateTime.of(2026, 1, 10, 0, 0);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
@@ -352,91 +342,6 @@ class LimpiezaBarrilServicioImplTest {
         verify(limpiezaBarrilRepository).contarLimpiezasRegistradasDesde(1L, fechaUltimoMantenimiento);
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
         assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
-    }
-
-    @Test
-    @DisplayName("CP-RLB-10: registrarLimpiezaBarril lanza ReglaNegocioException con campo fecha cuando existe un envasado posterior del mismo barril")
-    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
-
-        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(limpiezaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RLB-11: registrarLimpiezaBarril lanza ReglaNegocioException con campo fecha cuando existe una operación registrada posterior de cualquier tipo")
-    void registrar_debeRechazarSiExisteOperacionPosterior() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 21, 9, 0)));
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(limpiezaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RLB-12: registrarLimpiezaBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la del último envasado")
-    void registrar_debeRechazarFechaIgualALaDelUltimoEnvasado() {
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 20, 9, 0);
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, fecha, "Limpieza CIP estándar");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fecha));
-
-        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
-
-        verify(limpiezaBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RLB-13: registrarLimpiezaBarril lanza ReglaNegocioException con campo fecha cuando la fecha de limpieza es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaLimpiezaFutura() {
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Limpieza CIP estándar");
-
-        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, limpiezaBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RLB-14: registrarLimpiezaBarril bloquea el barril antes de leer la última operación y el último envasado")
-    void registrar_debeBloquearElBarrilAntesDeLeerLaActividad() {
-        // === PREPARACION DE DATOS ===
-        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.EN_LIMPIEZA, 50);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(limpiezaBarrilRepository.save(any(LimpiezaBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO);
-
-        // === ASSERTS ===
-        InOrder orden = inOrder(barrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
     }
 
     // ==================== anularLimpiezaBarril ====================
@@ -793,10 +698,9 @@ class LimpiezaBarrilServicioImplTest {
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril)).thenReturn(Optional.empty());
     }
 
-    private static LimpiezaBarrilFormDTO limpiezaBarrilFormDTO(Long idBarril, LocalDateTime fecha, String observaciones) {
+    private static LimpiezaBarrilFormDTO limpiezaBarrilFormDTO(Long idBarril, String observaciones) {
         return LimpiezaBarrilFormDTO.builder()
                 .idBarril(idBarril)
-                .fecha(fecha)
                 .observaciones(observaciones)
                 .build();
     }

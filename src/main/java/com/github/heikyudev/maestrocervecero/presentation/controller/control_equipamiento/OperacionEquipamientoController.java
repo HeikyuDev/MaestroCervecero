@@ -51,7 +51,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.cont
 public class OperacionEquipamientoController {
 
     /** Campos del formulario de registro a los que se puede asociar un rechazo del service. */
-    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("fecha", "observaciones");
+    private static final Set<String> CAMPOS_DEL_FORMULARIO = Set.of("observaciones");
 
     private static final String VISTA_FORMULARIO = "control_equipamiento/control-form";
 

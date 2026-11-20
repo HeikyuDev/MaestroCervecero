@@ -40,7 +40,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.control_barril.ControlBarrilControllerTest.como;
@@ -104,32 +103,31 @@ class OperacionBarrilControllerTest {
                 .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(20.0).estadoOperativo(estado).usosMaximosAntesMantenimiento(10).usosDesdeUltimoMantenimiento(3L).build());
     }
 
-    private MockHttpServletRequestBuilder registro(String ruta, Rol rol, String fecha, String obs) {
-        return post(BASE + "/" + ruta).with(como(rol)).with(csrf()).param("fecha", fecha).param("observaciones", obs);
+    private MockHttpServletRequestBuilder registro(String ruta, Rol rol, String obs) {
+        return post(BASE + "/" + ruta).with(como(rol)).with(csrf()).param("observaciones", obs);
     }
 
     @Test
-    @DisplayName("CP-OBC-01: el operario registra una limpieza: el service recibe el barril de la ruta, la fecha y las observaciones, y vuelve a la pestaña con la alerta de éxito")
+    @DisplayName("CP-OBC-01: el operario registra una limpieza: el service recibe el barril de la ruta y las observaciones, y vuelve a la pestaña con la alerta de éxito")
     void registrarLimpieza() throws Exception {
-        mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza con soda"))
+        mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "Limpieza con soda"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=limpiezas"))
                 .andExpect(flash().attribute("mensaje", "Limpieza registrada correctamente")).andExpect(flash().attribute("tipo", "success"));
 
         ArgumentCaptor<LimpiezaBarrilFormDTO> form = ArgumentCaptor.forClass(LimpiezaBarrilFormDTO.class);
         verify(limpiezaServicio).registrarLimpiezaBarril(form.capture());
         assertThat(form.getValue().getIdBarril()).isEqualTo(5L);
-        assertThat(form.getValue().getFecha()).isEqualTo(LocalDateTime.of(2026, 10, 20, 10, 0));
         assertThat(form.getValue().getObservaciones()).isEqualTo("Limpieza con soda");
     }
 
     @Test
     @DisplayName("CP-OBC-02: el operario registra una falla, un fraccionamiento (con la cantidad) y un mantenimiento, y vuelve a la pestaña de cada uno")
     void registrarOtrasDelOperario() throws Exception {
-        mockMvc.perform(registro("fallas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Pérdida en la válvula"))
+        mockMvc.perform(registro("fallas", Rol.OPERARIO_DE_PRODUCCION, "Pérdida en la válvula"))
                 .andExpect(redirectedUrl(BASE + "?pestana=fallas")).andExpect(flash().attribute("mensaje", "Falla registrada correctamente"));
-        mockMvc.perform(registro("fraccionamientos", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Muestra").param("cantidadExtraida", "5.5"))
+        mockMvc.perform(registro("fraccionamientos", Rol.OPERARIO_DE_PRODUCCION, "Muestra").param("cantidadExtraida", "5.5"))
                 .andExpect(redirectedUrl(BASE + "?pestana=fraccionamientos")).andExpect(flash().attribute("mensaje", "Fraccionamiento registrado correctamente"));
-        mockMvc.perform(registro("mantenimientos", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Cambio de juntas"))
+        mockMvc.perform(registro("mantenimientos", Rol.OPERARIO_DE_PRODUCCION, "Cambio de juntas"))
                 .andExpect(redirectedUrl(BASE + "?pestana=mantenimientos")).andExpect(flash().attribute("mensaje", "Mantenimiento registrado correctamente"));
 
         ArgumentCaptor<FraccionamientoBarrilFormDTO> form = ArgumentCaptor.forClass(FraccionamientoBarrilFormDTO.class);
@@ -143,9 +141,9 @@ class OperacionBarrilControllerTest {
     @Test
     @DisplayName("CP-OBC-03: el encargado registra un despacho (cliente y fecha estimada) y una devolución, y vuelve a la pestaña de cada uno")
     void registrarDelEncargado() throws Exception {
-        mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "Entrega").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-11-30"))
+        mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "Entrega").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-11-30"))
                 .andExpect(redirectedUrl(BASE + "?pestana=despachos")).andExpect(flash().attribute("mensaje", "Despacho registrado correctamente"));
-        mockMvc.perform(registro("devoluciones", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-21T10:00", "Devuelto"))
+        mockMvc.perform(registro("devoluciones", Rol.ENCARGADO_DE_DISTRIBUCION, "Devuelto"))
                 .andExpect(redirectedUrl(BASE + "?pestana=devoluciones")).andExpect(flash().attribute("mensaje", "Devolución registrada correctamente"));
 
         ArgumentCaptor<DespachoBarrilFormDTO> form = ArgumentCaptor.forClass(DespachoBarrilFormDTO.class);
@@ -159,13 +157,13 @@ class OperacionBarrilControllerTest {
     @Test
     @DisplayName("CP-OBC-04: un formulario inválido vuelve al formulario por redirect sin llamar al service, y el GET siguiente muestra los errores y lo escrito")
     void registrarInvalido() throws Exception {
-        MvcResult resultado = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "", "  "))
+        MvcResult resultado = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "  "))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "/limpiezas/nueva")).andReturn();
         verify(limpiezaServicio, never()).registrarLimpiezaBarril(any());
 
         String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(resultado.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("No se pudo registrar la limpieza").contains("La fecha y hora de la operación es obligatoria").contains("Las observaciones son obligatorias");
+        assertThat(html).contains("No se pudo registrar la limpieza").contains("Las observaciones son obligatorias");
     }
 
     @Test
@@ -173,11 +171,11 @@ class OperacionBarrilControllerTest {
     void registrarRechazadoPorElService() throws Exception {
         when(fraccionamientoServicio.registrarFraccionamientoBarril(any()))
                 .thenThrow(new ReglaNegocioException("La cantidad extraída no puede superar el contenido actual del barril", "cantidadExtraida"));
-        MvcResult campo = mockMvc.perform(registro("fraccionamientos", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T12:00", "Muestra").param("cantidadExtraida", "99"))
+        MvcResult campo = mockMvc.perform(registro("fraccionamientos", Rol.OPERARIO_DE_PRODUCCION, "Muestra").param("cantidadExtraida", "99"))
                 .andExpect(redirectedUrl(BASE + "/fraccionamientos/nuevo")).andReturn();
         when(limpiezaServicio.registrarLimpiezaBarril(any()))
                 .thenThrow(new ReglaNegocioException("Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza", "idBarril"));
-        MvcResult general = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza"))
+        MvcResult general = mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "Limpieza"))
                 .andExpect(redirectedUrl(BASE + "/limpiezas/nueva")).andReturn();
 
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
@@ -195,13 +193,13 @@ class OperacionBarrilControllerTest {
     void despachoRechazadoConservaElCliente() throws Exception {
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
         when(despachoServicio.registrarDespachoBarril(any()))
-                .thenThrow(new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha de la operación", "fechaDevolucionEstimada"));
-        MvcResult resultado = mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "Entrega").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-10-01"))
+                .thenThrow(new ReglaNegocioException("La fecha estimada de devolución no puede ser anterior a la fecha actual", "fechaDevolucionEstimada"));
+        MvcResult resultado = mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "Entrega").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-10-01"))
                 .andExpect(redirectedUrl(BASE + "/despachos/nuevo")).andReturn();
 
         String html = mockMvc.perform(get(BASE + "/despachos/nuevo").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).flashAttrs(resultado.getFlashMap()))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(html).contains("La fecha estimada de devolución no puede ser anterior a la fecha de la operación").contains("value=\"Bar El Puerto\"")
+        assertThat(html).contains("La fecha estimada de devolución no puede ser anterior a la fecha actual").contains("value=\"Bar El Puerto\"")
                 .contains("value=\"3\"").contains("value=\"2026-10-01\"");
     }
 
@@ -259,7 +257,7 @@ class OperacionBarrilControllerTest {
     @DisplayName("CP-OBC-10: los roles sin permisos de registrar y anular (incluido el gerente de producción) son rechazados en las seis operaciones")
     void rolesNoAutorizados(Rol rol) throws Exception {
         for (String ruta : List.of("limpiezas", "fallas", "fraccionamientos", "mantenimientos", "despachos", "devoluciones")) {
-            mockMvc.perform(registro(ruta, rol, "2026-10-20T10:00", "x")).andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+            mockMvc.perform(registro(ruta, rol, "x")).andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
             mockMvc.perform(post(BASE + "/" + ruta + "/7/anular").with(como(rol)).with(csrf()).param("motivo", "x")).andExpect(status().is3xxRedirection())
                     .andExpect(flash().attribute("tipo", "danger"));
         }
@@ -273,31 +271,31 @@ class OperacionBarrilControllerTest {
     @DisplayName("CP-OBC-11: el operario no registra ni anula despachos ni devoluciones, y el encargado no registra ni anula las otras cuatro operaciones")
     void cruceEntreOperarioYEncargado() throws Exception {
         for (String ruta : RUTAS_ENCARGADO) {
-            mockMvc.perform(registro(ruta, Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "x")).andExpect(flash().attribute("tipo", "danger"));
+            mockMvc.perform(registro(ruta, Rol.OPERARIO_DE_PRODUCCION, "x")).andExpect(flash().attribute("tipo", "danger"));
             mockMvc.perform(post(BASE + "/" + ruta + "/7/anular").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf()).param("motivo", "x")).andExpect(flash().attribute("tipo", "danger"));
             mockMvc.perform(get(BASE + "/" + ruta + (ruta.equals("despachos") ? "/nuevo" : "/nueva")).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(flash().attribute("tipo", "danger"));
         }
         for (String ruta : RUTAS_OPERARIO) {
-            mockMvc.perform(registro(ruta, Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "x")).andExpect(flash().attribute("tipo", "danger"));
+            mockMvc.perform(registro(ruta, Rol.ENCARGADO_DE_DISTRIBUCION, "x")).andExpect(flash().attribute("tipo", "danger"));
             mockMvc.perform(post(BASE + "/" + ruta + "/7/anular").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()).param("motivo", "x")).andExpect(flash().attribute("tipo", "danger"));
         }
         verifyNoInteractions(limpiezaServicio, fallaServicio, fraccionamientoServicio, mantenimientoServicio, despachoServicio, devolucionServicio);
     }
 
     @Test
-    @DisplayName("CP-OBC-12: el formulario de limpieza es una página con el título, la información del barril, la fecha y las observaciones en filas propias, Cancelar hacia la pestaña y Registrar limpieza, y es novalidate")
+    @DisplayName("CP-OBC-12: el formulario de limpieza es una página con el título, la información del barril y las observaciones, sin campo de fecha, Cancelar hacia la pestaña y Registrar limpieza, y es novalidate")
     void formularioDeRegistro() throws Exception {
         String html = mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(html).contains("Registrar limpieza").contains("data-informacion-barril").contains("novalidate").contains("name=\"fecha\"").contains("name=\"observaciones\"")
-                .contains("type=\"datetime-local\"").contains("Fecha y hora de la operación").contains("Ej: Limpieza con soda cáustica y enjuague")
+        assertThat(html).contains("Registrar limpieza").contains("data-informacion-barril").contains("novalidate").contains("name=\"observaciones\"")
+                .contains("Ej: Limpieza con soda cáustica y enjuague")
                 .contains("href=\"/control-barriles/5?pestana=limpiezas\"").contains(">Cancelar<").contains("action=\"/control-barriles/5/limpiezas\"")
-                .doesNotContain("cantidadExtraida").doesNotContain("idCliente");
+                .doesNotContain("cantidadExtraida").doesNotContain("idCliente").doesNotContain("name=\"fecha\"").doesNotContain("type=\"datetime-local\"");
     }
 
     @Test
-    @DisplayName("CP-OBC-13: el formulario de fraccionamiento pide la cantidad extraída en litros antes de la fecha, y el de devolución avisa que se descarta el contenido")
+    @DisplayName("CP-OBC-13: el formulario de fraccionamiento pide la cantidad extraída en litros antes de las observaciones, y el de devolución avisa que se descarta el contenido")
     void formularioFraccionamientoYDevolucion() throws Exception {
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
         String fraccionamiento = mockMvc.perform(get(BASE + "/fraccionamientos/nuevo").with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -307,12 +305,12 @@ class OperacionBarrilControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(fraccionamiento).contains("Registrar fraccionamiento").contains("Cantidad extraída").contains("name=\"cantidadExtraida\"").contains("Ej: 5").contains(">L</span>");
-        assertThat(fraccionamiento.indexOf("Cantidad extraída")).isLessThan(fraccionamiento.indexOf("Fecha y hora de la operación"));
+        assertThat(fraccionamiento.indexOf("Cantidad extraída")).isLessThan(fraccionamiento.indexOf("name=\"observaciones\""));
         assertThat(devolucion).contains("Registrar devolución").contains("Al registrar la devolución se descarta el contenido del barril").doesNotContain("cantidadExtraida");
     }
 
     @Test
-    @DisplayName("CP-OBC-14: el formulario de despacho lleva el selector de cliente con su buscador y la opción Crear nuevo cliente en el menú de tres puntitos, y la fecha estimada de devolución en la fila de las fechas")
+    @DisplayName("CP-OBC-14: el formulario de despacho lleva el selector de cliente con su buscador y la opción Crear nuevo cliente en el menú de tres puntitos, y la fecha estimada de devolución en su propia fila")
     void formularioDespacho() throws Exception {
         configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
         String html = mockMvc.perform(get(BASE + "/despachos/nuevo").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
@@ -370,16 +368,16 @@ class OperacionBarrilControllerTest {
     @Test
     @DisplayName("CP-OBC-16: registrar sin token CSRF es rechazado y no llega al service")
     void sinCsrf() throws Exception {
-        mockMvc.perform(post(BASE + "/limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("fecha", "2026-10-20T10:00")).andExpect(status().is3xxRedirection());
+        mockMvc.perform(post(BASE + "/limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("observaciones", "Limpieza con soda")).andExpect(status().is3xxRedirection());
         verifyNoInteractions(limpiezaServicio);
     }
 
     @Test
     @DisplayName("CP-OBC-17: un idBarril enviado en el pedido no modifica el barril: el service recibe siempre el de la ruta")
     void idBarrilDelPedidoNoSeEnlaza() throws Exception {
-        mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "2026-10-20T10:00", "Limpieza con soda").param("idBarril", "999"))
+        mockMvc.perform(registro("limpiezas", Rol.OPERARIO_DE_PRODUCCION, "Limpieza con soda").param("idBarril", "999"))
                 .andExpect(redirectedUrl(BASE + "?pestana=limpiezas"));
-        mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "2026-10-20T10:00", "Entrega").param("idBarril", "999").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-11-30"))
+        mockMvc.perform(registro("despachos", Rol.ENCARGADO_DE_DISTRIBUCION, "Entrega").param("idBarril", "999").param("idCliente", "3").param("fechaDevolucionEstimada", "2026-11-30"))
                 .andExpect(redirectedUrl(BASE + "?pestana=despachos"));
 
         ArgumentCaptor<LimpiezaBarrilFormDTO> limpieza = ArgumentCaptor.forClass(LimpiezaBarrilFormDTO.class);

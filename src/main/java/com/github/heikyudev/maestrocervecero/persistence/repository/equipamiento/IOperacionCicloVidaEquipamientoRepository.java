@@ -23,19 +23,6 @@ import java.util.Optional;
 public interface IOperacionCicloVidaEquipamientoRepository extends JpaRepository<OperacionCicloVidaEquipamiento, Long> {
 
     /**
-     * Busca la fecha de la última operación registrada (limpieza, falla o mantenimiento) de un equipamiento.
-     * <p>
-     * Es la referencia con la que se valida que una operación nueva empiece después de la última, y que solo se
-     * anule la última operación registrada.
-     * </p>
-     *
-     * @param idEquipamiento El ID del equipamiento.
-     * @return La fecha más reciente entre sus operaciones registradas, o vacío si no tiene ninguna.
-     */
-    @Query("SELECT MAX(o.fecha) FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id = :idEquipamiento AND o.estado = 'REGISTRADO'")
-    Optional<LocalDateTime> buscarFechaUltimaOperacionRegistrada(@Param("idEquipamiento") Long idEquipamiento);
-
-    /**
      * Verifica si un equipamiento tiene alguna operación registrada (limpieza, falla o mantenimiento). Las anuladas no cuentan.
      *
      * @param idEquipamiento El ID del equipamiento.

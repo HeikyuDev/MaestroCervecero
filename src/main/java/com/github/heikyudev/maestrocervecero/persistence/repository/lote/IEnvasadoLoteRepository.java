@@ -52,20 +52,6 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
     Optional<LocalDateTime> buscarFechaUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
 
     /**
-     * Busca la fecha y hora de finalización del lote cuyo envasado {@code REGISTRADO} es el último de un barril
-     * determinado (el de mayor {@code fechaEnvasado}). Es la fecha desde la que la cerveza del barril quedó
-     * disponible, porque el barril pasa a {@code CON_CERVEZA} al finalizar ese lote.
-     *
-     * @param idBarril El ID del barril cuyo último envasado se quiere buscar.
-     * @return La fecha de finalización del lote de ese envasado, o {@link Optional#empty()} si el barril nunca fue envasado o si el lote todavía no tiene fecha de finalización.
-     */
-    @Query("SELECT MAX(l.fechaFinalizacion) FROM EnvasadoLoteEntity e JOIN e.etapaLote el JOIN el.lote l "
-            + "WHERE e.barril.id = :idBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
-            + "AND e.fechaEnvasado = (SELECT MAX(e2.fechaEnvasado) FROM EnvasadoLoteEntity e2 "
-            + "WHERE e2.barril.id = :idBarril AND e2.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO)")
-    Optional<LocalDateTime> buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
-
-    /**
      * Busca, para un conjunto de barriles, el lote de su último envasado {@code REGISTRADO} (el de mayor
      * {@code fechaEnvasado}) con el nombre de la receta de su planificación. Es una única consulta para todos los
      * barriles de una página. Ante igual fecha de envasado aparece primero el de mayor ID; los barriles que nunca fueron

@@ -53,7 +53,7 @@ public interface IDevolucionBarrilServicio {
      *
      * @param devolucionBarrilFormDTO Los datos de la devolución a registrar.
      * @return La devolución de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de devolución no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code DESPACHADO}.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code DESPACHADO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     DevolucionBarrilResponseDTO registrarDevolucionBarril(DevolucionBarrilFormDTO devolucionBarrilFormDTO);

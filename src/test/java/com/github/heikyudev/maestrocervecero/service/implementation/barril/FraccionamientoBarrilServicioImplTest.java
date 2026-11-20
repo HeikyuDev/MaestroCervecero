@@ -185,22 +185,9 @@ class FraccionamientoBarrilServicioImplTest {
     // ==================== registrarFraccionamientoBarril ====================
 
     @Test
-    @DisplayName("CP-RFRB-01: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha es nula")
-    void registrar_debeRechazarFechaNula() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, null, 5.0, "Merma");
-
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
     @DisplayName("CP-RFRB-02: registrarFraccionamientoBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, null);
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, null);
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -213,7 +200,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-03: registrarFraccionamientoBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "   ");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, "   ");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -225,7 +212,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-04: registrarFraccionamientoBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "a".repeat(256));
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, "a".repeat(256));
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -238,7 +225,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-05: registrarFraccionamientoBarril lanza ReglaNegocioException con campo cantidadExtraida cuando la cantidad a extraer es nula")
     void registrar_debeRechazarCantidadNula() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, null, "Merma");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -251,7 +238,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-06: registrarFraccionamientoBarril lanza ReglaNegocioException con campo cantidadExtraida cuando la cantidad a extraer es igual a cero")
     void registrar_debeRechazarCantidadCero() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.0, "Merma");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -264,7 +251,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-07: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la cantidad a extraer es negativa")
     void registrar_debeRechazarCantidadNegativa() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), -1.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, -1.0, "Merma");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -276,7 +263,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-08: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la cantidad a extraer no es un número finito")
     void registrar_debeRechazarCantidadNoFinita() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), Double.NaN, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, Double.NaN, "Merma");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -288,7 +275,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-09: registrarFraccionamientoBarril lanza ReglaNegocioException con campo cantidadExtraida cuando la cantidad a extraer tiene más de 4 decimales")
     void registrar_debeRechazarCantidadConMasDeCuatroDecimales() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 1.00001, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 1.00001, "Merma");
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -302,7 +289,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-10: registrarFraccionamientoBarril acepta una cantidad a extraer con exactamente 4 decimales (límite, camino feliz)")
     void registrar_debeAceptarCantidadConCuatroDecimales() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.0001, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.0001, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 10.0);
         stubRegistroPermitido(barril);
 
@@ -317,7 +304,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-11: registrarFraccionamientoBarril lanza RecursoNoEncontradoException con campo idBarril cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(99L, 5.0, "Merma");
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
@@ -332,7 +319,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-12: registrarFraccionamientoBarril lanza ReglaNegocioException con campo idBarril cuando el barril no está en estado operativo CON_CERVEZA")
     void registrar_debeRechazarBarrilNoConCerveza() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE, 0.0);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -349,7 +336,7 @@ class FraccionamientoBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RFRB-13: registrarFraccionamientoBarril lanza ReglaNegocioException con campo cantidadExtraida cuando la cantidad a extraer supera el contenido actual del barril")
     void registrar_debeRechazarCantidadMayorAlContenido() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 20.0001, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 20.0001, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -365,82 +352,17 @@ class FraccionamientoBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RFRB-14: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando existe un envasado posterior del mismo barril")
-    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
-
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(fraccionamientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-15: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando existe una operación registrada posterior de cualquier tipo")
-    void registrar_debeRechazarSiExisteOperacionPosterior() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 21, 9, 0)));
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(fraccionamientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-16: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la del último envasado")
-    void registrar_debeRechazarFechaIgualALaDelUltimoEnvasado() {
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 20, 9, 0);
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, fecha, 5.0, "Merma");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fecha));
-
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril");
-
-        verify(fraccionamientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-17: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaFutura() {
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), 5.0, "Merma");
-
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-18: registrarFraccionamientoBarril vacía por completo el barril y lo deja EN_LIMPIEZA (camino feliz)")
+    @DisplayName("CP-RFRB-18: registrarFraccionamientoBarril vacía por completo el barril y lo deja EN_LIMPIEZA, con la fecha y hora actual (camino feliz)")
     void registrar_debeVaciarElBarrilYDejarloEnLimpieza() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fecha = LocalDateTime.of(2026, 1, 20, 9, 0);
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, fecha, 20.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 20.0, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
         stubRegistroPermitido(barril);
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         FraccionamientoBarrilResponseDTO resultado = fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(barril.getContenidoActual()).isEqualTo(0.0);
@@ -450,6 +372,7 @@ class FraccionamientoBarrilServicioImplTest {
         ArgumentCaptor<FraccionamientoBarrilEntity> captor = ArgumentCaptor.forClass(FraccionamientoBarrilEntity.class);
         verify(fraccionamientoBarrilRepository).save(captor.capture());
         FraccionamientoBarrilEntity guardado = captor.getValue();
+        assertThat(guardado.getFecha()).isBetween(antes, despues);
         assertThat(guardado.getCantidadFraccionada()).isEqualTo(20.0);
         assertThat(guardado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativoBarril.EN_LIMPIEZA);
         assertThat(guardado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
@@ -462,7 +385,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-19: registrarFraccionamientoBarril deja contenido restante en el barril y lo mantiene CON_CERVEZA (camino feliz)")
     void registrar_debeDejarContenidoRestanteYMantenerConCerveza() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
         stubRegistroPermitido(barril);
 
@@ -482,7 +405,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-20: registrarFraccionamientoBarril redondea el contenido restante a 4 decimales: 20 menos 19,9 deja exactamente 0,1 y el barril sigue CON_CERVEZA")
     void registrar_debeRedondearElContenidoRestante() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 19.9, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 19.9, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
         stubRegistroPermitido(barril);
 
@@ -498,7 +421,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-21: registrarFraccionamientoBarril deja el barril EN_LIMPIEZA cuando el resto crudo es un residuo de punto flotante positivo que redondea a cero")
     void registrar_debeVaciarCuandoElRestoEsUnResiduoPositivo() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.3, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.3, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 0.1 + 0.2);
         stubRegistroPermitido(barril);
 
@@ -514,7 +437,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-22: registrarFraccionamientoBarril acepta y vacía el barril cuando el resto crudo es un residuo de punto flotante negativo que redondea a cero")
     void registrar_debeVaciarCuandoElRestoEsUnResiduoNegativo() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.3, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.3, "Merma");
         // 0.7 - 0.4 vale 0.29999999999999993 (menor que 0.3): el resto crudo es negativo (aprox. -5.5e-17) y redondea a 0
         double contenido = 0.7 - 0.4;
         assertThat(contenido).isLessThan(0.3);
@@ -533,7 +456,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-23: registrarFraccionamientoBarril deja el barril EN_LIMPIEZA cuando queda un resto de 1e-10 que redondea a cero")
     void registrar_debeVaciarCuandoElRestoEsDeUnaDiezMilMillonesima() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 5.0, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 5.0000000001);
         stubRegistroPermitido(barril);
 
@@ -549,7 +472,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-24: registrarFraccionamientoBarril vacía el barril cuando la cantidad con decimales iguala al contenido (20,3 menos 20,3)")
     void registrar_debeVaciarCuandoLaCantidadConDecimalesIgualaAlContenido() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 20.3, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 20.3, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.3);
         stubRegistroPermitido(barril);
 
@@ -562,29 +485,10 @@ class FraccionamientoBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RFRB-25: registrarFraccionamientoBarril bloquea el barril antes de leer la última operación y el último envasado")
-    void registrar_debeBloquearElBarrilAntesDeLeerLaActividad() {
-        // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        stubRegistroPermitido(barril);
-
-        // === EJECUCION ===
-        fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
-
-        // === ASSERTS ===
-        InOrder orden = inOrder(barrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L);
-    }
-
-    @Test
     @DisplayName("CP-RFRB-26: registrarFraccionamientoBarril extrae 0,1 de 0,3 y deja exactamente 0,2 (el resto crudo es 0,19999999999999998) con el barril CON_CERVEZA")
     void registrar_debeRedondearElRestoDeUnaExtraccionDeUnDecimo() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.1, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.1, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 0.3);
         assertThat(0.3 - 0.1).isNotEqualTo(0.2);
         stubRegistroPermitido(barril);
@@ -601,7 +505,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-27: registrarFraccionamientoBarril extrae 0,2 de un contenido de 0,1 más 0,2 y deja exactamente 0,1 con el barril CON_CERVEZA")
     void registrar_debeRedondearElRestoDeUnContenidoConResiduo() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.2, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.2, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 0.1 + 0.2);
         assertThat(barril.getContenidoActual() - 0.2).isNotEqualTo(0.1);
         stubRegistroPermitido(barril);
@@ -618,7 +522,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-28: registrarFraccionamientoBarril acepta una extracción de 3 decimales y deja el resto redondeado (0,3 menos 0,125 es 0,175)")
     void registrar_debeAceptarExtraccionDeTresDecimalesConResiduo() {
         // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 0.125, "Merma");
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, 0.125, "Merma");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 0.3);
         stubRegistroPermitido(barril);
 
@@ -634,7 +538,7 @@ class FraccionamientoBarrilServicioImplTest {
     @DisplayName("CP-RFRB-29: registrarFraccionamientoBarril lanza ReglaNegocioException con campo cantidadExtraida cuando la cantidad es NaN o infinita (positiva o negativa)")
     void registrar_debeRechazarNaNEInfinitosConCampo() {
         for (Double invalida : new Double[]{Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
-            FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), invalida, "Merma");
+            FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, invalida, "Merma");
 
             assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                     .isInstanceOf(ReglaNegocioException.class)
@@ -643,73 +547,6 @@ class FraccionamientoBarrilServicioImplTest {
         }
 
         verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-30: registrarFraccionamientoBarril lanza ReglaNegocioException con campo fecha cuando la fecha es anterior a la finalización del lote del último envasado")
-    void registrar_debeRechazarFechaAnteriorALaFinalizacionDelLote() {
-        // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 8, 0), 5.0, "Merma");
-        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00:00)")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(fraccionamientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-31: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la fecha coincide exactamente con la finalización del lote del último envasado")
-    void registrar_debeRechazarFechaIgualALaFinalizacionDelLote() {
-        // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
-        stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la finalización del lote que envasó este barril (20/01/2026 09:00:00)");
-
-        verify(barrilRepository, never()).save(any());
-        verify(fraccionamientoBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-32: registrarFraccionamientoBarril registra el fraccionamiento cuando la fecha es posterior a la finalización del lote del último envasado")
-    void registrar_debeRegistrarSiLaFechaEsPosteriorALaFinalizacionDelLote() {
-        // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 1), 5.0, "Merma");
-        BarrilEntity barril = stubRegistroConLoteFinalizado(LocalDateTime.of(2026, 1, 20, 9, 0));
-        when(fraccionamientoBarrilRepository.save(any(FraccionamientoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
-
-        // === ASSERTS ===
-        assertThat(barril.getContenidoActual()).isEqualTo(15.0);
-        verify(fraccionamientoBarrilRepository).save(any(FraccionamientoBarrilEntity.class));
-    }
-
-    @Test
-    @DisplayName("CP-RFRB-33: registrarFraccionamientoBarril no restringe la fecha cuando el lote del último envasado no tiene fecha de finalización")
-    void registrar_noDebeRestringirSiElLoteNoTieneFechaDeFinalizacion() {
-        // === PREPARACION DE DATOS ===
-        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "Merma");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-        when(fraccionamientoBarrilRepository.save(any(FraccionamientoBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO);
-
-        // === ASSERTS ===
-        assertThat(barril.getContenidoActual()).isEqualTo(15.0);
-        verify(fraccionamientoBarrilRepository).save(any(FraccionamientoBarrilEntity.class));
     }
 
     // ==================== anularFraccionamientoBarril ====================
@@ -1095,17 +932,8 @@ class FraccionamientoBarrilServicioImplTest {
 
     // ==================== helpers de construcción ====================
 
-    private BarrilEntity stubRegistroConLoteFinalizado(LocalDateTime fechaFinalizacionLote) {
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA, 20.0);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(envasadoLoteRepository.buscarFechaFinalizacionDelLoteDelUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(fechaFinalizacionLote));
-        return barril;
-    }
-
     private void stubRegistroPermitido(BarrilEntity barril) {
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(barril.getId())).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(barril.getId())).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(barril.getId())).thenReturn(Optional.empty());
         when(fraccionamientoBarrilRepository.save(any(FraccionamientoBarrilEntity.class))).thenAnswer(invocation -> {
             FraccionamientoBarrilEntity entidad = invocation.getArgument(0);
             entidad.setId(1L);
@@ -1124,10 +952,9 @@ class FraccionamientoBarrilServicioImplTest {
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril)).thenReturn(Optional.empty());
     }
 
-    private static FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO(Long idBarril, LocalDateTime fecha, Double cantidadExtraida, String observaciones) {
+    private static FraccionamientoBarrilFormDTO fraccionamientoBarrilFormDTO(Long idBarril, Double cantidadExtraida, String observaciones) {
         return FraccionamientoBarrilFormDTO.builder()
                 .idBarril(idBarril)
-                .fecha(fecha)
                 .cantidadExtraida(cantidadExtraida)
                 .observaciones(observaciones)
                 .build();

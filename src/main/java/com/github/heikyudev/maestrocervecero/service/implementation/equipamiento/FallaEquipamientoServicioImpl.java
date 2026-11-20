@@ -78,25 +78,25 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
     /**
      * Registra una nueva falla de equipamiento.
      * <p>
-     * La falla tiene una única fecha y hora y deja al equipamiento en estado operativo
+     * La falla tiene una única fecha y hora, la del momento del registro, y deja al equipamiento en estado operativo
      * {@code EN_MANTENIMIENTO}, a la espera del mantenimiento correspondiente.
      * </p>
      * <p>
-     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer su última
-     * operación o su última participación en un lote. Es el único lock de la operación.
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer cualquier otro
+     * dato. Es el único lock de la operación.
      * </p>
      *
      * @param fallaEquipamientoFormDTO Los datos de la falla a registrar.
      * @return La falla de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code DISPONIBLE}, o si la fecha no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas o superan el máximo, o si el equipamiento está dado de baja o no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.FALLA_EQUIPAMIENTO)
     public FallaEquipamientoResponseDTO registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO) {
-        // 1. Validar la fecha de la operación
-        MetodosCicloVidaEquipamiento.validarFecha(fallaEquipamientoFormDTO.getFecha());
+        // 1. Tomar la fecha y hora actual como fecha de la operación
+        LocalDateTime fecha = LocalDateTime.now();
 
         // 2. Validar las observaciones
         String observaciones = MetodosCicloVidaEquipamiento.validarObservaciones(fallaEquipamientoFormDTO.getObservaciones());
@@ -109,20 +109,13 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         // 4. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE
         MetodosCicloVidaEquipamiento.validarEstadoOperativoParaRegistrar(equipamientoEntity.getEstadoOperativo(), EstadoOperativo.DISPONIBLE, "una falla");
 
-        // 5. Validar que la fecha sea posterior a la de la última operación registrada y al fin de la última
-        //    participación del equipamiento en un lote
-        MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(
-                fallaEquipamientoFormDTO.getFecha(),
-                operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(idEquipamiento).orElse(null),
-                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
-
-        // 6. Cambiar el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
+        // 5. Cambiar el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_MANTENIMIENTO);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 7. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
+        // 6. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaEquipamientoEntity fallaEquipamientoEntity = FallaEquipamientoEntity.builder()
-                .fecha(fallaEquipamientoFormDTO.getFecha())
+                .fecha(fecha)
                 .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)

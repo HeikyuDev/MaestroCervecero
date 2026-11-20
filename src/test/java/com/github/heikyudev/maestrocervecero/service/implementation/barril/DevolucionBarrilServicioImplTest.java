@@ -194,22 +194,9 @@ class DevolucionBarrilServicioImplTest {
     // ==================== registrarDevolucionBarril ====================
 
     @Test
-    @DisplayName("CP-RDVB-01: registrarDevolucionBarril lanza ReglaNegocioException con campo fecha cuando la fecha de devolución es nula")
-    void registrar_debeRechazarFechaDevolucionNula() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, null, "Barril recibido en depósito");
-
-        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha y hora de la operación es obligatoria")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, devolucionBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
     @DisplayName("CP-RDVB-02: registrarDevolucionBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), null);
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, null);
 
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -222,7 +209,7 @@ class DevolucionBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RDVB-03: registrarDevolucionBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "   ");
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, "   ");
 
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -234,7 +221,7 @@ class DevolucionBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RDVB-04: registrarDevolucionBarril lanza ReglaNegocioException con campo observaciones cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "a".repeat(256));
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, "a".repeat(256));
 
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -247,7 +234,7 @@ class DevolucionBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RDVB-05: registrarDevolucionBarril lanza RecursoNoEncontradoException con campo idBarril cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(99L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(99L, "Barril recibido en depósito");
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
@@ -262,7 +249,7 @@ class DevolucionBarrilServicioImplTest {
     @Test
     @DisplayName("CP-RDVB-06: registrarDevolucionBarril lanza ReglaNegocioException con campo idBarril cuando el barril no está en estado operativo DESPACHADO")
     void registrar_debeRechazarBarrilNoDespachado() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, "Barril recibido en depósito");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.CON_CERVEZA);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
@@ -277,51 +264,12 @@ class DevolucionBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RDVB-07: registrarDevolucionBarril lanza ReglaNegocioException con campo fecha cuando existe una operación registrada posterior de cualquier tipo")
-    void registrar_debeRechazarSiExisteOperacionPosterior() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 2, 6, 10, 0)));
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(devolucionBarrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RDVB-08: registrarDevolucionBarril lanza ReglaNegocioException con campo fecha cuando existe un envasado posterior del mismo barril")
-    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 2, 6, 10, 0)));
-
-        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación debe ser posterior a la última operación registrada sobre este barril")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verify(barrilRepository, never()).save(any());
-        verify(devolucionBarrilRepository, never()).save(any());
-    }
-
-    @Test
     @DisplayName("CP-RDVB-09: registrarDevolucionBarril registra la devolución y pasa el barril a EN_LIMPIEZA (camino feliz)")
     void registrar_debeRegistrarCorrectamente() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fechaDevolucion = LocalDateTime.of(2026, 2, 5, 10, 0);
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, fechaDevolucion, "Barril recibido en depósito, sin daños visibles");
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, "Barril recibido en depósito, sin daños visibles");
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         when(barrilRepository.save(barril)).thenReturn(barril);
         when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> {
             DevolucionBarrilEntity entidad = invocation.getArgument(0);
@@ -330,7 +278,9 @@ class DevolucionBarrilServicioImplTest {
         });
 
         // === EJECUCION ===
+        LocalDateTime antes = LocalDateTime.now();
         DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(formDTO);
+        LocalDateTime despues = LocalDateTime.now();
 
         // === ASSERTS ===
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_LIMPIEZA);
@@ -340,7 +290,7 @@ class DevolucionBarrilServicioImplTest {
         ArgumentCaptor<DevolucionBarrilEntity> captor = ArgumentCaptor.forClass(DevolucionBarrilEntity.class);
         verify(devolucionBarrilRepository).save(captor.capture());
         DevolucionBarrilEntity devolucionGuardada = captor.getValue();
-        assertThat(devolucionGuardada.getFecha()).isEqualTo(fechaDevolucion);
+        assertThat(devolucionGuardada.getFecha()).isBetween(antes, despues);
         assertThat(devolucionGuardada.getObservaciones()).isEqualTo("Barril recibido en depósito, sin daños visibles");
         assertThat(devolucionGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(devolucionGuardada.getBarril()).isSameAs(barril);
@@ -354,51 +304,18 @@ class DevolucionBarrilServicioImplTest {
     @DisplayName("CP-RDVB-10: registrarDevolucionBarril guarda 0 litros descartados cuando el barril volvió vacío")
     void registrar_debeGuardarCeroLitrosDescartadosConBarrilVacio() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fechaDevolucion = LocalDateTime.of(2026, 2, 5, 10, 0);
         BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
         barril.setContenidoActual(0.0);
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
-        DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, fechaDevolucion, "Barril recibido vacío"));
+        DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, "Barril recibido vacío"));
 
         // === ASSERTS ===
         assertThat(barril.getContenidoActual()).isEqualTo(0.0);
         assertThat(barril.getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.EN_LIMPIEZA);
         assertThat(resultado.getLitrosDescartados()).isEqualTo(0.0);
-    }
-
-    @Test
-    @DisplayName("CP-RDVB-11: registrarDevolucionBarril lanza ReglaNegocioException con campo fecha cuando la fecha de devolución es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaDevolucionFutura() {
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Barril recibido en depósito");
-
-        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de la operación no puede ser posterior a la fecha y hora actual")
-                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("fecha"));
-
-        verifyNoInteractions(barrilRepository, devolucionBarrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-RDVB-12: registrarDevolucionBarril bloquea el barril antes de leer la última operación y el último envasado")
-    void registrar_debeBloquearElBarrilAntesDeLeerLaActividad() {
-        // === PREPARACION DE DATOS ===
-        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
-        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DESPACHADO);
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // === EJECUCION ===
-        devolucionBarrilServicio.registrarDevolucionBarril(formDTO);
-
-        // === ASSERTS ===
-        InOrder orden = inOrder(barrilRepository, operacionCicloVidaBarrilRepository, envasadoLoteRepository);
-        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(operacionCicloVidaBarrilRepository).buscarFechaUltimaOperacionRegistrada(1L);
-        orden.verify(envasadoLoteRepository).buscarFechaUltimoEnvasadoRegistrado(1L);
     }
 
     // ==================== anularDevolucionBarril ====================
@@ -759,7 +676,7 @@ class DevolucionBarrilServicioImplTest {
         when(solicitudBusquedaRepository.findFirstByDespachoBarril_IdAndEstado(30L, EstadoSolicitudBusqueda.PENDIENTE)).thenReturn(Optional.of(solicitud));
 
         // === EJECUCION ===
-        devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito"));
+        devolucionBarrilServicio.registrarDevolucionBarril(devolucionBarrilFormDTO(1L, "Barril recibido en depósito"));
 
         // === ASSERTS ===
         assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudBusqueda.BUSCADA);
@@ -780,7 +697,7 @@ class DevolucionBarrilServicioImplTest {
 
         // === EJECUCION ===
         DevolucionBarrilResponseDTO resultado = devolucionBarrilServicio.registrarDevolucionBarril(
-                devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito"));
+                devolucionBarrilFormDTO(1L, "Barril recibido en depósito"));
 
         // === ASSERTS ===
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
@@ -796,7 +713,7 @@ class DevolucionBarrilServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(
-                devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito")))
+                devolucionBarrilFormDTO(1L, "Barril recibido en depósito")))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(despachoBarrilRepository, solicitudBusquedaRepository);
     }
@@ -849,8 +766,6 @@ class DevolucionBarrilServicioImplTest {
     /** Un barril Despachado sin actividad previa, con los guardados del barril y de la devolución (que recibe el ID 1). */
     private void stubRegistroValido(BarrilEntity barril) {
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(barril.getId())).thenReturn(Optional.of(barril));
-        when(operacionCicloVidaBarrilRepository.buscarFechaUltimaOperacionRegistrada(barril.getId())).thenReturn(Optional.empty());
-        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(barril.getId())).thenReturn(Optional.empty());
         when(barrilRepository.save(barril)).thenReturn(barril);
         when(devolucionBarrilRepository.save(any(DevolucionBarrilEntity.class))).thenAnswer(invocation -> {
             DevolucionBarrilEntity entidad = invocation.getArgument(0);
@@ -870,10 +785,9 @@ class DevolucionBarrilServicioImplTest {
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril)).thenReturn(Optional.empty());
     }
 
-    private static DevolucionBarrilFormDTO devolucionBarrilFormDTO(Long idBarril, LocalDateTime fecha, String observaciones) {
+    private static DevolucionBarrilFormDTO devolucionBarrilFormDTO(Long idBarril, String observaciones) {
         return DevolucionBarrilFormDTO.builder()
                 .idBarril(idBarril)
-                .fecha(fecha)
                 .observaciones(observaciones)
                 .build();
     }

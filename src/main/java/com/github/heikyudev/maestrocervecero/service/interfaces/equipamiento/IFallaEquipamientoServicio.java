@@ -49,7 +49,7 @@ public interface IFallaEquipamientoServicio {
      *
      * @param fallaEquipamientoFormDTO Los datos de la falla a registrar.
      * @return La falla de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si las observaciones no fueron informadas, si el equipamiento está dado de baja, o si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     FallaEquipamientoResponseDTO registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO);
