@@ -70,9 +70,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -567,7 +569,10 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         solicitud.setEstado(EstadoSolicitudCotizacion.CERRADA);
         solicitud.setFechaCierre(ahora);
 
-        // 3. Reunir las ofertas de los proveedores activos (las de los dados de baja se descartan), sin las presentaciones
+        // 3. Fijar las respuestas contra el catálogo vigente de cada proveedor (desde el cierre se muestran tal como quedan)
+        fijarOfertasEnCatalogoVigente(solicitud);
+
+        // 4. Reunir las ofertas de los proveedores activos (las de los dados de baja se descartan), sin las presentaciones
         //    que el proveedor indicó sin stock
         Map<Long, OfertaCotizacionEntity> ofertasPorId = new HashMap<>();
         List<GeneradorPlanesCompra.Oferta> ofertas = new ArrayList<>();
@@ -587,7 +592,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             }
         }
 
-        // 4. Generar el plan con la configuración de compras vigente
+        // 5. Generar el plan con la configuración de compras vigente
         ConfiguracionComprasEntity configuracion = buscarConfiguracion();
         List<GeneradorPlanesCompra.Demanda> demandas = solicitud.getLineas().stream()
                 .map(linea -> new GeneradorPlanesCompra.Demanda(linea.getId(), linea.getCantidadFaltante()))
@@ -595,7 +600,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         Optional<GeneradorPlanesCompra.Plan> plan = GeneradorPlanesCompra.generar(demandas, ofertas,
                 configuracion.getCriterioPlanCompra(), configuracion.getPesoPrecio());
 
-        // 5. Sin ofertas útiles la solicitud queda cerrada sin plan y se avisa a los gerentes de compras
+        // 6. Sin ofertas útiles la solicitud queda cerrada sin plan y se avisa a los gerentes de compras
         Long idSolicitud = solicitud.getId();
         if (plan.isEmpty()) {
             solicitudRepository.save(solicitud);
@@ -605,7 +610,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             return;
         }
 
-        // 6. Guardar el plan (una orden propuesta por proveedor) y avisar que está listo
+        // 7. Guardar el plan (una orden propuesta por proveedor) y avisar que está listo
         Map<Long, LineaSolicitudCotizacionEntity> lineasPorId = solicitud.getLineas().stream()
                 .collect(Collectors.toMap(LineaSolicitudCotizacionEntity::getId, linea -> linea));
         PlanCompraEntity planEntity = armarPlan(solicitud, plan.get(), ofertasPorId, lineasPorId);
@@ -759,8 +764,14 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         return MapperSolicitudCotizacion.toDTO(solicitudRepository.save(solicitud));
     }
 
-    /** Deja la solicitud cancelada con la fecha y el motivo, y vence en el momento los enlaces de los proveedores. */
+    /**
+     * Deja la solicitud cancelada con la fecha y el motivo, y vence en el momento los enlaces de los proveedores. Si
+     * estaba abierta, antes fija las respuestas contra el catálogo vigente (ver {@link #fijarOfertasEnCatalogoVigente}).
+     */
     private static void marcarCancelada(SolicitudCotizacionEntity solicitud, String motivo, LocalDateTime ahora) {
+        if (solicitud.getEstado() == EstadoSolicitudCotizacion.ABIERTA) {
+            fijarOfertasEnCatalogoVigente(solicitud);
+        }
         solicitud.setEstado(EstadoSolicitudCotizacion.CANCELADA);
         solicitud.setFechaCancelacion(ahora);
         solicitud.setMotivoCancelacion(motivo);
@@ -769,6 +780,27 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 invitacion.setFechaExpiracion(ahora);
             }
         });
+    }
+
+    /**
+     * Fija las respuestas de una solicitud que deja de estar abierta contra el catálogo vigente de cada proveedor: cada
+     * oferta pasa a apuntar al ítem vigente de su presentación y se quitan las de presentaciones que salieron del
+     * catálogo. Desde ese momento las ofertas se muestran tal como quedan guardadas, sin depender de modificaciones
+     * posteriores del proveedor. Las respuestas de un proveedor dado de baja (sin versión vigente) no se tocan.
+     */
+    private static void fijarOfertasEnCatalogoVigente(SolicitudCotizacionEntity solicitud) {
+        for (InvitacionCotizacionEntity invitacion : solicitud.getInvitaciones()) {
+            if (!MapperSolicitudCotizacion.rigeCatalogoVigente(invitacion)) {
+                continue;
+            }
+            List<MapperSolicitudCotizacion.OfertaVigente> vigentes = MapperSolicitudCotizacion.ofertasVigentes(invitacion);
+            Set<OfertaCotizacionEntity> conservadas = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (MapperSolicitudCotizacion.OfertaVigente vigente : vigentes) {
+                vigente.oferta().setCatalogoProveedor(vigente.itemVigente());
+                conservadas.add(vigente.oferta());
+            }
+            invitacion.getOfertas().removeIf(oferta -> !conservadas.contains(oferta));
+        }
     }
 
     /** Las órdenes propuestas sin confirmar del plan pasan a descartadas; las confirmadas no se tocan. */
@@ -790,7 +822,7 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         List<ItemOrdenCompraPrearmadaResponseDTO> items = new ArrayList<>();
         List<String> avisos = new ArrayList<>();
         for (ItemOrdenCompraPropuestaEntity item : orden.getItems()) {
-            Optional<CatalogoProveedorEntity> vigente = buscarEnCatalogoVigente(version, item.getCatalogoProveedor());
+            Optional<CatalogoProveedorEntity> vigente = MapperSolicitudCotizacion.itemVigente(version, item.getCatalogoProveedor());
             if (vigente.isPresent()) {
                 items.add(ItemOrdenCompraPrearmadaResponseDTO.builder()
                         .idCatalogoProveedor(vigente.get().getId())
@@ -812,17 +844,6 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 .items(items)
                 .avisos(avisos)
                 .build();
-    }
-
-    /** El ítem del catálogo vigente del proveedor con el mismo insumo y la misma presentación que el ofrecido. */
-    private static Optional<CatalogoProveedorEntity> buscarEnCatalogoVigente(VersionProveedorEntity version, CatalogoProveedorEntity ofrecido) {
-        if (version == null) {
-            return Optional.empty();
-        }
-        return version.getCatalogoProveedor().stream()
-                .filter(item -> item.getInsumo().getId().equals(ofrecido.getInsumo().getId())
-                        && item.getPresentacionComercial().getId().equals(ofrecido.getPresentacionComercial().getId()))
-                .findFirst();
     }
 
     @Override

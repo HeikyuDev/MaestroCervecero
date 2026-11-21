@@ -1393,4 +1393,241 @@ class SolicitudCotizacionServicioImplTest {
         assertThat(otra.getPlan()).isNotNull();
         assertThat(otra.getPlan().getOrdenes()).extracting(orden -> orden.getProveedor().getId()).containsExactly(2L);
     }
+
+    // ==================== Catálogo modificado después de responder ====================
+
+    /**
+     * Agrega al proveedor una versión anterior (5, ya no vigente) cuyo catálogo ofrecía la malta en Bolsa de 25 kg (50) y
+     * en Bolsa de 10 kg (51). La versión vigente solo ofrece la Bolsa de 25 kg (100): la de 10 kg salió del catálogo.
+     */
+    private VersionProveedorEntity conVersionAnterior(ProveedorEntity proveedor) {
+        PresentacionComercialEntity bolsa10Kg = PresentacionComercialEntity.builder().id(31L).nombre("Bolsa").cantidad(10.0)
+                .unidadDeMedida(UnidadDeMedida.KILOGRAMO).estado(Estado.ACTIVO).build();
+        VersionProveedorEntity anterior = VersionProveedorEntity.builder().id(5L).razonSocial("MALTERIA SUR").esUltimaVersion(false).proveedor(proveedor).build();
+        anterior.getCatalogoProveedor().add(CatalogoProveedorEntity.builder().id(50L).version(anterior).insumo(malta).presentacionComercial(bolsa25Kg).build());
+        anterior.getCatalogoProveedor().add(CatalogoProveedorEntity.builder().id(51L).version(anterior).insumo(malta).presentacionComercial(bolsa10Kg).build());
+        proveedor.getVersiones().add(anterior);
+        return anterior;
+    }
+
+    @Test
+    @DisplayName("CP-SCO-46: con el catálogo modificado después de responder, cerrarSolicitud usa el ítem vigente de cada presentación y descarta las ofertas de presentaciones que salieron del catálogo")
+    void cerrar_catalogoModificado_usaItemVigenteYDescartaPresentacionesQuitadas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        CatalogoProveedorEntity vigente = malteria.getVersiones().get(0).getCatalogoProveedor().get(0);
+        VersionProveedorEntity anterior = conVersionAnterior(malteria);
+        InvitacionCotizacionEntity invitacion = invitar(solicitud, malteria, LocalDateTime.now());
+        // Respondió con la versión anterior: 2 bolsas de 25 kg a $20.000 y 10 bolsas de 10 kg a $1 (la más barata, pero salió del catálogo)
+        OfertaCotizacionEntity bolsa25 = OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(0)).precioUnitario(new BigDecimal("20000")).cantidadDisponible(2).build();
+        invitacion.getOfertas().add(bolsa25);
+        invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(2L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(1)).precioUnitario(BigDecimal.ONE).cantidadDisponible(10).build());
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cerrarSolicitud(90L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        // El plan solo usa la Bolsa de 25 kg, con el ítem del catálogo vigente; la oferta queda apuntando a ese ítem
+        assertThat(solicitud.getPlan().getOrdenes()).singleElement().satisfies(orden ->
+                assertThat(orden.getItems()).singleElement().satisfies(item -> {
+                    assertThat(item.getCatalogoProveedor()).isSameAs(vigente);
+                    assertThat(item.getCantidad()).isEqualTo(2);
+                }));
+        assertThat(bolsa25.getCatalogoProveedor()).isSameAs(vigente);
+        // La oferta de la presentación que salió del catálogo se quita de la respuesta guardada
+        assertThat(invitacion.getOfertas()).containsExactly(bolsa25);
+        // La pantalla del gerente de compras sigue la misma regla: solo cuenta y muestra la Bolsa de 25 kg
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getCantidadOfertas()).isEqualTo(1);
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getInsumosCotizados())
+                .containsExactly("Malta Pilsen: 2 x Bolsa (25 kg) a $ 20.000,00");
+    }
+
+    @Test
+    @DisplayName("CP-SCO-47: una respuesta solo con presentaciones que salieron del catálogo cuenta como respuesta sin ofertas")
+    void cerrar_catalogoModificado_soloPresentacionesQuitadas_esRespuestaSinOfertas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        VersionProveedorEntity anterior = conVersionAnterior(malteria);
+        InvitacionCotizacionEntity invitacion = invitar(solicitud, malteria, LocalDateTime.now());
+        invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(2L).invitacion(invitacion).lineaSolicitud(solicitud.getLineas().get(0))
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(1)).precioUnitario(new BigDecimal("9000")).cantidadDisponible(10).build());
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cerrarSolicitud(90L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CERRADA);
+        assertThat(solicitud.getPlan()).isNull();
+        assertThat(SolicitudCotizacionServicioImpl.mensajeCierreSinOfertas(solicitud))
+                .isEqualTo("La solicitud de cotización #90 cerró porque los proveedores que respondieron no ofrecieron ninguno de los insumos solicitados: no se generó el plan");
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getCantidadOfertas()).isZero();
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getInsumosCotizados()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-SCO-48: una solicitud que ya no está abierta muestra las ofertas tal como quedaron guardadas, aunque el proveedor se modifique después")
+    void solicitudNoAbierta_muestraOfertasGuardadasAunqueCambieElCatalogo() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        InvitacionCotizacionEntity invitacion = invitar(solicitud, malteria, LocalDateTime.now());
+        ofertar(invitacion, 1L, solicitud.getLineas().get(0), "20000", 2);
+        // Después de responder, el gerente de compras modifica el proveedor: la versión vigente ya no ofrece la Bolsa de 25 kg
+        VersionProveedorEntity anterior = malteria.getVersiones().get(0);
+        anterior.setEsUltimaVersion(false);
+        malteria.getVersiones().add(VersionProveedorEntity.builder().id(11L).razonSocial("MALTERIA SUR").esUltimaVersion(true).proveedor(malteria).build());
+
+        // === EJECUCION Y VERIFICACION ===
+        // Abierta: rige el catálogo vigente y la oferta no cuenta
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getCantidadOfertas()).isZero();
+        assertThat(MapperSolicitudCotizacion.ofreceConStock(invitacion)).isFalse();
+        // Cerrada, con el plan generado o cancelada: se muestra la oferta guardada
+        for (EstadoSolicitudCotizacion estado : List.of(EstadoSolicitudCotizacion.CERRADA, EstadoSolicitudCotizacion.PLAN_GENERADO,
+                EstadoSolicitudCotizacion.CANCELADA)) {
+            solicitud.setEstado(estado);
+            assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getCantidadOfertas()).isEqualTo(1);
+            assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacion).getInsumosCotizados())
+                    .containsExactly("Malta Pilsen: 2 x Bolsa (25 kg) a $ 20.000,00");
+            assertThat(MapperSolicitudCotizacion.ofreceConStock(invitacion)).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("CP-SCO-49: al cancelar una solicitud abierta, sus ofertas se fijan contra el catálogo vigente: apuntan al ítem vigente y se quitan las de presentaciones que salieron")
+    void cancelarAbierta_fijaOfertasEnCatalogoVigente() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusHours(5));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        CatalogoProveedorEntity vigente = malteria.getVersiones().get(0).getCatalogoProveedor().get(0);
+        VersionProveedorEntity anterior = conVersionAnterior(malteria);
+        InvitacionCotizacionEntity invitacion = invitar(solicitud, malteria, LocalDateTime.now());
+        OfertaCotizacionEntity bolsa25 = OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(0)).precioUnitario(new BigDecimal("20000")).cantidadDisponible(2).build();
+        invitacion.getOfertas().add(bolsa25);
+        invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(2L).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(1)).precioUnitario(new BigDecimal("9000")).cantidadDisponible(10).build());
+        when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(invitacion.getOfertas()).containsExactly(bolsa25);
+        assertThat(bolsa25.getCatalogoProveedor()).isSameAs(vigente);
+    }
+
+    /** Proveedor dado de baja como lo deja la baja: sin versión vigente (todas sus versiones dejan de ser la última). */
+    private ProveedorEntity proveedorDadoDeBaja(long id, String razonSocial) {
+        ProveedorEntity proveedor = proveedor(id, razonSocial, Estado.BAJA, malta);
+        proveedor.getVersiones().forEach(version -> version.setEsUltimaVersion(false));
+        return proveedor;
+    }
+
+    /** Agrega a la invitación una oferta de 2 bolsas de 25 kg a $ 20.000 en el primer ítem de la primera versión del proveedor. */
+    private static OfertaCotizacionEntity ofertaGuardada(InvitacionCotizacionEntity invitacion, long id, LineaSolicitudCotizacionEntity linea) {
+        OfertaCotizacionEntity oferta = OfertaCotizacionEntity.builder().id(id).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(invitacion.getProveedor().getVersiones().get(0).getCatalogoProveedor().get(0))
+                .precioUnitario(new BigDecimal("20000")).cantidadDisponible(2).build();
+        invitacion.getOfertas().add(oferta);
+        return oferta;
+    }
+
+    @Test
+    @DisplayName("CP-SCO-50: al cerrar, las ofertas de un proveedor dado de baja (sin versión vigente) se conservan guardadas sin cambios y no entran en el plan")
+    void cerrar_proveedorDadoDeBaja_conservaSusOfertas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        InvitacionCotizacionEntity deBaja = invitar(solicitud, proveedorDadoDeBaja(1L, "MALTERIA SUR"), LocalDateTime.now());
+        OfertaCotizacionEntity guardada = ofertaGuardada(deBaja, 1L, linea);
+        CatalogoProveedorEntity itemGuardado = guardada.getCatalogoProveedor();
+        // La invitación del proveedor dado de baja se ve con su oferta también mientras la solicitud está abierta
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(deBaja).getCantidadOfertas()).isEqualTo(1);
+        ofertar(invitar(solicitud, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), LocalDateTime.now()), 2L, linea, "30000", 10);
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cerrarSolicitud(90L);
+
+        // === ASSERTS ===
+        assertThat(deBaja.getOfertas()).containsExactly(guardada);
+        assertThat(guardada.getCatalogoProveedor()).isSameAs(itemGuardado);
+        assertThat(solicitud.getPlan().getOrdenes()).extracting(orden -> orden.getProveedor().getId()).containsExactly(2L);
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(deBaja).getCantidadOfertas()).isEqualTo(1);
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(deBaja).getInsumosCotizados()).containsExactly("Malta Pilsen: 2 x Bolsa (25 kg) a $ 20.000,00");
+    }
+
+    @Test
+    @DisplayName("CP-SCO-51: al cancelar una solicitud abierta, las ofertas de un proveedor dado de baja (sin versión vigente) se conservan guardadas sin cambios")
+    void cancelarAbierta_proveedorDadoDeBaja_conservaSusOfertas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusHours(5));
+        InvitacionCotizacionEntity deBaja = invitar(solicitud, proveedorDadoDeBaja(1L, "MALTERIA SUR"), LocalDateTime.now());
+        OfertaCotizacionEntity guardada = ofertaGuardada(deBaja, 1L, solicitud.getLineas().get(0));
+        CatalogoProveedorEntity itemGuardado = guardada.getCatalogoProveedor();
+        when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(deBaja.getOfertas()).containsExactly(guardada);
+        assertThat(guardada.getCatalogoProveedor()).isSameAs(itemGuardado);
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(deBaja).getCantidadOfertas()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("CP-SCO-52: al anular la planificación, una solicitud abierta fija sus ofertas contra el catálogo vigente y una que ya no está abierta conserva las guardadas")
+    void anularPlanificacion_fijaOfertasSoloSiEstabaAbierta() {
+        // === PREPARACION DE DATOS ===
+        // Abierta: respondió con la versión anterior (Bolsa de 25 kg y Bolsa de 10 kg, que salió del catálogo)
+        SolicitudCotizacionEntity abierta = solicitudAbierta(LocalDateTime.now().plusHours(5));
+        LineaSolicitudCotizacionEntity linea = abierta.getLineas().get(0);
+        ProveedorEntity malteria = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        CatalogoProveedorEntity vigente = malteria.getVersiones().get(0).getCatalogoProveedor().get(0);
+        VersionProveedorEntity anterior = conVersionAnterior(malteria);
+        InvitacionCotizacionEntity invitacionAbierta = invitar(abierta, malteria, LocalDateTime.now());
+        OfertaCotizacionEntity bolsa25 = OfertaCotizacionEntity.builder().id(1L).invitacion(invitacionAbierta).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(0)).precioUnitario(new BigDecimal("20000")).cantidadDisponible(2).build();
+        invitacionAbierta.getOfertas().add(bolsa25);
+        invitacionAbierta.getOfertas().add(OfertaCotizacionEntity.builder().id(2L).invitacion(invitacionAbierta).lineaSolicitud(linea)
+                .catalogoProveedor(anterior.getCatalogoProveedor().get(1)).precioUnitario(new BigDecimal("9000")).cantidadDisponible(10).build());
+        // Con el plan generado: la oferta quedó fijada al cerrar y después el proveedor se modificó (su versión vigente ya no la ofrece)
+        SolicitudCotizacionEntity conPlan = solicitudConPlan(proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), proveedor(3L, "CEBADAS", Estado.ACTIVO, malta));
+        conPlan.setId(91L);
+        ProveedorEntity modificado = proveedor(4L, "MALTAS DEL SUR", Estado.ACTIVO, malta);
+        InvitacionCotizacionEntity invitacionConPlan = invitar(conPlan, modificado, LocalDateTime.now().minusHours(2));
+        OfertaCotizacionEntity fijada = ofertaGuardada(invitacionConPlan, 3L, conPlan.getLineas().get(0));
+        CatalogoProveedorEntity itemFijado = fijada.getCatalogoProveedor();
+        modificado.getVersiones().get(0).setEsUltimaVersion(false);
+        modificado.getVersiones().add(VersionProveedorEntity.builder().id(41L).razonSocial("MALTAS DEL SUR").esUltimaVersion(true).proveedor(modificado).build());
+        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(90L, 91L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(abierta));
+        when(solicitudRepository.buscarPorIdParaActualizar(91L)).thenReturn(Optional.of(conPlan));
+
+        // === EJECUCION ===
+        servicio.cancelarPorAnulacionDePlanificacion(7L);
+
+        // === ASSERTS ===
+        assertThat(abierta.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(invitacionAbierta.getOfertas()).containsExactly(bolsa25);
+        assertThat(bolsa25.getCatalogoProveedor()).isSameAs(vigente);
+        assertThat(conPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(invitacionConPlan.getOfertas()).containsExactly(fijada);
+        assertThat(fijada.getCatalogoProveedor()).isSameAs(itemFijado);
+        assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacionConPlan).getCantidadOfertas()).isEqualTo(1);
+    }
 }

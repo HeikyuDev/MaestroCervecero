@@ -1,15 +1,20 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.cotizacion;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.InvitacionCotizacionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.OfertaCotizacionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -76,5 +81,42 @@ class MapperSolicitudCotizacionTest {
 
         solicitud.setEstado(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion.ABIERTA);
         assertThat(MapperSolicitudCotizacion.explicacion(solicitud)).doesNotContain("Confirme").endsWith("(faltan 2,5 kg)");
+    }
+
+    @Test
+    @DisplayName("CP-MSC-05: las ofertas vigentes de una invitación son las de presentaciones que siguen en el catálogo vigente, cada una con su ítem vigente (por insumo y presentación)")
+    void ofertasVigentes_resuelvenPorInsumoYPresentacion() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = MaltaEntity.builder().id(1L).nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        LupuloEntity lupulo = LupuloEntity.builder().id(2L).nombre("Cascade").unidadDeMedida(UnidadDeMedida.GRAMO).build();
+        PresentacionComercialEntity bolsa = PresentacionComercialEntity.builder().id(30L).nombre("Bolsa").cantidad(25.0).unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        PresentacionComercialEntity balde = PresentacionComercialEntity.builder().id(31L).nombre("Balde").cantidad(5.0).unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        ProveedorEntity proveedor = ProveedorEntity.builder().id(1L).build();
+        VersionProveedorEntity anterior = VersionProveedorEntity.builder().id(10L).esUltimaVersion(false).proveedor(proveedor).build();
+        VersionProveedorEntity vigente = VersionProveedorEntity.builder().id(11L).esUltimaVersion(true).proveedor(proveedor).build();
+        CatalogoProveedorEntity maltaBolsaAnterior = CatalogoProveedorEntity.builder().id(100L).version(anterior).insumo(malta).presentacionComercial(bolsa).build();
+        CatalogoProveedorEntity maltaBaldeAnterior = CatalogoProveedorEntity.builder().id(101L).version(anterior).insumo(malta).presentacionComercial(balde).build();
+        CatalogoProveedorEntity maltaBolsaVigente = CatalogoProveedorEntity.builder().id(200L).version(vigente).insumo(malta).presentacionComercial(bolsa).build();
+        // El lúpulo vigente viene en Bolsa: una oferta de malta en Bolsa no se resuelve con un ítem de otro insumo
+        CatalogoProveedorEntity lupuloBolsaVigente = CatalogoProveedorEntity.builder().id(201L).version(vigente).insumo(lupulo).presentacionComercial(bolsa).build();
+        anterior.getCatalogoProveedor().addAll(List.of(maltaBolsaAnterior, maltaBaldeAnterior));
+        vigente.getCatalogoProveedor().addAll(List.of(lupuloBolsaVigente, maltaBolsaVigente));
+        proveedor.getVersiones().addAll(List.of(anterior, vigente));
+        InvitacionCotizacionEntity invitacion = InvitacionCotizacionEntity.builder().id(600L).proveedor(proveedor).build();
+        OfertaCotizacionEntity ofertaBolsa = OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).catalogoProveedor(maltaBolsaAnterior).cantidadDisponible(2).build();
+        OfertaCotizacionEntity ofertaBalde = OfertaCotizacionEntity.builder().id(2L).invitacion(invitacion).catalogoProveedor(maltaBaldeAnterior).cantidadDisponible(3).build();
+        invitacion.getOfertas().addAll(List.of(ofertaBolsa, ofertaBalde));
+
+        // === EJECUCION ===
+        List<MapperSolicitudCotizacion.OfertaVigente> vigentes = MapperSolicitudCotizacion.ofertasVigentes(invitacion);
+
+        // === ASSERTS ===
+        assertThat(vigentes).singleElement().satisfies(ofertaVigente -> {
+            assertThat(ofertaVigente.oferta()).isSameAs(ofertaBolsa);
+            assertThat(ofertaVigente.itemVigente()).isSameAs(maltaBolsaVigente);
+        });
+        // Sin versión vigente no queda ninguna oferta
+        vigente.setEsUltimaVersion(false);
+        assertThat(MapperSolicitudCotizacion.ofertasVigentes(invitacion)).isEmpty();
     }
 }

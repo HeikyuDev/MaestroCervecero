@@ -44,6 +44,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * MapperSolicitudCotizacion tiene la responsabilidad de mapear una solicitud de cotización, con sus líneas,
@@ -183,11 +184,13 @@ public final class MapperSolicitudCotizacion {
     }
 
     /**
-     * Mapea una invitación con el estado de su respuesta.
+     * Mapea una invitación con el estado de su respuesta. Las ofertas que se cuentan y se listan son las de
+     * {@link #ofertasDeLaRespuesta}.
      */
     public static InvitacionCotizacionResponseDTO toInvitacionDTO(InvitacionCotizacionEntity invitacion) {
         ProveedorEntity proveedor = invitacion.getProveedor();
         VersionProveedorEntity version = versionVigente(proveedor);
+        List<OfertaVigente> ofertas = ofertasDeLaRespuesta(invitacion);
         return InvitacionCotizacionResponseDTO.builder()
                 .id(invitacion.getId())
                 .idProveedor(proveedor.getId())
@@ -196,12 +199,12 @@ public final class MapperSolicitudCotizacion {
                 .proveedorActivo(proveedor.getEstado() == Estado.ACTIVO)
                 .fechaEnvio(invitacion.getCreatedDate())
                 .fechaRespuesta(invitacion.getFechaRespuesta())
-                .cantidadOfertas((int) invitacion.getOfertas().stream().filter(oferta -> oferta.getCantidadDisponible() != null && oferta.getCantidadDisponible() > 0).count())
+                .cantidadOfertas((int) ofertas.stream().map(OfertaVigente::oferta).filter(MapperSolicitudCotizacion::tieneStock).count())
                 .estadoParticipacion(estadoParticipacion(invitacion))
-                .insumosCotizados(invitacion.getOfertas().stream()
-                        .sorted(Comparator.comparing((OfertaCotizacionEntity oferta) -> oferta.getLineaSolicitud().getId())
-                                .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
-                        .map(MapperSolicitudCotizacion::descripcionOferta)
+                .insumosCotizados(ofertas.stream()
+                        .sorted(Comparator.comparing((OfertaVigente vigente) -> vigente.oferta().getLineaSolicitud().getId())
+                                .thenComparing(vigente -> vigente.itemVigente().getId()))
+                        .map(vigente -> descripcionOferta(vigente.oferta()))
                         .toList())
                 .estadoEnvio(invitacion.getEstadoEnvio())
                 .intentosEnvio(invitacion.getIntentosEnvio() == null ? 0 : invitacion.getIntentosEnvio())
@@ -345,11 +348,17 @@ public final class MapperSolicitudCotizacion {
     }
 
     /**
-     * Si el proveedor ofreció alguna presentación con stock (cantidad mayor a 0). Una respuesta solo con presentaciones
-     * sin stock cuenta como respuesta sin ofertas.
+     * Si el proveedor ofreció con stock (cantidad mayor a 0) alguna de las ofertas de {@link #ofertasDeLaRespuesta}. Una
+     * respuesta solo con presentaciones sin stock o que salieron del catálogo antes del cierre cuenta como respuesta sin
+     * ofertas.
      */
     public static boolean ofreceConStock(InvitacionCotizacionEntity invitacion) {
-        return invitacion.getOfertas().stream().anyMatch(oferta -> oferta.getCantidadDisponible() != null && oferta.getCantidadDisponible() > 0);
+        return ofertasDeLaRespuesta(invitacion).stream().map(OfertaVigente::oferta).anyMatch(MapperSolicitudCotizacion::tieneStock);
+    }
+
+    /** Si la oferta indica una cantidad disponible mayor a 0. */
+    private static boolean tieneStock(OfertaCotizacionEntity oferta) {
+        return oferta.getCantidadDisponible() != null && oferta.getCantidadDisponible() > 0;
     }
 
     /**
@@ -440,5 +449,81 @@ public final class MapperSolicitudCotizacion {
      */
     public static VersionProveedorEntity versionVigente(ProveedorEntity proveedor) {
         return MetodosVersionado.buscarVersionActiva(proveedor.getVersiones()).orElse(null);
+    }
+
+    /**
+     * Una oferta de la respuesta de un proveedor junto con el ítem de su catálogo vigente que tiene el mismo insumo y la
+     * misma presentación comercial que el ítem al que apunta la oferta.
+     *
+     * @param oferta La oferta registrada.
+     * @param itemVigente El ítem equivalente del catálogo vigente del proveedor.
+     */
+    public record OfertaVigente(OfertaCotizacionEntity oferta, CatalogoProveedorEntity itemVigente) {
+    }
+
+    /**
+     * Las ofertas de la invitación cuya presentación sigue en el catálogo vigente del proveedor, cada una con su ítem
+     * vigente, en el orden de la invitación. Una oferta se identifica por su insumo y su presentación comercial, no por
+     * el ítem del catálogo: al modificar el proveedor se crea una versión con ítems nuevos, y la respuesta sigue valiendo
+     * para cada presentación que el catálogo vigente conserva. Las ofertas de presentaciones que salieron del catálogo
+     * no se devuelven.
+     *
+     * @param invitacion La invitación con sus ofertas y su proveedor.
+     * @return Las ofertas vigentes; vacía si el proveedor no tiene una versión vigente.
+     */
+    public static List<OfertaVigente> ofertasVigentes(InvitacionCotizacionEntity invitacion) {
+        VersionProveedorEntity version = versionVigente(invitacion.getProveedor());
+        List<OfertaVigente> vigentes = new ArrayList<>();
+        for (OfertaCotizacionEntity oferta : invitacion.getOfertas()) {
+            itemVigente(version, oferta.getCatalogoProveedor()).ifPresent(item -> vigentes.add(new OfertaVigente(oferta, item)));
+        }
+        return vigentes;
+    }
+
+    /**
+     * Las ofertas de la respuesta que se cuentan y se muestran al gerente de compras. Mientras la solicitud está abierta
+     * y el proveedor sigue activo con una versión vigente, rige su catálogo vigente ({@link #ofertasVigentes}). En los
+     * demás casos las ofertas se muestran tal como quedaron guardadas: al cerrar, cada oferta se apuntó al ítem del
+     * catálogo vigente y se quitaron las de presentaciones que habían salido del catálogo, así una modificación posterior
+     * del proveedor no cambia lo que se respondió; las de un proveedor dado de baja se conservan sin cambios.
+     *
+     * @param invitacion La invitación con su solicitud, sus ofertas y su proveedor.
+     * @return Las ofertas de la respuesta, cada una con el ítem de catálogo con el que se muestra.
+     */
+    static List<OfertaVigente> ofertasDeLaRespuesta(InvitacionCotizacionEntity invitacion) {
+        if (invitacion.getSolicitud() != null && invitacion.getSolicitud().getEstado() == EstadoSolicitudCotizacion.ABIERTA
+                && rigeCatalogoVigente(invitacion)) {
+            return ofertasVigentes(invitacion);
+        }
+        return invitacion.getOfertas().stream().map(oferta -> new OfertaVigente(oferta, oferta.getCatalogoProveedor())).toList();
+    }
+
+    /**
+     * Si la respuesta del proveedor se resuelve contra su catálogo vigente: el proveedor está activo y tiene una versión
+     * vigente. Un proveedor dado de baja no tiene versión vigente; sus ofertas se conservan tal como quedaron guardadas
+     * (no entran en el plan porque el proveedor no está activo).
+     *
+     * @param invitacion La invitación con su proveedor.
+     * @return {@code true} si rige el catálogo vigente del proveedor.
+     */
+    public static boolean rigeCatalogoVigente(InvitacionCotizacionEntity invitacion) {
+        return invitacion.getProveedor().getEstado() == Estado.ACTIVO && versionVigente(invitacion.getProveedor()) != null;
+    }
+
+    /**
+     * El ítem del catálogo de la versión indicada con el mismo insumo y la misma presentación comercial que el ítem dado.
+     *
+     * @param version Versión del proveedor (normalmente la vigente); puede ser nula.
+     * @param item Ítem de catálogo de cualquier versión del proveedor.
+     * @return El ítem equivalente, o vacío si la versión es nula o ya no ofrece esa presentación del insumo.
+     */
+    public static Optional<CatalogoProveedorEntity> itemVigente(VersionProveedorEntity version, CatalogoProveedorEntity item) {
+        if (version == null) {
+            return Optional.empty();
+        }
+        return version.getCatalogoProveedor().stream()
+                .filter(candidato -> candidato.getInsumo().getId().equals(item.getInsumo().getId())
+                        && candidato.getPresentacionComercial().getId().equals(item.getPresentacionComercial().getId()))
+                .findFirst();
     }
 }

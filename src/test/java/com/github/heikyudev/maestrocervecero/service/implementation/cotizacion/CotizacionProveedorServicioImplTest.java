@@ -428,4 +428,86 @@ class CotizacionProveedorServicioImplTest {
             assertThat(oferta.getCantidadDisponible()).isEqualTo(2);
         });
     }
+
+    // ==================== Catálogo modificado después de responder ====================
+
+    /**
+     * El gerente de compras modifica el proveedor: la versión 10 deja de ser la vigente y la 11 ofrece la malta en Bolsa
+     * de 25 kg (200) y el lúpulo en Paquete (201), con ítems nuevos; el Balde de 5 kg de la malta sale del catálogo.
+     */
+    private VersionProveedorEntity modificarCatalogo() {
+        VersionProveedorEntity anterior = proveedor.getVersiones().get(0);
+        anterior.setEsUltimaVersion(false);
+        VersionProveedorEntity vigente = VersionProveedorEntity.builder().id(11L).razonSocial("MALTERIA SUR").nombreComercial("Maltería Sur")
+                .cuit("30123456789").esUltimaVersion(true).proveedor(proveedor).build();
+        vigente.getCatalogoProveedor().add(catalogo(200L, vigente, maltaBolsa25.getInsumo(), maltaBolsa25.getPresentacionComercial()));
+        vigente.getCatalogoProveedor().add(catalogo(201L, vigente, lupuloPaquete.getInsumo(), lupuloPaquete.getPresentacionComercial()));
+        proveedor.getVersiones().add(vigente);
+        return vigente;
+    }
+
+    private OfertaCotizacionEntity ofertaAnterior(long id, LineaSolicitudCotizacionEntity linea, CatalogoProveedorEntity item, String precio, int cantidad) {
+        OfertaCotizacionEntity oferta = OfertaCotizacionEntity.builder().id(id).invitacion(invitacion).lineaSolicitud(linea)
+                .catalogoProveedor(item).precioUnitario(new BigDecimal(precio)).cantidadDisponible(cantidad).build();
+        invitacion.getOfertas().add(oferta);
+        return oferta;
+    }
+
+    @Test
+    @DisplayName("CP-CPV-23: con el catálogo modificado después de responder, el proveedor ve su respuesta en cada presentación que sigue en el catálogo vigente y no ve las que salieron")
+    void buscar_catalogoModificado_muestraRespuestaPorPresentacion() {
+        // === PREPARACION DE DATOS ===
+        invitacion.setFechaRespuesta(LocalDateTime.now().minusHours(1));
+        ofertaAnterior(1L, lineaMalta, maltaBolsa25, "32500", 4);
+        ofertaAnterior(2L, lineaMalta, maltaBolsa5, "7000", 20);
+        ofertaAnterior(3L, lineaLupulo, lupuloPaquete, "9000", 1);
+        modificarCatalogo();
+
+        // === EJECUCION ===
+        CotizacionProveedorResponseDTO cotizacion = servicio.buscarCotizacion(TOKEN);
+
+        // === ASSERTS ===
+        // La malta solo figura en Bolsa (el Balde salió del catálogo), con el ítem vigente y la respuesta anterior
+        assertThat(cotizacion.getLineas().get(0).getPresentaciones()).singleElement().satisfies(p -> {
+            assertThat(p.getIdCatalogoProveedor()).isEqualTo(200L);
+            assertThat(p.getNombre()).isEqualTo("Bolsa (25 kg)");
+            assertThat(p.getPrecioUnitarioOfertado()).isEqualByComparingTo("32500");
+            assertThat(p.getCantidadDisponibleOfertada()).isEqualTo(4);
+        });
+        assertThat(cotizacion.getLineas().get(1).getPresentaciones()).singleElement().satisfies(p -> {
+            assertThat(p.getIdCatalogoProveedor()).isEqualTo(201L);
+            assertThat(p.getPrecioUnitarioOfertado()).isEqualByComparingTo("9000");
+            assertThat(p.getCantidadDisponibleOfertada()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    @DisplayName("CP-CPV-24: con el catálogo modificado, un nuevo envío actualiza en su lugar la oferta de la misma presentación apuntándola al ítem vigente y quita las de presentaciones que salieron")
+    void registrar_catalogoModificado_actualizaPorPresentacion() {
+        // === PREPARACION DE DATOS ===
+        OfertaCotizacionEntity anteriorBolsa = ofertaAnterior(1L, lineaMalta, maltaBolsa25, "30000", 2);
+        ofertaAnterior(2L, lineaMalta, maltaBolsa5, "7000", 20);
+        OfertaCotizacionEntity anteriorLupulo = ofertaAnterior(3L, lineaLupulo, lupuloPaquete, "9000", 1);
+        VersionProveedorEntity vigente = modificarCatalogo();
+
+        // === EJECUCION ===
+        servicio.registrarCotizacion(TOKEN, form(fila(501L, 200L, "31000", 3), fila(502L, 201L, "9500", 2)));
+
+        // === ASSERTS ===
+        // Mismos registros, apuntando a los ítems vigentes; la oferta del Balde se quita
+        assertThat(invitacion.getOfertas()).containsExactly(anteriorBolsa, anteriorLupulo);
+        assertThat(anteriorBolsa.getCatalogoProveedor()).isSameAs(vigente.getCatalogoProveedor().get(0));
+        assertThat(anteriorBolsa.getPrecioUnitario()).isEqualByComparingTo("31000");
+        assertThat(anteriorBolsa.getCantidadDisponible()).isEqualTo(3);
+        assertThat(anteriorLupulo.getCatalogoProveedor()).isSameAs(vigente.getCatalogoProveedor().get(1));
+        assertThat(anteriorLupulo.getPrecioUnitario()).isEqualByComparingTo("9500");
+    }
+
+    @Test
+    @DisplayName("CP-CPV-25: con el catálogo modificado, un ítem de la versión anterior ya no es una presentación válida")
+    void registrar_catalogoModificado_rechazaItemDeVersionAnterior() {
+        modificarCatalogo();
+
+        verificarRegla(form(fila(501L, 100L, "31000", 3)), "Una de las presentaciones de Malta Pilsen no figura en su catálogo", null);
+    }
 }

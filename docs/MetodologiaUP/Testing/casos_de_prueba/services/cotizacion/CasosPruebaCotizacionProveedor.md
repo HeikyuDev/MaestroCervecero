@@ -47,3 +47,13 @@ ightarrow$ **No**|Lanza siempre "No indique precio unitario si la cantidad dispo
 |**CP-CPV-20**|Precio sin cantidad|Bolsa a $ 25.000 sin cantidad|Cantidad informada $\rightarrow$ **No**|Lanza "La cantidad disponible es obligatoria si indica un precio unitario" en `ofertas[0].cantidadDisponible`. No guarda.|
 |**CP-CPV-21**|Precio con cantidad mayor a 0|Bolsa sin stock y Balde a $ 6.000 con 3 unidades|Oferta con stock|Quedan la oferta sin stock de la Bolsa y la del Balde con su precio.|
 |**CP-CPV-22**|Fila vacía con datos viejos|Filas sin precio ni cantidad con la línea 999, con la presentación 777 y repitiendo la Bolsa, más la Bolsa a $ 28.000 con 2 unidades|Fila sin responder|Las filas vacías se ignoran antes de validar su insumo y su presentación: queda solo la oferta de la Bolsa.|
+
+### 5. Catálogo modificado después de responder
+
+Al modificar el proveedor se crea una versión con ítems de catálogo nuevos. Una oferta se identifica por su insumo y su presentación comercial: se resuelve siempre contra el ítem del catálogo vigente. En estos casos la versión vigente pasa a ser la 11, con la malta en "Bolsa" de 25 kg (200) y el lúpulo en "Paquete" de 1 kg (201); el "Balde" de 5 kg de la malta sale del catálogo.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-CPV-23**|Respuesta visible con el catálogo modificado|Respuesta registrada con la versión 10: malta en Bolsa a $ 32.500 con 4 unidades, malta en Balde a $ 7.000 con 20 unidades y lúpulo en Paquete a $ 9.000 con 1 unidad; luego se modifica el catálogo|Presentación en el catálogo vigente|La malta solo muestra la Bolsa, con el ítem vigente 200 y la respuesta anterior ($ 32.500, 4 unidades); el Balde no se muestra. El lúpulo muestra el ítem 201 con su respuesta anterior.|
+|**CP-CPV-24**|Nuevo envío con el catálogo modificado|Las mismas ofertas anteriores; nuevo envío con la malta en Bolsa (200) a $ 31.000 con 3 unidades y el lúpulo (201) a $ 9.500 con 2 unidades|Oferta registrada con una versión anterior|Las ofertas de la Bolsa y del lúpulo se actualizan en su lugar (mismos registros) y pasan a apuntar a los ítems vigentes 200 y 201; la oferta del Balde se quita.|
+|**CP-CPV-25**|Ítem de una versión anterior|Envío con la malta en el ítem 100 de la versión 10|Ítem del catálogo vigente $\rightarrow$ **No**|Lanza "Una de las presentaciones de Malta Pilsen no figura en su catálogo". No guarda.|

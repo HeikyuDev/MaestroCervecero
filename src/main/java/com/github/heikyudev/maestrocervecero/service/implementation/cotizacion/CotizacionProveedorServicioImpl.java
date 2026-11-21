@@ -28,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,12 @@ import java.util.stream.Collectors;
  * presentaciones de su catálogo: cada presentación con precio y cantidad es una oferta, y una presentación con cantidad
  * 0 y sin precio es una oferta sin stock, que el plan no usa. Las ofertas se actualizan en su
  * lugar (no se borran y se vuelven a crear) para respetar la unicidad de una oferta por invitación, insumo y presentación.
+ * </p>
+ * <p>
+ * Todo se resuelve contra la versión vigente del proveedor: una oferta se identifica por su insumo y su presentación
+ * comercial, de modo que si el gerente de compras modifica el proveedor (lo que crea una versión con ítems de catálogo
+ * nuevos), la respuesta se sigue mostrando y actualizando en cada presentación que el catálogo vigente conserva. Las
+ * ofertas de presentaciones que salieron del catálogo no se muestran y se quitan con el siguiente envío.
  * </p>
  */
 @Service
@@ -140,14 +148,22 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
                     .build());
         }
 
-        // 4. Reemplazar las ofertas: se actualizan las de las presentaciones que se vuelven a cotizar, se quitan las demás
-        //    y se agregan las nuevas
-        invitacion.getOfertas().removeIf(oferta -> !nuevas.containsKey(ClaveOferta.de(oferta)));
-        for (OfertaCotizacionEntity existente : invitacion.getOfertas()) {
-            OfertaCotizacionEntity nueva = nuevas.remove(ClaveOferta.de(existente));
-            existente.setPrecioUnitario(nueva.getPrecioUnitario());
-            existente.setCantidadDisponible(nueva.getCantidadDisponible());
+        // 4. Reemplazar las ofertas: las de las presentaciones que se vuelven a cotizar se actualizan en su lugar y pasan a
+        //    apuntar al ítem del catálogo vigente (la oferta se identifica por insumo y presentación, aunque se haya
+        //    registrado con una versión anterior del proveedor); se quitan las demás, incluidas las de presentaciones que
+        //    salieron del catálogo, y se agregan las nuevas
+        Set<OfertaCotizacionEntity> conservadas = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (MapperSolicitudCotizacion.OfertaVigente vigente : MapperSolicitudCotizacion.ofertasVigentes(invitacion)) {
+            OfertaCotizacionEntity existente = vigente.oferta();
+            OfertaCotizacionEntity nueva = nuevas.remove(ClaveOferta.de(vigente));
+            if (nueva != null) {
+                existente.setCatalogoProveedor(vigente.itemVigente());
+                existente.setPrecioUnitario(nueva.getPrecioUnitario());
+                existente.setCantidadDisponible(nueva.getCantidadDisponible());
+                conservadas.add(existente);
+            }
         }
+        invitacion.getOfertas().removeIf(oferta -> !conservadas.contains(oferta));
         nuevas.values().stream()
                 .sorted(Comparator.comparing((OfertaCotizacionEntity oferta) -> oferta.getLineaSolicitud().getId())
                         .thenComparing(oferta -> oferta.getCatalogoProveedor().getId()))
@@ -157,11 +173,16 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
         return armarCotizacion(invitacionRepository.save(invitacion));
     }
 
-    /** Identidad de una oferta dentro de la respuesta de un proveedor: el insumo solicitado y la presentación. */
+    /**
+     * Identidad de una oferta dentro de la respuesta de un proveedor: el insumo solicitado y el ítem del catálogo
+     * vigente. Como el catálogo vigente no repite un insumo con la misma presentación comercial, el ítem vigente equivale
+     * a la presentación; las ofertas registradas con una versión anterior se comparan por su ítem vigente (ver
+     * {@link MapperSolicitudCotizacion#ofertasVigentes}).
+     */
     private record ClaveOferta(Long idLinea, Long idCatalogoProveedor) {
 
-        static ClaveOferta de(OfertaCotizacionEntity oferta) {
-            return new ClaveOferta(oferta.getLineaSolicitud().getId(), oferta.getCatalogoProveedor().getId());
+        static ClaveOferta de(MapperSolicitudCotizacion.OfertaVigente vigente) {
+            return new ClaveOferta(vigente.oferta().getLineaSolicitud().getId(), vigente.itemVigente().getId());
         }
     }
 
@@ -271,8 +292,10 @@ public class CotizacionProveedorServicioImpl implements ICotizacionProveedorServ
     private static CotizacionProveedorResponseDTO armarCotizacion(InvitacionCotizacionEntity invitacion) {
         SolicitudCotizacionEntity solicitud = invitacion.getSolicitud();
         VersionProveedorEntity version = MapperSolicitudCotizacion.versionVigente(invitacion.getProveedor());
-        Map<ClaveOferta, OfertaCotizacionEntity> ofertas = invitacion.getOfertas().stream()
-                .collect(Collectors.toMap(ClaveOferta::de, Function.identity(), (primera, segunda) -> primera));
+        // Las respuestas se ubican por insumo y presentación: una oferta registrada con una versión anterior del proveedor
+        // se muestra en el ítem vigente de su presentación, y la de una presentación que salió del catálogo no se muestra
+        Map<ClaveOferta, OfertaCotizacionEntity> ofertas = MapperSolicitudCotizacion.ofertasVigentes(invitacion).stream()
+                .collect(Collectors.toMap(ClaveOferta::de, MapperSolicitudCotizacion.OfertaVigente::oferta, (primera, segunda) -> primera));
 
         List<LineaCotizacionProveedorResponseDTO> lineas = new ArrayList<>();
         for (LineaSolicitudCotizacionEntity linea : lineasQueOfrece(solicitud, version)) {
