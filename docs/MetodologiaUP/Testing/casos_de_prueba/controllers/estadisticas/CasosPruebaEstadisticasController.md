@@ -48,6 +48,8 @@ ightarrow$ **No se alcanza** | La barra de pestañas no incluye Tiempos, la pest
 | **CP-ESTC-18** | Criterios de producción | Con Tiempos habilitada: etapa en minúsculas y receta; tipo de insumo; tipo de equipo y equipo; etapa inexistente | Criterios $\rightarrow$ **Interpretados** | Llegan al Service como valores del enum y entidades con su texto; una etapa inexistente no filtra y se avisa "La etapa indicada no es válida, se muestran todas". |
 | **CP-ESTC-19** | Criterios de compras | Proveedor y estado; tipo de insumo con un proveedor que ya no existe; tipo de insumo; tipo de ingreso | Criterios $\rightarrow$ **Interpretados** | Llegan al Service interpretados; un proveedor que ya no existe no filtra. |
 | **CP-ESTC-20** | Buscador de equipos | Gerente de Compras | GET `/estadisticas/buscador/equipos` $\rightarrow$ **Rechazo** | Redirección con la alerta de permisos sin consultar equipos. |
+| **CP-ESTC-29** | Buscador de equipos con dados de baja | Gerente de Producción, `identificador: " fer "` | GET `/estadisticas/buscador/equipos` $\rightarrow$ **Activos y dados de baja con actividad** | Consulta `filtrarEquipamientosConDadosDeBajaConActividad("fer", null, ...)` (nunca el filtro de solo activos); el equipo dado de baja se muestra y se elige como "FER-02 (dado de baja)". |
+| **CP-ESTC-30** | Filtro por un equipo dado de baja | Gerente de Producción, `pestana=equipamiento&idEquipo=9` (dado de baja) | Criterios $\rightarrow$ **Equipo 9** | El reporte de equipamiento recibe `idEquipo: 9` y el texto "FER-02 (dado de baja)". |
 
 ### 4. Apoyo (`ApoyoReporteTest`)
 

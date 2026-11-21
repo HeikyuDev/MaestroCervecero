@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.util.method;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +15,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class MetodosCicloVidaTest {
 
@@ -153,6 +160,38 @@ class MetodosCicloVidaTest {
         // === EJECUCION Y ASSERTS ===
         assertThat(MetodosCicloVida.resolverBarril(Optional.of(barril), 3L)).isSameAs(barril);
         assertThatThrownBy(() -> MetodosCicloVida.resolverBarril(Optional.empty(), 99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el barril con ID: 99")
+                .satisfies(e -> assertThat(((RecursoNoEncontradoException) e).getCampo()).isEqualTo("idBarril"));
+    }
+
+    @Test
+    @DisplayName("CP-MCV-11: resolverBarrilParaAnular devuelve el barril que encuentra la búsqueda con bloqueo sin consultar si está dado de baja")
+    void resolverBarrilParaAnular_debeDevolverElEncontrado() {
+        // === PREPARACION DE DATOS ===
+        IBarrilRepository barrilRepository = mock(IBarrilRepository.class);
+        BarrilEntity barril = BarrilEntity.builder().id(3L).build();
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(3L)).thenReturn(Optional.of(barril));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, 3L)).isSameAs(barril);
+        verify(barrilRepository, never()).existsByIdAndEstado(any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-MCV-12: resolverBarrilParaAnular lanza ReglaNegocioException con campo idBarril si el barril está dado de baja, y RecursoNoEncontradoException si no existe")
+    void resolverBarrilParaAnular_debeDistinguirDadoDeBajaDeInexistente() {
+        // === PREPARACION DE DATOS ===
+        IBarrilRepository barrilRepository = mock(IBarrilRepository.class);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(any())).thenReturn(Optional.empty());
+        when(barrilRepository.existsByIdAndEstado(5L, Estado.BAJA)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, 5L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el barril está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idBarril"));
+        assertThatThrownBy(() -> MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, 99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el barril con ID: 99")
                 .satisfies(e -> assertThat(((RecursoNoEncontradoException) e).getCampo()).isEqualTo("idBarril"));

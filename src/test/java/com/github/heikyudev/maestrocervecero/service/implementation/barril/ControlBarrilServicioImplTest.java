@@ -214,7 +214,7 @@ class ControlBarrilServicioImplTest {
     @DisplayName("CP-CBS-04: el resumen informa los datos del barril, sus usos y las fechas de su última limpieza y su último mantenimiento")
     void resumen() {
         LocalDateTime mantenimiento = FECHA.minusDays(10);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(mantenimiento));
         when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(FECHA));
         when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, mantenimiento)).thenReturn(4L);
@@ -236,7 +236,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-25: el resumen de un barril Con cerveza informa el lote de su último envasado registrado y la receta")
     void resumen_conCervezaInformaElContenido() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(0L);
@@ -253,7 +253,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-26: el resumen de un barril que no está Con cerveza no informa contenido ni lo consulta")
     void resumen_sinCervezaNoInformaContenido() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(0L);
@@ -267,7 +267,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-05: un barril sin limpiezas ni mantenimientos informa 0 usos y ambas fechas nulas, y cuenta las limpiezas sin fecha de corte")
     void resumen_sinOperaciones() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(0L);
@@ -280,9 +280,9 @@ class ControlBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CBS-06: un barril inexistente o dado de baja lanza RecursoNoEncontradoException")
+    @DisplayName("CP-CBS-06: el resumen de un barril inexistente lanza RecursoNoEncontradoException")
     void resumen_inexistente() {
-        when(barrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> servicio.buscarResumen(99L)).isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el barril con ID: 99");
     }
@@ -292,7 +292,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-07: solo la última operación registrada del barril es anulable; la anulada y las anteriores no")
     void operaciones_soloLaUltimaEsAnulable() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(9L));
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         LimpiezaBarrilEntity ultima = limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA);
@@ -311,7 +311,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-08: con el barril EN_USO ninguna operación es anulable")
     void operaciones_enUsoNoAnulable() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.EN_USO)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.EN_USO)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(9L));
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
@@ -322,7 +322,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-09: una operación que no es posterior al último envasado no es anulable, aunque sea la última")
     void operaciones_noPosteriorAlEnvasado() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(9L));
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(FECHA));
         when(limpiezaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
@@ -333,7 +333,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-10: lista el tipo pedido y mapea sus datos propios: cantidad extraída, cliente con fecha estimada y litros descartados")
     void operaciones_datosPropiosDeCadaTipo() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         when(fraccionamientoBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(FraccionamientoBarrilEntity.builder().id(1L).fecha(FECHA).observaciones("Muestra")
@@ -358,7 +358,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-11: las fallas y los mantenimientos se listan con sus propios repositorios")
     void operaciones_fallasYMantenimientos() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.empty());
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         when(fallaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(FallaBarrilEntity.builder().id(4L).fecha(FECHA).observaciones("Falla").estado(EstadoTransaccion.REGISTRADO).build()));
@@ -371,7 +371,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-12: listar las operaciones de un barril inexistente lanza RecursoNoEncontradoException")
     void operaciones_barrilInexistente() {
-        when(barrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> servicio.listarOperaciones(99L, TipoOperacionBarril.LIMPIEZA)).isInstanceOf(RecursoNoEncontradoException.class);
     }
@@ -386,7 +386,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-13: el historial une envasados y operaciones, de la más reciente a la más antigua, con el estado resultante de cada una")
     void historial_unionOrdenadaConEstadoResultante() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(envasadoLoteRepository.buscarRegistradosDelBarrilEnPeriodo(1L, null, null)).thenReturn(List.of(envasado(1L, EstadoLote.FINALIZADO, FECHA.minusDays(5)), envasado(2L, EstadoLote.EN_EJECUCION, FECHA.minusDays(9))));
         when(operacionCicloVidaBarrilRepository.buscarRegistradasEnPeriodo(1L, null, null)).thenReturn(List.of(
                 DevolucionBarrilEntity.builder().id(30L).fecha(FECHA).observaciones("Devuelto").estado(EstadoTransaccion.REGISTRADO).build(),
@@ -417,7 +417,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-14: el filtro por Envasado no consulta las operaciones y el filtro por otro tipo no consulta los envasados")
     void historial_filtroPorTipo() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(envasadoLoteRepository.buscarRegistradosDelBarrilEnPeriodo(any(), any(), any())).thenReturn(List.of(envasado(1L, EstadoLote.EN_EJECUCION, FECHA)));
         when(operacionCicloVidaBarrilRepository.buscarRegistradasEnPeriodo(any(), any(), any())).thenReturn(List.of(
                 FallaBarrilEntity.builder().id(27L).fecha(FECHA).observaciones("Falla").estado(EstadoTransaccion.REGISTRADO).build(),
@@ -435,7 +435,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-15: el historial se pagina y conserva el total")
     void historial_paginacion() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.DISPONIBLE)));
         when(envasadoLoteRepository.buscarRegistradosDelBarrilEnPeriodo(any(), any(), any())).thenReturn(List.of());
         List<com.github.heikyudev.maestrocervecero.persistence.entity.barril.OperacionCicloVidaBarril> muchas = new ArrayList<>();
         for (long i = 1; i <= 25; i++) {
@@ -454,7 +454,7 @@ class ControlBarrilServicioImplTest {
     void historial_validaciones() {
         assertThatThrownBy(() -> servicio.listarHistorial(1L, null, FECHA, FECHA.minusDays(1), PageRequest.of(0, 20)))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("La fecha hasta no puede ser anterior a la fecha desde");
-        when(barrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(99L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> servicio.listarHistorial(99L, null, null, null, PageRequest.of(0, 20))).isInstanceOf(RecursoNoEncontradoException.class);
     }
 
@@ -467,27 +467,47 @@ class ControlBarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CBS-17: el resumen de un barril dado de baja lanza RecursoNoEncontradoException")
+    @DisplayName("CP-CBS-17: el resumen de un barril dado de baja se resuelve marcado como dado de baja, para consultar su historial")
     void resumen_barrilDeBaja() {
-        when(barrilRepository.findById(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(5L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(5L)).thenReturn(Optional.of(FECHA));
+        when(limpiezaBarrilRepository.contarLimpiezasRegistradasDesde(5L, null)).thenReturn(2L);
 
-        assertThatThrownBy(() -> servicio.buscarResumen(5L)).isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el barril con ID: 5");
+        BarrilResumenResponseDTO resumen = servicio.buscarResumen(5L);
+
+        assertThat(resumen.getIdentificadorInterno()).isEqualTo("BRL-05");
+        assertThat(resumen.getEstado()).isEqualTo(Estado.BAJA);
+        assertThat(resumen.isDadoDeBaja()).isTrue();
+        assertThat(resumen.getUsosDesdeUltimoMantenimiento()).isEqualTo(2L);
+        assertThat(resumen.getFechaUltimaLimpieza()).isEqualTo(FECHA);
     }
 
     @Test
-    @DisplayName("CP-CBS-18: listar las operaciones de un barril dado de baja lanza RecursoNoEncontradoException")
+    @DisplayName("CP-CBS-18: las operaciones de un barril dado de baja se listan y ninguna es anulable, aunque sea la última registrada y el barril esté en su estado resultante")
     void operaciones_barrilDeBaja() {
-        when(barrilRepository.findById(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(5L)).thenReturn(Optional.of(9L));
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(5L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.listarPorBarril(5L)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
 
-        assertThatThrownBy(() -> servicio.listarOperaciones(5L, TipoOperacionBarril.LIMPIEZA)).isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el barril con ID: 5");
+        List<OperacionBarrilResponseDTO> operaciones = servicio.listarOperaciones(5L, TipoOperacionBarril.LIMPIEZA);
+
+        assertThat(operaciones).extracting(OperacionBarrilResponseDTO::getId).containsExactly(9L);
+        assertThat(operaciones).extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(false);
     }
 
     @Test
-    @DisplayName("CP-CBS-19: el historial de un barril dado de baja lanza RecursoNoEncontradoException")
+    @DisplayName("CP-CBS-19: el historial de un barril dado de baja se lista igual que el de uno activo")
     void historial_barrilDeBaja() {
-        when(barrilRepository.findById(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(5L)).thenReturn(Optional.of(barrilDeBaja()));
+        when(envasadoLoteRepository.buscarRegistradosDelBarrilEnPeriodo(5L, null, null)).thenReturn(List.of());
+        when(operacionCicloVidaBarrilRepository.buscarRegistradasEnPeriodo(5L, null, null)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
 
-        assertThatThrownBy(() -> servicio.listarHistorial(5L, null, null, null, PageRequest.of(0, 20))).isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el barril con ID: 5");
+        Page<ActividadBarrilResponseDTO> historial = servicio.listarHistorial(5L, null, null, null, PageRequest.of(0, 20));
+
+        assertThat(historial.getTotalElements()).isEqualTo(1);
+        assertThat(historial.getContent().get(0).getIdReferencia()).isEqualTo(9L);
     }
 
     // ==================== Estado operativo del barril y anulable ====================
@@ -495,7 +515,7 @@ class ControlBarrilServicioImplTest {
     @Test
     @DisplayName("CP-CBS-20: una operación no es anulable si el barril no está en el estado operativo que ella dejó, aunque sea la última")
     void operaciones_estadoDelBarrilNoCoincide() {
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.EN_LIMPIEZA)));
+        when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.EN_LIMPIEZA)));
         when(operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(9L));
         when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.listarPorBarril(1L)).thenReturn(List.of(limpieza(9L, EstadoTransaccion.REGISTRADO, FECHA)));
@@ -520,9 +540,9 @@ class ControlBarrilServicioImplTest {
                 {TipoOperacionBarril.DESPACHO, EstadoOperativoBarril.DESPACHADO}, {TipoOperacionBarril.DEVOLUCION, EstadoOperativoBarril.EN_LIMPIEZA},
                 {TipoOperacionBarril.FRACCIONAMIENTO, EstadoOperativoBarril.EN_LIMPIEZA}};
         for (Object[] caso : casos) {
-            when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", (EstadoOperativoBarril) caso[1])));
+            when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", (EstadoOperativoBarril) caso[1])));
             assertThat(servicio.listarOperaciones(1L, (TipoOperacionBarril) caso[0])).as(caso[0] + " con su estado").extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(true);
-            when(barrilRepository.findById(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
+            when(barrilRepository.buscarPorIdIncluyendoDadosDeBaja(1L)).thenReturn(Optional.of(barril(1L, "BRL-01", EstadoOperativoBarril.CON_CERVEZA)));
             assertThat(servicio.listarOperaciones(1L, (TipoOperacionBarril) caso[0])).as(caso[0] + " con otro estado").extracting(OperacionBarrilResponseDTO::isAnulable).containsExactly(false);
         }
     }

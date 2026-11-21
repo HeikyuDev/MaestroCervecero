@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -55,9 +54,6 @@ class MolinoServicioImplTest {
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
-
-    @Mock
-    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
@@ -361,7 +357,7 @@ class MolinoServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> molinoServicio.modificarMolino(1L, molinoFormDTO)).doesNotThrowAnyException();
 
         verify(molinoRepository).save(molinoEntity);
-        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
+        verify(etapaLoteRepository, never()).existsEtapaEnLoteVigente(any());
     }
 
     @Test
@@ -375,7 +371,7 @@ class MolinoServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> molinoServicio.modificarMolino(1L, molinoFormDTO)).doesNotThrowAnyException();
 
         verify(molinoRepository).save(molinoEntity);
-        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
+        verify(etapaLoteRepository, never()).existsEtapaEnLoteVigente(any());
     }
 
     @Test
@@ -422,18 +418,18 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene lotes asociados")
+    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene lotes pendientes o en ejecución")
     void bajaMolino_debeRechazarAsociacionALotes() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene lotes asociados");
+                .hasMessage("No se puede dar de baja el molino porque tiene lotes pendientes o en ejecución");
 
-        verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         verify(molinoRepository, never()).save(any());
     }
 
@@ -443,7 +439,7 @@ class MolinoServicioImplTest {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -458,7 +454,7 @@ class MolinoServicioImplTest {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_LIMPIEZA);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -473,7 +469,7 @@ class MolinoServicioImplTest {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_MANTENIMIENTO);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -483,75 +479,23 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-07: bajaMolino informa primero los lotes asociados cuando el molino además no está disponible")
+    @DisplayName("CP-BM-07: bajaMolino informa primero los lotes pendientes o en ejecución cuando el molino además no está disponible")
     void bajaMolino_debePriorizarLotesAsociadosSobreNoDisponible() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene lotes asociados");
+                .hasMessage("No se puede dar de baja el molino porque tiene lotes pendientes o en ejecución");
 
         verify(molinoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BM-08: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene operaciones registradas")
-    void bajaMolino_debeRechazarSiTieneOperacionesRegistradas() {
-        // === PREPARACION DE DATOS ===
-        MolinoEntity entidad = crearMolinoEntity(1L, "MOL-01", 100.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
-        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene operaciones registradas");
-        verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-09: bajaMolino informa primero los lotes asociados cuando el molino además tiene operaciones registradas")
-    void bajaMolino_debePriorizarLotesAsociadosSobreOperacionesRegistradas() {
-        // === PREPARACION DE DATOS ===
-        MolinoEntity entidad = crearMolinoEntity(1L, "MOL-01", 100.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene lotes asociados");
-        verify(operacionCicloVidaEquipamientoRepository, never()).existsOperacionRegistrada(any());
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-10: bajaMolino informa primero las operaciones registradas cuando el molino además no está disponible")
-    void bajaMolino_debePriorizarOperacionesRegistradasSobreNoDisponible() {
-        // === PREPARACION DE DATOS ===
-        MolinoEntity entidad = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
-        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene operaciones registradas");
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-13: bajaMolino bloquea el equipamiento antes de consultar los lotes asociados y las operaciones registradas")
-    void bajaMolino_debeBloquearElEquipamientoAntesDeConsultarLotesYOperaciones() {
+    @DisplayName("CP-BM-09: bajaMolino bloquea el equipamiento antes de consultar los lotes pendientes o en ejecución")
+    void bajaMolino_debeBloquearElEquipamientoAntesDeConsultarLotesVigentes() {
         // === PREPARACION DE DATOS ===
         MolinoEntity entidad = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
@@ -562,10 +506,9 @@ class MolinoServicioImplTest {
         molinoServicio.bajaMolino(1L);
 
         // === ASSERTS ===
-        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, operacionCicloVidaEquipamientoRepository, molinoRepository);
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, molinoRepository);
         orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
-        orden.verify(etapaLoteRepository).existsEtapaAsociada(1L);
-        orden.verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        orden.verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         orden.verify(molinoRepository).save(entidad);
     }
 
@@ -575,7 +518,7 @@ class MolinoServicioImplTest {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(molinoEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
         MolinoResponseDTO resultado = molinoServicio.bajaMolino(1L);
@@ -584,7 +527,7 @@ class MolinoServicioImplTest {
         assertThat(molinoEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMolinoDTO(molinoEntity, resultado);
         verify(molinoRepository).findById(1L);
-        verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         verify(molinoRepository).save(molinoEntity);
         verify(molinoRepository, never()).delete(any());
     }

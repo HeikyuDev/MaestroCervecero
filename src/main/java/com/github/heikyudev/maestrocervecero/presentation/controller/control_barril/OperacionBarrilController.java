@@ -136,13 +136,13 @@ public class OperacionBarrilController {
     }
 
     /**
-     * Muestra el formulario de registro de la operación. Si el estado operativo del barril no la permite, vuelve a la
+     * Muestra el formulario de registro de la operación. Si el barril está dado de baja o su estado operativo no la permite, vuelve a la
      * pestaña con el aviso del motivo (el service sigue siendo la fuente de verdad al registrar). Si llega de un registro
      * rechazado, muestra los errores y lo que se había escrito.
      */
     private String mostrarFormulario(PestanaOperacionBarril pestana, Long idBarril, Model model, RedirectAttributes redirectAttributes) {
         BarrilResumenResponseDTO barril = controlServicio.buscarResumen(idBarril);
-        Optional<String> motivo = pestana.motivoNoRegistrable(barril.getEstadoOperativo());
+        Optional<String> motivo = pestana.motivoNoRegistrable(barril);
         if (motivo.isPresent()) {
             agregarMensaje(redirectAttributes, motivo.get(), TipoAlerta.WARNING);
             return volverALaPestana(pestana, idBarril);

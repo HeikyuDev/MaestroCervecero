@@ -176,7 +176,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
      * @param id El ID de la devolución de barril a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La devolución de barril anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si la devolución no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code EN_LIMPIEZA}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si la devolución no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code EN_LIMPIEZA}; también si el barril asociado está dado de baja.
      * @throws RecursoNoEncontradoException Si la devolución de barril con el ID especificado no existe, o si el barril asociado no existe.
      */
     @Override
@@ -190,7 +190,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         //    existe, se dispara RecursoNoEncontradoException
         Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la devolución de barril con ID: " + id));
-        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, idBarril);
 
         // 3. Localizar la devolución, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         DevolucionBarrilEntity devolucionBarrilEntity = devolucionBarrilRepository.findById(id)

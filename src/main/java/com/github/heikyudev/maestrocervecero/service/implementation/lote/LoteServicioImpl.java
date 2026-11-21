@@ -369,7 +369,7 @@ public class LoteServicioImpl implements ILoteServicio {
      *
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
-     * @throws RecursoNoEncontradoException Si la planificación de producción o alguno de los equipamientos referenciados no existe.
+     * @throws RecursoNoEncontradoException Si la planificación de producción no existe, o si alguno de los equipamientos referenciados no existe, está dado de baja o es de otro tipo.
      * @throws ReglaNegocioException Si el volumen objetivo no se informó o no es un número mayor a 0, si no se informó
      *                               la planificación de producción o algún equipamiento (estas validaciones se hacen antes
      *                               de consultar nada), si la planificación de producción no está en estado PENDIENTE, si
@@ -400,24 +400,23 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("La planificación de producción debe encontrarse en estado Pendiente para poder registrar un lote");
         }
 
-        // 3. Validar que los equipamientos seleccionados estén registrados en el sistema
-        MolinoEntity molino = molinoRepository.findById(loteFormDTO.getIdMolino())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + loteFormDTO.getIdMolino()));
+        // 3. Validar que los equipamientos seleccionados estén registrados y activos, bloqueándolos para escritura en el
+        //    orden canónico (planificación, fermentador, cola pendiente del fermentador y equipos del lote). Las búsquedas
+        //    con bloqueo solo encuentran equipamientos activos y usan el mismo bloqueo que la baja de un equipamiento: una
+        //    baja concurrente se serializa con el registro, así que el lote nunca queda Pendiente sobre un equipo dado de baja.
+        //    El fermentador además es la exclusión mutua de su cola: dos registros simultáneos sobre el mismo fermentador
+        //    no pueden intercalarse al ubicar el lote en la cola. Si una misma transacción registra varios lotes (la
+        //    confirmación de un plan de producción), bloquea antes todos sus fermentadores por ID ascendente
+        FermentadorEntity fermentador = bloquearEquipo(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdFermentador()),
+                FermentadorEntity.class, "No se encontró el fermentador con ID: " + loteFormDTO.getIdFermentador());
+        List<LoteEntity> colaPendiente = new ArrayList<>(loteRepository.buscarPendientesDeFermentadorParaReordenar(loteFormDTO.getIdFermentador()));
 
-        MaceradorEntity macerador = maceradorRepository.findById(loteFormDTO.getIdMacerador())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + loteFormDTO.getIdMacerador()));
-
-        OllaHervorEntity ollaHervor = ollaHervorRepository.findById(loteFormDTO.getIdOllaHervor())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + loteFormDTO.getIdOllaHervor()));
-
-        // El fermentador se bloquea para escritura (exclusión mutua de su cola de lotes pendientes): dos registros
-        // simultáneos sobre el mismo fermentador no pueden intercalarse al ubicar el lote en la cola. Respeta el orden
-        // canónico (planificación, fermentador, cola); ningún equipo anterior se bloquea, por lo que no hay inversión.
-        // Si una misma transacción registra varios lotes (la confirmación de un plan de producción), bloquea antes todos
-        // sus fermentadores por ID ascendente, para que los fermentadores también se bloqueen siempre en el mismo orden
-        fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdFermentador());
-        FermentadorEntity fermentador = fermentadorRepository.findById(loteFormDTO.getIdFermentador())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + loteFormDTO.getIdFermentador()));
+        MolinoEntity molino = bloquearEquipo(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdMolino()),
+                MolinoEntity.class, "No se encontró el molino con ID: " + loteFormDTO.getIdMolino());
+        MaceradorEntity macerador = bloquearEquipo(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdMacerador()),
+                MaceradorEntity.class, "No se encontró el macerador con ID: " + loteFormDTO.getIdMacerador());
+        OllaHervorEntity ollaHervor = bloquearEquipo(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(loteFormDTO.getIdOllaHervor()),
+                OllaHervorEntity.class, "No se encontró la olla de hervor con ID: " + loteFormDTO.getIdOllaHervor());
 
         // 4. Validar que el volumen objetivo del lote no supere la capacidad útil del fermentador (Paso 1 del escalado
         //    de agua: verificación del fermentador)
@@ -449,10 +448,9 @@ public class LoteServicioImpl implements ILoteServicio {
         // 8. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
         String identificadorInterno = generarIdentificadorInterno(versionReceta);
 
-        // 9. Recuperar la cola de lotes pendientes del fermentador (bloqueada para escritura) y calcular la planificación
-        //    del lote en su cronograma: por defecto, detrás de todos los lotes vivos (nunca antes de la fecha de inicio
-        //    estimada de su planificación de producción ni antes de hoy)
-        List<LoteEntity> colaPendiente = new ArrayList<>(loteRepository.buscarPendientesDeFermentadorParaReordenar(loteFormDTO.getIdFermentador()));
+        // 9. Calcular la planificación del lote en el cronograma de su fermentador (cuya cola ya está bloqueada): por
+        //    defecto, detrás de todos los lotes vivos (nunca antes de la fecha de inicio estimada de su planificación de
+        //    producción ni antes de hoy)
         LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
@@ -1827,6 +1825,17 @@ public class LoteServicioImpl implements ILoteServicio {
      */
     static <T extends EquipamientoEntity> Optional<T> desproxy(Optional<? extends EquipamientoEntity> equipamiento, Class<T> clase) {
         return equipamiento.map(Hibernate::unproxy).map(clase::cast);
+    }
+
+    /**
+     * Resuelve un equipo del lote a partir de su búsqueda con bloqueo, que solo encuentra equipamientos activos y no
+     * distingue el tipo: un equipamiento de otro tipo se informa igual que uno inexistente.
+     *
+     * @throws RecursoNoEncontradoException Si la búsqueda no encontró el equipo activo del tipo esperado.
+     */
+    private static <T extends EquipamientoEntity> T bloquearEquipo(Optional<? extends EquipamientoEntity> equipamiento, Class<T> clase, String mensajeNoEncontrado) {
+        return equipamiento.map(Hibernate::unproxy).filter(clase::isInstance).map(clase::cast)
+                .orElseThrow(() -> new RecursoNoEncontradoException(mensajeNoEncontrado));
     }
 
     private void validarDisponible(EquipamientoEntity equipamiento, String etiqueta) {

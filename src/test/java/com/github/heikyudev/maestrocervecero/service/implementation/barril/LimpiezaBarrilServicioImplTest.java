@@ -416,6 +416,22 @@ class LimpiezaBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-ALB-19: anularLimpiezaBarril lanza ReglaNegocioException con campo idBarril y no anula cuando el barril asociado está dado de baja")
+    void anular_debeRechazarBarrilDadoDeBaja() {
+        AnulacionLimpiezaBarrilFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+        when(barrilRepository.existsByIdAndEstado(2L, Estado.BAJA)).thenReturn(true);
+
+        assertThatThrownBy(() -> limpiezaBarrilServicio.anularLimpiezaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el barril está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idBarril"));
+
+        verify(limpiezaBarrilRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CP-ALB-06: anularLimpiezaBarril lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
     void anular_debeRechazarIdDeOperacionDeOtroTipo() {
         BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.DISPONIBLE, 50);

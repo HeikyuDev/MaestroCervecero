@@ -97,7 +97,7 @@
     </section>
 
     <th:block sec:authorize="hasAuthority('MOTIVO_AJUSTE_ELIMINAR')">
-        <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja motivo de ajuste', 'Si tiene ajustes de insumo asociados, el sistema no lo permitirá.')}"></div>
+        <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja motivo de ajuste', 'Deja de ofrecerse en los ajustes nuevos; los ajustes ya registrados conservan su motivo.')}"></div>
     </th:block>
 </div>
 

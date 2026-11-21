@@ -32,3 +32,5 @@
 | **CP-CBC-26** | Cerveza en la lista | El barril Con cerveza muestra la receta y, debajo, el código del lote, como texto sin enlace; el barril sin contenido muestra un guion. |
 | **CP-CBC-27** | Cerveza en el panel con enlace | El operario y el gerente de producción (con `LOTE_CONSULTAR`) ven la cerveza y el lote con enlace a `/lotes/{id}` y `aria-label`. |
 | **CP-CBC-28** | Cerveza en el panel sin enlace | El encargado de distribución (sin `LOTE_CONSULTAR`) ve la receta y el código del lote como texto; un barril sin contenido no muestra la fila. |
+| **CP-CBC-29** | Panel de un barril dado de baja | El operario abre el panel en solo lectura: la información muestra la marca "Dado de baja", la tabla lista las operaciones, no hay botón de alta ni de anular, y el aviso dice "No se pueden registrar operaciones porque el barril está dado de baja". |
+| **CP-CBC-30** | Historial y detalle de una operación de un barril dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del barril. |

@@ -8,7 +8,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -36,7 +35,6 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     private final IOllaHervorRepository ollaHervorRepository;
     private final ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
-    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
@@ -181,20 +179,26 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan
      * de encontrarla.
      * </p>
+     * <p>
+     * La baja es definitiva y solo la impide lo que está en curso: un lote pendiente (en la cola de su fermentador) o en
+     * ejecución con la olla de hervor asignada a alguna de sus etapas, o un estado operativo distinto de Disponible. El historial
+     * (lotes finalizados o cancelados, limpiezas, fallas y mantenimientos) no la impide y sigue consultable.
+     * </p>
      *
      * @param id Identificador clave primaria de la olla de hervor a dar de baja.
      * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la olla de hervor tiene lotes asociados o operaciones registradas, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si la olla de hervor está asignada a un lote pendiente o en ejecución, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.OLLA_DE_HERVOR)
     public OllaHervorResponseDTO bajaOllaHervor(Long id) {
         // 1. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
-        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar lotes y operaciones, con el mismo lock que usan registrar
-        // y anular una operación de su ciclo de vida: así una baja concurrente con un registro se serializa y no deja un equipo
-        // dado de baja con una operación registrada. Orden de locks: equipamiento y luego, solo lectura, lotes y operaciones.
+        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar sus lotes: es la misma fila que bloquean el registro,
+        // el inicio, el avance, la finalización y la cancelación de un lote al buscar sus equipos, y el registro y la anulación
+        // de una operación del ciclo de vida. La baja se serializa con todos ellos. Orden de locks: equipamiento y luego, solo
+        // lectura, lotes.
         equipamientoRepository.buscarPorIdParaOperacionCicloVida(id)
                 .filter(equipamiento -> equipamiento.getEstado() == Estado.ACTIVO)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
@@ -202,25 +206,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // 2. Validar que la olla de hervor no tenga lotes asociados (en cualquier estado).
-        if (etapaLoteRepository.existsEtapaAsociada(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene lotes asociados");
-        }
+        // 2. Validar que la olla de hervor se pueda dar de baja: sin lotes pendientes ni en ejecución y disponible
+        MetodosEquipamiento.validarBaja(ollaHervorEntity, etapaLoteRepository, "la olla de hervor");
 
-        // 3. Validar que la olla de hervor no tenga operaciones registradas (limpiezas, fallas o mantenimientos). Las anuladas no cuentan.
-        if (operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene operaciones registradas");
-        }
-
-        // 4. Validar que la olla de hervor se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
-        if (ollaHervorEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque no se encuentra disponible");
-        }
-
-        // 5. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         ollaHervorEntity.setEstado(Estado.BAJA);
 
-        // 6. Retornar el DTO de la olla de hervor dada de baja
+        // 4. Retornar el DTO de la olla de hervor dada de baja
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 

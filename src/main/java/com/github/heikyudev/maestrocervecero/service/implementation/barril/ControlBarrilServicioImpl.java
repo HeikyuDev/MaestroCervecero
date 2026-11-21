@@ -113,11 +113,25 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         return contenidos;
     }
 
+    /**
+     * Busca el barril de una consulta de solo lectura, activo o dado de baja: un barril dado de baja conserva su
+     * historial consultable.
+     */
+    private BarrilEntity buscarBarril(Long idBarril) {
+        return barrilRepository.buscarPorIdIncluyendoDadosDeBaja(idBarril)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Resuelve también un barril dado de baja, marcado como tal, para sus pantallas de solo lectura.
+     * </p>
+     */
     @Override
     @Transactional(readOnly = true)
     public BarrilResumenResponseDTO buscarResumen(Long idBarril) {
-        BarrilEntity barril = barrilRepository.findById(idBarril).filter(b -> b.getEstado() == Estado.ACTIVO)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
+        BarrilEntity barril = buscarBarril(idBarril);
 
         LocalDateTime fechaUltimoMantenimiento = mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null);
         LocalDateTime fechaUltimaLimpieza = limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null);
@@ -130,12 +144,17 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         return MapperControlBarril.toResumenDTO(barril, usos, fechaUltimaLimpieza, fechaUltimoMantenimiento, contenido);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Las operaciones de un barril dado de baja se listan, pero ninguna es anulable.
+     * </p>
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OperacionBarrilResponseDTO> listarOperaciones(Long idBarril, TipoOperacionBarril tipo) {
-        BarrilEntity barril = barrilRepository.findById(idBarril).filter(b -> b.getEstado() == Estado.ACTIVO)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
-        boolean enUso = MetodosCicloVida.estaEnUso(barril.getEstadoOperativo());
+        BarrilEntity barril = buscarBarril(idBarril);
+        boolean admiteAnulaciones = barril.getEstado() == Estado.ACTIVO && !MetodosCicloVida.estaEnUso(barril.getEstadoOperativo());
         Long idUltimaOperacion = operacionCicloVidaBarrilRepository.buscarIdUltimaOperacionRegistrada(idBarril).orElse(null);
         LocalDateTime fechaUltimoEnvasado = envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null);
 
@@ -149,7 +168,7 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         };
         return operaciones.stream()
                 .map(operacion -> MapperControlBarril.toOperacionDTO(operacion,
-                        !enUso && operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
+                        admiteAnulaciones && operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
                                 && MetodosCicloVida.esPosteriorAlUltimoEnvasado(operacion.getFecha(), fechaUltimoEnvasado)
                                 && barril.getEstadoOperativo() == MapperControlBarril.estadoOperativoResultante(operacion)))
                 .toList();
@@ -169,9 +188,7 @@ public class ControlBarrilServicioImpl implements IControlBarrilServicio {
         if (desde != null && hasta != null && hasta.isBefore(desde)) {
             throw new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde", "hasta");
         }
-        if (barrilRepository.findById(idBarril).filter(b -> b.getEstado() == Estado.ACTIVO).isEmpty()) {
-            throw new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril);
-        }
+        buscarBarril(idBarril);
 
         List<ActividadBarrilResponseDTO> actividades = new ArrayList<>();
         if (tipo == null || tipo == TipoActividadBarril.ENVASADO) {

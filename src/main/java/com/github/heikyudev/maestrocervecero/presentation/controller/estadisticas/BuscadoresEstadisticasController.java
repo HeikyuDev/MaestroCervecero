@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.estadisticas;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.presentation.controller.lote.LoteController.FilaEquipo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
@@ -37,9 +38,10 @@ public class BuscadoresEstadisticasController {
     private final IControlEquipamientoServicio controlEquipamientoServicio;
 
     /**
-     * Devuelve el contenido del modal de búsqueda de equipamientos activos de cualquier tipo (criterios de identificador
-     * y estado operativo + resultados con "Elegir"), de a {@code TAMANIO_PAGINA_BUSCADOR} y en orden por identificador. Un
-     * estado operativo inválido no filtra y se avisa dentro del modal.
+     * Devuelve el contenido del modal de búsqueda de equipamientos de cualquier tipo (criterios de identificador y estado
+     * operativo + resultados con "Elegir"), de a {@code TAMANIO_PAGINA_BUSCADOR} y en orden por identificador. Ofrece los
+     * equipamientos activos y los dados de baja con actividad, estos con la marca "(dado de baja)", porque sus
+     * estadísticas siguen consultables. Un estado operativo inválido no filtra y se avisa dentro del modal.
      */
     @GetMapping("/equipos")
     @PreAuthorize("hasAuthority('ESTADISTICA_PRODUCCION_CONSULTAR')")
@@ -48,9 +50,9 @@ public class BuscadoresEstadisticasController {
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
         EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
-        Page<FilaEquipo> filas = controlEquipamientoServicio.filtrarEquipamientosParaControl(vacioANulo(identificador), null, estado,
+        Page<FilaEquipo> filas = controlEquipamientoServicio.filtrarEquipamientosConDadosDeBajaConActividad(vacioANulo(identificador), estado,
                         PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_POR_IDENTIFICADOR))
-                .map(e -> new FilaEquipo(e.getId(), e.getIdentificadorInterno(), e.getEstadoOperativo(), List.of()));
+                .map(e -> new FilaEquipo(e.getId(), CamposDeReporte.textoDeEquipo(e.getIdentificadorInterno(), e.getEstado() == Estado.BAJA), e.getEstadoOperativo(), List.of()));
 
         model.addAttribute("filas", filas);
         model.addAttribute("nombreEquipo", "equipamiento");

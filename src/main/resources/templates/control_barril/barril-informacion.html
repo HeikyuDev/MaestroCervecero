@@ -3,7 +3,7 @@
 
 <!--
     Información de un barril, siempre igual: la usan el historial, el panel, los formularios de registro y el detalle de una
-    operación. Una fila por tema: identidad (identificador, número de serie y fabricante), medidas y estado (capacidad,
+    operación. Una fila por tema: identidad (identificador, número de serie, fabricante y, si está dado de baja, esa marca), medidas y estado (capacidad,
     contenido y estado operativo), cerveza (receta y lote, solo si el barril está Con cerveza) y mantenimiento (usos desde el último mantenimiento, última limpieza y último mantenimiento).
 
     Parámetro: barril (BarrilResumenResponseDTO).
@@ -26,6 +26,13 @@
             <div>
                 <dt class="text-xs font-medium text-slate-500">Fabricante</dt>
                 <dd class="mt-1 text-slate-900 break-words" th:text="${barril.fabricante}">Barrilitos SA</dd>
+            </div>
+            <div th:if="${barril.dadoDeBaja}" data-barril-dado-de-baja>
+                <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                <dd class="mt-1">
+                    <span th:replace="~{fragments/dado-de-baja :: badge}"></span>
+                    <span class="block mt-1 text-xs text-slate-500">Solo se consulta su historial</span>
+                </dd>
             </div>
         </dl>
         <!-- medidas y estado -->

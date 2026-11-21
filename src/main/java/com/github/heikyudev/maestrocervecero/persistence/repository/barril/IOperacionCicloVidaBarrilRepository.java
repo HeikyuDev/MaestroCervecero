@@ -26,16 +26,6 @@ import java.util.Optional;
 public interface IOperacionCicloVidaBarrilRepository extends JpaRepository<OperacionCicloVidaBarril, Long> {
 
     /**
-     * Verifica si un barril tiene alguna operación registrada (de cualquiera de los seis tipos). Las anuladas no cuentan.
-     *
-     * @param idBarril El ID del barril.
-     * @return {@code true} si tiene al menos una operación en estado {@code REGISTRADO}.
-     */
-    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM OperacionCicloVidaBarril o "
-            + "WHERE o.barril.id = :idBarril AND o.estado = 'REGISTRADO'")
-    boolean existsOperacionRegistrada(@Param("idBarril") Long idBarril);
-
-    /**
      * Resuelve, sin cargar la operación, el ID del barril al que pertenece. Permite bloquear el barril antes de
      * leer la operación.
      *

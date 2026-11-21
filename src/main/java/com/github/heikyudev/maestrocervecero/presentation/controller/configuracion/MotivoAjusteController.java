@@ -161,18 +161,14 @@ public class MotivoAjusteController {
     }
 
     /**
-     * Da de baja (lógica) un motivo de ajuste. Si tiene ajustes de insumo asociados el service lo rechaza y se vuelve a
-     * la lista con el motivo como alerta de error.
+     * Da de baja (lógica) un motivo de ajuste y vuelve a la lista con la alerta de éxito. Nada impide la baja: los ajustes
+     * de insumo ya registrados conservan su motivo. Un motivo inexistente lo informa el {@code ControllerAdvices}.
      */
     @PostMapping("/{id}/baja")
     @PreAuthorize("hasAuthority('MOTIVO_AJUSTE_ELIMINAR')")
     public String bajaMotivoAjuste(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        try {
-            motivoAjusteServicio.bajaMotivoAjuste(id);
-            agregarMensaje(redirectAttributes, "Motivo de ajuste dado de baja correctamente", TipoAlerta.SUCCESS);
-        } catch (ReglaNegocioException e) {
-            agregarMensaje(redirectAttributes, e.getMessage(), TipoAlerta.DANGER);
-        }
+        motivoAjusteServicio.bajaMotivoAjuste(id);
+        agregarMensaje(redirectAttributes, "Motivo de ajuste dado de baja correctamente", TipoAlerta.SUCCESS);
         return "redirect:" + URL_LISTA;
     }
 

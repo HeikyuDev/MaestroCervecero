@@ -272,6 +272,22 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RA-37: registrarAjusteInsumo lanza ReglaNegocioException en el campo idMotivoAjuste y no persiste cuando el motivo de ajuste está dado de baja")
+    void registrarAjusteInsumo_debeRechazarMotivoAjusteDadoDeBaja() {
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(7L, 1L, 10.0, "Observación");
+        when(motivoAjusteRepository.findById(7L)).thenReturn(Optional.empty());
+        when(motivoAjusteRepository.existsByIdAndEstado(7L, Estado.BAJA)).thenReturn(true);
+
+        assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de ajuste está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idMotivoAjuste"));
+
+        verifyNoInteractions(loteInsumoRepository);
+        verifyNoInteractions(ajusteInsumoRepository);
+    }
+
+    @Test
     @DisplayName("CP-RA-02: registrarAjusteInsumo lanza RecursoNoEncontradoException y no persiste cuando el lote de insumo no existe")
     void registrarAjusteInsumo_debeRechazarLoteInsumoInexistente() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 99L, 10.0, "Observación");

@@ -8,7 +8,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -37,7 +36,6 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     private final IMaceradorRepository maceradorRepository;
     private final ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
-    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
@@ -179,11 +177,16 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * En lugar de eliminar el registro, marca al macerador con {@link Estado#BAJA} y persiste
      * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
+     * <p>
+     * La baja es definitiva y solo la impide lo que está en curso: un lote pendiente (en la cola de su fermentador) o en
+     * ejecución con el macerador asignado a alguna de sus etapas, o un estado operativo distinto de Disponible. El historial
+     * (lotes finalizados o cancelados, limpiezas, fallas y mantenimientos) no la impide y sigue consultable.
+     * </p>
      *
      * @param id Identificador clave primaria del macerador a dar de baja.
      * @return {@link MaceradorResponseDTO} con los datos del macerador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el macerador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el macerador tiene lotes asociados o operaciones registradas, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el macerador está asignado a un lote pendiente o en ejecución, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -191,9 +194,10 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     public MaceradorResponseDTO bajaMacerador(Long id) {
 
         // 1. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
-        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar lotes y operaciones, con el mismo lock que usan registrar
-        // y anular una operación de su ciclo de vida: así una baja concurrente con un registro se serializa y no deja un equipo
-        // dado de baja con una operación registrada. Orden de locks: equipamiento y luego, solo lectura, lotes y operaciones.
+        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar sus lotes: es la misma fila que bloquean el registro,
+        // el inicio, el avance, la finalización y la cancelación de un lote al buscar sus equipos, y el registro y la anulación
+        // de una operación del ciclo de vida. La baja se serializa con todos ellos. Orden de locks: equipamiento y luego, solo
+        // lectura, lotes.
         equipamientoRepository.buscarPorIdParaOperacionCicloVida(id)
                 .filter(equipamiento -> equipamiento.getEstado() == Estado.ACTIVO)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
@@ -201,25 +205,13 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
-        // 2. Validar que el macerador no tenga lotes asociados (en cualquier estado).
-        if (etapaLoteRepository.existsEtapaAsociada(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene lotes asociados");
-        }
+        // 2. Validar que el macerador se pueda dar de baja: sin lotes pendientes ni en ejecución y disponible
+        MetodosEquipamiento.validarBaja(maceradorEntity, etapaLoteRepository, "el macerador");
 
-        // 3. Validar que el macerador no tenga operaciones registradas (limpiezas, fallas o mantenimientos). Las anuladas no cuentan.
-        if (operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene operaciones registradas");
-        }
-
-        // 4. Validar que el macerador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
-        if (maceradorEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque no se encuentra disponible");
-        }
-
-        // 5. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         maceradorEntity.setEstado(Estado.BAJA);
 
-        // 6. Retornar el DTO del macerador dado de baja
+        // 4. Retornar el DTO del macerador dado de baja
         return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
     }
 

@@ -169,7 +169,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
      * @param id El ID del despacho de barril a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El despacho de barril anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el despacho no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code DESPACHADO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el despacho no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code DESPACHADO}; también si el barril asociado está dado de baja.
      * @throws RecursoNoEncontradoException Si el despacho de barril con el ID especificado no existe, o si el barril asociado no existe.
      */
     @Override
@@ -183,7 +183,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         //    dispara RecursoNoEncontradoException
         Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + id));
-        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, idBarril);
 
         // 3. Localizar el despacho, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         DespachoBarrilEntity despachoBarrilEntity = despachoBarrilRepository.findById(id)

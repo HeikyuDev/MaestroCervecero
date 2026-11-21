@@ -95,4 +95,12 @@ final class CamposDeReporte {
         return lista(TipoEquipamiento.class, "tipo", "Tipo de equipo", "Todos", "El tipo de equipo indicado no es válido, se muestran todos",
                 parametros, TipoEquipamiento::getEtiqueta, avisos);
     }
+
+    /**
+     * Texto con el que se muestra un equipo en el filtro de equipo: su identificador y, si está dado de baja, la marca
+     * "(dado de baja)", igual que en la tabla del reporte de equipamiento.
+     */
+    static String textoDeEquipo(String identificadorInterno, boolean dadoDeBaja) {
+        return dadoDeBaja ? identificadorInterno + " (dado de baja)" : identificadorInterno;
+    }
 }

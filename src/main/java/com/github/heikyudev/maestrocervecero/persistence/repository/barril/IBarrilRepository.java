@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +35,30 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
     @Override
     @Query("SELECT b FROM BarrilEntity b WHERE b.id = :id AND b.estado = 'ACTIVO'")
     Optional<BarrilEntity> findById(@Param("id") Long id);
+
+    /**
+     * Busca un barril por su ID, activo o dado de baja.
+     * <p>
+     * Es solo para las consultas de lectura de su historial (resumen, operaciones e historial de actividad): un barril
+     * dado de baja conserva su historial consultable. Las altas, modificaciones, bajas y operaciones siguen usando las
+     * búsquedas que solo encuentran barriles activos.
+     * </p>
+     *
+     * @param id El ID del barril a buscar.
+     * @return Un Optional que contiene el barril si existe (activo o dado de baja), o vacío si no existe.
+     */
+    @Query("SELECT b FROM BarrilEntity b WHERE b.id = :id")
+    Optional<BarrilEntity> buscarPorIdIncluyendoDadosDeBaja(@Param("id") Long id);
+
+    /**
+     * Indica si existe un barril con el ID indicado en el estado lógico indicado. Permite distinguir un barril
+     * inexistente de uno dado de baja cuando la búsqueda de barriles activos no lo encuentra.
+     *
+     * @param id El ID del barril.
+     * @param estado El estado lógico a verificar.
+     * @return {@code true} si el barril existe en ese estado.
+     */
+    boolean existsByIdAndEstado(Long id, Estado estado);
 
     /**
      * Obtiene una página de barriles activos, filtrados opcionalmente por identificador interno y por número de serie

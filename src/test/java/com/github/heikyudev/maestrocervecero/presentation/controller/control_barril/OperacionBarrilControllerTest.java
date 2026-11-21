@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConf
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.TipoOperacionBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionLimpiezaBarrilFormDTO;
@@ -386,5 +387,18 @@ class OperacionBarrilControllerTest {
         ArgumentCaptor<DespachoBarrilFormDTO> despacho = ArgumentCaptor.forClass(DespachoBarrilFormDTO.class);
         verify(despachoServicio).registrarDespachoBarril(despacho.capture());
         assertThat(despacho.getValue().getIdBarril()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("CP-OBC-20: el formulario de registro de un barril dado de baja no se abre: vuelve a la pestaña con el aviso de que está dado de baja")
+    void formularioDeBarrilDadoDeBaja() throws Exception {
+        when(controlServicio.buscarResumen(5L)).thenReturn(BarrilResumenResponseDTO.builder().id(5L).identificadorInterno("BRL-01").numeroSerie("SN-001")
+                .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(0.0).estadoOperativo(EstadoOperativoBarril.EN_LIMPIEZA)
+                .usosMaximosAntesMantenimiento(10).usosDesdeUltimoMantenimiento(3L).estado(Estado.BAJA).build());
+
+        mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=limpiezas"))
+                .andExpect(flash().attribute("tipo", "warning"))
+                .andExpect(flash().attribute("mensaje", "No se pueden registrar operaciones porque el barril está dado de baja"));
     }
 }

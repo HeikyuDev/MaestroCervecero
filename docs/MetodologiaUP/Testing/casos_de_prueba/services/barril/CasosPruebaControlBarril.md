@@ -24,7 +24,7 @@ Devuelve los barriles activos con su fabricante (cargado junto con el barril), e
 |**CP-CBS-05**|Sin operaciones|Sin limpiezas ni mantenimientos|0 usos, fechas nulas y conteo sin fecha de corte.|
 |**CP-CBS-25**|Contenido de un barril Con cerveza|Barril Con cerveza cuyo último envasado registrado es de un lote de la receta Pale Ale|Informa el ID y el código del lote y el nombre de la receta.|
 |**CP-CBS-26**|Barril que no está Con cerveza|Barril Disponible|Informa contenido nulo y no consulta el contenido.|
-|**CP-CBS-06**|Barril inexistente o de baja|`findById` vacío|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99").|
+|**CP-CBS-06**|Barril inexistente|`buscarPorIdIncluyendoDadosDeBaja` vacío|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99").|
 
 ### 3. `listarOperaciones(idBarril, tipo)`
 
@@ -37,7 +37,7 @@ Lista las operaciones del tipo pedido, anuladas incluidas, de la más reciente a
 |**CP-CBS-09**|No posterior al envasado|Última operación con la fecha del último envasado|No es anulable.|
 |**CP-CBS-10**|Datos propios de cada tipo|Fraccionamiento, despacho y devolución|Cantidad extraída; cliente y fecha estimada; litros descartados. Solo consulta el repositorio de cada tipo.|
 |**CP-CBS-11**|Fallas y mantenimientos|Un registro de cada uno|Usa sus repositorios y el tipo correcto.|
-|**CP-CBS-12**|Barril inexistente|`findById` vacío|Lanza `RecursoNoEncontradoException`.|
+|**CP-CBS-12**|Barril inexistente|`buscarPorIdIncluyendoDadosDeBaja` vacío|Lanza `RecursoNoEncontradoException`.|
 
 ### 4. `listarHistorial(idBarril, tipo, desde, hasta, pageable)`
 
@@ -56,9 +56,9 @@ Un barril dado de baja se trata como inexistente en las tres consultas por barri
 
 |**ID**|**Nombre del Caso**|**Escenario**|**Resultado Esperado**|
 |---|---|---|---|
-|**CP-CBS-17**|Resumen de un barril de baja|`findById` devuelve un barril con `estado: BAJA`|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 5").|
-|**CP-CBS-18**|Operaciones de un barril de baja|Ídem, `listarOperaciones`|Lanza `RecursoNoEncontradoException` y no consulta operaciones.|
-|**CP-CBS-19**|Historial de un barril de baja|Ídem, `listarHistorial`|Lanza `RecursoNoEncontradoException` y no consulta envasados ni operaciones.|
+|**CP-CBS-17**|Resumen de un barril dado de baja|`buscarPorIdIncluyendoDadosDeBaja` devuelve un barril con `estado: BAJA`|Devuelve el resumen con sus usos y fechas, `estado: BAJA` e `isDadoDeBaja() = true`, para sus pantallas de solo lectura.|
+|**CP-CBS-18**|Operaciones de un barril dado de baja|Ídem, `listarOperaciones` con una limpieza `REGISTRADO` que es la última operación|Lista la operación y ninguna es anulable: un barril dado de baja no admite anulaciones.|
+|**CP-CBS-19**|Historial de un barril dado de baja|Ídem, `listarHistorial`|Lista el historial igual que el de un barril activo.|
 
 ### 6. Estado operativo del barril y `anulable`
 

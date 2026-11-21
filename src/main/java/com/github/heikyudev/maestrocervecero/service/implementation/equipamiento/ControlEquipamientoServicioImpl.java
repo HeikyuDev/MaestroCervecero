@@ -83,7 +83,34 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
             identificadorNormalizado = null;
         }
 
-        Page<EquipamientoEntity> pagina = equipamientoRepository.filtrarEquipamientos(identificadorNormalizado, tipoClase, estadoOperativo, pageable);
+        return conUsos(equipamientoRepository.filtrarEquipamientos(identificadorNormalizado, tipoClase, estadoOperativo, pageable));
+    }
+
+    /**
+     * Obtiene una página de equipamientos activos y dados de baja con actividad, de cualquier tipo, con los datos de
+     * control y su estado lógico.
+     * <p>
+     * El identificador buscado se normaliza igual que el guardado; si queda vacío no filtra. Los usos de toda la página
+     * se obtienen con una sola consulta.
+     * </p>
+     *
+     * @param identificador Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de equipamientos activos y dados de baja con actividad en formato DTO de control.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EquipamientoControlResponseDTO> filtrarEquipamientosConDadosDeBajaConActividad(String identificador, EstadoOperativo estadoOperativo, Pageable pageable) {
+        String identificadorNormalizado = NormalizacionTexto.codigo(identificador);
+        if (identificadorNormalizado != null && identificadorNormalizado.isEmpty()) {
+            identificadorNormalizado = null;
+        }
+        return conUsos(equipamientoRepository.filtrarEquipamientosConDadosDeBajaConActividad(identificadorNormalizado, estadoOperativo, pageable));
+    }
+
+    /** Arma los datos de control de una página de equipamientos, con los usos de toda la página en una sola consulta. */
+    private Page<EquipamientoControlResponseDTO> conUsos(Page<EquipamientoEntity> pagina) {
         List<Long> ids = pagina.getContent().stream().map(EquipamientoEntity::getId).toList();
 
         Map<Long, Long> usosPorEquipamiento = new HashMap<>();
@@ -99,19 +126,20 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
     }
 
     /**
-     * Obtiene el resumen de un equipamiento activo: sus datos, los parámetros propios de su tipo, sus usos desde el
-     * último mantenimiento y las fechas de su última limpieza y su último mantenimiento registrados.
+     * Obtiene el resumen de un equipamiento, activo o dado de baja: sus datos, su estado lógico, los parámetros propios
+     * de su tipo, sus usos desde el último mantenimiento y las fechas de su última limpieza y su último mantenimiento
+     * registrados. Las pantallas de solo lectura (detalle, historial, panel y detalle de una operación) se abren también
+     * para un equipamiento dado de baja.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return El resumen del equipamiento.
-     * @throws RecursoNoEncontradoException Si el equipamiento no existe o está dado de baja.
+     * @throws RecursoNoEncontradoException Si el equipamiento no existe.
      */
     @Override
     @Transactional(readOnly = true)
     public EquipamientoResumenResponseDTO buscarResumen(Long idEquipamiento) {
         EquipamientoEntity equipamiento = equipamientoRepository.findById(idEquipamiento)
                 .map(entidad -> (EquipamientoEntity) Hibernate.unproxy(entidad))
-                .filter(entidad -> entidad.getEstado() == Estado.ACTIVO)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + idEquipamiento));
 
         LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
@@ -125,7 +153,8 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
      * Lista las operaciones de un equipamiento agrupadas por tipo, anuladas incluidas, de la de fecha más reciente a
      * la más antigua. Solo la última operación registrada (mayor fecha y, a igualdad, mayor ID, de cualquier tipo) se marca como anulable, y solo
      * si su fecha es posterior al fin de la última participación del equipamiento en un lote (que se consulta una sola
-     * vez) y el equipamiento no está en uso por un lote (se lee del mismo equipamiento que valida la existencia).
+     * vez), el equipamiento está activo y no está en uso por un lote (ambos se leen del mismo equipamiento que valida la
+     * existencia). Las operaciones de un equipamiento dado de baja se listan, pero ninguna es anulable.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las operaciones del equipamiento.
@@ -136,15 +165,15 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
     public OperacionesEquipamientoResponseDTO listarOperaciones(Long idEquipamiento) {
         EquipamientoEntity equipamiento = equipamientoRepository.findById(idEquipamiento)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + idEquipamiento));
-        boolean enUso = MetodosCicloVidaEquipamiento.estaEnUso(equipamiento.getEstadoOperativo());
+        boolean admiteAnulaciones = equipamiento.getEstado() == Estado.ACTIVO && !MetodosCicloVidaEquipamiento.estaEnUso(equipamiento.getEstadoOperativo());
 
         Long idUltimaOperacion = operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null);
         LocalDateTime fechaFinUltimaParticipacion = etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null);
 
         return OperacionesEquipamientoResponseDTO.builder()
-                .limpiezas(mapearOperaciones(limpiezaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, enUso))
-                .fallas(mapearOperaciones(fallaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, enUso))
-                .mantenimientos(mapearOperaciones(mantenimientoEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, enUso))
+                .limpiezas(mapearOperaciones(limpiezaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, admiteAnulaciones))
+                .fallas(mapearOperaciones(fallaEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, admiteAnulaciones))
+                .mantenimientos(mapearOperaciones(mantenimientoEquipamientoRepository.listarPorEquipamiento(idEquipamiento), idUltimaOperacion, fechaFinUltimaParticipacion, admiteAnulaciones))
                 .build();
     }
 
@@ -202,9 +231,13 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
         }
     }
 
-    private List<OperacionEquipamientoResponseDTO> mapearOperaciones(Collection<? extends OperacionCicloVidaEquipamiento> operaciones, Long idUltimaOperacion, LocalDateTime fechaFinUltimaParticipacion, boolean equipamientoEnUso) {
+    /**
+     * Mapea las operaciones marcando como anulable solo la última registrada, si el equipamiento admite anulaciones
+     * (está activo y no está en uso) y su fecha es posterior al fin de la última participación en un lote.
+     */
+    private List<OperacionEquipamientoResponseDTO> mapearOperaciones(Collection<? extends OperacionCicloVidaEquipamiento> operaciones, Long idUltimaOperacion, LocalDateTime fechaFinUltimaParticipacion, boolean admiteAnulaciones) {
         Function<OperacionCicloVidaEquipamiento, Boolean> esAnulable = operacion ->
-                !equipamientoEnUso && operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
+                admiteAnulaciones && operacion.getEstado() == EstadoTransaccion.REGISTRADO && operacion.getId().equals(idUltimaOperacion)
                         && MetodosCicloVidaEquipamiento.esPosteriorAlUltimoLote(operacion.getFecha(), fechaFinUltimaParticipacion);
         return operaciones.stream()
                 .map(operacion -> MapperControlEquipamiento.toOperacionDTO(operacion, esAnulable.apply(operacion)))

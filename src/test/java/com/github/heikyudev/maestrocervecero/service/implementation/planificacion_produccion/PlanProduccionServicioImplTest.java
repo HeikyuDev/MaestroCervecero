@@ -14,6 +14,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
@@ -98,6 +99,8 @@ class PlanProduccionServicioImplTest {
     private IEscaladoInsumoServicio escaladoInsumoServicio;
     @Mock
     private ILoteServicio loteServicio;
+    @Mock
+    private IEquipamientoRepository equipamientoRepository;
 
     @InjectMocks
     private PlanProduccionServicioImpl planProduccionServicio;
@@ -468,6 +471,19 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RPL-06: recalcularPlan rechaza con el número de lote un plan cuyo fermentador fue dado de baja después de generarlo")
+    void recalcular_fermentadorDadoDeBaja() {
+        mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
+        FermentadorEntity fermentadorDeBaja = fermentador(9L, 1000.0);
+        fermentadorDeBaja.setEstado(Estado.BAJA);
+        when(equipamientoRepository.findById(9L)).thenReturn(Optional.of(fermentadorDeBaja));
+
+        assertThatThrownBy(() -> planProduccionServicio.recalcularPlan(1L, plan(ModalidadPlanProduccion.SECUENCIAL, lote(500.0, 9L))))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Lote 1 del plan: El fermentador FER-9 fue dado de baja, genere el plan nuevamente");
+    }
+
+    @Test
     @DisplayName("CP-RPL-04: recalcularPlan encadena las fechas de los lotes de un mismo fermentador en el orden dado y avisa lo que el registro rechazaría")
     void recalcular_encadenaFechasYAvisa() {
         mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
@@ -631,6 +647,46 @@ class PlanProduccionServicioImplTest {
         verify(loteServicio, times(3)).registrarLote(captor.capture());
         assertThat(captor.getAllValues()).extracting(LoteFormDTO::getIdFermentador).containsExactly(3L, 1L, 3L);
         assertThat(captor.getAllValues()).extracting(LoteFormDTO::getVolumenObjetivo).containsExactly(250.0, 260.0, 251.0);
+    }
+
+    @Test
+    @DisplayName("CP-CPL-11: confirmarPlan rechaza con el número de lote un plan cuyo equipo fue dado de baja después de generarlo y no registra ningún lote")
+    void confirmar_equipoDadoDeBaja() {
+        mockearPlanificacionBloqueada(EstadoSolicitud.PENDIENTE, 1000.0);
+        MolinoEntity molinoDeBaja = molino(10L, 100.0);
+        molinoDeBaja.setEstado(Estado.BAJA);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(fermentador(1L, 1000.0)));
+        when(equipamientoRepository.findById(10L)).thenReturn(Optional.of(molinoDeBaja));
+
+        assertThatThrownBy(() -> planProduccionServicio.confirmarPlan(1L, plan(ModalidadPlanProduccion.CONCURRENTE, lote(600.0, 1L), lote(401.0, 2L))))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Lote 1 del plan: El molino " + molinoDeBaja.getIdentificadorInterno() + " fue dado de baja, genere el plan nuevamente");
+        verify(loteServicio, never()).registrarLote(any());
+    }
+
+    @Test
+    @DisplayName("CP-CPL-12: confirmarPlan bloquea los equipos de todo el plan en el orden canónico (fermentadores, molinos, maceradores y ollas de hervor, cada grupo por ID ascendente) antes de validarlos y de registrar los lotes")
+    void confirmar_bloqueaTodosLosEquiposEnOrdenCanonico() {
+        mockearPlanificacionBloqueada(EstadoSolicitud.PENDIENTE, 1000.0);
+        when(loteServicio.registrarLote(any())).thenReturn(LoteResponseDTO.builder().build());
+        LotePlanProduccionFormDTO lote1 = LotePlanProduccionFormDTO.builder().volumenObjetivo(600.0)
+                .idFermentador(2L).idMolino(20L).idMacerador(11L).idOllaHervor(12L).build();
+        LotePlanProduccionFormDTO lote2 = LotePlanProduccionFormDTO.builder().volumenObjetivo(401.0)
+                .idFermentador(1L).idMolino(10L).idMacerador(5L).idOllaHervor(6L).build();
+
+        planProduccionServicio.confirmarPlan(1L, plan(ModalidadPlanProduccion.CONCURRENTE, lote1, lote2));
+
+        InOrder orden = inOrder(fermentadorRepository, molinoRepository, maceradorRepository, ollaHervorRepository, equipamientoRepository, loteServicio);
+        orden.verify(fermentadorRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
+        orden.verify(fermentadorRepository).buscarPorIdParaCambiarEstadoOperativo(2L);
+        orden.verify(molinoRepository).buscarPorIdParaCambiarEstadoOperativo(10L);
+        orden.verify(molinoRepository).buscarPorIdParaCambiarEstadoOperativo(20L);
+        orden.verify(maceradorRepository).buscarPorIdParaCambiarEstadoOperativo(5L);
+        orden.verify(maceradorRepository).buscarPorIdParaCambiarEstadoOperativo(11L);
+        orden.verify(ollaHervorRepository).buscarPorIdParaCambiarEstadoOperativo(6L);
+        orden.verify(ollaHervorRepository).buscarPorIdParaCambiarEstadoOperativo(12L);
+        orden.verify(equipamientoRepository).findById(2L);
+        orden.verify(loteServicio, times(2)).registrarLote(any());
     }
 
     @Test

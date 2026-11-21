@@ -78,6 +78,7 @@ public class MapperControlBarril {
                 .fechaUltimaLimpieza(fechaUltimaLimpieza)
                 .fechaUltimoMantenimiento(fechaUltimoMantenimiento)
                 .contenido(contenido)
+                .estado(barril.getEstado())
                 .build();
     }
 

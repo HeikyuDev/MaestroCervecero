@@ -3,7 +3,7 @@
 
 <!--
     Información de un equipamiento, siempre igual: la usan el detalle del equipamiento, el historial del equipo y su panel
-    operativo. Una fila por tema: identidad (identificador, tipo y estado operativo), parámetros propios del tipo (solo los
+    operativo. Una fila por tema: identidad (identificador, tipo, estado operativo y, si está dado de baja, esa marca), parámetros propios del tipo (solo los
     que tienen valor, con su unidad) y mantenimiento (usos desde el último mantenimiento, última limpieza y último
     mantenimiento).
 
@@ -27,6 +27,13 @@
             <div>
                 <dt class="text-xs font-medium text-slate-500">Estado operativo</dt>
                 <dd class="mt-1"><span th:replace="~{equipamiento/estado :: badge(${equipo.estadoOperativo})}"></span></dd>
+            </div>
+            <div th:if="${equipo.dadoDeBaja}" data-equipo-dado-de-baja>
+                <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                <dd class="mt-1">
+                    <span th:replace="~{fragments/dado-de-baja :: badge}"></span>
+                    <span class="block mt-1 text-xs text-slate-500">Solo se consulta su historial</span>
+                </dd>
             </div>
         </dl>
         <!-- parámetros propios del tipo -->

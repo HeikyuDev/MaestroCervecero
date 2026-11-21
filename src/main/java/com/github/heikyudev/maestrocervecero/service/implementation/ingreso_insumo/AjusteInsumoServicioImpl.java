@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.L
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IAjusteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
@@ -111,7 +112,7 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * @param ajusteInsumoFormDTO Los datos del ajuste a registrar.
      * @return El ajuste de insumo registrado.
      * @throws RecursoNoEncontradoException Si el motivo de ajuste o el lote de insumo referenciados no existen.
-     * @throws ReglaNegocioException Si los datos, el lote de insumo o el motivo de ajuste no fueron informados, si la cantidad es nula, NaN, infinita, menor o igual a cero, supera el máximo o tiene más decimales que la escala, si la observación no fue informada, si un ajuste de tipo INGRESO se aplica sobre un lote de insumo vencido, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
+     * @throws ReglaNegocioException Si los datos, el lote de insumo o el motivo de ajuste no fueron informados, si el motivo de ajuste está dado de baja (campo {@code idMotivoAjuste}), si la cantidad es nula, NaN, infinita, menor o igual a cero, supera el máximo o tiene más decimales que la escala, si la observación no fue informada, si un ajuste de tipo INGRESO se aplica sobre un lote de insumo vencido, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
      */
     @Override
     @Transactional
@@ -136,9 +137,12 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(observacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "La observación", "observacion");
 
-        // 3. Validar que el motivo de ajuste esté registrado en el sistema
-        MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(ajusteInsumoFormDTO.getIdMotivoAjuste())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + ajusteInsumoFormDTO.getIdMotivoAjuste()));
+        // 3. Validar que el motivo de ajuste esté registrado en el sistema y activo: uno dado de baja se informa como tal
+        Long idMotivoAjuste = ajusteInsumoFormDTO.getIdMotivoAjuste();
+        MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(idMotivoAjuste)
+                .orElseThrow(() -> motivoAjusteRepository.existsByIdAndEstado(idMotivoAjuste, Estado.BAJA)
+                        ? new ReglaNegocioException("El motivo de ajuste está dado de baja", "idMotivoAjuste")
+                        : new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + idMotivoAjuste));
 
         // 4. Validar que el lote de insumo esté registrado en el sistema (bloqueado para escritura,
         //    ya que este ajuste va a mutar su stock)

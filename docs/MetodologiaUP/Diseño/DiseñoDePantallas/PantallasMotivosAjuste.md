@@ -44,7 +44,7 @@ Errores: un campo vacío, un nombre duplicado o una regla del service se marcan 
 
 **Motivo con ajustes asociados.** Un motivo está usado cuando tiene al menos un ajuste de insumo asociado, registrado o anulado. En la edición de un motivo usado el selector del tipo se muestra deshabilitado, con el tipo guardado, y la ayuda dice "No se puede cambiar porque el motivo ya tiene ajustes."; el nombre sigue siendo editable. El tipo guardado viaja en un campo oculto y el service rechaza igualmente cualquier cambio de tipo con el error "No se puede cambiar el tipo de ajuste porque el motivo ya tiene ajustes de insumo asociados" en el campo del tipo.
 
-**Baja.** Desde el diálogo de la lista. Si el motivo tiene ajustes de insumo asociados, registrados o anulados, el servicio la rechaza y se vuelve a la lista con la alerta de error "No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados". Los motivos sin ajustes se dan de baja de forma lógica y su nombre puede reutilizarse.
+**Baja.** Desde el diálogo de la lista, que avisa que el motivo deja de ofrecerse en los ajustes nuevos y que los ajustes ya registrados conservan su motivo. La baja es lógica y definitiva, y nada la impide: un motivo no tiene operaciones en curso. Los ajustes de insumo registrados o anulados siguen mostrando su motivo, y el nombre puede reutilizarse.
 
 ## 4. Recorridos
 

@@ -24,19 +24,22 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
 
 
     /**
-     * Verifica si el equipamiento indicado está asociado a alguna etapa de lote, en cualquier estado de la etapa y del
-     * lote.
+     * Verifica si el equipamiento indicado está asignado a alguna etapa de un lote vigente: un lote {@code PENDIENTE}
+     * (en la cola de su fermentador) o {@code EN_EJECUCION}, sin importar el estado de la etapa.
      * <p>
-     * Se utiliza para impedir la baja de un equipamiento (Molino, Macerador, Olla de Hervor o Fermentador) que forma
-     * parte del historial o de la planificación de algún lote: ni una etapa pendiente, ni una en curso, ni una ya
-     * finalizada o cancelada puede quedar apuntando a un equipamiento dado de baja.
+     * Se utiliza para impedir la baja de un equipamiento (Molino, Macerador, Olla de Hervor o Fermentador) mientras un
+     * lote en curso todavía lo puede bloquear o cambiar de estado operativo: las búsquedas con bloqueo de los equipos
+     * del lote solo encuentran equipamientos activos. Los lotes {@code FINALIZADO} y {@code CANCELADO} son historial y
+     * no impiden la baja.
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento a verificar.
-     * @return {@code true} si existe al menos una etapa asociada, {@code false} en caso contrario.
+     * @return {@code true} si existe al menos una etapa de un lote vigente asignada al equipamiento, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e WHERE e.equipamiento.id = :idEquipamiento")
-    boolean existsEtapaAsociada(@Param("idEquipamiento") Long idEquipamiento);
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e WHERE e.equipamiento.id = :idEquipamiento "
+            + "AND e.lote.estado IN (com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.PENDIENTE, "
+            + "com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.EN_EJECUCION)")
+    boolean existsEtapaEnLoteVigente(@Param("idEquipamiento") Long idEquipamiento);
 
     /**
      * Busca las etapas de lote en las que el equipamiento se usó de verdad (etapas {@code EN_CURSO}, {@code FINALIZADA} y

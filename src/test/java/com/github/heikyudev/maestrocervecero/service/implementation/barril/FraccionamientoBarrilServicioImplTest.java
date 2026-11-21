@@ -621,6 +621,22 @@ class FraccionamientoBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AFRB-21: anularFraccionamientoBarril lanza ReglaNegocioException con campo idBarril y no anula cuando el barril asociado está dado de baja")
+    void anular_debeRechazarBarrilDadoDeBaja() {
+        AnulacionFraccionamientoBarrilFormDTO formDTO = anulacionFormDTO("Fraccionamiento cargado por error");
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+        when(barrilRepository.existsByIdAndEstado(2L, Estado.BAJA)).thenReturn(true);
+
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.anularFraccionamientoBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el barril está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idBarril"));
+
+        verify(fraccionamientoBarrilRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CP-AFRB-06: anularFraccionamientoBarril lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
     void anular_debeRechazarIdDeOperacionDeOtroTipo() {
         BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.CON_CERVEZA, 15.0);

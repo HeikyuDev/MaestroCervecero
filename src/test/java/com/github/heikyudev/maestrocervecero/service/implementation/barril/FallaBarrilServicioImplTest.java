@@ -360,6 +360,22 @@ class FallaBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AFB-18: anularFallaBarril lanza ReglaNegocioException con campo idBarril y no anula cuando el barril asociado está dado de baja")
+    void anular_debeRechazarBarrilDadoDeBaja() {
+        AnulacionFallaBarrilFormDTO formDTO = anulacionFormDTO("Falla cargada por error");
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+        when(barrilRepository.existsByIdAndEstado(2L, Estado.BAJA)).thenReturn(true);
+
+        assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el barril está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idBarril"));
+
+        verify(fallaBarrilRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CP-AFB-06: anularFallaBarril lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
     void anular_debeRechazarIdDeOperacionDeOtroTipo() {
         BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_MANTENIMIENTO);

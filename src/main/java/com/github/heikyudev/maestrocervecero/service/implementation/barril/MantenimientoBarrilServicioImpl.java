@@ -140,7 +140,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
      * @param id El ID del mantenimiento de barril a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El mantenimiento de barril anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en estado operativo {@code DISPONIBLE}; también si el barril asociado está dado de baja.
      * @throws RecursoNoEncontradoException Si el mantenimiento de barril con el ID especificado no existe, o si el barril asociado no existe.
      */
     @Override
@@ -154,7 +154,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         //    existe, se dispara RecursoNoEncontradoException
         Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el mantenimiento de barril con ID: " + id));
-        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, idBarril);
 
         // 3. Localizar el mantenimiento, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         MantenimientoBarrilEntity mantenimientoBarrilEntity = mantenimientoBarrilRepository.findById(id)

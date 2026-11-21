@@ -390,6 +390,22 @@ class DevolucionBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-ADVB-21: anularDevolucionBarril lanza ReglaNegocioException con campo idBarril y no anula cuando el barril asociado está dado de baja")
+    void anular_debeRechazarBarrilDadoDeBaja() {
+        AnulacionDevolucionBarrilFormDTO formDTO = anulacionFormDTO("Devolución cargada por error");
+        when(operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+        when(barrilRepository.existsByIdAndEstado(2L, Estado.BAJA)).thenReturn(true);
+
+        assertThatThrownBy(() -> devolucionBarrilServicio.anularDevolucionBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular la operación porque el barril está dado de baja")
+                .satisfies(e -> assertThat(((ReglaNegocioException) e).getCampo()).isEqualTo("idBarril"));
+
+        verify(devolucionBarrilRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CP-ADVB-06: anularDevolucionBarril lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
     void anular_debeRechazarIdDeOperacionDeOtroTipo() {
         BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_LIMPIEZA);

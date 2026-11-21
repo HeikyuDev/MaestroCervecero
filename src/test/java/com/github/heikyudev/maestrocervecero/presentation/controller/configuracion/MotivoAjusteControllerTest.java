@@ -322,17 +322,6 @@ class MotivoAjusteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CMA-19: la baja de un motivo con ajustes asociados vuelve a la lista con el mensaje del service como alerta de error")
-    void baja_bloqueada() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados")).when(servicio).bajaMotivoAjuste(2L);
-
-        mockMvc.perform(post(URL + "/2/baja").with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()))
-                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados"))
-                .andExpect(flash().attribute("tipo", "danger"));
-    }
-
-    @Test
     @DisplayName("CP-CMA-20: la baja de un motivo inexistente redirige con alerta de error")
     void baja_inexistente() throws Exception {
         doThrow(new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: 99")).when(servicio).bajaMotivoAjuste(99L);

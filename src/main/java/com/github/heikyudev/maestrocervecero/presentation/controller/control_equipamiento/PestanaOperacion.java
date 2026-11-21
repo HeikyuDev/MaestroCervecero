@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.LimpiezaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MantenimientoEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosCicloVidaEquipamiento;
@@ -37,6 +38,9 @@ public enum PestanaOperacion {
             EstadoOperativo.EN_MANTENIMIENTO, Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR, Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR,
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR, "Mantenimiento registrado correctamente", "Mantenimiento anulado correctamente",
             "Ej: Cambio de juntas y revisión de válvulas", "No hay mantenimientos registrados", "Se registró el mantenimiento en el equipamiento equivocado", "Observaciones del mantenimiento");
+
+    /** Aviso del panel de un equipamiento dado de baja: no admite el registro de operaciones. */
+    static final String MOTIVO_DADO_DE_BAJA = "No se pueden registrar operaciones porque el equipamiento está dado de baja";
 
     /** Clave de la pestaña en la URL del panel ({@code ?pestana=}) y en las rutas de registro y anulación. */
     private final String clave;
@@ -158,5 +162,19 @@ public enum PestanaOperacion {
         } catch (ReglaNegocioException e) {
             return Optional.of(e.getMessage());
         }
+    }
+
+    /**
+     * El motivo por el que no se puede registrar la operación sobre el equipamiento: si está dado de baja no admite
+     * ninguna operación (su panel es de solo lectura); si no, el motivo de su estado operativo.
+     *
+     * @param equipo El resumen del equipamiento.
+     * @return El motivo, o vacío si el equipamiento permite registrar la operación.
+     */
+    public Optional<String> motivoNoRegistrable(EquipamientoResumenResponseDTO equipo) {
+        if (equipo.isDadoDeBaja()) {
+            return Optional.of(MOTIVO_DADO_DE_BAJA);
+        }
+        return motivoNoRegistrable(equipo.getEstadoOperativo());
     }
 }

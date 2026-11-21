@@ -16,3 +16,4 @@
 | **CP-OPE-10** | Formulario de registro de una limpieza | Es una página con el título, el bloque de información del equipo y las observaciones, sin campo de fecha, Cancelar hacia la pestaña y "Registrar limpieza", y es novalidate. |
 | **CP-OPE-11** | Formulario con un estado que no permite la operación | Vuelve a la pestaña con el aviso del service; el formulario del mantenimiento está en `/mantenimientos/nuevo`. |
 | **CP-OPE-12** | Formularios para roles sin permiso de registrar | Incluido el gerente de producción, no acceden a los formularios y no se consulta el equipamiento. |
+| **CP-OPE-13** | Formulario de un equipamiento dado de baja | `GET /limpiezas/nueva` no abre el formulario: vuelve a la pestaña con la alerta warning "No se pueden registrar operaciones porque el equipamiento está dado de baja". |

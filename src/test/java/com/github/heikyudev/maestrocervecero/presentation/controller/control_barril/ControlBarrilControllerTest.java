@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConf
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.TipoOperacionBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -464,6 +465,42 @@ public class ControlBarrilControllerTest {
                 .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(30.0).estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(10)
                 .usosDesdeUltimoMantenimiento(3L).contenido(new ContenidoBarrilResponseDTO(12L, "PALE_ALE-1", "Pale Ale")).build());
         when(servicio.listarOperaciones(eq(5L), any())).thenReturn(List.of());
+    }
+
+    // ==================== Barril dado de baja ====================
+
+    /** El barril 5 dado de baja, Disponible, con una limpieza registrada que el service no marca como anulable. */
+    private void configurarBarrilDadoDeBaja() {
+        when(servicio.buscarResumen(5L)).thenReturn(BarrilResumenResponseDTO.builder().id(5L).identificadorInterno("BRL-01").numeroSerie("SN-001")
+                .fabricante("Barrilitos SA").capacidad(50.0).contenidoActual(0.0).estadoOperativo(EstadoOperativoBarril.DISPONIBLE).usosMaximosAntesMantenimiento(10)
+                .usosDesdeUltimoMantenimiento(3L).fechaUltimaLimpieza(FIN).estado(Estado.BAJA).build());
+        when(servicio.listarOperaciones(eq(5L), any())).thenReturn(List.of());
+        when(servicio.listarOperaciones(5L, TipoOperacionBarril.LIMPIEZA)).thenReturn(List.of(
+                operacion(7L, TipoOperacionBarril.LIMPIEZA, EstadoTransaccion.REGISTRADO, false)));
+    }
+
+    @Test
+    @DisplayName("CP-CBC-29: el panel de un barril dado de baja se abre en solo lectura: muestra la marca Dado de baja y sus operaciones, sin alta ni anulación y con el aviso del motivo")
+    void panel_barrilDadoDeBaja() throws Exception {
+        configurarBarrilDadoDeBaja();
+
+        String html = html(get("/control-barriles/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_barril/control-panel");
+
+        assertThat(html).contains("data-barril-dado-de-baja").contains("Dado de baja").contains("data-operacion=")
+                .contains("data-aviso-registro").contains("No se pueden registrar operaciones porque el barril está dado de baja")
+                .doesNotContain("data-nueva-operacion").doesNotContain("/limpiezas/7/anular");
+    }
+
+    @Test
+    @DisplayName("CP-CBC-30: el historial y el detalle de una operación de un barril dado de baja se abren con la marca Dado de baja")
+    void historialYDetalle_barrilDadoDeBaja() throws Exception {
+        configurarBarrilDadoDeBaja();
+
+        String historial = html(get("/control-barriles/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_barril/control-historial");
+        String detalle = html(get("/control-barriles/5/operaciones/limpieza/7").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_barril/operacion-detalle");
+
+        assertThat(historial).contains("data-barril-dado-de-baja").contains("Limpieza con soda");
+        assertThat(detalle).contains("data-barril-dado-de-baja").contains("Dado de baja");
     }
 
     // ==================== Apoyo ====================

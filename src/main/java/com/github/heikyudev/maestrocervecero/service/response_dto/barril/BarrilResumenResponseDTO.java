@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -53,4 +54,16 @@ public class BarrilResumenResponseDTO {
 
     /** Cerveza que contiene el barril (lote y receta), o {@code null} si el barril no está Con cerveza. */
     private ContenidoBarrilResponseDTO contenido;
+
+    /** Estado lógico del barril (activo o dado de baja). Un barril dado de baja sigue mostrando su información y su historial, en solo lectura. */
+    private Estado estado;
+
+    /**
+     * Indica si el barril está dado de baja.
+     *
+     * @return {@code true} si su estado lógico es {@link Estado#BAJA}.
+     */
+    public boolean isDadoDeBaja() {
+        return estado == Estado.BAJA;
+    }
 }

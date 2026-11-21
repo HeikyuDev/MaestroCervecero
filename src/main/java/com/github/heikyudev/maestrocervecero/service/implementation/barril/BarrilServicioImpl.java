@@ -6,12 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.FabricanteBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFabricanteBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.BarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -59,8 +56,6 @@ public class BarrilServicioImpl implements IBarrilServicio {
     private final IBarrilRepository barrilRepository;
     private final IFabricanteBarrilRepository fabricanteBarrilRepository;
     private final ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
-    private final IEnvasadoLoteRepository envasadoLoteRepository;
-    private final IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
 
     /**
      * Recupera una página de barriles activos, filtrados opcionalmente por identificador interno, número de serie,
@@ -228,51 +223,39 @@ public class BarrilServicioImpl implements IBarrilServicio {
      * <p>
      * Localiza el barril bloqueándolo (PESSIMISTIC_WRITE) mientras se valida y se escribe, con el mismo lock que usan
      * registrar y anular una operación de su ciclo de vida y un envasado: así una baja concurrente con un registro se
-     * serializa y no deja un barril dado de baja con una operación o un envasado registrados. Orden de locks: el
-     * barril y, después, solo lectura, envasados y operaciones.
+     * serializa y no deja un barril dado de baja en medio de una operación.
      * </p>
      * <p>
-     * En lugar de eliminar el registro, marca al barril con {@link Estado#BAJA} y persiste el cambio. No se puede dar
-     * de baja un barril con envasados registrados ni con operaciones registradas (limpiezas, fallas, mantenimientos,
-     * fraccionamientos, despachos o devoluciones): los anulados no cuentan. Además, solo se puede dar de baja un barril
-     * disponible: uno con cerveza, en uso, despachado, en limpieza o en mantenimiento todavía forma parte de un ciclo de
-     * vida en curso.
+     * En lugar de eliminar el registro, marca al barril con {@link Estado#BAJA} y persiste el cambio. La baja es
+     * definitiva y solo la impide lo que está en curso: solo se puede dar de baja un barril Disponible. Uno En uso tiene un
+     * envasado en un lote en ejecución, y uno con cerveza, despachado, en limpieza o en mantenimiento todavía forma parte
+     * de un ciclo de vida en curso. Un barril Disponible está vacío y no tiene un envasado pendiente ni un despacho
+     * vigente. El historial (envasados y operaciones registrados o anulados) no impide la baja y sigue consultable.
      * </p>
      *
      * @param id Identificador clave primaria del barril a dar de baja.
      * @return {@link BarrilResponseDTO} con los datos del barril ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el barril con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el barril tiene envasados registrados, si tiene operaciones registradas, o si no se encuentra en estado operativo DISPONIBLE.
+     * @throws ReglaNegocioException Si el barril no se encuentra en estado operativo DISPONIBLE.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.BARRIL)
     public BarrilResponseDTO bajaBarril(Long id) {
-        // 1. Buscamos el barril, bloqueado para escritura, antes de consultar envasados y operaciones. Si no existe, se
-        //    dispara RecursoNoEncontradoException
+        // 1. Buscamos el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + id));
 
-        // 2. Validar que el barril no tenga envasados registrados. Los anulados no cuentan
-        if (envasadoLoteRepository.existsByBarril_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
-            throw new ReglaNegocioException("No se puede dar de baja el barril porque tiene envasados asociados");
-        }
-
-        // 3. Validar que el barril no tenga operaciones registradas (limpiezas, fallas, mantenimientos,
-        //    fraccionamientos, despachos o devoluciones). Las anuladas no cuentan
-        if (operacionCicloVidaBarrilRepository.existsOperacionRegistrada(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el barril porque tiene operaciones registradas");
-        }
-
-        // 4. Validar que el barril se encuentre DISPONIBLE
+        // 2. Validar que el barril se encuentre DISPONIBLE: garantiza que no tiene un ciclo de vida en curso
+        //    (envasado en un lote en ejecución, cerveza, despacho vigente, limpieza o mantenimiento pendientes)
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
             throw new ReglaNegocioException("No se puede dar de baja el barril porque no se encuentra disponible");
         }
 
-        // 5. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         barrilEntity.setEstado(Estado.BAJA);
 
-        // 6. Retornamos el DTO del barril dado de baja
+        // 4. Retornamos el DTO del barril dado de baja
         return MapperBarril.toDTO(barrilRepository.save(barrilEntity));
     }
 

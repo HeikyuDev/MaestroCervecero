@@ -25,3 +25,5 @@
 | **CP-CCE-20** | Observaciones en la tabla del panel | No se escriben en la fila: el botón i las abre en el diálogo compartido, con el título del tipo y la fecha de la operación. |
 | **CP-CCE-21** | Columna Acciones del panel | Lleva siempre el ojo y el botón i, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género. |
 | **CP-CCE-22** | Paginación de la tabla del panel | Se pagina de a 20 con el pie de paginación del sistema, que conserva la pestaña. |
+| **CP-CCE-23** | Panel de un equipo dado de baja | El operario abre el panel en solo lectura: la información muestra la marca "Dado de baja", la tabla lista las operaciones, no hay botón de alta ni de anular, y el aviso dice "No se pueden registrar operaciones porque el equipamiento está dado de baja". |
+| **CP-CCE-24** | Historial y detalle de una operación de un equipo dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del equipo. |

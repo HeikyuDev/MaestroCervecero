@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -55,9 +54,6 @@ class MaceradorServicioImplTest {
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
-
-    @Mock
-    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
@@ -438,7 +434,7 @@ class MaceradorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO)).doesNotThrowAnyException();
 
         verify(maceradorRepository).save(maceradorEntity);
-        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
+        verify(etapaLoteRepository, never()).existsEtapaEnLoteVigente(any());
     }
 
     @Test
@@ -452,7 +448,7 @@ class MaceradorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO)).doesNotThrowAnyException();
 
         verify(maceradorRepository).save(maceradorEntity);
-        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
+        verify(etapaLoteRepository, never()).existsEtapaEnLoteVigente(any());
     }
 
     // ==================== bajaMacerador ====================
@@ -463,7 +459,7 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.bajaMacerador(1L);
@@ -472,7 +468,7 @@ class MaceradorServicioImplTest {
         assertThat(maceradorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMaceradorDTO(maceradorEntity, resultado);
         verify(maceradorRepository).findById(1L);
-        verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         verify(maceradorRepository).save(maceradorEntity);
         verify(maceradorRepository, never()).delete(any());
     }
@@ -491,18 +487,18 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene lotes asociados")
+    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene lotes pendientes o en ejecución")
     void bajaMacerador_debeRechazarAsociacionALotes() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene lotes asociados");
+                .hasMessage("No se puede dar de baja el macerador porque tiene lotes pendientes o en ejecución");
 
-        verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         verify(maceradorRepository, never()).save(any());
     }
 
@@ -512,7 +508,7 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -527,7 +523,7 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_LIMPIEZA);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -542,7 +538,7 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_MANTENIMIENTO);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -552,75 +548,23 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-07: bajaMacerador informa primero los lotes asociados cuando el macerador además no está disponible")
+    @DisplayName("CP-BM-07: bajaMacerador informa primero los lotes pendientes o en ejecución cuando el macerador además no está disponible")
     void bajaMacerador_debePriorizarLotesAsociadosSobreNoDisponible() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+        when(etapaLoteRepository.existsEtapaEnLoteVigente(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene lotes asociados");
+                .hasMessage("No se puede dar de baja el macerador porque tiene lotes pendientes o en ejecución");
 
         verify(maceradorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BM-08: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene operaciones registradas")
-    void bajaMacerador_debeRechazarSiTieneOperacionesRegistradas() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
-        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
-        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene operaciones registradas");
-        verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
-        verify(maceradorRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-09: bajaMacerador informa primero los lotes asociados cuando el macerador además tiene operaciones registradas")
-    void bajaMacerador_debePriorizarLotesAsociadosSobreOperacionesRegistradas() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
-        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene lotes asociados");
-        verify(operacionCicloVidaEquipamientoRepository, never()).existsOperacionRegistrada(any());
-        verify(maceradorRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-10: bajaMacerador informa primero las operaciones registradas cuando el macerador además no está disponible")
-    void bajaMacerador_debePriorizarOperacionesRegistradasSobreNoDisponible() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
-        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(entidad));
-        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
-        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
-        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene operaciones registradas");
-        verify(maceradorRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BM-13: bajaMacerador bloquea el equipamiento antes de consultar los lotes asociados y las operaciones registradas")
-    void bajaMacerador_debeBloquearElEquipamientoAntesDeConsultarLotesYOperaciones() {
+    @DisplayName("CP-BM-09: bajaMacerador bloquea el equipamiento antes de consultar los lotes pendientes o en ejecución")
+    void bajaMacerador_debeBloquearElEquipamientoAntesDeConsultarLotesVigentes() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity entidad = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
@@ -631,10 +575,9 @@ class MaceradorServicioImplTest {
         maceradorServicio.bajaMacerador(1L);
 
         // === ASSERTS ===
-        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, operacionCicloVidaEquipamientoRepository, maceradorRepository);
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, maceradorRepository);
         orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
-        orden.verify(etapaLoteRepository).existsEtapaAsociada(1L);
-        orden.verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        orden.verify(etapaLoteRepository).existsEtapaEnLoteVigente(1L);
         orden.verify(maceradorRepository).save(entidad);
     }
 

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -98,4 +99,19 @@ public class EquipamientoResumenResponseDTO {
      * Pérdida por trub (olla de hervor), o {@code null}.
      */
     private Double perdidaPorTrub;
+
+    /**
+     * Estado lógico del equipamiento (activo o dado de baja). Un equipamiento dado de baja sigue mostrando su
+     * información y su historial, en solo lectura.
+     */
+    private Estado estado;
+
+    /**
+     * Indica si el equipamiento está dado de baja.
+     *
+     * @return {@code true} si su estado lógico es {@link Estado#BAJA}.
+     */
+    public boolean isDadoDeBaja() {
+        return estado == Estado.BAJA;
+    }
 }

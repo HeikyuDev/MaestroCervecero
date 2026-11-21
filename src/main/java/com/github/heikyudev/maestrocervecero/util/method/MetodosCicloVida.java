@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.util.method;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
@@ -148,6 +150,24 @@ public class MetodosCicloVida {
      */
     public static BarrilEntity resolverBarril(Optional<BarrilEntity> barril, Long idBarril) {
         return barril.orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril, CAMPO_BARRIL));
+    }
+
+    /**
+     * Busca, bloqueándolo para escritura, el barril de una operación a anular. La búsqueda con bloqueo solo encuentra
+     * barriles activos; si no lo encuentra, distingue un barril dado de baja de uno inexistente: un barril dado de baja
+     * conserva su historial consultable y sus operaciones no se anulan.
+     *
+     * @param barrilRepository El repositorio de barriles.
+     * @param idBarril El ID del barril.
+     * @return El barril, activo y bloqueado.
+     * @throws ReglaNegocioException Si el barril está dado de baja (campo {@code idBarril}).
+     * @throws RecursoNoEncontradoException Si el barril no existe (campo {@code idBarril}).
+     */
+    public static BarrilEntity resolverBarrilParaAnular(IBarrilRepository barrilRepository, Long idBarril) {
+        return barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
+                .orElseThrow(() -> barrilRepository.existsByIdAndEstado(idBarril, Estado.BAJA)
+                        ? new ReglaNegocioException("No se puede anular la operación porque el barril está dado de baja", CAMPO_BARRIL)
+                        : new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril, CAMPO_BARRIL));
     }
 
     /**

@@ -37,7 +37,7 @@ public class ReporteEquipamiento implements ReporteDePestana {
         List<String> avisos = new ArrayList<>();
         CamposDeReporte.Elegido<TipoEquipamiento> tipo = CamposDeReporte.tipoDeEquipo(parametros, avisos);
         EquipamientoResumenResponseDTO equipo = resolverUno(aId(parametros.get(CamposDeReporte.PARAMETRO_EQUIPO)), controlEquipamientoServicio::buscarResumen);
-        String texto = equipo == null ? null : equipo.getIdentificadorInterno();
+        String texto = equipo == null ? null : CamposDeReporte.textoDeEquipo(equipo.getIdentificadorInterno(), equipo.isDadoDeBaja());
         CampoFiltro campoEquipo = CampoFiltro.buscador(CamposDeReporte.PARAMETRO_EQUIPO, "Equipo", equipo == null ? null : String.valueOf(equipo.getId()), texto,
                 CamposDeReporte.URL_BUSCADOR_EQUIPOS, "Seleccione equipo");
         CriteriosReporteEquipamiento criterios = new CriteriosReporteEquipamiento(desde, hasta, tipo.valor(), equipo == null ? null : equipo.getId(), texto);

@@ -62,12 +62,12 @@ public interface IMotivoAjusteServicio {
     MotivoAjusteResponseDTO modificarMotivoAjuste(Long id, MotivoAjusteFormDTO motivoAjusteFormDTO);
 
     /**
-     * Elimina lógicamente un motivo de ajuste por su ID.
+     * Elimina lógicamente un motivo de ajuste por su ID. La baja es definitiva y nada la impide: un motivo no tiene
+     * operaciones en curso, y los ajustes de insumo ya registrados conservan su motivo en el historial.
      *
      * @param id El ID del motivo de ajuste a eliminar.
      * @return El motivo de ajuste eliminado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
-     * @throws ReglaNegocioException Si el motivo tiene ajustes de insumo asociados, registrados o anulados.
      */
     MotivoAjusteResponseDTO bajaMotivoAjuste(Long id);
 }

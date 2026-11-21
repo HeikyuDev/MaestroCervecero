@@ -19,6 +19,7 @@
             <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Detalle del equipamiento <span th:text="${equipo.identificadorInterno}">FER-01</span></h1>
                 <span th:replace="~{equipamiento/estado :: badge(${equipo.estadoOperativo})}"></span>
+                <span th:if="${equipo.dadoDeBaja}" data-detalle-dado-de-baja th:insert="~{fragments/dado-de-baja :: badge}"></span>
             </div>
         </div>
     </section>

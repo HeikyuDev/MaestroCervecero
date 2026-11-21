@@ -4,12 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.FabricanteBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFabricanteBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IOperacionCicloVidaBarrilRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.BarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -55,12 +52,6 @@ class BarrilServicioImplTest {
 
     @Mock
     private ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
-
-    @Mock
-    private IEnvasadoLoteRepository envasadoLoteRepository;
-
-    @Mock
-    private IOperacionCicloVidaBarrilRepository operacionCicloVidaBarrilRepository;
 
     @InjectMocks
     private BarrilServicioImpl barrilServicio;
@@ -737,54 +728,7 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BB-07: bajaBarril lanza ReglaNegocioException sin consultar operaciones ni persistir cuando el barril tiene envasados registrados")
-    void bajaBarril_debeRechazarBarrilConEnvasadosRegistrados() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
-        when(envasadoLoteRepository.existsByBarril_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
-
-        assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque tiene envasados asociados");
-
-        verifyNoInteractions(operacionCicloVidaBarrilRepository);
-        verify(barrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BB-08: bajaBarril lanza ReglaNegocioException sin persistir cuando el barril tiene operaciones registradas")
-    void bajaBarril_debeRechazarBarrilConOperacionesRegistradas() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
-        when(envasadoLoteRepository.existsByBarril_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
-        when(operacionCicloVidaBarrilRepository.existsOperacionRegistrada(1L)).thenReturn(true);
-
-        assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque tiene operaciones registradas");
-
-        verify(barrilRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-BB-09: bajaBarril permite la baja cuando el barril solo tiene envasados y operaciones anulados (camino feliz)")
-    void bajaBarril_debePermitirBajaCuandoSoloHayAnulados() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
-        // Los anulados no cuentan: las consultas solo consideran los registros en estado REGISTRADO
-        when(envasadoLoteRepository.existsByBarril_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
-        when(operacionCicloVidaBarrilRepository.existsOperacionRegistrada(1L)).thenReturn(false);
-        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
-
-        BarrilResponseDTO resultado = barrilServicio.bajaBarril(1L);
-
-        assertThat(barrilEntity.getEstado()).isEqualTo(Estado.BAJA);
-        assertBarrilDTO(barrilEntity, resultado);
-        verify(barrilRepository).save(barrilEntity);
-    }
-
-    @Test
-    @DisplayName("CP-BB-10: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_USO")
+    @DisplayName("CP-BB-08: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_USO (tiene un envasado en un lote en ejecución)")
     void bajaBarril_debeRechazarEstadoOperativoEnUso() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.EN_USO, crearFabricanteBarrilEntity(1L));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
@@ -797,33 +741,18 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BB-11: bajaBarril consulta en orden: bloqueo del barril, envasados y operaciones, antes de aplicar la baja")
-    void bajaBarril_debeConsultarEnOrden() {
+    @DisplayName("CP-BB-07: bajaBarril bloquea el barril y, si está Disponible, aplica la baja sin consultar su historial de envasados ni de operaciones")
+    void bajaBarril_debeBloquearElBarrilYNoConsultarElHistorial() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
         barrilServicio.bajaBarril(1L);
 
-        InOrder orden = inOrder(barrilRepository, envasadoLoteRepository, operacionCicloVidaBarrilRepository);
+        InOrder orden = inOrder(barrilRepository);
         orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
-        orden.verify(envasadoLoteRepository).existsByBarril_IdAndEstado(1L, EstadoTransaccion.REGISTRADO);
-        orden.verify(operacionCicloVidaBarrilRepository).existsOperacionRegistrada(1L);
         orden.verify(barrilRepository).save(barrilEntity);
-    }
-
-    @Test
-    @DisplayName("CP-BB-12: bajaBarril informa los envasados antes que las operaciones y que el estado operativo")
-    void bajaBarril_debePriorizarEnvasadosSobreOperacionesYEstado() {
-        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.CON_CERVEZA, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
-        when(envasadoLoteRepository.existsByBarril_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
-
-        assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque tiene envasados asociados");
-
-        verify(barrilRepository, never()).save(any());
+        assertThat(barrilEntity.getEstado()).isEqualTo(Estado.BAJA);
     }
 
     // ==================== helpers ====================

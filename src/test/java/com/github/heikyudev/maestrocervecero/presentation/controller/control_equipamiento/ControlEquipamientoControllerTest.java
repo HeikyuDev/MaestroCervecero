@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoOperacionEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
@@ -372,6 +373,42 @@ public class ControlEquipamientoControllerTest {
         assertThat(panel).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
         assertThat(historial).doesNotContain("Registrado por").doesNotContain("operario1").doesNotContain("Responsable");
         assertThat(detalle).doesNotContain("Responsable");
+    }
+
+    // ==================== Equipo dado de baja ====================
+
+    /** El fermentador 5 dado de baja, Disponible, con una limpieza registrada que el service no marca como anulable. */
+    private void configurarEquipoDadoDeBaja() {
+        when(servicio.buscarResumen(5L)).thenReturn(EquipamientoResumenResponseDTO.builder().id(5L).identificadorInterno("FER-01")
+                .tipo(TipoEquipamiento.FERMENTADOR).estadoOperativo(EstadoOperativo.DISPONIBLE).usosMaximosAntesMantenimiento(10).usosDesdeUltimoMantenimiento(3L)
+                .capacidadTotal(1000.0).capacidadUtil(900.0).fechaUltimaLimpieza(FIN).estado(Estado.BAJA).build());
+        when(servicio.listarOperaciones(5L)).thenReturn(OperacionesEquipamientoResponseDTO.builder()
+                .limpiezas(List.of(operacion(7L, TipoOperacionEquipamiento.LIMPIEZA, EstadoTransaccion.REGISTRADO, false)))
+                .fallas(List.of()).mantenimientos(List.of()).build());
+    }
+
+    @Test
+    @DisplayName("CP-CCE-23: el panel de un equipo dado de baja se abre en solo lectura: muestra la marca Dado de baja y sus operaciones, sin alta ni anulación y con el aviso del motivo")
+    void panel_equipoDadoDeBaja() throws Exception {
+        configurarEquipoDadoDeBaja();
+
+        String html = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
+
+        assertThat(html).contains("data-equipo-dado-de-baja").contains("Dado de baja").contains("data-operacion=")
+                .contains("data-aviso-registro").contains("No se pueden registrar operaciones porque el equipamiento está dado de baja")
+                .doesNotContain("data-nueva-operacion").doesNotContain("/limpiezas/7/anular");
+    }
+
+    @Test
+    @DisplayName("CP-CCE-24: el historial y el detalle de una operación de un equipo dado de baja se abren con la marca Dado de baja")
+    void historialYDetalle_equipoDadoDeBaja() throws Exception {
+        configurarEquipoDadoDeBaja();
+
+        String historial = html(get("/control-equipamiento/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
+        String detalle = html(get("/control-equipamiento/5/operaciones/limpieza/7").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/operacion-detalle");
+
+        assertThat(historial).contains("data-equipo-dado-de-baja").contains("Limpieza con soda");
+        assertThat(detalle).contains("data-equipo-dado-de-baja").contains("Dado de baja");
     }
 
     // ==================== Apoyo ====================

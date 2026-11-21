@@ -160,6 +160,7 @@ public class ControlEquipamientoController {
      * es la tabla paginada de las operaciones de su tipo (anuladas incluidas, la de fecha más reciente arriba). El operario
      * ve el botón de alta, que lleva al formulario de registro, cuando el estado del equipo lo permite (si no, un aviso
      * explica el motivo) y el botón de anular en la última operación si el equipo no está en uso por un lote; el gerente solo consulta.
+     * Un equipo dado de baja abre su panel en solo lectura: sin alta ni anulación, con el aviso del motivo.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('LIMPIEZA_EQUIPAMIENTO_CONSULTAR', 'FALLA_EQUIPAMIENTO_CONSULTAR', 'MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR')")
@@ -175,7 +176,7 @@ public class ControlEquipamientoController {
         EquipamientoResumenResponseDTO equipo = controlEquipamientoServicio.buscarResumen(id);
         OperacionesEquipamientoResponseDTO operaciones = controlEquipamientoServicio.listarOperaciones(id);
         boolean puedeRegistrar = tienePermiso(authentication, activa.getPermisoRegistrar());
-        var motivoNoRegistrable = activa.motivoNoRegistrable(equipo.getEstadoOperativo());
+        var motivoNoRegistrable = activa.motivoNoRegistrable(equipo);
 
         model.addAttribute("equipo", equipo);
         model.addAttribute("pestanas", pestanas);

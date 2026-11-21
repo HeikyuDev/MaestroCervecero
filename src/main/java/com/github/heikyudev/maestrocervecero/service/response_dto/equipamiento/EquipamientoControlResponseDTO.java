@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -47,4 +48,9 @@ public class EquipamientoControlResponseDTO {
      * Cantidad máxima de usos antes de requerir mantenimiento preventivo.
      */
     private Integer usosMaximosAntesMantenimiento;
+
+    /**
+     * Estado lógico del equipamiento (activo o dado de baja).
+     */
+    private Estado estado;
 }

@@ -159,7 +159,7 @@ Se ofrece solo con `estadisticas.tiempos.habilitada=true`.
 
 **Universo.** Todos los equipos activos de los cuatro tipos (molinos, maceradores, ollas de hervor y fermentadores) y los dados de baja que tuvieron actividad en el período.
 
-**Criterios propios.** Tipo de equipo (lista) y Equipo (selector con su buscador en modal).
+**Criterios propios.** Tipo de equipo (lista) y Equipo (selector con su buscador en modal: equipos activos y dados de baja con actividad, estos con la marca "(dado de baja)", que también se muestra en el criterio elegido).
 
 **Fecha considerada**, escrita debajo del período: "Etapas superpuestas con el período e intervenciones registradas dentro de él".
 

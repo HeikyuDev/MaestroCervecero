@@ -22,5 +22,4 @@
 | **CP-CMA-16** | Cambio de tipo rechazado | Vuelve al formulario con el error en el campo tipoAjuste, el selector sigue deshabilitado y se conserva lo escrito. |
 | **CP-CMA-17** | Duplicado e inexistente en la modificación | El nombre duplicado se marca en su campo y un motivo inexistente redirige con alerta de error. |
 | **CP-CMA-18** | Baja válida | Llama al service y redirige a la lista con la alerta de éxito. |
-| **CP-CMA-19** | Baja bloqueada | Vuelve a la lista con el mensaje del service ("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados") como alerta de error. |
 | **CP-CMA-20** | Baja de un motivo inexistente | Redirige con alerta de error. |

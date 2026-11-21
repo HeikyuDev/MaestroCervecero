@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConfig;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -96,9 +97,31 @@ class EquipamientoDetalleControllerTest {
     }
 
     @Test
-    @DisplayName("CP-EQD-03: un equipamiento inexistente o dado de baja vuelve al origen con alerta de error")
+    @DisplayName("CP-EQD-03: un equipamiento inexistente vuelve al origen con alerta de error")
     void inexistente() throws Exception {
         mockMvc.perform(get("/equipamiento/99/detalle").with(como(Rol.GERENTE_DE_PRODUCCION)).header("Referer", "/lotes"))
                 .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @DisplayName("CP-EQD-06: el detalle de un equipamiento dado de baja se abre (las pantallas de lote enlazan a él) y lo indica en la cabecera y en la información")
+    void detalleDeUnEquipamientoDadoDeBaja() throws Exception {
+        when(servicio.buscarResumen(6L)).thenReturn(EquipamientoResumenResponseDTO.builder().id(6L).identificadorInterno("OH-02")
+                .tipo(TipoEquipamiento.OLLA_HERVOR).estadoOperativo(EstadoOperativo.DISPONIBLE).usosMaximosAntesMantenimiento(10)
+                .usosDesdeUltimoMantenimiento(0L).capacidadTotal(100.0).estado(Estado.BAJA).build());
+
+        String html = mockMvc.perform(get("/equipamiento/6/detalle").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
+                .andExpect(view().name("equipamiento/equipamiento-detalle")).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(html).contains("OH-02").contains("data-detalle-dado-de-baja").contains("data-equipo-dado-de-baja").contains("Dado de baja");
+    }
+
+    @Test
+    @DisplayName("CP-EQD-07: el detalle de un equipamiento activo no muestra la marca Dado de baja")
+    void detalleDeUnEquipamientoActivoSinMarca() throws Exception {
+        String html = mockMvc.perform(get("/equipamiento/5/detalle").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(html).doesNotContain("data-detalle-dado-de-baja").doesNotContain("data-equipo-dado-de-baja");
     }
 }

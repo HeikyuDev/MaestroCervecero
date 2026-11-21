@@ -386,7 +386,7 @@ Con los datos existentes, `fecha_envasado` toma la fecha de registro del envasad
 
 | Tabla y columna | Cambio |
 |---|---|
-| `ajuste_insumo.motivo_ajuste_id` | Índice `idx_ajuste_insumo_motivo_ajuste_id`: acelera saber si un motivo de ajuste tiene ajustes de insumo asociados, consulta que fija su tipo y impide su baja |
+| `ajuste_insumo.motivo_ajuste_id` | Índice `idx_ajuste_insumo_motivo_ajuste_id`: acelera saber si un motivo de ajuste tiene ajustes de insumo asociados, consulta que fija su tipo |
 
 ### Traducción de una violación de unicidad
 

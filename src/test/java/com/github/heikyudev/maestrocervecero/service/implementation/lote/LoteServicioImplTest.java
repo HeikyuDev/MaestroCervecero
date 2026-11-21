@@ -457,64 +457,88 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-03: registrarLote lanza RecursoNoEncontradoException si el molino no existe")
+    @DisplayName("CP-RL-03: registrarLote lanza RecursoNoEncontradoException si la búsqueda con bloqueo no encuentra el molino activo (no existe o está dado de baja)")
     void registrarLote_debeLanzarExcepcionSiMolinoNoExiste() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.empty());
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.empty());
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class);
-        verifyNoInteractions(maceradorRepository, ollaHervorRepository, fermentadorRepository);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el molino con ID: 1");
+        verifyNoInteractions(maceradorRepository, ollaHervorRepository);
+        verify(loteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RL-04: registrarLote lanza RecursoNoEncontradoException si el macerador no existe")
+    @DisplayName("CP-RL-04: registrarLote lanza RecursoNoEncontradoException si la búsqueda con bloqueo no encuentra el macerador activo (no existe o está dado de baja)")
     void registrarLote_debeLanzarExcepcionSiMaceradorNoExiste() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.empty());
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class);
-        verifyNoInteractions(ollaHervorRepository, fermentadorRepository);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el macerador con ID: 2");
+        verifyNoInteractions(ollaHervorRepository);
     }
 
     @Test
-    @DisplayName("CP-RL-05: registrarLote lanza RecursoNoEncontradoException si la olla de hervor no existe")
+    @DisplayName("CP-RL-05: registrarLote lanza RecursoNoEncontradoException si la búsqueda con bloqueo no encuentra la olla de hervor activa (no existe o está dada de baja)")
     void registrarLote_debeLanzarExcepcionSiOllaHervorNoExiste() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
-        when(ollaHervorRepository.findById(3L)).thenReturn(Optional.empty());
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
+        when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L)).thenReturn(Optional.empty());
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class);
-        verifyNoInteractions(fermentadorRepository);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la olla de hervor con ID: 3");
+        verify(loteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RL-06: registrarLote lanza RecursoNoEncontradoException si el fermentador no existe")
+    @DisplayName("CP-RL-06: registrarLote lanza RecursoNoEncontradoException si la búsqueda con bloqueo no encuentra el fermentador activo (no existe o está dado de baja), sin bloquear su cola ni los demás equipos")
     void registrarLote_debeLanzarExcepcionSiFermentadorNoExiste() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
-        when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
-        when(fermentadorRepository.findById(4L)).thenReturn(Optional.empty());
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.empty());
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el fermentador con ID: 4");
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository);
+        verify(loteRepository, never()).buscarPendientesDeFermentadorParaReordenar(any());
+    }
+
+    @Test
+    @DisplayName("CP-RL-67: registrarLote lanza RecursoNoEncontradoException si el ID del molino corresponde a un equipamiento de otro tipo")
+    void registrarLote_debeRechazarUnEquipoDeOtroTipo() {
+        // === PREPARACION DE DATOS ===
+        mockearPlanificacionPendienteBase();
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        // La búsqueda con bloqueo es sobre todo el equipamiento: con el ID de un macerador devuelve ese macerador
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn((Optional) Optional.of(crearMacerador(1L, 25.0, 5.0, 75.0)));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el molino con ID: 1");
+        verify(loteRepository, never()).save(any());
     }
 
     @Test
@@ -575,11 +599,11 @@ class LoteServicioImplTest {
     void registrarLote_debeLanzarExcepcionSiPreHervorSuperaCapacidadOlla() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
         // pre-hervor calculado = 20 + 2 + 3*(60/60) = 25.0 > 24.0
-        when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 24.0, 3.0, 2.0)));
-        when(fermentadorRepository.findById(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 24.0, 3.0, 2.0)));
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
@@ -593,11 +617,11 @@ class LoteServicioImplTest {
     void registrarLote_debeLanzarExcepcionSiMezclaSuperaCapacidadMacerador() {
         // === PREPARACION DE DATOS ===
         mockearPlanificacionPendienteBase();
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
         // mezcla calculada ≈ 21.26 > 20.0
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 20.0, 5.0, 75.0)));
-        when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
-        when(fermentadorRepository.findById(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(crearMacerador(2L, 20.0, 5.0, 75.0)));
+        when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
@@ -992,7 +1016,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-54: registrarLote — bloquea la planificación, luego el fermentador y luego la cola pendiente, en el orden canónico")
+    @DisplayName("CP-RL-54: registrarLote — bloquea la planificación, el fermentador, la cola pendiente y luego el molino, el macerador y la olla de hervor, en el orden canónico")
     void registrarLote_debeBloquearPlanificacionFermentadorYColaEnOrdenCanonico() {
         // === PREPARACION DE DATOS ===
         mockearEquipamientoBase();
@@ -1004,11 +1028,16 @@ class LoteServicioImplTest {
         loteServicio.registrarLote(loteFormDTOBase());
 
         // === ASSERTS ===
-        InOrder orden = inOrder(planificacionProduccionRepository, fermentadorRepository, loteRepository);
+        InOrder orden = inOrder(planificacionProduccionRepository, fermentadorRepository, loteRepository, molinoRepository, maceradorRepository, ollaHervorRepository);
         orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
         orden.verify(fermentadorRepository).buscarPorIdParaCambiarEstadoOperativo(4L);
         orden.verify(loteRepository).buscarPendientesDeFermentadorParaReordenar(4L);
+        orden.verify(molinoRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
+        orden.verify(maceradorRepository).buscarPorIdParaCambiarEstadoOperativo(2L);
+        orden.verify(ollaHervorRepository).buscarPorIdParaCambiarEstadoOperativo(3L);
         orden.verify(loteRepository).save(any(LoteEntity.class));
+        verify(fermentadorRepository, times(1)).buscarPorIdParaCambiarEstadoOperativo(4L);
+        verify(loteRepository, times(1)).buscarPendientesDeFermentadorParaReordenar(4L);
     }
 
     @Test
@@ -6696,10 +6725,10 @@ class LoteServicioImplTest {
 
     private PlanificacionProduccionEntity mockearEquipamientoBase(LocalDate fechaInicioEstimadaPlanificacion) {
         PlanificacionProduccionEntity planificacion = mockearPlanificacionPendienteBase(fechaInicioEstimadaPlanificacion);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
-        when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
-        when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
-        when(fermentadorRepository.findById(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
+        when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
         return planificacion;
     }
 

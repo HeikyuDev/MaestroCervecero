@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.FallaB
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.FraccionamientoBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.LimpiezaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.MantenimientoBarrilFormDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResumenResponseDTO;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -47,6 +48,9 @@ public enum PestanaOperacionBarril {
             Permiso.DEVOLUCION_BARRIL_CONSULTAR, Permiso.DEVOLUCION_BARRIL_REGISTRAR, Permiso.DEVOLUCION_BARRIL_ANULAR,
             "Devolución registrada correctamente", "Devolución anulada correctamente",
             "Ej: El cliente devolvió el barril con restos de cerveza", "No hay devoluciones registradas", "Se registró la devolución en el barril equivocado", "Observaciones de la devolución");
+
+    /** Aviso del panel de un barril dado de baja: no admite el registro de operaciones. */
+    static final String MOTIVO_DADO_DE_BAJA = "No se pueden registrar operaciones porque el barril está dado de baja";
 
     /** Clave de la pestaña en la URL del panel ({@code ?pestana=}) y en las rutas de registro y anulación. */
     private final String clave;
@@ -168,5 +172,19 @@ public enum PestanaOperacionBarril {
             return Optional.of("No se puede registrar " + articulo + " porque el barril está en uso por un lote");
         }
         return Optional.of("Solo se puede registrar " + articulo + " sobre un barril en estado operativo " + estadoRequerido.getEtiqueta());
+    }
+
+    /**
+     * El motivo por el que no se puede registrar la operación sobre el barril: si está dado de baja no admite ninguna
+     * operación (su panel es de solo lectura); si no, el motivo de su estado operativo.
+     *
+     * @param barril El resumen del barril.
+     * @return El motivo, o vacío si el barril permite registrar la operación.
+     */
+    public Optional<String> motivoNoRegistrable(BarrilResumenResponseDTO barril) {
+        if (barril.isDadoDeBaja()) {
+            return Optional.of(MOTIVO_DADO_DE_BAJA);
+        }
+        return motivoNoRegistrable(barril.getEstadoOperativo());
     }
 }

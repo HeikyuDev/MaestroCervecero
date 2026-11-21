@@ -38,20 +38,21 @@ public interface IControlBarrilServicio {
     Page<BarrilControlResponseDTO> filtrarBarrilesParaControl(String identificador, Long idFabricante, EstadoOperativoBarril estadoOperativo, Pageable pageable);
 
     /**
-     * Obtiene el resumen de un barril activo: sus datos, sus usos desde el último mantenimiento y las fechas de su
-     * última limpieza y su último mantenimiento registrados. Si el barril está Con cerveza, también su contenido: el lote
+     * Obtiene el resumen de un barril, activo o dado de baja: sus datos, su estado lógico, sus usos desde el último
+     * mantenimiento y las fechas de su última limpieza y su último mantenimiento registrados. Un barril dado de baja
+     * conserva su información y su historial consultables, en solo lectura. Si el barril está Con cerveza, también su contenido: el lote
      * de su último envasado registrado y la receta de ese lote.
      *
      * @param idBarril El ID del barril.
      * @return El resumen del barril.
-     * @throws RecursoNoEncontradoException Si el barril no existe o está dado de baja.
+     * @throws RecursoNoEncontradoException Si el barril no existe.
      */
     BarrilResumenResponseDTO buscarResumen(Long idBarril);
 
     /**
      * Lista las operaciones de un tipo de un barril, anuladas incluidas, de la de fecha más reciente a la más antigua.
      * Solo la última operación registrada del barril (de cualquier tipo; mayor fecha y, a igualdad, mayor ID) se marca
-     * como anulable, y solo si el barril no está en uso por un lote, la operación es posterior a su último envasado y el barril está en el estado operativo que dejó la operación.
+     * como anulable, y solo si el barril está activo, no está en uso por un lote, la operación es posterior a su último envasado y el barril está en el estado operativo que dejó la operación.
      *
      * @param idBarril El ID del barril.
      * @param tipo Tipo de operación a listar.
@@ -62,7 +63,8 @@ public interface IControlBarrilServicio {
 
     /**
      * Lista el historial de un barril: una fila por cada envasado registrado y por cada operación registrada (nunca las
-     * anuladas), de la más reciente a la más antigua. Cada fila informa el estado operativo en el que dejó al barril.
+     * anuladas), de la más reciente a la más antigua. Cada fila informa el estado operativo en el que dejó al barril. El
+     * historial de un barril dado de baja se lista igual que el de uno activo.
      *
      * @param idBarril El ID del barril.
      * @param tipo Tipo de actividad a mostrar, o {@code null} para todas.

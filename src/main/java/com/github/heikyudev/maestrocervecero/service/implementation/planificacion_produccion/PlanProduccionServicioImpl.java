@@ -1,13 +1,17 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.planificacion_produccion;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
@@ -41,6 +45,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +56,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
@@ -78,6 +85,7 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
     private final IOllaHervorRepository ollaHervorRepository;
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
     private final ILoteServicio loteServicio;
+    private final IEquipamientoRepository equipamientoRepository;
 
     /** Resultado de resolver el escenario de una generación: el generador listo o el motivo por el que no hay planes. */
     private record ResolucionEscenario(GeneradorPlanes generador, String motivoNoDisponible) {
@@ -178,7 +186,7 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
      * @param idPlanificacion ID de la planificación de producción.
      * @param planProduccionFormDTO La modalidad y los lotes del plan.
      * @return El plan recalculado, con sus avisos.
-     * @throws ReglaNegocioException Si el plan o alguno de sus lotes no tiene los datos obligatorios, o si supera el máximo de lotes.
+     * @throws ReglaNegocioException Si el plan o alguno de sus lotes no tiene los datos obligatorios, si supera el máximo de lotes o si algún equipo del plan fue dado de baja después de generarlo.
      * @throws RecursoNoEncontradoException Si no existe la planificación o alguno de los equipos activos indicados.
      */
     @Override
@@ -204,6 +212,7 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
         List<LotePlanProduccionFormDTO> lotesForm = planProduccionFormDTO.getLotes();
         List<LoteDefinido> lotes = new ArrayList<>();
         for (int i = 0; i < lotesForm.size(); i++) {
+            validarEquiposNoDadosDeBaja(i, lotesForm.get(i));
             EquiposDeLote equipos = resolverEquipos(i, lotesForm.get(i));
             double volumen = Redondeo.redondear(lotesForm.get(i).getVolumenObjetivo());
             double masaMalta = calcularMasaMalta(volumen, equipos.macerador(), versionReceta);
@@ -237,11 +246,13 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
      * Confirma un plan registrando todos sus lotes en una única transacción. Ver
      * {@link IPlanProduccionServicio#confirmarPlan(Long, PlanProduccionFormDTO)}.
      * <p>
-     * Antes de registrar, bloquea para escritura todos los fermentadores distintos del plan por ID ascendente: así dos
-     * confirmaciones concurrentes adquieren los bloqueos de fermentadores siempre en el mismo orden y no se esperan
+     * Antes de registrar, bloquea para escritura todos los equipos distintos del plan en el orden canónico: los
+     * fermentadores, luego los molinos, los maceradores y las ollas de hervor, cada grupo por ID ascendente. Con los
+     * equipos bloqueados valida que ninguno haya sido dado de baja después de generar el plan. Así dos
+     * confirmaciones concurrentes adquieren los bloqueos siempre en el mismo orden y no se esperan
      * mutuamente. Después registra los lotes en el orden del plan, de modo que sus identificadores internos siguen ese
-     * orden; el registro de cada lote vuelve a bloquear su fermentador (ya bloqueado por esta transacción) y luego su
-     * cola de lotes pendientes. Bloquear la cola en el orden del plan no abre un interbloqueo: toda operación sobre la
+     * orden; el registro de cada lote vuelve a bloquear su fermentador, su cola de lotes pendientes y sus demás equipos
+     * (los equipos ya están bloqueados por esta transacción, así que esos bloqueos no esperan). Bloquear la cola en el orden del plan no abre un interbloqueo: toda operación sobre la
      * cola de un fermentador bloquea antes ese fermentador, que esta transacción ya tiene.
      * </p>
      * <p>
@@ -253,7 +264,7 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
      * @param idPlanificacion ID de la planificación de producción.
      * @param planProduccionFormDTO La modalidad y los lotes del plan elegido.
      * @return Los lotes registrados, en el orden del plan.
-     * @throws ReglaNegocioException Si el plan no cumple alguna regla o el registro de algún lote la rechaza.
+     * @throws ReglaNegocioException Si el plan no cumple alguna regla, si algún equipo del plan fue dado de baja después de generarlo o si el registro de algún lote la rechaza.
      * @throws RecursoNoEncontradoException Si no existe la planificación o alguno de los equipos indicados.
      */
     @Override
@@ -284,11 +295,23 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
             throw new ReglaNegocioException(problemas.get(0));
         }
 
-        // 5. Bloquear los fermentadores distintos del plan por ID ascendente (orden canónico de bloqueo entre fermentadores)
-        lotes.stream().map(LotePlanProduccionFormDTO::getIdFermentador).distinct().sorted()
-                .forEach(fermentadorRepository::buscarPorIdParaCambiarEstadoOperativo);
+        // 5. Bloquear los equipos distintos de todo el plan en el orden canónico: primero los fermentadores, luego los
+        //    molinos, los maceradores y las ollas de hervor, cada grupo por ID ascendente (el mismo orden por tipo que
+        //    usan el inicio y la cancelación de un lote). Así dos confirmaciones concurrentes, o una confirmación y una
+        //    operación de lote, nunca se esperan mutuamente. El resultado no se usa aquí: el registro de cada lote vuelve
+        //    a buscar con bloqueo sus equipos (ya bloqueados por esta transacción) y rechaza el que no esté activo
+        bloquearPorIdAscendente(lotes, LotePlanProduccionFormDTO::getIdFermentador, fermentadorRepository::buscarPorIdParaCambiarEstadoOperativo);
+        bloquearPorIdAscendente(lotes, LotePlanProduccionFormDTO::getIdMolino, molinoRepository::buscarPorIdParaCambiarEstadoOperativo);
+        bloquearPorIdAscendente(lotes, LotePlanProduccionFormDTO::getIdMacerador, maceradorRepository::buscarPorIdParaCambiarEstadoOperativo);
+        bloquearPorIdAscendente(lotes, LotePlanProduccionFormDTO::getIdOllaHervor, ollaHervorRepository::buscarPorIdParaCambiarEstadoOperativo);
 
-        // 6. Registrar cada lote en el orden del plan con el registro de lotes (otro bean: su transacción se une a esta).
+        // 6. Validar que ningún equipo del plan haya sido dado de baja después de generarlo: el plan se debe generar de
+        //    nuevo. Con los equipos ya bloqueados, una baja no puede confirmarse entre esta validación y el registro
+        for (int indice = 0; indice < lotes.size(); indice++) {
+            validarEquiposNoDadosDeBaja(indice, lotes.get(indice));
+        }
+
+        // 7. Registrar cada lote en el orden del plan con el registro de lotes (otro bean: su transacción se une a esta).
         //    Un rechazo se informa con el número del lote en el plan, conserva la causa y revierte los lotes ya registrados
         List<LoteResponseDTO> registrados = new ArrayList<>();
         for (int indice = 0; indice < lotes.size(); indice++) {
@@ -329,6 +352,40 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
                 (volumen, macerador) -> calcularMasaMalta(volumen, macerador, versionReceta));
         GeneradorPlanes generador = new GeneradorPlanes(escenario);
         return new ResolucionEscenario(generador, generador.motivoNoDisponible());
+    }
+
+    /**
+     * Rechaza un lote del plan si alguno de sus equipos fue dado de baja después de generar el plan. Un equipo
+     * inexistente no se informa aquí: lo rechaza la búsqueda de equipos activos que sigue.
+     *
+     * @throws ReglaNegocioException Si algún equipo del lote está dado de baja (el mensaje indica el número de lote).
+     */
+    private void validarEquiposNoDadosDeBaja(int indice, LotePlanProduccionFormDTO lote) {
+        for (Long idEquipo : List.of(lote.getIdFermentador(), lote.getIdMolino(), lote.getIdMacerador(), lote.getIdOllaHervor())) {
+            equipamientoRepository.findById(idEquipo)
+                    .map(equipo -> (EquipamientoEntity) Hibernate.unproxy(equipo))
+                    .filter(equipo -> equipo.getEstado() == Estado.BAJA)
+                    .ifPresent(equipo -> {
+                        throw new ReglaNegocioException(prefijoDeLote(indice) + sujetoDe(equipo) + " " + equipo.getIdentificadorInterno()
+                                + (equipo instanceof OllaHervorEntity ? " fue dada" : " fue dado") + " de baja, genere el plan nuevamente");
+                    });
+        }
+    }
+
+    /** Bloquea para escritura, por ID ascendente, los equipos distintos que indica el extractor en los lotes del plan. */
+    private static void bloquearPorIdAscendente(List<LotePlanProduccionFormDTO> lotes, Function<LotePlanProduccionFormDTO, Long> idDelEquipo,
+                                                Consumer<Long> bloqueo) {
+        lotes.stream().map(idDelEquipo).distinct().sorted().forEach(bloqueo);
+    }
+
+    /** El sujeto con el que los mensajes nombran al equipo según su tipo ("El molino", "La olla de hervor"...). */
+    private static String sujetoDe(EquipamientoEntity equipo) {
+        return switch (TipoEquipamiento.deEquipamiento(equipo)) {
+            case MOLINO -> "El molino";
+            case MACERADOR -> "El macerador";
+            case OLLA_HERVOR -> "La olla de hervor";
+            case FERMENTADOR -> "El fermentador";
+        };
     }
 
     /**

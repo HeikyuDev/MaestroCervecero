@@ -174,11 +174,14 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan de
      * encontrarlo.
      * </p>
+     * <p>
+     * La baja es definitiva y nada la impide: un motivo no tiene operaciones en curso, y los ajustes de insumo ya
+     * registrados (o anulados) conservan su motivo en el historial.
+     * </p>
      *
      * @param id El ID del motivo de ajuste a dar de baja.
      * @return El motivo de ajuste dado de baja.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
-     * @throws ReglaNegocioException Si el motivo tiene ajustes de insumo asociados, registrados o anulados.
      */
     @Override
     @Transactional
@@ -188,16 +191,11 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
 
-        // 2. Un motivo con ajustes de insumo asociados (registrados o anulados) no se puede dar de baja
-        if (ajusteInsumoRepository.existsByMotivoAjusteId(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados");
-        }
-
-        // 3. Ejecutar la baja lógica y persistir el cambio
+        // 2. Ejecutar la baja lógica y persistir el cambio
         motivoAjusteEntity.setEstado(Estado.BAJA);
         motivoAjusteRepository.save(motivoAjusteEntity);
 
-        // 4. Retornar el DTO del motivo de ajuste dado de baja
+        // 3. Retornar el DTO del motivo de ajuste dado de baja
         return MapperMotivoAjuste.toDTO(motivoAjusteEntity);
     }
 

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_ins
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -87,4 +88,14 @@ public interface IMotivoAjusteRepository extends JpaRepository<MotivoAjusteEntit
      */
     @Query("SELECT CASE WHEN COUNT(ma) > 0 THEN true ELSE false END FROM MotivoAjusteEntity ma WHERE LOWER(ma.nombre) = LOWER(:nombre) AND ma.id <> :id AND ma.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
+
+    /**
+     * Indica si existe un motivo de ajuste con el ID indicado en el estado lógico indicado. Permite distinguir un motivo
+     * inexistente de uno dado de baja cuando la búsqueda de motivos activos no lo encuentra.
+     *
+     * @param id El ID del motivo de ajuste.
+     * @param estado El estado lógico a verificar.
+     * @return {@code true} si el motivo de ajuste existe en ese estado.
+     */
+    boolean existsByIdAndEstado(Long id, Estado estado);
 }

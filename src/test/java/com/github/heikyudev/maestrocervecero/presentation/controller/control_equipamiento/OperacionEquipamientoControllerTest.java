@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConf
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoOperacionEquipamiento;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
@@ -228,5 +229,18 @@ class OperacionEquipamientoControllerTest {
         mockMvc.perform(post(BASE + "/limpiezas").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("observaciones", "Limpieza con soda"))
                 .andExpect(status().is3xxRedirection());
         verifyNoInteractions(limpiezaServicio);
+    }
+
+    @Test
+    @DisplayName("CP-OPE-13: el formulario de registro de un equipamiento dado de baja no se abre: vuelve a la pestaña con el aviso de que está dado de baja")
+    void formularioDeEquipamientoDadoDeBaja() throws Exception {
+        when(controlServicio.buscarResumen(5L)).thenReturn(EquipamientoResumenResponseDTO.builder().id(5L).identificadorInterno("FER-01")
+                .tipo(TipoEquipamiento.FERMENTADOR).estadoOperativo(EstadoOperativo.EN_LIMPIEZA).usosMaximosAntesMantenimiento(10)
+                .usosDesdeUltimoMantenimiento(3L).estado(Estado.BAJA).build());
+
+        mockMvc.perform(get(BASE + "/limpiezas/nueva").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(BASE + "?pestana=limpiezas"))
+                .andExpect(flash().attribute("tipo", "warning"))
+                .andExpect(flash().attribute("mensaje", "No se pueden registrar operaciones porque el equipamiento está dado de baja"));
     }
 }

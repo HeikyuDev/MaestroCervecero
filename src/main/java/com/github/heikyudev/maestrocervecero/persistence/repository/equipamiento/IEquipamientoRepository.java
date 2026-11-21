@@ -61,6 +61,34 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
                                                     Pageable pageable);
 
     /**
+     * Busca, entre todos los tipos de equipamiento, una página de equipamientos activos y de equipamientos dados de baja
+     * con actividad, filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta).
+     * <p>
+     * Un equipamiento dado de baja tiene actividad si alguna vez se usó en una etapa de lote (etapa con fecha de inicio)
+     * o tiene alguna operación registrada (limpieza, falla o mantenimiento; las anuladas no cuentan). Se usa en los
+     * filtros de las estadísticas, donde el historial de un equipo dado de baja sigue siendo consultable. El orden es el
+     * mismo orden natural por identificador interno de {@link #filtrarEquipamientos}.
+     * </p>
+     *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de equipamientos activos y dados de baja con actividad que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT e FROM EquipamientoEntity e WHERE (e.estado = 'ACTIVO' OR (e.estado = 'BAJA' AND (EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.equipamiento.id = e.id AND el.fechaInicio IS NOT NULL) "
+            + "OR EXISTS (SELECT 1 FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id = e.id AND o.estado = 'REGISTRADO')))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo) ORDER BY UPPER(function('regexp_replace', e.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', e.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', e.identificadorInterno, '^.*[^0-9]', ''), UPPER(e.identificadorInterno), e.id",
+            countQuery = "SELECT COUNT(e) FROM EquipamientoEntity e WHERE (e.estado = 'ACTIVO' OR (e.estado = 'BAJA' AND (EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.equipamiento.id = e.id AND el.fechaInicio IS NOT NULL) "
+            + "OR EXISTS (SELECT 1 FROM OperacionCicloVidaEquipamiento o WHERE o.equipamiento.id = e.id AND o.estado = 'REGISTRADO')))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo)")
+    Page<EquipamientoEntity> filtrarEquipamientosConDadosDeBajaConActividad(@Param("identificadorInterno") String identificadorInterno,
+                                                                           @Param("estadoOperativo") EstadoOperativo estadoOperativo,
+                                                                           Pageable pageable);
+
+    /**
      * Busca, bloqueándolo para escritura, un equipamiento activo por su ID, sin importar su tipo
      * concreto.
      * <p>

@@ -392,24 +392,21 @@ class MotivoAjusteServicioImplTest {
         assertMotivoAjusteDTO(motivoEntity, resultado);
         verify(motivoAjusteRepository).findById(1L);
         verify(motivoAjusteRepository).save(motivoEntity);
-        verify(ajusteInsumoRepository).existsByMotivoAjusteId(1L);
         verify(motivoAjusteRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("CP-BMA-03: bajaMotivoAjuste lanza ReglaNegocioException y no persiste cuando el motivo tiene ajustes de insumo asociados, registrados o anulados")
-    void bajaMotivoAjuste_debeRechazarSiTieneAjustesAsociados() {
+    @DisplayName("CP-BMA-03: bajaMotivoAjuste da de baja un motivo con ajustes de insumo asociados sin consultarlos: el historial no impide la baja")
+    void bajaMotivoAjuste_debePermitirLaBajaConAjustesAsociados() {
         MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
-        // Un ajuste asociado cuenta en cualquier estado (REGISTRADO o ANULADO): la consulta no distingue
-        when(ajusteInsumoRepository.existsByMotivoAjusteId(1L)).thenReturn(true);
+        when(motivoAjusteRepository.save(motivoEntity)).thenReturn(motivoEntity);
 
-        assertThatThrownBy(() -> motivoAjusteServicio.bajaMotivoAjuste(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el motivo de ajuste porque tiene ajustes de insumo asociados");
+        motivoAjusteServicio.bajaMotivoAjuste(1L);
 
-        assertThat(motivoEntity.getEstado()).isEqualTo(Estado.ACTIVO);
-        verify(motivoAjusteRepository, never()).save(any());
+        assertThat(motivoEntity.getEstado()).isEqualTo(Estado.BAJA);
+        verify(motivoAjusteRepository).save(motivoEntity);
+        verifyNoInteractions(ajusteInsumoRepository);
     }
 
     // ==================== tipo de ajuste y motivos usados ====================

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Marca "Dado de baja" de una entidad que ya no está activa y cuyo historial sigue consultable (equipamiento, barril).
+    La condición y el atributo de datos los pone quien la usa, en el elemento que la contiene.
+
+    Uso: <span th:if="${equipo.dadoDeBaja}" data-detalle-dado-de-baja th:insert="~{fragments/dado-de-baja :: badge}"></span>
+-->
+<span th:fragment="badge" class="inline-block whitespace-nowrap rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">Dado de baja</span>
+
+</html>

@@ -81,13 +81,13 @@ public class OperacionEquipamientoController {
     }
 
     /**
-     * Muestra el formulario de registro de la operación. Si el estado operativo del equipamiento no la permite, vuelve a la
+     * Muestra el formulario de registro de la operación. Si el equipamiento está dado de baja o su estado operativo no la permite, vuelve a la
      * pestaña con el aviso del motivo (el service sigue siendo la fuente de verdad al registrar). Si llega de un registro
      * rechazado, muestra los errores y lo que se había escrito.
      */
     private String mostrarFormulario(PestanaOperacion pestana, Long idEquipamiento, Model model, RedirectAttributes redirectAttributes) {
         EquipamientoResumenResponseDTO equipo = controlServicio.buscarResumen(idEquipamiento);
-        Optional<String> motivo = pestana.motivoNoRegistrable(equipo.getEstadoOperativo());
+        Optional<String> motivo = pestana.motivoNoRegistrable(equipo);
         if (motivo.isPresent()) {
             agregarMensaje(redirectAttributes, motivo.get(), TipoAlerta.WARNING);
             return volverALaPestana(pestana, idEquipamiento);

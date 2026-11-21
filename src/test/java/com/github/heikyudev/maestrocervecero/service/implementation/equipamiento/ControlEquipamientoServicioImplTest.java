@@ -146,6 +146,29 @@ class ControlEquipamientoServicioImplTest {
         verify(equipamientoRepository).filtrarEquipamientos(null, null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-CE-32: filtrarEquipamientosConDadosDeBajaConActividad normaliza el identificador, informa el estado lógico de cada equipamiento y consulta los usos de toda la página una sola vez")
+    void filtrarConDadosDeBaja_debeInformarElEstadoYConsultarUsosPorLista() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        MolinoEntity activo = molino(1L, EstadoOperativo.DISPONIBLE);
+        MolinoEntity dadoDeBaja = molino(2L, EstadoOperativo.DISPONIBLE);
+        dadoDeBaja.setEstado(Estado.BAJA);
+        when(equipamientoRepository.filtrarEquipamientosConDadosDeBajaConActividad("MOL", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(activo, dadoDeBaja)));
+        when(limpiezaEquipamientoRepository.contarUsosDesdeUltimoMantenimiento(List.of(1L, 2L)))
+                .thenReturn(Collections.singletonList(new Object[]{2L, 3L}));
+
+        // === EJECUCION ===
+        Page<EquipamientoControlResponseDTO> resultado = controlEquipamientoServicio.filtrarEquipamientosConDadosDeBajaConActividad("  mol ", EstadoOperativo.DISPONIBLE, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).extracting(EquipamientoControlResponseDTO::getEstado).containsExactly(Estado.ACTIVO, Estado.BAJA);
+        assertThat(resultado.getContent()).extracting(EquipamientoControlResponseDTO::getUsosDesdeUltimoMantenimiento).containsExactly(0L, 3L);
+        verify(limpiezaEquipamientoRepository, times(1)).contarUsosDesdeUltimoMantenimiento(List.of(1L, 2L));
+        verify(equipamientoRepository, never()).filtrarEquipamientos(any(), any(), any(), any());
+    }
+
     // ==================== buscarResumen ====================
 
     @Test
@@ -253,17 +276,25 @@ class ControlEquipamientoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CE-10: buscarResumen lanza RecursoNoEncontradoException cuando el equipamiento está dado de baja")
-    void buscarResumen_debeRechazarDadoDeBaja() {
+    @DisplayName("CP-CE-10: buscarResumen de un equipamiento dado de baja devuelve su resumen marcado como dado de baja, para consultar su historial")
+    void buscarResumen_debeResolverElDadoDeBaja() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         molino.setEstado(Estado.BAJA);
         when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(FIN));
+        when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(4L);
 
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> controlEquipamientoServicio.buscarResumen(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el equipamiento con ID: 1");
+        // === EJECUCION ===
+        EquipamientoResumenResponseDTO resultado = controlEquipamientoServicio.buscarResumen(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-1");
+        assertThat(resultado.getEstado()).isEqualTo(Estado.BAJA);
+        assertThat(resultado.isDadoDeBaja()).isTrue();
+        assertThat(resultado.getUsosDesdeUltimoMantenimiento()).isEqualTo(4L);
+        assertThat(resultado.getFechaUltimaLimpieza()).isEqualTo(FIN);
     }
 
     // ==================== listarOperaciones ====================
@@ -462,6 +493,28 @@ class ControlEquipamientoServicioImplTest {
         assertThat(resultado.getLimpiezas().get(0).isAnulable()).isTrue();
         assertThat(resultado.getFallas().get(0).isAnulable()).isFalse();
         verify(equipamientoRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("CP-CE-31: listarOperaciones de un equipamiento dado de baja lista sus operaciones y no marca ninguna como anulable, aunque sea la última registrada")
+    void listarOperaciones_noDebeMarcarAnulableSiElEquipamientoEstaDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
+        molino.setEstado(Estado.BAJA);
+        LimpiezaEquipamientoEntity limpieza = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN);
+        when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(30L));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of(limpieza));
+        when(fallaEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+        when(mantenimientoEquipamientoRepository.listarPorEquipamiento(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        OperacionesEquipamientoResponseDTO resultado = controlEquipamientoServicio.listarOperaciones(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLimpiezas()).extracting(OperacionEquipamientoResponseDTO::getId).containsExactly(30L);
+        assertThat(resultado.getLimpiezas().get(0).isAnulable()).isFalse();
     }
 
     @Test

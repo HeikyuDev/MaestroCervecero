@@ -26,6 +26,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-RA-01**|Motivo de ajuste no encontrado|`idMotivoAjuste: 99L` (No existe), `idLoteInsumo: 1L`, `cantidad: 10.0`|`motivoAjusteRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta el lote de insumo ni ejecuta `save()`.|
+|**CP-RA-37**|Motivo de ajuste dado de baja|`idMotivoAjuste: 7L` dado de baja|`findById(7L)` $\rightarrow$ **Optional.empty()**, `existsByIdAndEstado(7L, BAJA)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de ajuste está dado de baja") con campo `idMotivoAjuste`. No consulta el lote de insumo ni persiste.|
 |**CP-RA-02**|Lote de insumo no encontrado|`idMotivoAjuste: 1L` (Existe), `idLoteInsumo: 99L` (No existe), `cantidad: 10.0`|`loteInsumoRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
 |**CP-RA-03**|Cantidad nula|`idMotivoAjuste: 1L`, `idLoteInsumo: 1L`, `cantidad: null`|`cantidad == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La cantidad es obligatoria", campo `cantidad`). No consulta el lote de insumo ni ejecuta `save()`.|
 |**CP-RA-04**|Cantidad en cero _(Límite)_|`idMotivoAjuste: 1L`, `idLoteInsumo: 1L`, `cantidad: 0.0`|`cantidad <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La cantidad debe ser mayor a 0"). No ejecuta `save()`.|

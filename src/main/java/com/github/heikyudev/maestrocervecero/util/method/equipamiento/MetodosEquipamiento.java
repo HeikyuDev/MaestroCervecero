@@ -1,5 +1,8 @@
 package com.github.heikyudev.maestrocervecero.util.method.equipamiento;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -59,4 +62,31 @@ public class MetodosEquipamiento {
         }
     }
 
+    /**
+     * Valida que un equipamiento (Molino, Macerador, Olla de Hervor o Fermentador) se pueda dar de baja: la baja es
+     * definitiva y solo la impide lo que está en curso. Rechaza un equipamiento asignado a alguna etapa de un lote
+     * Pendiente (en la cola de su fermentador) o En ejecución, y uno que no está Disponible. El historial (lotes
+     * finalizados o cancelados, limpiezas, fallas y mantenimientos) no impide la baja.
+     * <p>
+     * El llamador ya bloqueó el equipamiento para escritura con
+     * {@code IEquipamientoRepository#buscarPorIdParaOperacionCicloVida}. Ese bloqueo es sobre la misma fila que toman
+     * las búsquedas con bloqueo de los equipos de un lote (al registrarlo, iniciarlo, avanzar sus etapas, finalizarlo o
+     * cancelarlo) y el registro y la anulación de sus operaciones del ciclo de vida. Por eso la baja se serializa con el
+     * registro de un lote que usa el equipamiento: o el lote se registra antes y esta validación lo encuentra, o la baja
+     * se confirma antes y la búsqueda con bloqueo del registro no encuentra el equipamiento activo.
+     * </p>
+     *
+     * @param equipamiento El equipamiento a dar de baja, ya bloqueado.
+     * @param etapaLoteRepository El repositorio de etapas de lote, para consultar los lotes vigentes.
+     * @param sujeto El equipamiento con su artículo, para los mensajes ("el fermentador", "la olla de hervor").
+     * @throws ReglaNegocioException Si el equipamiento está asignado a un lote pendiente o en ejecución, o si no está disponible.
+     */
+    public static void validarBaja(EquipamientoEntity equipamiento, IEtapaLoteRepository etapaLoteRepository, String sujeto) {
+        if (etapaLoteRepository.existsEtapaEnLoteVigente(equipamiento.getId())) {
+            throw new ReglaNegocioException("No se puede dar de baja " + sujeto + " porque tiene lotes pendientes o en ejecución");
+        }
+        if (equipamiento.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
+            throw new ReglaNegocioException("No se puede dar de baja " + sujeto + " porque no se encuentra disponible");
+        }
+    }
 }

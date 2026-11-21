@@ -23,16 +23,6 @@ import java.util.Optional;
 public interface IOperacionCicloVidaEquipamientoRepository extends JpaRepository<OperacionCicloVidaEquipamiento, Long> {
 
     /**
-     * Verifica si un equipamiento tiene alguna operación registrada (limpieza, falla o mantenimiento). Las anuladas no cuentan.
-     *
-     * @param idEquipamiento El ID del equipamiento.
-     * @return {@code true} si tiene al menos una operación en estado {@code REGISTRADO}.
-     */
-    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM OperacionCicloVidaEquipamiento o "
-            + "WHERE o.equipamiento.id = :idEquipamiento AND o.estado = 'REGISTRADO'")
-    boolean existsOperacionRegistrada(@Param("idEquipamiento") Long idEquipamiento);
-
-    /**
      * Resuelve, sin cargar la operación, el ID del equipamiento al que pertenece. Permite bloquear el equipamiento
      * antes de leer la operación.
      *

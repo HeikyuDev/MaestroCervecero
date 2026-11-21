@@ -7,6 +7,7 @@ Devuelve los equipamientos activos con los datos de control: tipo, estado operat
 |**CP-CE-01**|Arma los datos de control con una consulta de usos|`identificador: "MOL"`, `tipo: MOLINO`, `estadoOperativo: DISPONIBLE`, página con un molino (7 usos) y un macerador sin usos|`contarUsosDesdeUltimoMantenimiento([1, 2])` se invoca una vez|El molino informa tipo `MOLINO`, 7 usos y máximo 100. El macerador informa tipo `MACERADOR` y 0 usos.|
 |**CP-CE-02**|Página vacía|El repositorio devuelve una página sin equipamientos|La página no tiene IDs|Retorna una página vacía. No consulta usos.|
 |**CP-CE-03**|El identificador buscado se normaliza|`identificador: "  mol   01  "` y `identificador: "    "`|Tras normalizar queda `"MOL 01"` en el primer caso y vacío en el segundo|Consulta el repositorio con `"MOL 01"` y con `null` respectivamente.|
+|**CP-CE-32**|Filtro con dados de baja con actividad|`identificador: "  mol "`, `estadoOperativo: DISPONIBLE`; la consulta devuelve un molino activo y uno dado de baja|`filtrarEquipamientosConDadosDeBajaConActividad("MOL", DISPONIBLE, pageable)`|Cada fila informa su estado lógico (`ACTIVO`, `BAJA`) y sus usos; los usos de toda la página se consultan una sola vez y no se usa el filtro de solo activos.|
 
 ### 2. `buscarResumen(Long idEquipamiento)`
 
@@ -19,7 +20,7 @@ Devuelve los datos del equipamiento activo, los parámetros propios de su tipo (
 |**CP-CE-07**|Resumen de una olla de hervor|`idEquipamiento: 3L` (olla de hervor)|El equipamiento existe y está activo|Informa tipo `OLLA_HERVOR`, capacidades, evaporación 8 y pérdida por trub 3. El espacio muerto es nulo.|
 |**CP-CE-08**|Resumen de un fermentador sin limpiezas ni mantenimientos|`idEquipamiento: 4L` (fermentador), sin limpiezas ni mantenimientos registrados|Las consultas de fechas devuelven vacío|Informa tipo `FERMENTADOR`, capacidades, 0 usos y ambas fechas nulas. Cuenta las limpiezas sin fecha de corte (`contarLimpiezasRegistradasDesde(4L, null)`).|
 |**CP-CE-09**|Equipamiento inexistente|`idEquipamiento: 99L`|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99").|
-|**CP-CE-10**|Equipamiento dado de baja|`idEquipamiento: 1L` (`estado: BAJA`)|`estado != ACTIVO` $\rightarrow$ **TRUE**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 1").|
+|**CP-CE-10**|Resumen de un equipamiento dado de baja|`idEquipamiento: 1L` (`estado: BAJA`)|El resumen se resuelve también para equipamientos dados de baja|Devuelve el resumen con sus usos y fechas, `estado: BAJA` e `isDadoDeBaja() = true`, para sus pantallas de solo lectura.|
 
 ### 3. `listarOperaciones(Long idEquipamiento)`
 
@@ -36,6 +37,7 @@ Devuelve las limpiezas, fallas y mantenimientos del equipamiento por separado, c
 |**CP-CE-28**|La última participación se consulta una sola vez|Una limpieza, una falla y un mantenimiento; `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **Optional.empty()**|Una consulta por llamada, sin importar la cantidad de operaciones|`buscarFechaUltimaParticipacionRegistrada` se invoca exactamente una vez y la última operación es anulable.|
 |**CP-CE-29**|Ninguna operación es anulable con el equipamiento en uso|Equipamiento con `estadoOperativo: EN_USO`; una limpieza `REGISTRADO` que es la última operación, una falla y un mantenimiento; `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **fecha anterior a la de la limpieza**|`estaEnUso` $\rightarrow$ **TRUE**|Las tres operaciones informan `anulable = false`, aunque la limpieza cumpla el resto de las condiciones.|
 |**CP-CE-30**|El equipamiento fuera de uso no restringe el indicador y se lee una sola vez|Equipamiento con `estadoOperativo: EN_LIMPIEZA`; una limpieza `REGISTRADO` que es la última operación y una falla anterior; sin participaciones en lotes|`estaEnUso` $\rightarrow$ **FALSE**|La limpieza es anulable y la falla no. `findById(1L)` se invoca exactamente una vez.|
+|**CP-CE-31**|Operaciones de un equipamiento dado de baja|Equipamiento con `estado: BAJA`, Disponible; una limpieza `REGISTRADO` que es la última operación, sin participaciones en lotes|El equipamiento no admite anulaciones|Lista la limpieza y no la marca como anulable.|
 
 ### 4. `listarHistorial(Long idEquipamiento, TipoActividadEquipamiento tipo, LocalDateTime desde, LocalDateTime hasta, Pageable pageable)`
 

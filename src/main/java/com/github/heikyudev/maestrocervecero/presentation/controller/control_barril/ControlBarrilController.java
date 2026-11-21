@@ -165,7 +165,8 @@ public class ControlBarrilController {
      * pestaña activa viaja en {@code ?pestana=} (por defecto, la primera que el usuario puede consultar). Cada pestaña es
      * la tabla paginada de las operaciones de su tipo (anuladas incluidas, la de fecha más reciente arriba). Quien puede
      * registrar ve el botón de alta cuando el estado del barril lo permite (si no, un aviso explica el motivo) y quien
-     * puede anular ve el botón en la última operación; el gerente solo consulta.
+     * puede anular ve el botón en la última operación; el gerente solo consulta. Un barril dado de baja abre su panel en
+     * solo lectura: sin alta ni anulación, con el aviso del motivo.
      */
     @GetMapping("/{id}")
     @PreAuthorize(CONSULTAR_ALGUNA)
@@ -181,7 +182,7 @@ public class ControlBarrilController {
         BarrilResumenResponseDTO barril = controlBarrilServicio.buscarResumen(id);
         List<OperacionBarrilResponseDTO> deLaPestana = controlBarrilServicio.listarOperaciones(id, activa.getTipo());
         boolean puedeRegistrar = tienePermiso(authentication, activa.getPermisoRegistrar());
-        var motivoNoRegistrable = activa.motivoNoRegistrable(barril.getEstadoOperativo());
+        var motivoNoRegistrable = activa.motivoNoRegistrable(barril);
 
         model.addAttribute("barril", barril);
         model.addAttribute("pestanas", pestanas);

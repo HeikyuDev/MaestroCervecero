@@ -158,7 +158,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
      * @param id El ID de la limpieza de barril a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de barril anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del barril, si el barril está en uso por un lote, si el barril tuvo un envasado posterior, o si el barril asociado no se encuentra en el estado operativo que dejó esta limpieza; también si el barril asociado está dado de baja.
      * @throws RecursoNoEncontradoException Si la limpieza de barril con el ID especificado no existe, o si el barril asociado no existe.
      */
     @Override
@@ -172,7 +172,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         //    dispara RecursoNoEncontradoException
         Long idBarril = operacionCicloVidaBarrilRepository.buscarIdBarrilDeLaOperacion(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la limpieza de barril con ID: " + id));
-        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarril(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril), idBarril);
+        BarrilEntity barrilEntity = MetodosCicloVida.resolverBarrilParaAnular(barrilRepository, idBarril);
 
         // 3. Localizar la limpieza, ya con el barril bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         LimpiezaBarrilEntity limpiezaBarrilEntity = limpiezaBarrilRepository.findById(id)

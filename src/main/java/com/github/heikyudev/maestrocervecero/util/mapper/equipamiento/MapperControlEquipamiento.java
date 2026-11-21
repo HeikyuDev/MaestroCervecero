@@ -47,6 +47,7 @@ public class MapperControlEquipamiento {
                 .estadoOperativo(equipamiento.getEstadoOperativo())
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
                 .usosMaximosAntesMantenimiento(equipamiento.getUsosMaximosAntesMantenimiento())
+                .estado(equipamiento.getEstado())
                 .build();
     }
 
@@ -73,7 +74,8 @@ public class MapperControlEquipamiento {
                 .usosMaximosAntesMantenimiento(equipamiento.getUsosMaximosAntesMantenimiento())
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
                 .fechaUltimaLimpieza(fechaUltimaLimpieza)
-                .fechaUltimoMantenimiento(fechaUltimoMantenimiento);
+                .fechaUltimoMantenimiento(fechaUltimoMantenimiento)
+                .estado(equipamiento.getEstado());
 
         if (equipamiento instanceof MolinoEntity molino) {
             builder.rendimientoMolienda(molino.getRendimientoMolienda());

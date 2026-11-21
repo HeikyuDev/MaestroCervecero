@@ -312,6 +312,40 @@ class EstadisticasPestanasControllerTest {
         verifyNoInteractions(controlEquipamientoServicio);
     }
 
+    @Test
+    @DisplayName("CP-ESTC-29: el buscador de equipos ofrece los activos y los dados de baja con actividad, estos marcados (dado de baja) en la fila y en el texto que se elige")
+    void buscadorDeEquipos_incluyeDadosDeBajaConActividad() throws Exception {
+        when(controlEquipamientoServicio.filtrarEquipamientosConDadosDeBajaConActividad(any(), any(), any())).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(
+                com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO.builder().id(4L).identificadorInterno("FER-01")
+                        .estadoOperativo(com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo.DISPONIBLE)
+                        .estado(com.github.heikyudev.maestrocervecero.persistence.enums.Estado.ACTIVO).build(),
+                com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO.builder().id(9L).identificadorInterno("FER-02")
+                        .estadoOperativo(com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo.DISPONIBLE)
+                        .estado(com.github.heikyudev.maestrocervecero.persistence.enums.Estado.BAJA).build())));
+
+        String html = mockMvc.perform(get("/estadisticas/buscador/equipos").param("identificador", " fer ").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+
+        verify(controlEquipamientoServicio).filtrarEquipamientosConDadosDeBajaConActividad(org.mockito.ArgumentMatchers.eq("fer"), org.mockito.ArgumentMatchers.isNull(), any());
+        verify(controlEquipamientoServicio, org.mockito.Mockito.never()).filtrarEquipamientosParaControl(any(), any(), any(), any());
+        assertThat(html).contains("data-texto=\"FER-01\"").contains("data-texto=\"FER-02 (dado de baja)\"").contains("FER-02 (dado de baja)");
+    }
+
+    @Test
+    @DisplayName("CP-ESTC-30: un equipo dado de baja elegido en el filtro de la pestaña Equipamiento llega al Service y se muestra con la marca (dado de baja)")
+    void filtroDeEquipo_dadoDeBaja() throws Exception {
+        todosLosReportes();
+        when(controlEquipamientoServicio.buscarResumen(9L)).thenReturn(EquipamientoResumenResponseDTO.builder().id(9L).identificadorInterno("FER-02")
+                .estado(com.github.heikyudev.maestrocervecero.persistence.enums.Estado.BAJA).build());
+
+        pantalla(URL + "?pestana=equipamiento&idEquipo=9", Rol.GERENTE_DE_PRODUCCION);
+
+        ArgumentCaptor<CriteriosReporteEquipamiento> equipos = ArgumentCaptor.forClass(CriteriosReporteEquipamiento.class);
+        verify(estadisticaProduccionServicio).generarReporteDeEquipamiento(equipos.capture(), any());
+        assertThat(equipos.getValue().idEquipo()).isEqualTo(9L);
+        assertThat(equipos.getValue().textoEquipo()).isEqualTo("FER-02 (dado de baja)");
+    }
+
     // ==================== Apoyo ====================
 
     private static RequestPostProcessor como(Rol rol) {
