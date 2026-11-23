@@ -36,21 +36,9 @@ public class MetodosCronograma {
      * Datos de una planificación que definen el lugar de sus lotes en la cola de pendientes de un fermentador.
      *
      * @param prioridad Prioridad de la planificación; {@code null} se trata como {@link PrioridadPlanificacion#MEDIA}.
-     * @param fechaInicioEstimada Fecha de inicio estimada de la planificación, o {@code null} si no la tiene.
      * @param fechaFinalizacionEstimada Fecha de finalización estimada de la planificación, o {@code null} si no la tiene.
      */
-    public record CriterioDeCola(PrioridadPlanificacion prioridad, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
-
-        /**
-         * Margen de la planificación en días: {@code fechaFinalizacionEstimada - fechaInicioEstimada}. Una planificación
-         * sin alguna de las dos fechas se trata como la de mayor margen, para que nunca le gane a una con fechas.
-         */
-        public long margenEnDias() {
-            if (fechaInicioEstimada == null || fechaFinalizacionEstimada == null) {
-                return Long.MAX_VALUE;
-            }
-            return ChronoUnit.DAYS.between(fechaInicioEstimada, fechaFinalizacionEstimada);
-        }
+    public record CriterioDeCola(PrioridadPlanificacion prioridad, LocalDate fechaFinalizacionEstimada) {
 
         private PrioridadPlanificacion prioridadEfectiva() {
             return prioridad == null ? PrioridadPlanificacion.MEDIA : prioridad;
@@ -62,18 +50,13 @@ public class MetodosCronograma {
      * indica que {@code a} va antes que {@code b}; cero, que empatan por completo. El orden es:
      * <ol>
      *     <li>mayor prioridad primero ({@code ALTA}, {@code MEDIA}, {@code BAJA});</li>
-     *     <li>a igual prioridad, menor margen ({@code fechaFinalizacionEstimada - fechaInicioEstimada}, en días) primero;</li>
-     *     <li>a igual margen, fecha de finalización estimada más temprana primero (una fecha nula va última).</li>
+     *     <li>a igual prioridad, fecha de finalización estimada más temprana primero (una fecha nula va última).</li>
      * </ol>
      */
     public static int compararParaCola(CriterioDeCola a, CriterioDeCola b) {
         int porPrioridad = b.prioridadEfectiva().compareTo(a.prioridadEfectiva());
         if (porPrioridad != 0) {
             return porPrioridad;
-        }
-        int porMargen = Long.compare(a.margenEnDias(), b.margenEnDias());
-        if (porMargen != 0) {
-            return porMargen;
         }
         return Comparator.nullsLast(Comparator.<LocalDate>naturalOrder())
                 .compare(a.fechaFinalizacionEstimada(), b.fechaFinalizacionEstimada());
@@ -82,7 +65,7 @@ public class MetodosCronograma {
     /**
      * Calcula la posición que ocupa un lote nuevo en la cola de lotes pendientes de un fermentador: inmediatamente
      * después del último lote de la cola que le gana o empata según {@link #compararParaCola}. Queda por delante de
-     * los lotes que pierden contra él (menor prioridad o, a igual prioridad, mayor margen o fin más tardío), que se
+     * los lotes que pierden contra él (menor prioridad o, a igual prioridad, fin más tardío), que se
      * empujan hacia atrás, y detrás de los que empatan por completo (el primero que llega va primero).
      * <p>
      * Con una cola ordenada por este criterio es el punto exacto donde empiezan los lotes que le pierden. Con una

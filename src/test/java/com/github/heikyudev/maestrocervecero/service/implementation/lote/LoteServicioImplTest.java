@@ -1183,7 +1183,7 @@ class LoteServicioImplTest {
         mockearEquipamientoBase();
         mockearConfiguracionYReceta();
         LoteEntity loteAtrasado = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(5), hoy.minusDays(5));
-        // Su planificación (del hoy - 5 al hoy + 25) tiene el mismo margen que la del lote nuevo (30 días) y termina antes
+        // Su planificación (del hoy - 5 al hoy + 25) termina antes que la del lote nuevo (hoy + 30)
         loteAtrasado.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteAtrasado));
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(5)));
@@ -1200,8 +1200,8 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-61: registrarLote — a igual prioridad, la planificación de menor margen pasa por delante y empuja a las de mayor margen")
-    void registrarLote_debeUbicarPrimeroLaPlanificacionDeMenorMargenDeLaMismaPrioridad() {
+    @DisplayName("CP-RL-61: registrarLote — a igual prioridad, la planificación que termina antes pasa por delante y empuja a las que terminan después")
+    void registrarLote_debeUbicarPrimeroLaPlanificacionQueTerminaAntesDeLaMismaPrioridad() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
@@ -1218,7 +1218,7 @@ class LoteServicioImplTest {
         loteServicio.registrarLote(loteFormDTOBase());
 
         // === ASSERTS ===
-        // Margen del nuevo: 10 días; el de B y C: 30 días
+        // La planificación del nuevo termina en hoy + 10; las de B y C, en hoy + 30
         assertFechas(captor.getValue(), hoy, hoy.plusDays(22));
         assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(34));
         assertFechas(loteC, hoy.plusDays(36), hoy.plusDays(51));
@@ -1226,16 +1226,41 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-62: registrarLote — a igual prioridad y margen, la planificación que termina antes va primero")
-    void registrarLote_debeUbicarPrimeroLaPlanificacionQueTerminaAntesConIgualMargen() {
+    @DisplayName("CP-RL-62: registrarLote — a igual prioridad, la planificación más corta pero que termina después va detrás y no se reencadena")
+    void registrarLote_debeUbicarDetrasLaPlanificacionMasCortaQueTerminaDespues() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
-        // Nuevo: de hoy a hoy + 20; B: de hoy + 5 a hoy + 25 (ambos de 20 días de margen)
-        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
-        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(20));
+        // Nuevo: de hoy + 5 a hoy + 30 (25 días); B: de hoy - 20 a hoy + 20 (40 días), termina antes
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase(hoy.plusDays(5));
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(30));
+        mockearConfiguracionYReceta();
+        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy, hoy.plusDays(10));
+        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.minusDays(20));
+        loteB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(20));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(10)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(captor.getValue(), hoy.plusDays(12), hoy.plusDays(34));
+        assertFechas(loteB, hoy, hoy.plusDays(10));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-RL-63: registrarLote — a igual prioridad, la planificación más larga pero que termina antes pasa por delante")
+    void registrarLote_debeUbicarPrimeroLaPlanificacionMasLargaQueTerminaAntes() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        // Nuevo: de hoy - 30 a hoy + 15 (45 días), termina antes; B: de hoy a hoy + 25 (25 días)
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase(hoy.minusDays(30));
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(15));
         mockearConfiguracionYReceta();
         LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy.plusDays(5), hoy.plusDays(15));
-        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(5));
         loteB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(15)));
@@ -1251,33 +1276,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-63: registrarLote — a igual prioridad y margen, la planificación que termina después va detrás y no se reencadena")
-    void registrarLote_debeUbicarDetrasLaPlanificacionQueTerminaDespuesConIgualMargen() {
-        // === PREPARACION DE DATOS ===
-        LocalDate hoy = LocalDate.now();
-        // Nuevo: de hoy + 10 a hoy + 30; B: de hoy + 5 a hoy + 25 (ambos de 20 días de margen)
-        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase(hoy.plusDays(10));
-        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(30));
-        mockearConfiguracionYReceta();
-        LoteEntity loteB = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.MEDIA, hoy.plusDays(5), hoy.plusDays(15));
-        loteB.getPlanificacionProduccion().setFechaInicioEstimada(hoy.plusDays(5));
-        loteB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(25));
-        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB));
-        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(15)));
-        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
-        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-
-        // === EJECUCION ===
-        loteServicio.registrarLote(loteFormDTOBase());
-
-        // === ASSERTS ===
-        assertFechas(captor.getValue(), hoy.plusDays(17), hoy.plusDays(39));
-        assertFechas(loteB, hoy.plusDays(5), hoy.plusDays(15));
-        verify(loteRepository, never()).saveAll(anyList());
-    }
-
-    @Test
-    @DisplayName("CP-RL-64: registrarLote — con empate total de prioridad, margen y fin el lote nuevo queda después (orden de registro)")
+    @DisplayName("CP-RL-64: registrarLote — con empate total de prioridad y fin el lote nuevo queda después (orden de registro)")
     void registrarLote_debeUbicarDespuesEnUnEmpateTotal() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -1299,7 +1298,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-65: registrarLote — ALTA contra ALTA con un lote en ejecución: gana el menor margen y arranca dos días después del fin del lote en ejecución")
+    @DisplayName("CP-RL-65: registrarLote — ALTA contra ALTA con un lote en ejecución: gana la planificación que termina antes y arranca dos días después del fin del lote en ejecución")
     void registrarLote_debeDesempatarAltaContraAltaRespetandoElLoteEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -1332,10 +1331,10 @@ class LoteServicioImplTest {
         PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
         planificacion.setFechaFinalizacionEstimada(hoy.plusDays(20));
         mockearConfiguracionYReceta();
-        // Márgenes de la cola: B 10, C 30, D 10; el nuevo tiene 20: D le gana, así que va detrás de D aunque C le pierda
-        LoteEntity loteB = crearLotePendienteConMargen(11L, 10, hoy, hoy.plusDays(10));
-        LoteEntity loteC = crearLotePendienteConMargen(12L, 30, hoy.plusDays(12), hoy.plusDays(22));
-        LoteEntity loteD = crearLotePendienteConMargen(13L, 10, hoy.plusDays(24), hoy.plusDays(34));
+        // Fines de la cola: B hoy + 10, C hoy + 30, D hoy + 10; el nuevo termina en hoy + 20: D le gana, así que va detrás de D aunque C le pierda
+        LoteEntity loteB = crearLotePendienteQueTerminaEn(11L, 10, hoy, hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteQueTerminaEn(12L, 30, hoy.plusDays(12), hoy.plusDays(22));
+        LoteEntity loteD = crearLotePendienteQueTerminaEn(13L, 10, hoy.plusDays(24), hoy.plusDays(34));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(loteB, loteC, loteD));
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(hoy.plusDays(34)));
         ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
@@ -6452,7 +6451,7 @@ class LoteServicioImplTest {
 
     // ==================== calcularFinDelLoteAnteriorEnCola ====================
 
-    /** Planificación PENDIENTE (id 1) del lote nuevo con la prioridad indicada: inicia hoy y finaliza en hoy + 30 (margen 30). */
+    /** Planificación PENDIENTE (id 1) del lote nuevo con la prioridad indicada: inicia hoy y finaliza en hoy + 30. */
     private PlanificacionProduccionEntity mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion prioridad) {
         PlanificacionProduccionEntity planificacion = crearPlanificacion(1L, EstadoSolicitud.PENDIENTE, null);
         planificacion.setPrioridad(prioridad);
@@ -6509,7 +6508,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         PlanificacionProduccionEntity planificacion = mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.BAJA);
-        // Mismo margen y mismo fin que las BAJA de la cola: empate completo, va detrás de ellas
+        // Mismo fin que las BAJA de la cola: empate completo, va detrás de ellas
         planificacion.setFechaFinalizacionEstimada(hoy.plusDays(30));
         LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 5L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
         LoteEntity bajaB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
@@ -6527,14 +6526,14 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FA-05: calcularFinDelLoteAnteriorEnCola — a igual prioridad va detrás del de menor margen y delante del de mayor margen")
-    void calcularFinDelLoteAnteriorEnCola_debeDesempatarPorMargenAIgualPrioridad() {
+    @DisplayName("CP-FA-05: calcularFinDelLoteAnteriorEnCola — a igual prioridad va detrás del que termina antes y delante del que termina después")
+    void calcularFinDelLoteAnteriorEnCola_debeDesempatarPorFinAIgualPrioridad() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.MEDIA);
-        LoteEntity margen10 = crearLotePendienteConMargen(11L, 10, hoy, hoy.plusDays(10));
-        LoteEntity margen40 = crearLotePendienteConMargen(12L, 40, hoy.plusDays(12), hoy.plusDays(22));
-        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(margen10, margen40));
+        LoteEntity terminaEn10 = crearLotePendienteQueTerminaEn(11L, 10, hoy, hoy.plusDays(10));
+        LoteEntity terminaEn40 = crearLotePendienteQueTerminaEn(12L, 40, hoy.plusDays(12), hoy.plusDays(22));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(terminaEn10, terminaEn40));
 
         // === EJECUCION ===
         Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
@@ -6549,7 +6548,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.MEDIA);
-        LoteEntity empate = crearLotePendienteConMargen(11L, 30, hoy, hoy.plusDays(10));
+        LoteEntity empate = crearLotePendienteQueTerminaEn(11L, 30, hoy, hoy.plusDays(10));
         LoteEntity baja = crearLotePendienteBaja(12L, hoy.plusDays(12), hoy.plusDays(22));
         when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(empate, baja));
 
@@ -6783,10 +6782,10 @@ class LoteServicioImplTest {
         return lote;
     }
 
-    /** Lote pendiente MEDIA cuya planificación tiene el margen indicado (inicio hoy, fin hoy + margen). */
-    private static LoteEntity crearLotePendienteConMargen(Long id, int margen, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+    /** Lote pendiente MEDIA cuya planificación termina los días indicados después de hoy. */
+    private static LoteEntity crearLotePendienteQueTerminaEn(Long id, int diasHastaElFin, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
         LoteEntity lote = crearLotePendienteConPrioridad(id, PrioridadPlanificacion.MEDIA, fechaInicioEstimada, fechaFinalizacionEstimada);
-        lote.getPlanificacionProduccion().setFechaFinalizacionEstimada(LocalDate.now().plusDays(margen));
+        lote.getPlanificacionProduccion().setFechaFinalizacionEstimada(LocalDate.now().plusDays(diasHastaElFin));
         return lote;
     }
 

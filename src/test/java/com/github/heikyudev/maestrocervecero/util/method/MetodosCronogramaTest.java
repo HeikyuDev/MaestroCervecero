@@ -18,14 +18,14 @@ class MetodosCronogramaTest {
 
     private static final LocalDate INICIO = LocalDate.of(2027, 7, 1);
 
-    /** Criterio con margen de 30 días y fin 31/07/2027: igual para todos, así solo cuenta la prioridad. */
+    /** Criterio con fin 31/07/2027: igual para todos, así solo cuenta la prioridad. */
     private static CriterioDeCola p(PrioridadPlanificacion prioridad) {
-        return new CriterioDeCola(prioridad, INICIO, INICIO.plusDays(30));
+        return f(prioridad, 30);
     }
 
-    /** Criterio con inicio 01/07/2027 y el margen indicado. */
-    private static CriterioDeCola m(PrioridadPlanificacion prioridad, int margen) {
-        return new CriterioDeCola(prioridad, INICIO, INICIO.plusDays(margen));
+    /** Criterio cuya planificación termina los días indicados después del 01/07/2027 ({@code null}: sin fecha de finalización). */
+    private static CriterioDeCola f(PrioridadPlanificacion prioridad, Integer diasHastaElFin) {
+        return new CriterioDeCola(prioridad, diasHastaElFin == null ? null : INICIO.plusDays(diasHastaElFin));
     }
 
     private static List<CriterioDeCola> cola(PrioridadPlanificacion... prioridades) {
@@ -82,55 +82,59 @@ class MetodosCronogramaTest {
     }
 
     @Test
-    @DisplayName("CP-MCR-08: a igual prioridad, el menor margen (fin - inicio de la planificación) va primero")
-    void calcularPosicionEnCola_menorMargenVaPrimero() {
-        // Cola MEDIA con márgenes 10 y 20: un lote con margen 15 va entre los dos; con 5, primero; con 25, último
-        List<CriterioDeCola> cola = List.of(m(MEDIA, 10), m(MEDIA, 20));
-        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, m(MEDIA, 15))).isEqualTo(1);
-        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, m(MEDIA, 5))).isEqualTo(0);
-        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, m(MEDIA, 25))).isEqualTo(2);
+    @DisplayName("CP-MCR-08: a igual prioridad, la planificación con la fecha de finalización estimada más temprana va primero")
+    void calcularPosicionEnCola_finMasTempranoVaPrimero() {
+        // Cola MEDIA que termina el 11/07 y el 21/07: un lote que termina el 16/07 va entre los dos; el 06/07, primero; el 26/07, último
+        List<CriterioDeCola> cola = List.of(f(MEDIA, 10), f(MEDIA, 20));
+        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, f(MEDIA, 15))).isEqualTo(1);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, f(MEDIA, 5))).isEqualTo(0);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(cola, f(MEDIA, 25))).isEqualTo(2);
     }
 
     @Test
-    @DisplayName("CP-MCR-09: a igual prioridad y margen, la fecha de finalización más temprana va primero")
-    void calcularPosicionEnCola_mismoMargenGanaLaFinMasTemprana() {
-        // Los dos con margen 20: fin 21/07/2027 (inicio 01/07) y fin 25/07/2027 (inicio 05/07)
-        CriterioDeCola finTemprano = new CriterioDeCola(MEDIA, LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 21));
-        CriterioDeCola finTardio = new CriterioDeCola(MEDIA, LocalDate.of(2027, 7, 5), LocalDate.of(2027, 7, 25));
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(finTardio), finTemprano)).isEqualTo(0);
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(finTemprano), finTardio)).isEqualTo(1);
+    @DisplayName("CP-MCR-09: la duración de la planificación no interviene: la #8 (15/10 al 31/01) queda delante de la #10 (07/12 al 11/03), registrada después")
+    void calcularPosicionEnCola_laDuracionDeLaPlanificacionNoInterviene() {
+        // #8: del 15/10/2026 al 31/01/2027 (108 días); #10: del 07/12/2026 al 11/03/2027 (94 días). Solo cuenta el fin
+        CriterioDeCola planificacion8 = new CriterioDeCola(MEDIA, LocalDate.of(2027, 1, 31));
+        CriterioDeCola planificacion10 = new CriterioDeCola(MEDIA, LocalDate.of(2027, 3, 11));
+        // La #10 dura menos (94 días contra 108) pero termina después: va detrás de los lotes de la #8
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(planificacion8, planificacion8), planificacion10)).isEqualTo(2);
+        // Y un lote nuevo de la #8 pasa por delante de los de la #10
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(planificacion10), planificacion8)).isEqualTo(0);
     }
 
     @Test
     @DisplayName("CP-MCR-10: con empate total el lote nuevo queda después de los existentes")
     void calcularPosicionEnCola_empateTotalVaDespues() {
-        CriterioDeCola igual = new CriterioDeCola(ALTA, LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 21));
+        CriterioDeCola igual = f(ALTA, 20);
         assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(igual, igual), igual)).isEqualTo(2);
     }
 
     @Test
-    @DisplayName("CP-MCR-11: la prioridad estricta manda sobre el margen: un lote BAJA con margen mínimo va detrás de uno MEDIA con margen enorme")
+    @DisplayName("CP-MCR-11: la prioridad estricta manda sobre la fecha de finalización: un lote BAJA que termina antes va detrás de uno MEDIA que termina mucho después")
     void calcularPosicionEnCola_laPrioridadManda() {
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(m(MEDIA, 400)), m(BAJA, 1))).isEqualTo(1);
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(m(BAJA, 1)), m(MEDIA, 400))).isEqualTo(0);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(MEDIA, 400)), f(BAJA, 1))).isEqualTo(1);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(BAJA, 1)), f(MEDIA, 400))).isEqualTo(0);
     }
 
     @Test
     @DisplayName("CP-MCR-12: en una cola reordenada a mano la posición es la siguiente al último lote que le gana o empata")
     void calcularPosicionEnCola_colaManualUsaElUltimoQueLeGanaOEmpata() {
-        // Cola MEDIA con márgenes 10, 30, 10 y lote nuevo con margen 20: gana el último (10), así que va al final
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(m(MEDIA, 10), m(MEDIA, 30), m(MEDIA, 10)), m(MEDIA, 20))).isEqualTo(3);
-        // Cola MEDIA con márgenes 30, 30, 10: solo el último le gana, el nuevo (20) va al final aunque los dos primeros le pierdan
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(m(MEDIA, 30), m(MEDIA, 30), m(MEDIA, 10)), m(MEDIA, 20))).isEqualTo(3);
-        // Cola MEDIA con márgenes 30, 10, 30: el nuevo (20) va justo después del 10
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(m(MEDIA, 30), m(MEDIA, 10), m(MEDIA, 30)), m(MEDIA, 20))).isEqualTo(2);
+        // Cola MEDIA que termina en +10, +30, +10 y lote nuevo en +20: le gana el último, así que va al final
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(MEDIA, 10), f(MEDIA, 30), f(MEDIA, 10)), f(MEDIA, 20))).isEqualTo(3);
+        // Cola +30, +30, +10: solo el último le gana, el nuevo va al final aunque los dos primeros le pierdan
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(MEDIA, 30), f(MEDIA, 30), f(MEDIA, 10)), f(MEDIA, 20))).isEqualTo(3);
+        // Cola +30, +10, +30: el nuevo va justo después del +10
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(MEDIA, 30), f(MEDIA, 10), f(MEDIA, 30)), f(MEDIA, 20))).isEqualTo(2);
     }
 
     @Test
-    @DisplayName("CP-MCR-13: el margen de una planificación sin alguna de sus fechas es el mayor posible y nunca le gana a una con fechas")
-    void margenEnDias_sinFechasEsElMayor() {
-        assertThat(new CriterioDeCola(MEDIA, null, INICIO).margenEnDias()).isEqualTo(Long.MAX_VALUE);
-        assertThat(new CriterioDeCola(MEDIA, INICIO, INICIO.plusDays(12)).margenEnDias()).isEqualTo(12);
-        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(new CriterioDeCola(MEDIA, null, null)), m(MEDIA, 10))).isEqualTo(0);
+    @DisplayName("CP-MCR-13: a igual prioridad, una planificación sin fecha de finalización estimada va detrás de las que la tienen")
+    void calcularPosicionEnCola_sinFechaDeFinalizacionVaUltima() {
+        CriterioDeCola sinFin = f(MEDIA, null);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(sinFin), f(MEDIA, 10))).isEqualTo(0);
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(f(MEDIA, 10)), sinFin)).isEqualTo(1);
+        // Dos sin fecha empatan por completo: el que llegó primero va primero
+        assertThat(MetodosCronograma.calcularPosicionEnCola(List.of(sinFin), sinFin)).isEqualTo(1);
     }
 }

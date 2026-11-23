@@ -363,7 +363,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * Registra un nuevo lote, reservando su lugar en el cronograma de uso de equipamiento.
      * <p>
      * El lugar en la cola de pendientes del fermentador lo define la planificación del lote (prioridad y, a igual
-     * prioridad, menor margen y fin más temprano): el lote pasa por delante de los pendientes que le pierden, que se empujan hacia atrás
+     * prioridad, fin más temprano): el lote pasa por delante de los pendientes que le pierden, que se empujan hacia atrás
      * reencadenando las fechas de toda la cola en la misma transacción. Ver {@link ILoteServicio#registrarLote}.
      * </p>
      *
@@ -473,8 +473,8 @@ public class LoteServicioImpl implements ILoteServicio {
 
         loteEntity.setEtapas(crearEtapasPendientes(loteEntity, molino, macerador, ollaHervor, fermentador));
 
-        // 11. Ubicar el lote por la prioridad de su planificación: si hay lotes pendientes de planificaciones de menor
-        //     prioridad, el lote nuevo pasa por delante y se reencadenan las fechas de toda la cola en su nuevo orden
+        // 11. Ubicar el lote por la prioridad y la fecha de finalización estimada de su planificación: si hay lotes
+        //     pendientes que le pierden, el lote nuevo pasa por delante y se reencadenan las fechas de toda la cola en su nuevo orden
         //     (los lotes en ejecución no forman parte de la cola y son el piso de la cadena). Si no, queda al final
         //     con las fechas ya calculadas
         int posicionEnCola = calcularPosicionDelLoteNuevoEnCola(colaPendiente, planificacionProduccion);
@@ -2188,8 +2188,7 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     private static MetodosCronograma.CriterioDeCola criterioDeCola(PlanificacionProduccionEntity planificacion) {
-        return new MetodosCronograma.CriterioDeCola(planificacion.getPrioridad(),
-                planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada());
+        return new MetodosCronograma.CriterioDeCola(planificacion.getPrioridad(), planificacion.getFechaFinalizacionEstimada());
     }
 
     private static boolean tieneFechasEstimadasValidas(LoteEntity lote) {

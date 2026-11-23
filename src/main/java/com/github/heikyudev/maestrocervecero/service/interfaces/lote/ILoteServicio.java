@@ -74,8 +74,9 @@ public interface ILoteServicio {
      * <p>
      * La prioridad de la planificación del lote ({@code BAJA} &lt; {@code MEDIA} &lt; {@code ALTA}) define su lugar en la
      * cola de lotes pendientes del fermentador: el lote se ubica detrás del último lote pendiente cuya planificación tiene
-     * igual o mayor prioridad (a igual prioridad, el que llegó primero va primero), y por delante de los lotes pendientes
-     * de planificaciones de prioridad estrictamente menor, que se empujan hacia la derecha. En ese caso se recalculan en la
+     * mayor prioridad o, a igual prioridad, una fecha de finalización estimada anterior o igual (ante un empate completo,
+     * el que llegó primero va primero), y por delante de los lotes pendientes de planificaciones de prioridad
+     * estrictamente menor o que, a igual prioridad, terminan después, que se empujan hacia la derecha. En ese caso se recalculan en la
      * misma transacción las fechas estimadas de toda la cola pendiente del fermentador, en su nuevo orden: cada lote
      * conserva su duración y arranca cuando termina el anterior más el día de limpieza, sin comenzar antes de hoy ni de la
      * fecha de inicio estimada de su planificación. Un lote en ejecución nunca se mueve y es el piso de la cola: los lotes
@@ -102,7 +103,7 @@ public interface ILoteServicio {
      * solo lectura: no bloquea ni modifica nada.
      * <p>
      * Aplica la misma regla que el registro: el lugar en la cola de pendientes del fermentador sale de la prioridad de la
-     * planificación (a igual prioridad, menor margen y luego fin más temprano; ante un empate completo, detrás del que
+     * planificación (a igual prioridad, fin más temprano; ante un empate completo, detrás del que
      * llegó primero). Si el lote nuevo va al final de la cola, la fecha es la finalización estimada más lejana de los lotes
      * pendientes y en ejecución del fermentador. Si pasa por delante de algún pendiente, los lotes que quedan delante se
      * reencadenan como en el registro (desde el lote en ejecución, con el día de limpieza, sin arrancar antes de hoy ni de
