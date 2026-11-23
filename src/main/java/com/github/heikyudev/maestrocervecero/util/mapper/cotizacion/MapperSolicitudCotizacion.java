@@ -25,6 +25,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.Ite
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPropuestaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.PlanCompraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ExplicacionSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion;
 import com.github.heikyudev.maestrocervecero.util.FormatoCantidad;
@@ -273,26 +274,30 @@ public final class MapperSolicitudCotizacion {
                 .build();
     }
 
+    /** Lo que falta hacer con una solicitud pendiente de confirmación. */
+    public static final String ACCION_PENDIENTE_CONFIRMACION = "Confirme el envío a los proveedores o cancele la solicitud";
+
     /**
-     * Por qué se generó la solicitud y qué falta hacer, por ejemplo: "Se generó la solicitud de cotización N° 12 para la
-     * planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg) ni Lúpulo Cascade (faltan 2,5 kg).
-     * Confirme el envío a los proveedores o cancele la solicitud" (sin punto final). La última frase solo va mientras la
-     * solicitud está pendiente de confirmación.
+     * Por qué se generó la solicitud y qué falta hacer, en partes para mostrarla como una lista:
+     * <ul>
+     *     <li>introducción: "Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:";</li>
+     *     <li>un renglón por cada línea, en su orden: "Malta Pilsen: faltan 120 kg";</li>
+     *     <li>acción: {@link #ACCION_PENDIENTE_CONFIRMACION}, solo mientras la solicitud está pendiente de confirmación.</li>
+     * </ul>
      *
      * @param solicitud La solicitud, con su ID y sus líneas.
      * @return La explicación.
      */
-    public static String explicacion(SolicitudCotizacionEntity solicitud) {
-        List<String> faltantes = solicitud.getLineas().stream()
-                .map(linea -> tipoDeInsumo(linea.getInsumo()) + " " + linea.getInsumo().getNombre() + " (faltan "
-                        + FormatoCantidad.conUnidad(linea.getCantidadFaltante(), linea.getInsumo().getUnidadDeMedida().getSimbolo()) + ")")
-                .toList();
-        String insumos = faltantes.size() <= 1 ? String.join("", faltantes)
-                : String.join(", ", faltantes.subList(0, faltantes.size() - 1)) + " ni " + faltantes.get(faltantes.size() - 1);
-        String texto = "Se generó la solicitud de cotización N° " + solicitud.getId() + " para la planificación N° "
-                + solicitud.getPlanificacionProduccion().getId() + ": el stock actual no cubre " + insumos;
-        return solicitud.getEstado() == EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION
-                ? texto + ". Confirme el envío a los proveedores o cancele la solicitud" : texto;
+    public static ExplicacionSolicitudCotizacionResponseDTO explicacion(SolicitudCotizacionEntity solicitud) {
+        return ExplicacionSolicitudCotizacionResponseDTO.builder()
+                .introduccion("Se generó la solicitud de cotización N° " + solicitud.getId() + " para la planificación N° "
+                        + solicitud.getPlanificacionProduccion().getId() + ". El stock actual no cubre:")
+                .insumosNoCubiertos(solicitud.getLineas().stream()
+                        .map(linea -> tipoDeInsumo(linea.getInsumo()) + " " + linea.getInsumo().getNombre() + ": faltan "
+                                + FormatoCantidad.conUnidad(linea.getCantidadFaltante(), linea.getInsumo().getUnidadDeMedida().getSimbolo()))
+                        .toList())
+                .accion(solicitud.getEstado() == EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION ? ACCION_PENDIENTE_CONFIRMACION : null)
+                .build();
     }
 
     /**

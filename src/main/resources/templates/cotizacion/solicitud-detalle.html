@@ -41,7 +41,13 @@
     <div th:if="${solicitud.explicacion != null}" data-explicacion-solicitud
          class="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800" role="status">
         <i class="bi bi-info-circle text-lg"></i>
-        <p th:text="${solicitud.explicacion}">Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg)</p>
+        <div class="space-y-2">
+            <p th:text="${solicitud.explicacion.introduccion}">Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:</p>
+            <ul data-insumos-no-cubiertos class="list-disc space-y-0.5 pl-5">
+                <li th:each="insumo : ${solicitud.explicacion.insumosNoCubiertos}" th:text="${insumo}">Malta Pilsen: faltan 120 kg</li>
+            </ul>
+            <p th:if="${solicitud.explicacion.accion != null}" class="font-medium" th:text="${solicitud.explicacion.accion}">Confirme el envío a los proveedores o cancele la solicitud</p>
+        </div>
     </div>
 
     <!-- Situaciones que el gerente de compras debe conocer -->

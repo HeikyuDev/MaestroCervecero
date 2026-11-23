@@ -135,8 +135,8 @@ public class SolicitudCotizacionResponseDTO {
     private LocalDateTime fechaConfirmacionEnvio;
 
     /**
-     * Por qué se generó la solicitud (los insumos que el stock no cubre) y, mientras está pendiente de confirmación, qué
-     * falta hacer.
+     * Por qué se generó la solicitud (un renglón por cada insumo que el stock no cubre) y, mientras está pendiente de
+     * confirmación, qué falta hacer, o {@code null} si la solicitud no tiene líneas.
      */
-    private String explicacion;
+    private ExplicacionSolicitudCotizacionResponseDTO explicacion;
 }

@@ -332,9 +332,11 @@ class SolicitudCotizacionServicioImplTest {
         });
         // Ningún correo a proveedores hasta que el gerente confirme el envío
         verify(notificador, never()).invitarProveedor(any(), any(), any(), any(), any());
+        // Un renglón por insumo no cubierto y, después de la lista, qué falta hacer
         verify(notificador).avisarGerentesDeCompras(90L, SolicitudCotizacionServicioImpl.ASUNTO_PENDIENTE_CONFIRMACION,
-                "Se generó la solicitud de cotización N° 90 para la planificación N° 7: el stock actual no cubre Malta Malta Pilsen (faltan 80 kg) "
-                        + "ni Lúpulo Cascade (faltan 500 g). Confirme el envío a los proveedores o cancele la solicitud", List.of());
+                "Se generó la solicitud de cotización N° 90 para la planificación N° 7. El stock actual no cubre:",
+                List.of("Malta Malta Pilsen: faltan 80 kg", "Lúpulo Cascade: faltan 500 g"),
+                List.of("Confirme el envío a los proveedores o cancele la solicitud"));
     }
 
     @Test
@@ -383,9 +385,9 @@ class SolicitudCotizacionServicioImplTest {
         assertThat(resultado.getLineas()).extracting(l -> l.getNombreInsumo() + ":" + l.isSinProveedor())
                 .containsExactly("Malta Pilsen:false", "Cascade:true");
         assertThat(resultado.getAvisos()).contains("Ningún proveedor activo ofrece Cascade");
-        assertThat(resultado.getExplicacion()).startsWith("Se generó la solicitud de cotización N° 90 para la planificación N° 7");
-        verify(notificador).avisarGerentesDeCompras(eq(90L), eq(SolicitudCotizacionServicioImpl.ASUNTO_PENDIENTE_CONFIRMACION), anyString(),
-                eq(List.of("Ningún proveedor activo ofrece Cascade")));
+        assertThat(resultado.getExplicacion().getIntroduccion()).startsWith("Se generó la solicitud de cotización N° 90 para la planificación N° 7");
+        verify(notificador).avisarGerentesDeCompras(eq(90L), eq(SolicitudCotizacionServicioImpl.ASUNTO_PENDIENTE_CONFIRMACION), anyString(), anyList(),
+                eq(List.of("Ningún proveedor activo ofrece Cascade", "Confirme el envío a los proveedores o cancele la solicitud")));
     }
 
     @Test

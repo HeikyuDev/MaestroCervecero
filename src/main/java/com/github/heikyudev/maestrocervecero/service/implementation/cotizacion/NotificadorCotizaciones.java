@@ -77,6 +77,16 @@ public class NotificadorCotizaciones {
      * @param detalles Datos complementarios (uno por renglón), o vacío.
      */
     public void avisarGerentesDeCompras(Long idSolicitud, String asunto, String mensaje, List<String> detalles) {
+        avisarGerentesDeCompras(idSolicitud, asunto, mensaje, detalles, List.of());
+    }
+
+    /**
+     * Igual que {@link #avisarGerentesDeCompras(Long, String, String, List)}, con párrafos que el correo muestra después
+     * de la lista de renglones (por ejemplo, qué falta hacer).
+     *
+     * @param cierre Párrafos que van después de los renglones (puede estar vacía).
+     */
+    public void avisarGerentesDeCompras(Long idSolicitud, String asunto, String mensaje, List<String> detalles, List<String> cierre) {
         List<UsuarioEntity> gerentes = usuarioRepository.findByRolAndEstado(Rol.GERENTE_DE_COMPRAS, Estado.ACTIVO);
         String enlace = armarEnlace(idSolicitud == null ? RUTA_LISTADO : RUTA_SOLICITUD + idSolicitud);
         for (UsuarioEntity gerente : gerentes) {
@@ -85,6 +95,7 @@ public class NotificadorCotizaciones {
             variables.put("titulo", asunto);
             variables.put("mensaje", mensaje);
             variables.put("detalles", detalles);
+            variables.put("cierre", cierre);
             variables.put("enlace", enlace);
             correoServicio.enviarCorreoHtml(gerente.getCorreo(), asunto, PLANTILLA_AVISO, variables);
         }

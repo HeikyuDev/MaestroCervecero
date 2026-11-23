@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Versio
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ExplicacionSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
@@ -74,7 +75,7 @@ class MapperSolicitudCotizacionTest {
     }
 
     @Test
-    @DisplayName("CP-MSC-04: la explicación indica los insumos que el stock no cubre y, mientras está pendiente de confirmación, qué falta hacer")
+    @DisplayName("CP-MSC-04: la explicación tiene una introducción, un renglón por cada insumo que el stock no cubre y, mientras está pendiente de confirmación, qué falta hacer")
     void explicacion_insumosYAccion() {
         com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.SolicitudCotizacionEntity solicitud =
                 com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.SolicitudCotizacionEntity.builder().id(12L)
@@ -86,11 +87,15 @@ class MapperSolicitudCotizacionTest {
         solicitud.getLineas().add(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.LineaSolicitudCotizacionEntity.builder()
                 .insumo(LupuloEntity.builder().id(2L).nombre("Cascade").unidadDeMedida(UnidadDeMedida.KILOGRAMO).build()).cantidadFaltante(2.5).build());
 
-        assertThat(MapperSolicitudCotizacion.explicacion(solicitud)).isEqualTo("Se generó la solicitud de cotización N° 12 para la planificación N° 45: "
-                + "el stock actual no cubre Malta Pilsen (faltan 120 kg) ni Lúpulo Cascade (faltan 2,5 kg). Confirme el envío a los proveedores o cancele la solicitud");
+        ExplicacionSolicitudCotizacionResponseDTO pendiente = MapperSolicitudCotizacion.explicacion(solicitud);
+        assertThat(pendiente.getIntroduccion()).isEqualTo("Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:");
+        assertThat(pendiente.getInsumosNoCubiertos()).containsExactly("Malta Pilsen: faltan 120 kg", "Lúpulo Cascade: faltan 2,5 kg");
+        assertThat(pendiente.getAccion()).isEqualTo("Confirme el envío a los proveedores o cancele la solicitud");
 
         solicitud.setEstado(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion.ABIERTA);
-        assertThat(MapperSolicitudCotizacion.explicacion(solicitud)).doesNotContain("Confirme").endsWith("(faltan 2,5 kg)");
+        ExplicacionSolicitudCotizacionResponseDTO abierta = MapperSolicitudCotizacion.explicacion(solicitud);
+        assertThat(abierta.getInsumosNoCubiertos()).containsExactly("Malta Pilsen: faltan 120 kg", "Lúpulo Cascade: faltan 2,5 kg");
+        assertThat(abierta.getAccion()).isNull();
     }
 
     @Test

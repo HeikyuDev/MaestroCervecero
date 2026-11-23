@@ -3,7 +3,8 @@
     Correo con el que se avisa a un gerente de compras una novedad de una solicitud de cotización (plan listo para
     revisar, insumos sin proveedor, cierre sin ofertas). Lo procesa ICorreoServicio fuera de una request HTTP, por lo
     que el enlace llega completo en la variable "enlace".
-    Variables: nombre, titulo, mensaje, detalles (lista de textos, puede estar vacía), enlace.
+    Variables: nombre, titulo, mensaje, detalles (lista de textos, uno por renglón, puede estar vacía), cierre (párrafos
+    que van después de los renglones, puede estar vacía o no estar), enlace.
     Los estilos van en línea porque los clientes de correo ignoran las hojas de estilo.
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="es">
@@ -32,6 +33,7 @@
                         <ul th:if="${detalles != null and !#lists.isEmpty(detalles)}" style="margin:0 0 16px 0;padding-left:20px;">
                             <li th:each="detalle : ${detalles}" th:text="${detalle}">Órdenes de compra propuestas: 2</li>
                         </ul>
+                        <p th:each="parrafo : ${cierre}" th:if="${cierre != null}" style="margin:0 0 12px 0;" th:text="${parrafo}">Confirme el envío a los proveedores o cancele la solicitud</p>
                     </td>
                 </tr>
                 <tr>

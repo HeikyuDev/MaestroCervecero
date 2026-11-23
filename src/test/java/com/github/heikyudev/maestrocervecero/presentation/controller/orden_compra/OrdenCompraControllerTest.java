@@ -1499,7 +1499,10 @@ class OrdenCompraControllerTest {
         when(solicitudCotizacionServicio.buscarPendientesDeConfirmacion()).thenReturn(List.of(
                 com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO.builder()
                         .id(12L).etiquetaPlanificacion("Plan #45 - Pale Ale")
-                        .explicacion("Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg). Confirme el envío a los proveedores o cancele la solicitud")
+                        .explicacion(com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ExplicacionSolicitudCotizacionResponseDTO.builder()
+                                .introduccion("Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:")
+                                .insumosNoCubiertos(List.of("Malta Pilsen: faltan 120 kg", "Lúpulo Cascade: faltan 2,5 kg"))
+                                .accion("Confirme el envío a los proveedores o cancele la solicitud").build())
                         .build()));
 
         // Act
@@ -1508,7 +1511,8 @@ class OrdenCompraControllerTest {
         // Assert
         assertThat(html).contains("data-aviso-por-confirmar")
                 .contains("Hay 1 solicitud de cotización que espera la confirmación del envío a los proveedores")
-                .contains("href=\"/solicitudes-cotizacion/12\"").contains("Confirme el envío a los proveedores o cancele la solicitud");
+                .contains("href=\"/solicitudes-cotizacion/12\"").contains("El stock actual no cubre:")
+                .containsPattern("<ul[^>]*data-insumos-no-cubiertos[^>]*>\\s*<li[^>]*>Malta Pilsen: faltan 120 kg</li>\\s*<li[^>]*>Lúpulo Cascade: faltan 2,5 kg</li>");
     }
 
     @Test

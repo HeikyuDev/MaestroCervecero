@@ -31,10 +31,13 @@
             <i class="bi bi-send"></i>
             <span th:text="${#lists.size(solicitudesPorConfirmar) == 1} ? 'Hay 1 solicitud de cotización que espera la confirmación del envío a los proveedores' : |Hay ${#lists.size(solicitudesPorConfirmar)} solicitudes de cotización que esperan la confirmación del envío a los proveedores|">Hay 1 solicitud por confirmar</span>
         </p>
-        <ul class="mt-2 space-y-1">
+        <ul class="mt-2 space-y-2">
             <li th:each="p : ${solicitudesPorConfirmar}">
                 <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id})}" class="font-medium text-violet-700 hover:text-violet-900 hover:underline"
-                   th:text="${p.explicacion != null} ? ${p.explicacion} : |Solicitud #${p.id} - ${p.etiquetaPlanificacion}|">Se generó la solicitud de cotización N° 12</a>
+                   th:text="${p.explicacion != null} ? ${p.explicacion.introduccion} : |Solicitud #${p.id} - ${p.etiquetaPlanificacion}|">Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:</a>
+                <ul th:if="${p.explicacion != null}" data-insumos-no-cubiertos class="mt-0.5 list-disc pl-5 text-xs text-violet-700">
+                    <li th:each="insumo : ${p.explicacion.insumosNoCubiertos}" th:text="${insumo}">Malta Pilsen: faltan 120 kg</li>
+                </ul>
             </li>
         </ul>
     </div>

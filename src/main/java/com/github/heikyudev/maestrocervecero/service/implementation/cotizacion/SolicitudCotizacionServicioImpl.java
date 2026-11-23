@@ -44,6 +44,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.cotizacion.ISoli
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ExplicacionSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ItemOrdenCompraPrearmadaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPrearmadaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPropuestaResponseDTO;
@@ -246,9 +247,15 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                     "Ningún proveedor activo ofrece en su catálogo los siguientes insumos faltantes de la solicitud de cotización #" + idSolicitud,
                     sinProveedor));
         } else {
-            String explicacion = MapperSolicitudCotizacion.explicacion(guardada);
-            List<String> detalles = sinProveedor.isEmpty() ? List.of() : List.of("Ningún proveedor activo ofrece " + String.join(", ", sinProveedor));
-            ejecutarAlConfirmar(() -> notificador.avisarGerentesDeCompras(idSolicitud, ASUNTO_PENDIENTE_CONFIRMACION, explicacion, detalles));
+            // Un renglón por insumo no cubierto y, después de la lista, los insumos sin proveedor y qué falta hacer
+            ExplicacionSolicitudCotizacionResponseDTO explicacion = MapperSolicitudCotizacion.explicacion(guardada);
+            List<String> cierre = new ArrayList<>();
+            if (!sinProveedor.isEmpty()) {
+                cierre.add("Ningún proveedor activo ofrece " + String.join(", ", sinProveedor));
+            }
+            cierre.add(explicacion.getAccion());
+            ejecutarAlConfirmar(() -> notificador.avisarGerentesDeCompras(idSolicitud, ASUNTO_PENDIENTE_CONFIRMACION, explicacion.getIntroduccion(),
+                    explicacion.getInsumosNoCubiertos(), List.copyOf(cierre)));
         }
         avisarProblemas(idSolicitud, etiqueta, estimados.problemas());
         return Optional.of(MapperSolicitudCotizacion.toDTO(guardada));

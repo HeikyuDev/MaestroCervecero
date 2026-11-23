@@ -135,7 +135,7 @@ class ProcesosCotizacionTest {
     }
 
     @Test
-    @DisplayName("CP-PRC-05: el aviso llega a cada gerente de compras activo con el enlace a la solicitud, o al listado si no hay solicitud")
+    @DisplayName("CP-PRC-05: el aviso llega a cada gerente de compras activo con el enlace a la solicitud (o al listado si no hay solicitud), sus renglones y los párrafos de cierre")
     @SuppressWarnings("unchecked")
     void notificador_avisaGerentes() {
         ICorreoServicio correo = mock(ICorreoServicio.class);
@@ -154,12 +154,21 @@ class ProcesosCotizacionTest {
                 .containsEntry("nombre", "Ana")
                 .containsEntry("mensaje", "La solicitud cerró")
                 .containsEntry("enlace", "https://cerveceria.com/solicitudes-cotizacion/90")
-                .containsEntry("detalles", List.of("Órdenes de compra propuestas: 2"));
+                .containsEntry("detalles", List.of("Órdenes de compra propuestas: 2"))
+                .containsEntry("cierre", List.of());
 
         // Sin solicitud (no se pudo generar) el enlace lleva al listado de procesos de compra
         notificador.avisarGerentesDeCompras(null, "Sin solicitud", "No se generó", List.of());
         verify(correo, org.mockito.Mockito.times(2)).enviarCorreoHtml(eq("ana@cerveceria.com"), org.mockito.ArgumentMatchers.anyString(), eq(NotificadorCotizaciones.PLANTILLA_AVISO), variables.capture());
         assertThat(variables.getValue()).containsEntry("enlace", "https://cerveceria.com/solicitudes-cotizacion");
+
+        // Con párrafos de cierre: van después de los renglones
+        notificador.avisarGerentesDeCompras(91L, "Por confirmar", "El stock actual no cubre:", List.of("Malta Pilsen: faltan 120 kg"),
+                List.of("Confirme el envío a los proveedores o cancele la solicitud"));
+        verify(correo).enviarCorreoHtml(eq("ana@cerveceria.com"), eq("Por confirmar"), eq(NotificadorCotizaciones.PLANTILLA_AVISO), variables.capture());
+        assertThat(variables.getValue())
+                .containsEntry("detalles", List.of("Malta Pilsen: faltan 120 kg"))
+                .containsEntry("cierre", List.of("Confirme el envío a los proveedores o cancele la solicitud"));
     }
 
     @Test
@@ -218,5 +227,26 @@ class ProcesosCotizacionTest {
                 .contains("href=\"https://cerveceria.com/cotizacion/abc123\"")
                 .doesNotContain("puede combinar varias")
                 .doesNotContain("fecha estimada de entrega");
+    }
+
+    @Test
+    @DisplayName("CP-PRC-09: el correo de aviso a los gerentes de compras muestra un renglón por cada detalle y los párrafos de cierre después de la lista")
+    void plantillaAviso_muestraRenglonesYCierre() {
+        org.thymeleaf.templateresolver.ClassLoaderTemplateResolver resolver = new org.thymeleaf.templateresolver.ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
+        resolver.setCharacterEncoding("UTF-8");
+        org.thymeleaf.spring6.SpringTemplateEngine motor = new org.thymeleaf.spring6.SpringTemplateEngine();
+        motor.setTemplateResolver(resolver);
+        org.thymeleaf.context.Context contexto = new org.thymeleaf.context.Context();
+        contexto.setVariables(Map.of("nombre", "Ana", "titulo", "Por confirmar", "enlace", "https://cerveceria.com/solicitudes-cotizacion/12",
+                "mensaje", "Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:",
+                "detalles", List.of("Malta Pilsen: faltan 120 kg", "Lúpulo Cascade: faltan 2,5 kg"),
+                "cierre", List.of("Ningún proveedor activo ofrece Cascade", "Confirme el envío a los proveedores o cancele la solicitud")));
+
+        String html = motor.process(NotificadorCotizaciones.PLANTILLA_AVISO, contexto);
+
+        assertThat(html).containsPattern("<li>Malta Pilsen: faltan 120 kg</li>\\s*<li>Lúpulo Cascade: faltan 2,5 kg</li>\\s*</ul>\\s*"
+                + "<p[^>]*>Ningún proveedor activo ofrece Cascade</p>\\s*<p[^>]*>Confirme el envío a los proveedores o cancele la solicitud</p>");
     }
 }

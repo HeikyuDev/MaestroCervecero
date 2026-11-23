@@ -16,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.Ite
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.OrdenCompraPropuestaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.PlanCompraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.ExplicacionSolicitudCotizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -357,7 +358,10 @@ class SolicitudCotizacionControllerTest {
         // Arrange
         SolicitudCotizacionResponseDTO pendiente = SolicitudCotizacionResponseDTO.builder().id(12L).estado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION)
                 .idPlanificacion(45L).etiquetaPlanificacion("Plan #45 - Pale Ale").avisos(List.of())
-                .explicacion("Se generó la solicitud de cotización N° 12 para la planificación N° 45: el stock actual no cubre Malta Pilsen (faltan 120 kg). Confirme el envío a los proveedores o cancele la solicitud")
+                .explicacion(ExplicacionSolicitudCotizacionResponseDTO.builder()
+                        .introduccion("Se generó la solicitud de cotización N° 12 para la planificación N° 45. El stock actual no cubre:")
+                        .insumosNoCubiertos(List.of("Malta Pilsen: faltan 120 kg", "Lúpulo Cascade: faltan 2,5 kg"))
+                        .accion("Confirme el envío a los proveedores o cancele la solicitud").build())
                 .lineas(List.of()).invitaciones(List.of()).build();
         when(solicitudCotizacionServicio.buscarPorId(12L)).thenReturn(pendiente);
 
@@ -366,7 +370,9 @@ class SolicitudCotizacionControllerTest {
 
         // Assert
         assertThat(html)
-                .contains("data-explicacion-solicitud").contains("el stock actual no cubre Malta Pilsen (faltan 120 kg)")
+                .contains("data-explicacion-solicitud").contains("El stock actual no cubre:")
+                .containsPattern("<ul[^>]*data-insumos-no-cubiertos[^>]*>\\s*<li[^>]*>Malta Pilsen: faltan 120 kg</li>\\s*<li[^>]*>Lúpulo Cascade: faltan 2,5 kg</li>")
+                .contains("Confirme el envío a los proveedores o cancele la solicitud")
                 .contains("Pendiente de confirmación")
                 .contains("action=\"/solicitudes-cotizacion/12/confirmar-envio\"").contains("data-confirmar-titulo=\"Confirmar envío\"")
                 .contains("data-boton-cancelar").doesNotContain("data-tiempo-restante");
