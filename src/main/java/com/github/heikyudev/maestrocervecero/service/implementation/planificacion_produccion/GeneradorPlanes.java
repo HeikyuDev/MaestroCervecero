@@ -164,13 +164,22 @@ final class GeneradorPlanes {
     // ==================== Plan concurrente ====================
 
     /**
-     * Genera el plan concurrente con el modelo de olas: para k = 2..n toma los k fermentadores de mayor capacidad
-     * (a igualdad, el que se libera antes y luego el identificador interno), calcula las olas necesarias
-     * {@code w = ceil(litros / suma de capacidades)} y los lotes {@code k · w} (cada fermentador recibe w lotes encolados
-     * sobre sí mismo). Descarta las combinaciones que superan el máximo de lotes, cuyos equipos no se pueden asignar o
-     * cuyo volumen total la confirmación rechazaría, y entre las demás elige la menor cantidad de lotes; a igualdad, la
-     * menor cantidad de olas y luego el fin de plan más temprano. Exige al menos {@link #MINIMO_FERMENTADORES_CONCURRENTE}
-     * fermentadores utilizables.
+     * Genera el plan concurrente con el modelo de olas, cuya última ola puede ser parcial. Para k = 2..n toma los k
+     * fermentadores de mayor capacidad (a igualdad, el que se libera antes y luego el identificador interno), con suma
+     * de capacidades {@code S}:
+     * <ul>
+     *     <li>olas {@code w = ceil(litros / S)} y litros de la última ola {@code R = litros - (w - 1) · S}
+     *     ({@code 0 < R <= S});</li>
+     *     <li>la última ola usa los primeros {@code j} de esos k fermentadores, el menor {@code j} cuya capacidad
+     *     acumulada cubre {@code R};</li>
+     *     <li>lotes {@code (w - 1) · k + j}: w - 1 olas completas de los k fermentadores y luego la ola parcial, cada lote
+     *     encolado sobre su fermentador.</li>
+     * </ul>
+     * Descarta las combinaciones que usarían un solo fermentador ({@code w = 1} y {@code j = 1}), las que superan el
+     * máximo de lotes, aquellas cuyos equipos no se pueden asignar y las de volumen total que la confirmación
+     * rechazaría; entre las demás elige la menor cantidad de lotes, a igualdad la menor cantidad de olas y luego el fin
+     * de plan más temprano. Los litros se reparten en proporción a la capacidad de cada lugar. Exige al menos
+     * {@link #MINIMO_FERMENTADORES_CONCURRENTE} fermentadores utilizables.
      */
     PlanProduccionResponseDTO generarConcurrente() {
         if (motivoNoDisponible != null) {
@@ -184,24 +193,35 @@ final class GeneradorPlanes {
 
         List<OpcionDeOlas> opciones = new ArrayList<>();
         String ultimoRechazo = null;
+        boolean alcanzaUnSoloLote = false;
         int lotesMinimos = Integer.MAX_VALUE;
-        double sumaCapacidades = 0.0;
+        BigDecimal litros = BigDecimal.valueOf(escenario.litrosAPlanificar());
+        BigDecimal sumaCapacidades = BigDecimal.ZERO;
         for (int k = 1; k <= porCapacidad.size(); k++) {
-            sumaCapacidades += porCapacidad.get(k - 1).capacidad();
+            sumaCapacidades = sumaCapacidades.add(BigDecimal.valueOf(porCapacidad.get(k - 1).capacidad()));
             if (k < MINIMO_FERMENTADORES_CONCURRENTE) {
                 continue;
             }
-            int olas = lotesNecesarios(escenario.litrosAPlanificar(), sumaCapacidades);
-            long cantidadLotes = (long) k * olas;
+            List<Candidato> fermentadores = porCapacidad.subList(0, k);
+            int olas = lotesNecesarios(litros, sumaCapacidades);
+            BigDecimal litrosUltimaOla = litros.subtract(sumaCapacidades.multiply(BigDecimal.valueOf(olas - 1L)));
+            int lugaresUltimaOla = lugaresQueCubren(fermentadores, litrosUltimaOla);
+            if (olas == 1 && lugaresUltimaOla == 1) {
+                // Un solo lote del fermentador más grande alcanza: no es un plan concurrente
+                alcanzaUnSoloLote = true;
+                continue;
+            }
+            long cantidadLotes = (long) (olas - 1) * k + lugaresUltimaOla;
             lotesMinimos = (int) Math.min(lotesMinimos, Math.min(cantidadLotes, Integer.MAX_VALUE));
             if (cantidadLotes > LimitesTecnicos.PLAN_PRODUCCION_MAXIMO_LOTES) {
                 continue;
             }
 
             List<Candidato> asignaciones = new ArrayList<>();
-            for (int ola = 0; ola < olas; ola++) {
-                asignaciones.addAll(porCapacidad.subList(0, k));
+            for (int ola = 1; ola < olas; ola++) {
+                asignaciones.addAll(fermentadores);
             }
+            asignaciones.addAll(fermentadores.subList(0, lugaresUltimaOla));
             try {
                 List<LotePlanificado> lotes = planificarLotes(asignaciones);
                 List<String> problemas = problemasDelVolumenTotal(volumenesDe(lotes), escenario.litrosAPlanificar(), escenario.excedenteMaximo());
@@ -219,11 +239,32 @@ final class GeneradorPlanes {
         if (mejor.isPresent()) {
             return aPlanDisponible(ModalidadPlanProduccion.CONCURRENTE, mejor.get().lotes());
         }
-        String motivo = ultimoRechazo != null
-                ? "Ninguna combinación de fermentadores en paralelo cubre los " + ValidacionesNumericas.formatearNumero(escenario.litrosAPlanificar())
-                + " L que faltan planificar con un volumen total válido (" + ultimoRechazo + ")"
-                : mensajeMaximoDeLotes("concurrente", lotesMinimos);
+        String motivo;
+        if (ultimoRechazo != null) {
+            motivo = "Ninguna combinación de fermentadores en paralelo cubre los " + ValidacionesNumericas.formatearNumero(escenario.litrosAPlanificar())
+                    + " L que faltan planificar con un volumen total válido (" + ultimoRechazo + ")";
+        } else if (alcanzaUnSoloLote && lotesMinimos == Integer.MAX_VALUE) {
+            motivo = "Los " + ValidacionesNumericas.formatearNumero(escenario.litrosAPlanificar()) + " L que faltan planificar entran en un solo lote del fermentador "
+                    + porCapacidad.get(0).identificador() + ": el plan concurrente necesita lotes en al menos dos fermentadores";
+        } else {
+            motivo = mensajeMaximoDeLotes("concurrente", lotesMinimos);
+        }
         return noDisponible(ModalidadPlanProduccion.CONCURRENTE, motivo, escenario.litrosAPlanificar());
+    }
+
+    /**
+     * Menor cantidad de los primeros fermentadores, en el orden dado, cuya capacidad acumulada cubre los litros (o
+     * todos, si no la cubren).
+     */
+    private static int lugaresQueCubren(List<Candidato> fermentadores, BigDecimal litros) {
+        BigDecimal acumulada = BigDecimal.ZERO;
+        for (int i = 0; i < fermentadores.size(); i++) {
+            acumulada = acumulada.add(BigDecimal.valueOf(fermentadores.get(i).capacidad()));
+            if (acumulada.compareTo(litros) >= 0) {
+                return i + 1;
+            }
+        }
+        return fermentadores.size();
     }
 
     // ==================== Lotes de un plan ====================
@@ -620,7 +661,11 @@ final class GeneradorPlanes {
      * aritmética exacta (un cociente de 3,00004 da 4).
      */
     static int lotesNecesarios(double litros, double capacidad) {
-        BigDecimal cociente = BigDecimal.valueOf(litros).divide(BigDecimal.valueOf(capacidad), 0, RoundingMode.CEILING);
+        return lotesNecesarios(BigDecimal.valueOf(litros), BigDecimal.valueOf(capacidad));
+    }
+
+    private static int lotesNecesarios(BigDecimal litros, BigDecimal capacidad) {
+        BigDecimal cociente = litros.divide(capacidad, 0, RoundingMode.CEILING);
         return cociente.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0 ? Integer.MAX_VALUE : cociente.intValue();
     }
 

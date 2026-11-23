@@ -54,8 +54,9 @@ public interface IPlanProduccionServicio {
      *     luego el identificador interno), con {@code ceil(litros / capacidad)} lotes.</li>
      *     <li>Concurrente (exige al menos dos fermentadores utilizables): menor cantidad de lotes. Prueba los k
      *     fermentadores de mayor capacidad (k = 2..n; a igual capacidad, el que se libera antes) en olas de un lote por
-     *     fermentador y elige la menor cantidad de lotes, a igualdad la menor cantidad de olas y luego el fin de plan
-     *     más temprano.</li>
+     *     fermentador, con una última ola parcial que usa solo los primeros fermentadores que cubren los litros que
+     *     faltan ({@code (w - 1) · k + j} lotes). Descarta la combinación que usaría un solo fermentador y elige la menor
+     *     cantidad de lotes, a igualdad la menor cantidad de olas y luego el fin de plan más temprano.</li>
      * </ul>
      * <p>
      * Cuándo se libera cada fermentador sale de la cola de pendientes según la prioridad de la planificación, con la

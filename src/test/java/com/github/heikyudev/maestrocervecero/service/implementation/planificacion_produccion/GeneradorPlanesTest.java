@@ -69,6 +69,10 @@ class GeneradorPlanesTest {
                         assertThat(BigDecimal.valueOf(plan.getExcedente())).as(escenario).isLessThan(BigDecimal.ONE);
                         // El único aviso posible de un plan generado es el de finalización tardía, que no impide confirmarlo
                         assertThat(plan.getAvisos()).as(escenario).allMatch(aviso -> aviso.startsWith("El plan finaliza el "));
+                        // Un plan concurrente siempre usa al menos dos fermentadores
+                        if (plan.getModalidad() == ModalidadPlanProduccion.CONCURRENTE) {
+                            assertThat(plan.getFermentadoresUtilizados()).as(escenario).isGreaterThanOrEqualTo(2);
+                        }
                     }
                 }
             }
@@ -242,6 +246,65 @@ class GeneradorPlanesTest {
         assertThat(plan.isDisponible()).isTrue();
         assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(3L, 2L);
         assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada).containsExactly(HOY, HOY.plusDays(7));
+    }
+
+    @Test
+    @DisplayName("CP-GEN-15: la última ola del plan concurrente puede ser parcial: 1.600 L en 2 fermentadores de 600 L son 3 lotes (534/533/533 L), no 4")
+    void concurrenteConUltimaOlaParcial() {
+        PlanProduccionResponseDTO plan = new GeneradorPlanes(escenario(1600.0, 300.0, new double[]{600, 600})).generarConcurrente();
+
+        assertThat(plan.isDisponible()).isTrue();
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 1L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(534.0, 533.0, 533.0);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada).containsExactly(HOY, HOY, HOY.plusDays(24));
+        assertThat(plan.getVolumenTotal()).isEqualTo(1600.0);
+    }
+
+    @Test
+    @DisplayName("CP-GEN-16: a igual cantidad de lotes gana la menor cantidad de olas: 1.210 L en 600/600/20 L son 3 lotes en una ola (595/595/20 L)")
+    void concurrenteAIgualCantidadDeLotesGanaLaMenorCantidadDeOlas() {
+        PlanProduccionResponseDTO plan = new GeneradorPlanes(escenario(1210.0, 300.0, new double[]{600, 600, 20})).generarConcurrente();
+
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 3L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(595.0, 595.0, 20.0);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada).containsOnly(HOY);
+    }
+
+    @Test
+    @DisplayName("CP-GEN-17: una sola ola que cubren los dos fermentadores más grandes: 1.000 L en 600/600/20 L son 2 lotes de 500 L")
+    void concurrenteConUnaSolaOlaDeDosFermentadores() {
+        PlanProduccionResponseDTO plan = new GeneradorPlanes(escenario(1000.0, 300.0, new double[]{600, 600, 20})).generarConcurrente();
+
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(500.0, 500.0);
+    }
+
+    @Test
+    @DisplayName("CP-GEN-18: la ola parcial toma los primeros fermentadores que cubren el resto: 2.000 L en 3 de 600 L son 4 lotes y 2.500 L son 5 lotes en 2 olas")
+    void concurrenteConOlaParcialDeVariosFermentadores() {
+        PlanProduccionResponseDTO dosMil = new GeneradorPlanes(escenario(2000.0, 300.0, new double[]{600, 600, 600})).generarConcurrente();
+        PlanProduccionResponseDTO dosMilQuinientos = new GeneradorPlanes(escenario(2500.0, 300.0, new double[]{600, 600, 600})).generarConcurrente();
+
+        assertThat(dosMil.getCantidadLotes()).isEqualTo(4);
+        assertThat(dosMil.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsOnly(500.0);
+        assertThat(dosMilQuinientos.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 3L, 1L, 2L);
+        assertThat(dosMilQuinientos.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsOnly(500.0);
+        assertThat(dosMilQuinientos.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada)
+                .containsExactly(HOY, HOY, HOY, HOY.plusDays(24), HOY.plusDays(24));
+    }
+
+    @Test
+    @DisplayName("CP-GEN-19: si los litros entran en un solo lote del fermentador más grande, el plan concurrente no está disponible")
+    void concurrenteNoDisponibleSiAlcanzaUnSoloLote() {
+        GeneradorPlanes generador = new GeneradorPlanes(escenario(500.0, 300.0, new double[]{600, 600}));
+
+        PlanProduccionResponseDTO concurrente = generador.generarConcurrente();
+
+        assertThat(concurrente.isDisponible()).isFalse();
+        assertThat(concurrente.getLotes()).isEmpty();
+        assertThat(concurrente.getMotivoNoDisponible())
+                .isEqualTo("Los 500 L que faltan planificar entran en un solo lote del fermentador FER-1: el plan concurrente necesita lotes en al menos dos fermentadores");
+        assertThat(generador.generarSecuencial().getLotes()).hasSize(1);
     }
 
     // ==================== Helpers ====================

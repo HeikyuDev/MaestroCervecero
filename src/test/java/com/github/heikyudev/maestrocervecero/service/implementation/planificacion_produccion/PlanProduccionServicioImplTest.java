@@ -226,7 +226,7 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPL-08: el plan concurrente (menor cantidad de lotes) reparte 2.000 L en dos olas de 500/300/223 L como 489/293/218 L (2.000 L, método del resto)")
+    @DisplayName("CP-GPL-08: el plan concurrente (menor cantidad de lotes) reparte 2.000 L en 500/300/223 L como 5 lotes de 476/286/476/286/476 L en 3 olas, la última parcial (método del resto)")
     void concurrente_menorCantidadDeLotes() {
         mockearPlanificacion(EstadoSolicitud.PENDIENTE, 2000.0);
         mockearEquipos(List.of(fermentador(1L, 500.0), fermentador(2L, 300.0), fermentador(3L, 223.0)),
@@ -235,14 +235,14 @@ class PlanProduccionServicioImplTest {
         PlanProduccionResponseDTO plan = planProduccionServicio.generarPlanes(1L).getConcurrente();
 
         assertThat(plan.isDisponible()).isTrue();
-        assertThat(plan.getCantidadLotes()).isEqualTo(6);
-        assertThat(plan.getFermentadoresUtilizados()).isEqualTo(3);
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 3L, 1L, 2L, 3L);
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(489.0, 293.0, 218.0, 489.0, 293.0, 218.0);
+        assertThat(plan.getCantidadLotes()).isEqualTo(5);
+        assertThat(plan.getFermentadoresUtilizados()).isEqualTo(2);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 1L, 2L, 1L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(476.0, 286.0, 476.0, 286.0, 476.0);
         assertThat(plan.getVolumenTotal()).isEqualTo(2000.0);
         assertThat(plan.getExcedente()).isEqualTo(0.0);
-        assertThat(plan.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY);
-        assertThat(plan.getLotes().get(3).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(24));
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada)
+                .containsExactly(HOY, HOY, HOY.plusDays(24), HOY.plusDays(24), HOY.plusDays(48));
     }
 
     @Test
@@ -365,7 +365,7 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPL-17: con 1 L a planificar y dos fermentadores, el concurrente (un lote quedaría vacío) no está disponible y el secuencial propone un lote de 1 L")
+    @DisplayName("CP-GPL-17: con 1 L a planificar y dos fermentadores, el concurrente (alcanza un solo lote) no está disponible y el secuencial propone un lote de 1 L")
     void litrosMinimosConVariosFermentadores() {
         mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1.0);
         mockearEquipos(List.of(fermentador(1L, 100.0), fermentador(2L, 100.0)), List.of(molino(1L, 100.0)),
@@ -376,8 +376,8 @@ class PlanProduccionServicioImplTest {
         assertThat(planes.getSecuencial().isDisponible()).isTrue();
         assertThat(planes.getSecuencial().getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(1.0);
         assertThat(planes.getConcurrente().isDisponible()).isFalse();
-        assertThat(planes.getConcurrente().getMotivoNoDisponible()).startsWith("Ninguna combinación de fermentadores en paralelo cubre los 1 L")
-                .contains("Los 1 L que faltan planificar no alcanzan para repartirlos en 2 lotes");
+        assertThat(planes.getConcurrente().getMotivoNoDisponible())
+                .isEqualTo("Los 1 L que faltan planificar entran en un solo lote del fermentador FER-1: el plan concurrente necesita lotes en al menos dos fermentadores");
     }
 
     @Test
