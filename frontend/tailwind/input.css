@@ -58,6 +58,12 @@
     background-color: inherit;
   }
 
+  /* Si ninguna fila tiene una acción disponible (por el rol del usuario o el estado de los registros), la columna
+     completa, encabezado incluido, se oculta en lugar de quedar vacía */
+  table:not(:has(tbody td.col-acciones :is(a, button, input, select))) .col-acciones {
+    display: none;
+  }
+
   td.col-acciones > .flex:has(> :only-child) {
     justify-content: center;
   }
