@@ -27,9 +27,6 @@ public class PlanProduccionResponseDTO {
     /** Modalidad del plan. */
     private ModalidadPlanProduccion modalidad;
 
-    /** Nombre legible del criterio de selección de equipos con el que se generó el plan. */
-    private String criterio;
-
     /** {@code true} si el plan se pudo generar. */
     private boolean disponible;
 

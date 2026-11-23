@@ -16,7 +16,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Interfaz que define los servicios relacionados con la gestión de lotes.
@@ -93,6 +95,29 @@ public interface ILoteServicio {
      *                               sus lotes pendientes y en ejecución) ya cubren la cantidad a producir.
      */
     LoteResponseDTO registrarLote(LoteFormDTO loteFormDTO);
+
+    /**
+     * Calcula, para cada fermentador indicado, la fecha de finalización estimada del lote detrás del cual
+     * {@link #registrarLote(LoteFormDTO)} ubicaría hoy un lote nuevo de la planificación de producción indicada. Es de
+     * solo lectura: no bloquea ni modifica nada.
+     * <p>
+     * Aplica la misma regla que el registro: el lugar en la cola de pendientes del fermentador sale de la prioridad de la
+     * planificación (a igual prioridad, menor margen y luego fin más temprano; ante un empate completo, detrás del que
+     * llegó primero). Si el lote nuevo va al final de la cola, la fecha es la finalización estimada más lejana de los lotes
+     * pendientes y en ejecución del fermentador. Si pasa por delante de algún pendiente, los lotes que quedan delante se
+     * reencadenan como en el registro (desde el lote en ejecución, con el día de limpieza, sin arrancar antes de hoy ni de
+     * su planificación) y la fecha es el fin del último de ellos; si no queda ninguno delante, es el fin estimado del lote
+     * en ejecución. Con esa fecha, {@code EstimacionLote.calcularFechaInicioEstimada} da la misma fecha de inicio que
+     * guarda el registro.
+     * </p>
+     *
+     * @param idPlanificacionProduccion ID de la planificación de producción del lote nuevo.
+     * @param idsFermentadores IDs de los fermentadores a evaluar.
+     * @return La fecha por ID de fermentador; un fermentador en el que el lote nuevo arrancaría libre (sin lote delante) no figura.
+     * @throws ReglaNegocioException Si no se informó la planificación de producción, o si algún lote que queda delante no tiene fechas estimadas válidas.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    Map<Long, LocalDate> calcularFinDelLoteAnteriorEnCola(Long idPlanificacionProduccion, Collection<Long> idsFermentadores);
 
     /**
      * Inicia un lote previamente registrado, dando paso a su ejecución real.

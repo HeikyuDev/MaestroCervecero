@@ -163,7 +163,7 @@
 </div>
 
 <!--
-    Un plan disponible (la página no muestra los que no lo están): el criterio, los avisos, los indicadores y la tabla de lotes
+    Un plan disponible (la página no muestra los que no lo están): los avisos, los indicadores y la tabla de lotes
     dentro del formulario de confirmación. Cada fila lleva en campos ocultos el volumen y los equipos del lote (lo que se
     envía al confirmar o al recalcular) y en data-* los identificadores que el modal muestra. El Controller devuelve
     también este fragmento solo, con el plan recalculado. Usa la variable "plan" (en la página la define th:with).
@@ -171,8 +171,6 @@
 <div th:fragment="plan" data-plan th:attr="data-modalidad=${plan.modalidad}" class="space-y-6">
 
     <th:block th:if="${plan.disponible}">
-        <p class="text-sm text-slate-500">Criterio de selección de equipos: <span class="font-medium text-slate-700" data-criterio-plan th:text="${plan.criterio}">Criterio</span></p>
-
         <div th:if="${!#lists.isEmpty(plan.avisos)}" data-avisos-plan role="alert"
              class="p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800">
             <div class="flex items-center gap-2 text-sm font-semibold">

@@ -5,8 +5,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -48,12 +46,8 @@ class GeneradorPlanesTest {
                 for (double excedente : excedentesPosibles) {
                     GeneradorPlanes generador = new GeneradorPlanes(escenario(litros, excedente, capacidades));
                     List<PlanProduccionResponseDTO> planes = new ArrayList<>();
-                    for (CriterioSeleccionPlanSecuencial criterio : CriterioSeleccionPlanSecuencial.values()) {
-                        planes.add(generador.generarSecuencial(criterio));
-                    }
-                    for (CriterioSeleccionPlanConcurrente criterio : CriterioSeleccionPlanConcurrente.values()) {
-                        planes.add(generador.generarConcurrente(criterio));
-                    }
+                    planes.add(generador.generarSecuencial());
+                    planes.add(generador.generarConcurrente());
                     for (PlanProduccionResponseDTO plan : planes) {
                         if (!plan.isDisponible()) {
                             assertThat(plan.getMotivoNoDisponible()).isNotBlank();
@@ -66,7 +60,7 @@ class GeneradorPlanesTest {
                         }
                         disponibles++;
                         String escenario = "L=" + litros + " capacidades=" + java.util.Arrays.toString(capacidades) + " excedente=" + excedente
-                                + " " + plan.getModalidad() + " " + plan.getCriterio();
+                                + " " + plan.getModalidad();
                         List<Double> volumenes = plan.getLotes().stream().map(LotePlanProduccionResponseDTO::getVolumenObjetivo).toList();
                         assertThat(GeneradorPlanes.problemasDelVolumenTotal(volumenes, litros, excedente)).as(escenario).isEmpty();
                         assertThat(BigDecimal.valueOf(plan.getVolumenTotal())).as(escenario).isGreaterThanOrEqualTo(BigDecimal.valueOf(litros));
@@ -145,11 +139,11 @@ class GeneradorPlanesTest {
         GeneradorPlanes generador = new GeneradorPlanes(escenario(10.0, 300.0, new double[]{0.5}));
 
         assertThat(generador.motivoNoDisponible()).isEqualTo(GeneradorPlanes.MENSAJE_SIN_CAPACIDAD);
-        assertThat(generador.generarSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD).isDisponible()).isFalse();
+        assertThat(generador.generarSecuencial().isDisponible()).isFalse();
     }
 
     @Test
-    @DisplayName("CP-GEN-06: encadenarFechas encola los lotes de un mismo fermentador en el orden dado, detrás de su último lote vivo")
+    @DisplayName("CP-GEN-06: encadenarFechas encola los lotes de un mismo fermentador en el orden dado, detrás del lote anterior en la cola")
     void encadenarFechasPorFermentador() {
         FermentadorEntity fermentador = fermentador(1L, 500.0);
         GeneradorPlanes.LoteDefinido lote = new GeneradorPlanes.LoteDefinido(fermentador, 500.0, molino(), macerador(), olla(), 100.0);
@@ -174,7 +168,7 @@ class GeneradorPlanesTest {
         GeneradorPlanes generador = new GeneradorPlanes(escenario(500.0, List.of(fermentador(1L, 500.0)),
                 List.of(molinoEnMantenimiento, molinoDisponible), List.of(maceradorEnMantenimiento, maceradorEnUso), List.of(ollaEnMantenimiento, ollaDisponible)));
 
-        PlanProduccionResponseDTO plan = generador.generarSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
+        PlanProduccionResponseDTO plan = generador.generarSecuencial();
 
         LotePlanProduccionResponseDTO lote = plan.getLotes().get(0);
         assertThat(lote.getIdMolino()).isEqualTo(21L);
@@ -189,7 +183,7 @@ class GeneradorPlanesTest {
         GeneradorPlanes generador = new GeneradorPlanes(escenario(1000.0, List.of(fermentador(1L, 500.0)),
                 List.of(molino(20L, 100.0, EstadoOperativo.EN_MANTENIMIENTO)), List.of(macerador()), List.of(olla())));
 
-        PlanProduccionResponseDTO plan = generador.generarSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
+        PlanProduccionResponseDTO plan = generador.generarSecuencial();
 
         assertThat(plan.isDisponible()).isTrue();
         assertThat(plan.getLotes()).hasSize(2).allMatch(l -> l.getIdMolino() == 20L);
@@ -206,9 +200,9 @@ class GeneradorPlanesTest {
         GeneradorPlanes todosEnMantenimiento = new GeneradorPlanes(escenario(1000.0, List.of(grandeEnMantenimiento),
                 List.of(molino()), List.of(macerador()), List.of(olla())));
 
-        PlanProduccionResponseDTO secuencial = conAlternativa.generarSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
-        PlanProduccionResponseDTO concurrente = conAlternativa.generarConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
-        PlanProduccionResponseDTO soloEnMantenimiento = todosEnMantenimiento.generarSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
+        PlanProduccionResponseDTO secuencial = conAlternativa.generarSecuencial();
+        PlanProduccionResponseDTO concurrente = conAlternativa.generarConcurrente();
+        PlanProduccionResponseDTO soloEnMantenimiento = todosEnMantenimiento.generarSecuencial();
 
         assertThat(secuencial.getLotes()).hasSize(4).allMatch(l -> l.getIdFermentador() == 2L);
         assertThat(secuencial.getAvisos()).isEmpty();
@@ -219,7 +213,43 @@ class GeneradorPlanesTest {
         assertThat(soloEnMantenimiento.getAvisos()).containsExactly("El equipo FER-1 se encuentra en mantenimiento");
     }
 
+    @Test
+    @DisplayName("CP-GEN-13: el plan secuencial elige el fermentador de mayor capacidad aunque se libere después; a igual capacidad, el que se libera antes")
+    void secuencialPorMayorCapacidadYLuegoLiberacion() {
+        FermentadorLibre grandeOcupado = new FermentadorLibre(fermentador(1L, 600.0), HOY.plusDays(40));
+        FermentadorLibre chicoLibre = new FermentadorLibre(fermentador(2L, 500.0), null);
+        FermentadorLibre medioMasTarde = new FermentadorLibre(fermentador(3L, 400.0), HOY.plusDays(20));
+        FermentadorLibre medioAntes = new FermentadorLibre(fermentador(4L, 400.0), HOY.plusDays(5));
+
+        PlanProduccionResponseDTO porCapacidad = new GeneradorPlanes(escenarioConLiberacion(1000.0, grandeOcupado, chicoLibre)).generarSecuencial();
+        PlanProduccionResponseDTO porLiberacion = new GeneradorPlanes(escenarioConLiberacion(800.0, medioMasTarde, medioAntes)).generarSecuencial();
+
+        assertThat(porCapacidad.getLotes()).hasSize(2).allMatch(l -> l.getIdFermentador() == 1L);
+        assertThat(porCapacidad.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(42));
+        assertThat(porLiberacion.getLotes()).hasSize(2).allMatch(l -> l.getIdFermentador() == 4L);
+        assertThat(porLiberacion.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(7));
+    }
+
+    @Test
+    @DisplayName("CP-GEN-14: el plan concurrente toma los fermentadores de mayor capacidad y, a igual capacidad, los que se liberan antes")
+    void concurrentePorMayorCapacidadYLuegoLiberacion() {
+        FermentadorLibre ocupado = new FermentadorLibre(fermentador(1L, 500.0), HOY.plusDays(30));
+        FermentadorLibre libraEnCinco = new FermentadorLibre(fermentador(2L, 500.0), HOY.plusDays(5));
+        FermentadorLibre libre = new FermentadorLibre(fermentador(3L, 500.0), null);
+
+        PlanProduccionResponseDTO plan = new GeneradorPlanes(escenarioConLiberacion(1000.0, ocupado, libraEnCinco, libre)).generarConcurrente();
+
+        assertThat(plan.isDisponible()).isTrue();
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(3L, 2L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada).containsExactly(HOY, HOY.plusDays(7));
+    }
+
     // ==================== Helpers ====================
+
+    private static Escenario escenarioConLiberacion(double litros, FermentadorLibre... fermentadores) {
+        return new Escenario(receta(), HOY, HOY.plusYears(5), HOY, 100.0, litros, 300.0, List.of(fermentadores),
+                List.of(molino()), List.of(macerador()), List.of(olla()), (volumen, macerador) -> 0.2 * volumen);
+    }
 
     private static Escenario escenario(double litros, double excedente, double[] capacidades) {
         List<FermentadorLibre> fermentadores = new ArrayList<>();

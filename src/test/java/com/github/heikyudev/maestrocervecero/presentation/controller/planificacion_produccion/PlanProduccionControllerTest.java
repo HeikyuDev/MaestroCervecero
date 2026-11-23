@@ -94,7 +94,7 @@ class PlanProduccionControllerTest {
                 .andExpect(content().string(containsString("data-pestana-secuencial")))
                 .andExpect(content().string(containsString("data-pestana-concurrente")))
                 .andExpect(content().string(containsString("bi-arrow-right-circle")))
-                .andExpect(content().string(containsString("Fermentador de mayor capacidad")))
+                .andExpect(content().string(not(containsString("Criterio de selección de equipos"))))
                 .andExpect(content().string(containsString("data-indicador=\"lotes\"")))
                 .andExpect(content().string(containsString("Fin del plan")))
                 .andExpect(content().string(containsString("data-nota-fechas-estimadas")))
@@ -303,7 +303,7 @@ class PlanProduccionControllerTest {
 
         when(planProduccionServicio.generarPlanes(7L)).thenReturn(planes(planSecuencial(), planConcurrente()));
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion());
-        when(planProduccionServicio.recalcularPlan(eq(7L), any())).thenReturn(plan(ModalidadPlanProduccion.CONCURRENTE, "Menor cantidad de lotes",
+        when(planProduccionServicio.recalcularPlan(eq(7L), any())).thenReturn(plan(ModalidadPlanProduccion.CONCURRENTE,
                 lote(1, 550.0, 1L, "FER-1"), lote(2, 600.5, 2L, "FER-EDITADO")));
 
         String html = mockMvc.perform(get(URL).param("modalidad", "CONCURRENTE").flashAttrs(resultado.getFlashMap()).with(como(Rol.GERENTE_DE_PRODUCCION)))
@@ -375,7 +375,7 @@ class PlanProduccionControllerTest {
     @DisplayName("CP-PLC-09: recalcular devuelve solo el fragmento del plan recalculado con los lotes del formulario")
     void recalcular_debeDevolverElFragmentoDelPlan() throws Exception {
         when(planProduccionServicio.recalcularPlan(eq(7L), any())).thenReturn(
-                plan(ModalidadPlanProduccion.SECUENCIAL, "Fermentador de mayor capacidad", lote(1, 450.0, 1L, "FER-1"), lote(2, 550.0, 1L, "FER-1")));
+                plan(ModalidadPlanProduccion.SECUENCIAL, lote(1, 450.0, 1L, "FER-1"), lote(2, 550.0, 1L, "FER-1")));
 
         mockMvc.perform(conLotes(post(URL + "/recalcular").with(csrf()).with(como(Rol.GERENTE_DE_PRODUCCION)), "SECUENCIAL"))
                 .andExpect(status().isOk())
@@ -458,22 +458,22 @@ class PlanProduccionControllerTest {
     }
 
     private static PlanProduccionResponseDTO noDisponible(ModalidadPlanProduccion modalidad, String motivo) {
-        return PlanProduccionResponseDTO.builder().modalidad(modalidad).criterio("Criterio").disponible(false).motivoNoDisponible(motivo).build();
+        return PlanProduccionResponseDTO.builder().modalidad(modalidad).disponible(false).motivoNoDisponible(motivo).build();
     }
 
     private static PlanProduccionResponseDTO planSecuencial() {
-        return plan(ModalidadPlanProduccion.SECUENCIAL, "Fermentador de mayor capacidad", lote(1, 500.0, 1L, "FER-1"), lote(2, 500.0, 1L, "FER-1"));
+        return plan(ModalidadPlanProduccion.SECUENCIAL, lote(1, 500.0, 1L, "FER-1"), lote(2, 500.0, 1L, "FER-1"));
     }
 
     private static PlanProduccionResponseDTO planConcurrente() {
-        return plan(ModalidadPlanProduccion.CONCURRENTE, "Menor cantidad de lotes", lote(1, 550.0, 1L, "FER-1"), lote(2, 450.0, 2L, "FER-2"));
+        return plan(ModalidadPlanProduccion.CONCURRENTE, lote(1, 550.0, 1L, "FER-1"), lote(2, 450.0, 2L, "FER-2"));
     }
 
-    private static PlanProduccionResponseDTO plan(ModalidadPlanProduccion modalidad, String criterio, LotePlanProduccionResponseDTO... lotes) {
+    private static PlanProduccionResponseDTO plan(ModalidadPlanProduccion modalidad, LotePlanProduccionResponseDTO... lotes) {
         List<LotePlanProduccionResponseDTO> lista = new ArrayList<>(List.of(lotes));
         double total = lista.stream().mapToDouble(LotePlanProduccionResponseDTO::getVolumenObjetivo).sum();
         return PlanProduccionResponseDTO.builder()
-                .modalidad(modalidad).criterio(criterio).disponible(true).lotes(lista)
+                .modalidad(modalidad).disponible(true).lotes(lista)
                 .litrosAPlanificar(1000.0).cantidadLotes(lista.size()).volumenTotal(total).excedente(Math.max(0, total - 1000.0))
                 .fermentadoresUtilizados((int) lista.stream().map(LotePlanProduccionResponseDTO::getIdFermentador).distinct().count())
                 .fechaFinalizacionPlan(INICIO.plusDays(46))

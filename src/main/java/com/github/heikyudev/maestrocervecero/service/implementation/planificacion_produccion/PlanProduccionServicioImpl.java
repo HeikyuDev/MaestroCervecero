@@ -52,7 +52,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -113,17 +112,15 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
         // 2. Resolver el escenario: la planificación admite un plan y hay equipos para generarlo
         ResolucionEscenario resolucion = resolverEscenario(planificacion, configuracion, litrosAPlanificar);
 
-        // 3. Generar cada plan con el criterio de la configuración (o informar por qué no hay planes)
+        // 3. Generar cada plan (o informar por qué no hay planes)
         PlanProduccionResponseDTO secuencial;
         PlanProduccionResponseDTO concurrente;
         if (resolucion.motivoNoDisponible() != null) {
-            secuencial = GeneradorPlanes.noDisponible(ModalidadPlanProduccion.SECUENCIAL,
-                    configuracion.getCriterioSeleccionPlanSecuencial().getEtiqueta(), resolucion.motivoNoDisponible(), litrosAPlanificar);
-            concurrente = GeneradorPlanes.noDisponible(ModalidadPlanProduccion.CONCURRENTE,
-                    configuracion.getCriterioSeleccionPlanConcurrente().getEtiqueta(), resolucion.motivoNoDisponible(), litrosAPlanificar);
+            secuencial = GeneradorPlanes.noDisponible(ModalidadPlanProduccion.SECUENCIAL, resolucion.motivoNoDisponible(), litrosAPlanificar);
+            concurrente = GeneradorPlanes.noDisponible(ModalidadPlanProduccion.CONCURRENTE, resolucion.motivoNoDisponible(), litrosAPlanificar);
         } else {
-            secuencial = resolucion.generador().generarSecuencial(configuracion.getCriterioSeleccionPlanSecuencial());
-            concurrente = resolucion.generador().generarConcurrente(configuracion.getCriterioSeleccionPlanConcurrente());
+            secuencial = resolucion.generador().generarSecuencial();
+            concurrente = resolucion.generador().generarConcurrente();
         }
 
         return PlanesProduccionResponseDTO.builder()
@@ -236,10 +233,7 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
                     litrosAPlanificar, configuracion.getExcedenteMaximoLitros()));
         }
 
-        String criterio = planProduccionFormDTO.getModalidad() == ModalidadPlanProduccion.SECUENCIAL
-                ? configuracion.getCriterioSeleccionPlanSecuencial().getEtiqueta()
-                : configuracion.getCriterioSeleccionPlanConcurrente().getEtiqueta();
-        return GeneradorPlanes.armarPlan(planProduccionFormDTO.getModalidad(), criterio, lotesDTO, litrosAPlanificar, avisos);
+        return GeneradorPlanes.armarPlan(planProduccionFormDTO.getModalidad(), lotesDTO, litrosAPlanificar, avisos);
     }
 
     /**
@@ -330,8 +324,9 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
 
     /**
      * Resuelve el escenario de la generación: si la planificación no está Pendiente o no le quedan litros por planificar
-     * no hay planes; si no, carga los equipos activos y la fecha de fin del último lote vivo de cada fermentador y arma
-     * el generador (que a su vez informa si faltan equipos o capacidad).
+     * no hay planes; si no, carga los equipos activos y, de cada fermentador, la fecha de fin del lote detrás del cual el
+     * registro ubicaría un lote de la planificación según su prioridad, y arma el generador (que a su vez informa si
+     * faltan equipos o capacidad).
      */
     private ResolucionEscenario resolverEscenario(PlanificacionProduccionEntity planificacion, ConfiguracionProduccionEntity configuracion,
                                                   double litrosAPlanificar) {
@@ -343,8 +338,10 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
         }
 
         VersionRecetaEntity versionReceta = planificacion.getVersionReceta();
-        List<FermentadorLibre> fermentadores = fermentadorRepository.buscarActivos().stream()
-                .map(fermentador -> new FermentadorLibre(fermentador, buscarFinUltimoLoteVivo(fermentador)))
+        List<FermentadorEntity> activos = fermentadorRepository.buscarActivos();
+        Map<Long, LocalDate> finLoteAnterior = buscarFinDelLoteAnteriorEnCola(planificacion, activos.stream().map(FermentadorEntity::getId).toList());
+        List<FermentadorLibre> fermentadores = activos.stream()
+                .map(fermentador -> new FermentadorLibre(fermentador, finLoteAnterior.get(fermentador.getId())))
                 .toList();
         Escenario escenario = new Escenario(versionReceta, planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada(), LocalDate.now(),
                 configuracion.getVelocidadEstandarEnvasado(), litrosAPlanificar, configuracion.getExcedenteMaximoLitros(), fermentadores,
@@ -407,19 +404,15 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
     }
 
     /**
-     * Encadena las fechas de los lotes en el orden dado, partiendo del último lote vivo de cada fermentador.
+     * Encadena las fechas de los lotes en el orden dado: el primer lote del plan en cada fermentador parte del lote
+     * detrás del cual el registro lo ubica según la prioridad de la planificación, y los siguientes, del lote anterior
+     * del plan en ese fermentador.
      */
     private List<LotePlanificado> encadenarFechas(List<LoteDefinido> lotes, PlanificacionProduccionEntity planificacion,
                                                   ConfiguracionProduccionEntity configuracion) {
-        Map<Long, LocalDate> finUltimoLoteVivo = new HashMap<>();
-        for (LoteDefinido lote : lotes) {
-            Long idFermentador = lote.fermentador().getId();
-            if (!finUltimoLoteVivo.containsKey(idFermentador)) {
-                finUltimoLoteVivo.put(idFermentador, buscarFinUltimoLoteVivo(lote.fermentador()));
-            }
-        }
-        return GeneradorPlanes.encadenarFechas(lotes, finUltimoLoteVivo, planificacion.getFechaInicioEstimada(), LocalDate.now(),
-                planificacion.getVersionReceta(), configuracion.getVelocidadEstandarEnvasado());
+        List<Long> idsFermentadores = lotes.stream().map(lote -> lote.fermentador().getId()).distinct().toList();
+        return GeneradorPlanes.encadenarFechas(lotes, buscarFinDelLoteAnteriorEnCola(planificacion, idsFermentadores),
+                planificacion.getFechaInicioEstimada(), LocalDate.now(), planificacion.getVersionReceta(), configuracion.getVelocidadEstandarEnvasado());
     }
 
     // ==================== Validaciones ====================
@@ -530,8 +523,16 @@ public class PlanProduccionServicioImpl implements IPlanProduccionServicio {
                 + ValidacionesNumericas.formatearNumero(planificacion.getCantidadAProducir()) + " L solicitados)";
     }
 
-    private LocalDate buscarFinUltimoLoteVivo(FermentadorEntity fermentador) {
-        return loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, EstimacionLote.ESTADOS_QUE_OCUPAN_FERMENTADOR).orElse(null);
+    /**
+     * Fin del lote detrás del cual el registro ubicaría un lote de la planificación en cada fermentador, con la misma
+     * regla de prioridad de {@link ILoteServicio#registrarLote} (ver {@link ILoteServicio#calcularFinDelLoteAnteriorEnCola}).
+     * Un fermentador en el que el lote arrancaría libre no figura.
+     */
+    private Map<Long, LocalDate> buscarFinDelLoteAnteriorEnCola(PlanificacionProduccionEntity planificacion, List<Long> idsFermentadores) {
+        if (idsFermentadores.isEmpty()) {
+            return Map.of();
+        }
+        return loteServicio.calcularFinDelLoteAnteriorEnCola(planificacion.getId(), idsFermentadores);
     }
 
     private double calcularMasaMalta(double volumen, MaceradorEntity macerador, VersionRecetaEntity versionReceta) {

@@ -53,30 +53,7 @@
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Planes de producción</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 items-start gap-5">
-                <div>
-                    <label for="criterioSeleccionPlanSecuencial" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Criterio para planes secuenciales <span class="text-rose-600" title="Obligatorio">*</span></span></label>
-                    <select id="criterioSeleccionPlanSecuencial" th:field="*{criterioSeleccionPlanSecuencial}"
-                            class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                            th:classappend="${#fields.hasErrors('criterioSeleccionPlanSecuencial')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option th:each="criterio : ${criteriosSecuenciales}" th:value="${criterio}" th:text="${criterio.etiqueta}">Criterio</option>
-                    </select>
-                    <p th:if="${#fields.hasErrors('criterioSeleccionPlanSecuencial')}" th:errors="*{criterioSeleccionPlanSecuencial}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes secuenciales.</p>
-                </div>
-                <div>
-                    <label for="criterioSeleccionPlanConcurrente" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Criterio para planes concurrentes <span class="text-rose-600" title="Obligatorio">*</span></span></label>
-                    <select id="criterioSeleccionPlanConcurrente" th:field="*{criterioSeleccionPlanConcurrente}"
-                            class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                            th:classappend="${#fields.hasErrors('criterioSeleccionPlanConcurrente')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option th:each="criterio : ${criteriosConcurrentes}" th:value="${criterio}" th:text="${criterio.etiqueta}">Criterio</option>
-                    </select>
-                    <p th:if="${#fields.hasErrors('criterioSeleccionPlanConcurrente')}" th:errors="*{criterioSeleccionPlanConcurrente}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes concurrentes.</p>
-                </div>
-            </div>
-
-            <div class="mt-5 grid grid-cols-1 md:grid-cols-3 items-start gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 items-start gap-5">
                 <div>
                     <label for="excedenteMaximoLitros" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Excedente máximo de un plan <span class="text-rose-600" title="Obligatorio">*</span></span></label>
                     <div th:replace="~{fragments/campo-unidad :: medida('excedenteMaximoLitros', 'excedenteMaximoLitros', ${configuracionForm.excedenteMaximoLitros != null ? (configuracionForm.excedenteMaximoLitros == configuracionForm.excedenteMaximoLitros.intValue() ? configuracionForm.excedenteMaximoLitros.intValue() : configuracionForm.excedenteMaximoLitros) : null}, 'Ej: 300', 'L', ${#fields.hasErrors('excedenteMaximoLitros')}, '0', null, 'any', false)}"></div>

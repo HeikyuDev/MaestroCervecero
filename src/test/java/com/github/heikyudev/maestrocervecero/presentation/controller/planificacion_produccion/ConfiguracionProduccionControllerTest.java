@@ -1,8 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.planificacion_produccion;
 
 import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConfig;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.presentation.controller.login.HomeController;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.ConfiguracionProduccionFormDTO;
@@ -87,7 +85,7 @@ class ConfiguracionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CPC-01: el GERENTE_DE_PRODUCCION ve la configuración vigente en los cinco campos, sin ceros sobrantes, con asterisco, placeholder y unidades")
+    @DisplayName("CP-CPC-01: el GERENTE_DE_PRODUCCION ve la configuración vigente en los cuatro campos, sin ceros sobrantes, con asterisco, placeholder y unidades")
     void caso_cp_cpc_01() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
@@ -130,12 +128,12 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("Se usa para estimar la duración del envasado al calcular las fechas de cada lote.")))
                 .andExpect(content().string(containsString("Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa")))
                 .andExpect(content().string(containsString("Un número entre 0 y 100.")))
-                .andExpect(content().string(containsString("Criterio con el que se elegirán los equipos al generar planes secuenciales.")));
+                .andExpect(content().string(containsString("Litros que la suma de los lotes de un plan puede superar a la cantidad a producir al confirmarlo.")));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CPC-03: los dos selects muestran los criterios con nombres legibles y dejan elegido el vigente")
+    @DisplayName("CP-CPC-03: la sección Planes de producción tiene un único parámetro, el excedente máximo, sin criterios de selección de equipos")
     void caso_cp_cpc_03() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
@@ -143,15 +141,10 @@ class ConfiguracionProduccionControllerTest {
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Fermentador de mayor capacidad")))
-                .andExpect(content().string(containsString("Fermentador que se libera más temprano")))
-                .andExpect(content().string(containsString("Menor cantidad de lotes")))
-                .andExpect(content().string(containsString("Equipos que se liberan más temprano")))
-                .andExpect(content().string(not(containsString(">FERMENTADOR_MAYOR_CAPACIDAD<"))))
-                .andExpect(content().string(not(containsString(">MENOR_CANTIDAD_DE_LOTES<"))))
-                .andExpect(content().string(matchesPattern("(?s).*<option value=\"FERMENTADOR_LIBERACION_MAS_TEMPRANA\" selected=\"selected\">.*")))
-                .andExpect(content().string(matchesPattern("(?s).*<option value=\"MENOR_CANTIDAD_DE_LOTES\" selected=\"selected\">.*")))
-                .andExpect(content().string(not(containsString("<option value=\"FERMENTADOR_MAYOR_CAPACIDAD\" selected"))));
+                .andExpect(content().string(containsString("Planes de producción")))
+                .andExpect(content().string(containsString("Excedente máximo de un plan <span")))
+                .andExpect(content().string(not(containsString("<select"))))
+                .andExpect(content().string(not(containsString("Criterio"))));
     }
 
     @ParameterizedTest
@@ -206,8 +199,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80.5")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA")
                         .param("excedenteMaximoLitros", "300"))
                 // === VERIFICACION ===
                 .andExpect(status().is3xxRedirection())
@@ -220,8 +211,6 @@ class ConfiguracionProduccionControllerTest {
         assertThat(captor.getValue().getCapacidadLoteEstandar()).isEqualTo(250.0);
         assertThat(captor.getValue().getVelocidadEstandarEnvasado()).isEqualTo(80.5);
         assertThat(captor.getValue().getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(75.0);
-        assertThat(captor.getValue().getCriterioSeleccionPlanSecuencial()).isEqualTo(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD);
-        assertThat(captor.getValue().getCriterioSeleccionPlanConcurrente()).isEqualTo(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA);
         assertThat(captor.getValue().getExcedenteMaximoLitros()).isEqualTo(300.0);
     }
 
@@ -239,8 +228,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "150")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "EQUIPOS_LIBERACION_MAS_TEMPRANA")
                         .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
@@ -248,8 +235,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("debe estar entre 0 y 100")))
                 .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"250\"")))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"80\"")))
-                .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"150\"")))
-                .andExpect(content().string(matchesPattern("(?s).*<option value=\"EQUIPOS_LIBERACION_MAS_TEMPRANA\" selected=\"selected\">.*")));
+                .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"150\"")));
     }
 
     @Test
@@ -264,8 +250,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "abc")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
                         .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
@@ -290,14 +274,11 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "")
                         .param("velocidadEstandarEnvasado", "")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "")
-                        .param("criterioSeleccionPlanSecuencial", "")
-                        .param("criterioSeleccionPlanConcurrente", "")
                         .param("excedenteMaximoLitros", ""))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("La capacidad de lote est")))
                 .andExpect(content().string(containsString("La velocidad de envasado es obligatoria")))
                 .andExpect(content().string(containsString("El porcentaje m")))
-                .andExpect(content().string(containsString("El criterio de selecci")))
                 .andExpect(content().string(containsString("El excedente máximo de un plan es obligatorio")))
                 .andExpect(content().string(containsString("es obligatori")));
 
@@ -313,8 +294,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
                         .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
@@ -331,8 +310,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
                         .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().is3xxRedirection());
 
@@ -401,8 +378,6 @@ class ConfiguracionProduccionControllerTest {
                 .capacidadLoteEstandar(300.0)
                 .velocidadEstandarEnvasado(100.5)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES)
                 .excedenteMaximoLitros(300.0)
                 .build();
     }
@@ -484,8 +459,6 @@ class ConfiguracionProduccionControllerTest {
                         .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
-                        .param("criterioSeleccionPlanSecuencial", "FERMENTADOR_MAYOR_CAPACIDAD")
-                        .param("criterioSeleccionPlanConcurrente", "MENOR_CANTIDAD_DE_LOTES")
                         .param("excedenteMaximoLitros", "-5"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))

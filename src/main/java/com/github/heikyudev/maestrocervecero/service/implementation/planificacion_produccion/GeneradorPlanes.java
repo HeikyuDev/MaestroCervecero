@@ -6,8 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.lote.EstimacionLote;
@@ -37,8 +35,8 @@ import java.util.function.DoublePredicate;
 
 /**
  * Algoritmo puro (sin acceso a datos) de la generación automática de planes de producción: capacidad efectiva de los
- * fermentadores, plan secuencial, plan concurrente (modelo de olas y asignación por liberación), reparto de los litros
- * y elección de los equipos del lado caliente de cada lote.
+ * fermentadores, plan secuencial, plan concurrente (modelo de olas), reparto de los litros y elección de los equipos
+ * del lado caliente de cada lote.
  * <p>
  * Recibe todo lo que necesita en un {@link Escenario} que arma {@link PlanProduccionServicioImpl}. Las fechas y los
  * límites de capacidad salen de {@link EstimacionLote}, la misma fuente que usa el registro de un lote. Nunca ofrece
@@ -71,8 +69,8 @@ final class GeneradorPlanes {
 
     /**
      * Datos de la generación: la receta, las fechas de inicio y de finalización estimadas de la planificación, hoy, la velocidad de envasado, los litros a planificar,
-     * el excedente máximo, los fermentadores activos con la fecha de fin de su último lote vivo, los equipos activos del
-     * lado caliente y el cálculo de la masa de malta.
+     * el excedente máximo, los fermentadores activos con la fecha de fin del lote detrás del cual irían los lotes del
+     * plan, los equipos activos del lado caliente y el cálculo de la masa de malta.
      */
     record Escenario(VersionRecetaEntity versionReceta, LocalDate inicioPlanificacion, LocalDate finPlanificacion, LocalDate hoy, double velocidadEnvasado,
                      double litrosAPlanificar, double excedenteMaximo, List<FermentadorLibre> fermentadores,
@@ -80,8 +78,12 @@ final class GeneradorPlanes {
                      CalculoMasaMalta masaMalta) {
     }
 
-    /** Fermentador activo y la fecha de finalización estimada de su último lote vivo ({@code null} si no tiene). */
-    record FermentadorLibre(FermentadorEntity fermentador, LocalDate finUltimoLoteVivo) {
+    /**
+     * Fermentador activo y la fecha de finalización estimada del lote detrás del cual el registro ubicaría un lote de
+     * la planificación según su prioridad ({@code null} si ese lote arrancaría con el fermentador libre). La calcula
+     * {@code ILoteServicio#calcularFinDelLoteAnteriorEnCola}.
+     */
+    record FermentadorLibre(FermentadorEntity fermentador, LocalDate finLoteAnterior) {
     }
 
     /** Lote con su volumen y sus equipos, todavía sin fechas. */
@@ -94,10 +96,10 @@ final class GeneradorPlanes {
     }
 
     /**
-     * Fermentador utilizable: su capacidad efectiva, la fecha de fin de su último lote vivo y la fecha en que podría
-     * arrancar su próximo lote.
+     * Fermentador utilizable: su capacidad efectiva, la fecha de fin del lote detrás del cual irían los lotes del plan y
+     * la fecha en que podría arrancar su próximo lote.
      */
-    private record Candidato(FermentadorEntity fermentador, double capacidad, LocalDate finUltimoLoteVivo, LocalDate proximoInicio) {
+    private record Candidato(FermentadorEntity fermentador, double capacidad, LocalDate finLoteAnterior, LocalDate proximoInicio) {
         String identificador() {
             return identificadorDe(fermentador);
         }
@@ -108,6 +110,14 @@ final class GeneradorPlanes {
     }
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /**
+     * Orden de preferencia de los fermentadores de ambos planes: mayor capacidad efectiva primero; a igualdad, el que
+     * se libera antes (fecha de su próximo inicio posible) y, por último, el identificador interno.
+     */
+    private static final Comparator<Candidato> POR_CAPACIDAD_Y_LIBERACION = Comparator.comparingDouble(Candidato::capacidad).reversed()
+            .thenComparing(Candidato::proximoInicio)
+            .thenComparing(Candidato::identificador);
 
     private static final Comparator<OpcionDeOlas> MEJOR_OPCION_DE_OLAS = Comparator.comparingInt(OpcionDeOlas::cantidadLotes)
             .thenComparingInt(OpcionDeOlas::olas)
@@ -135,64 +145,42 @@ final class GeneradorPlanes {
     // ==================== Plan secuencial ====================
 
     /**
-     * Genera el plan secuencial: un único fermentador, elegido por el criterio, con {@code ceil(litros / capacidad)} lotes.
+     * Genera el plan secuencial: un único fermentador, el de mayor capacidad efectiva (a igualdad, el que se libera
+     * antes y luego el identificador interno), con {@code ceil(litros / capacidad)} lotes.
      */
-    PlanProduccionResponseDTO generarSecuencial(CriterioSeleccionPlanSecuencial criterio) {
+    PlanProduccionResponseDTO generarSecuencial() {
         if (motivoNoDisponible != null) {
-            return noDisponible(ModalidadPlanProduccion.SECUENCIAL, criterio.getEtiqueta(), motivoNoDisponible, escenario.litrosAPlanificar());
+            return noDisponible(ModalidadPlanProduccion.SECUENCIAL, motivoNoDisponible, escenario.litrosAPlanificar());
         }
-        Comparator<Candidato> porCapacidadDescendente = Comparator.comparingDouble(Candidato::capacidad).reversed();
-        Comparator<Candidato> porLiberacion = Comparator.comparing(Candidato::proximoInicio);
-        Comparator<Candidato> orden = criterio == CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD
-                ? porCapacidadDescendente.thenComparing(porLiberacion)
-                : porLiberacion.thenComparing(porCapacidadDescendente);
-        Candidato elegido = candidatos.stream().min(orden.thenComparing(Candidato::identificador)).orElseThrow();
+        Candidato elegido = candidatos.stream().min(POR_CAPACIDAD_Y_LIBERACION).orElseThrow();
 
         int cantidadLotes = lotesNecesarios(escenario.litrosAPlanificar(), elegido.capacidad());
         if (cantidadLotes > LimitesTecnicos.PLAN_PRODUCCION_MAXIMO_LOTES) {
-            return noDisponible(ModalidadPlanProduccion.SECUENCIAL, criterio.getEtiqueta(),
-                    mensajeMaximoDeLotes("secuencial", cantidadLotes), escenario.litrosAPlanificar());
+            return noDisponible(ModalidadPlanProduccion.SECUENCIAL, mensajeMaximoDeLotes("secuencial", cantidadLotes), escenario.litrosAPlanificar());
         }
-        return planValidado(ModalidadPlanProduccion.SECUENCIAL, criterio.getEtiqueta(), Collections.nCopies(cantidadLotes, elegido));
+        return planValidado(ModalidadPlanProduccion.SECUENCIAL, Collections.nCopies(cantidadLotes, elegido));
     }
 
     // ==================== Plan concurrente ====================
 
     /**
-     * Genera el plan concurrente con el criterio indicado. Exige al menos {@link #MINIMO_FERMENTADORES_CONCURRENTE}
-     * fermentadores utilizables.
-     */
-    PlanProduccionResponseDTO generarConcurrente(CriterioSeleccionPlanConcurrente criterio) {
-        String etiqueta = criterio.getEtiqueta();
-        if (motivoNoDisponible != null) {
-            return noDisponible(ModalidadPlanProduccion.CONCURRENTE, etiqueta, motivoNoDisponible, escenario.litrosAPlanificar());
-        }
-        if (candidatos.size() < MINIMO_FERMENTADORES_CONCURRENTE) {
-            return noDisponible(ModalidadPlanProduccion.CONCURRENTE, etiqueta, MENSAJE_CONCURRENTE_SIN_FERMENTADORES, escenario.litrosAPlanificar());
-        }
-        if (criterio == CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA) {
-            try {
-                return planValidado(ModalidadPlanProduccion.CONCURRENTE, etiqueta, asignarPorLiberacion());
-            } catch (ReglaNegocioException e) {
-                return noDisponible(ModalidadPlanProduccion.CONCURRENTE, etiqueta, e.getMessage(), escenario.litrosAPlanificar());
-            }
-        }
-        return generarMenorCantidadDeLotes(etiqueta);
-    }
-
-    /**
-     * Modelo de olas: para k = 2..n toma los k fermentadores de mayor capacidad, calcula las olas necesarias
+     * Genera el plan concurrente con el modelo de olas: para k = 2..n toma los k fermentadores de mayor capacidad
+     * (a igualdad, el que se libera antes y luego el identificador interno), calcula las olas necesarias
      * {@code w = ceil(litros / suma de capacidades)} y los lotes {@code k · w} (cada fermentador recibe w lotes encolados
      * sobre sí mismo). Descarta las combinaciones que superan el máximo de lotes, cuyos equipos no se pueden asignar o
      * cuyo volumen total la confirmación rechazaría, y entre las demás elige la menor cantidad de lotes; a igualdad, la
-     * menor cantidad de olas y luego el fin de plan más temprano.
+     * menor cantidad de olas y luego el fin de plan más temprano. Exige al menos {@link #MINIMO_FERMENTADORES_CONCURRENTE}
+     * fermentadores utilizables.
      */
-    private PlanProduccionResponseDTO generarMenorCantidadDeLotes(String etiqueta) {
-        List<Candidato> porCapacidad = candidatos.stream()
-                .sorted(Comparator.comparingDouble(Candidato::capacidad).reversed()
-                        .thenComparing(Candidato::proximoInicio)
-                        .thenComparing(Candidato::identificador))
-                .toList();
+    PlanProduccionResponseDTO generarConcurrente() {
+        if (motivoNoDisponible != null) {
+            return noDisponible(ModalidadPlanProduccion.CONCURRENTE, motivoNoDisponible, escenario.litrosAPlanificar());
+        }
+        if (candidatos.size() < MINIMO_FERMENTADORES_CONCURRENTE) {
+            return noDisponible(ModalidadPlanProduccion.CONCURRENTE, MENSAJE_CONCURRENTE_SIN_FERMENTADORES, escenario.litrosAPlanificar());
+        }
+
+        List<Candidato> porCapacidad = candidatos.stream().sorted(POR_CAPACIDAD_Y_LIBERACION).toList();
 
         List<OpcionDeOlas> opciones = new ArrayList<>();
         String ultimoRechazo = null;
@@ -229,47 +217,13 @@ final class GeneradorPlanes {
 
         Optional<OpcionDeOlas> mejor = opciones.stream().min(MEJOR_OPCION_DE_OLAS);
         if (mejor.isPresent()) {
-            return aPlanDisponible(ModalidadPlanProduccion.CONCURRENTE, etiqueta, mejor.get().lotes());
+            return aPlanDisponible(ModalidadPlanProduccion.CONCURRENTE, mejor.get().lotes());
         }
         String motivo = ultimoRechazo != null
                 ? "Ninguna combinación de fermentadores en paralelo cubre los " + ValidacionesNumericas.formatearNumero(escenario.litrosAPlanificar())
                 + " L que faltan planificar con un volumen total válido (" + ultimoRechazo + ")"
                 : mensajeMaximoDeLotes("concurrente", lotesMinimos);
-        return noDisponible(ModalidadPlanProduccion.CONCURRENTE, etiqueta, motivo, escenario.litrosAPlanificar());
-    }
-
-    /**
-     * Asignación por liberación: cada lote va al fermentador que se libera antes, contando los lotes del plan ya
-     * asignados a él (a igualdad, el de mayor capacidad), con un volumen igual a su capacidad, hasta que la capacidad
-     * acumulada cubra los litros a planificar.
-     *
-     * @throws ReglaNegocioException Si el plan supera el máximo de lotes o no se pueden asignar sus equipos.
-     */
-    private List<Candidato> asignarPorLiberacion() {
-        Map<Long, LocalDate> proximoInicio = new HashMap<>();
-        candidatos.forEach(c -> proximoInicio.put(c.fermentador().getId(), c.proximoInicio()));
-        Comparator<Candidato> orden = Comparator.comparing((Candidato c) -> proximoInicio.get(c.fermentador().getId()))
-                .thenComparing(Comparator.comparingDouble(Candidato::capacidad).reversed())
-                .thenComparing(Candidato::identificador);
-
-        BigDecimal litros = BigDecimal.valueOf(escenario.litrosAPlanificar());
-        BigDecimal capacidadAcumulada = BigDecimal.ZERO;
-        List<Candidato> asignaciones = new ArrayList<>();
-        while (capacidadAcumulada.compareTo(litros) < 0) {
-            if (asignaciones.size() == LimitesTecnicos.PLAN_PRODUCCION_MAXIMO_LOTES) {
-                throw new ReglaNegocioException(mensajeMaximoDeLotes("concurrente", asignaciones.size() + 1));
-            }
-            Candidato elegido = candidatos.stream().min(orden).orElseThrow();
-            asignaciones.add(elegido);
-            capacidadAcumulada = capacidadAcumulada.add(BigDecimal.valueOf(elegido.capacidad()));
-
-            // El fermentador queda ocupado por un lote de su capacidad: su próximo inicio es tras el fin de ese lote
-            LoteDefinido loteACapacidad = definirLote(elegido.fermentador(), elegido.capacidad());
-            LocalDate fin = calcularFin(proximoInicio.get(elegido.fermentador().getId()), loteACapacidad);
-            proximoInicio.put(elegido.fermentador().getId(),
-                    EstimacionLote.calcularFechaInicioEstimada(fin, escenario.inicioPlanificacion(), escenario.hoy()));
-        }
-        return asignaciones;
+        return noDisponible(ModalidadPlanProduccion.CONCURRENTE, motivo, escenario.litrosAPlanificar());
     }
 
     // ==================== Lotes de un plan ====================
@@ -278,16 +232,16 @@ final class GeneradorPlanes {
      * Arma, valida y devuelve el plan de la secuencia de fermentadores asignados. Si la confirmación rechazaría su
      * volumen total, o no se pueden asignar sus equipos, el plan no está disponible.
      */
-    private PlanProduccionResponseDTO planValidado(ModalidadPlanProduccion modalidad, String etiqueta, List<Candidato> asignaciones) {
+    private PlanProduccionResponseDTO planValidado(ModalidadPlanProduccion modalidad, List<Candidato> asignaciones) {
         try {
             List<LotePlanificado> lotes = planificarLotes(asignaciones);
             List<String> problemas = problemasDelVolumenTotal(volumenesDe(lotes), escenario.litrosAPlanificar(), escenario.excedenteMaximo());
             if (!problemas.isEmpty()) {
-                return noDisponible(modalidad, etiqueta, problemas.get(0), escenario.litrosAPlanificar());
+                return noDisponible(modalidad, problemas.get(0), escenario.litrosAPlanificar());
             }
-            return aPlanDisponible(modalidad, etiqueta, lotes);
+            return aPlanDisponible(modalidad, lotes);
         } catch (ReglaNegocioException e) {
-            return noDisponible(modalidad, etiqueta, e.getMessage(), escenario.litrosAPlanificar());
+            return noDisponible(modalidad, e.getMessage(), escenario.litrosAPlanificar());
         }
     }
 
@@ -303,15 +257,15 @@ final class GeneradorPlanes {
         List<Double> volumenes = repartirLitros(asignaciones.stream().map(Candidato::capacidad).toList(), escenario.litrosAPlanificar(),
                 escenario.excedenteMaximo());
         List<LoteDefinido> lotes = new ArrayList<>();
-        Map<Long, LocalDate> finUltimoLoteVivo = new HashMap<>();
+        Map<Long, LocalDate> finLoteAnterior = new HashMap<>();
         for (int i = 0; i < asignaciones.size(); i++) {
             Candidato asignado = asignaciones.get(i);
             lotes.add(definirLote(asignado.fermentador(), volumenes.get(i)));
-            finUltimoLoteVivo.put(asignado.fermentador().getId(), asignado.finUltimoLoteVivo());
+            finLoteAnterior.put(asignado.fermentador().getId(), asignado.finLoteAnterior());
         }
 
         // Orden estable por fecha de inicio: los lotes de un mismo fermentador conservan su orden de asignación
-        List<LotePlanificado> ordenados = new ArrayList<>(encadenarFechas(lotes, finUltimoLoteVivo, escenario.inicioPlanificacion(),
+        List<LotePlanificado> ordenados = new ArrayList<>(encadenarFechas(lotes, finLoteAnterior, escenario.inicioPlanificacion(),
                 escenario.hoy(), escenario.versionReceta(), escenario.velocidadEnvasado()));
         ordenados.sort(Comparator.comparing(LotePlanificado::inicio));
         return ordenados;
@@ -410,16 +364,18 @@ final class GeneradorPlanes {
     }
 
     /**
-     * Encadena las fechas de los lotes en el orden dado, en el cronograma de su fermentador: cada lote arranca tras el
-     * último lote vivo de su fermentador o tras el lote anterior del plan en ese fermentador, con las fórmulas de
-     * {@link EstimacionLote}.
+     * Encadena las fechas de los lotes en el orden dado, en el cronograma de su fermentador: el primer lote del plan en
+     * un fermentador arranca tras el lote detrás del cual lo ubica la prioridad de su planificación, y cada uno de los
+     * siguientes tras el lote anterior del plan en ese fermentador (los lotes de una misma planificación empatan en la
+     * cola y van en el orden de llegada), con las fórmulas de {@link EstimacionLote}.
      *
      * @param lotes Los lotes, en el orden en que se encolan.
-     * @param finUltimoLoteVivo Fecha de fin del último lote vivo de cada fermentador (sin entrada o {@code null} si no tiene).
+     * @param finLoteAnterior Fecha de fin del lote detrás del cual va el primer lote del plan en cada fermentador (sin
+     *                        entrada o {@code null} si arranca con el fermentador libre).
      */
-    static List<LotePlanificado> encadenarFechas(List<LoteDefinido> lotes, Map<Long, LocalDate> finUltimoLoteVivo, LocalDate inicioPlanificacion,
+    static List<LotePlanificado> encadenarFechas(List<LoteDefinido> lotes, Map<Long, LocalDate> finLoteAnterior, LocalDate inicioPlanificacion,
                                                  LocalDate hoy, VersionRecetaEntity versionReceta, double velocidadEnvasado) {
-        Map<Long, LocalDate> finPorFermentador = new HashMap<>(finUltimoLoteVivo);
+        Map<Long, LocalDate> finPorFermentador = new HashMap<>(finLoteAnterior);
         List<LotePlanificado> planificados = new ArrayList<>();
         for (LoteDefinido lote : lotes) {
             Long idFermentador = lote.fermentador().getId();
@@ -499,8 +455,8 @@ final class GeneradorPlanes {
             if (capacidad < VOLUMEN_MINIMO_LOTE_LITROS) {
                 continue;
             }
-            LocalDate proximoInicio = EstimacionLote.calcularFechaInicioEstimada(libre.finUltimoLoteVivo(), escenario.inicioPlanificacion(), escenario.hoy());
-            resultado.add(new Candidato(libre.fermentador(), capacidad, libre.finUltimoLoteVivo(), proximoInicio));
+            LocalDate proximoInicio = EstimacionLote.calcularFechaInicioEstimada(libre.finLoteAnterior(), escenario.inicioPlanificacion(), escenario.hoy());
+            resultado.add(new Candidato(libre.fermentador(), capacidad, libre.finLoteAnterior(), proximoInicio));
         }
 
         // Los fermentadores en mantenimiento solo se usan si no hay otro utilizable (el plan lo avisa)
@@ -561,14 +517,14 @@ final class GeneradorPlanes {
 
     // ==================== Armado de la respuesta ====================
 
-    private PlanProduccionResponseDTO aPlanDisponible(ModalidadPlanProduccion modalidad, String criterio, List<LotePlanificado> lotes) {
+    private PlanProduccionResponseDTO aPlanDisponible(ModalidadPlanProduccion modalidad, List<LotePlanificado> lotes) {
         List<LotePlanProduccionResponseDTO> lotesDTO = new ArrayList<>();
         for (int i = 0; i < lotes.size(); i++) {
             lotesDTO.add(aLoteDTO(i + 1, lotes.get(i)));
         }
         List<String> avisos = new ArrayList<>(avisosDeMantenimiento(lotes));
         avisoDeFinalizacionTardia(fechaFinDe(lotes), escenario.finPlanificacion()).ifPresent(avisos::add);
-        return armarPlan(modalidad, criterio, lotesDTO, escenario.litrosAPlanificar(), avisos);
+        return armarPlan(modalidad, lotesDTO, escenario.litrosAPlanificar(), avisos);
     }
 
     /**
@@ -612,12 +568,11 @@ final class GeneradorPlanes {
                 lote.ollaHervor(), planificado.inicio(), planificado.fin());
     }
 
-    static PlanProduccionResponseDTO armarPlan(ModalidadPlanProduccion modalidad, String criterio, List<LotePlanProduccionResponseDTO> lotes,
+    static PlanProduccionResponseDTO armarPlan(ModalidadPlanProduccion modalidad, List<LotePlanProduccionResponseDTO> lotes,
                                                double litrosAPlanificar, List<String> avisos) {
         double volumenTotal = Redondeo.redondear(lotes.stream().mapToDouble(LotePlanProduccionResponseDTO::getVolumenObjetivo).sum());
         return PlanProduccionResponseDTO.builder()
                 .modalidad(modalidad)
-                .criterio(criterio)
                 .disponible(true)
                 .avisos(List.copyOf(avisos))
                 .lotes(List.copyOf(lotes))
@@ -631,10 +586,9 @@ final class GeneradorPlanes {
                 .build();
     }
 
-    static PlanProduccionResponseDTO noDisponible(ModalidadPlanProduccion modalidad, String criterio, String motivo, double litrosAPlanificar) {
+    static PlanProduccionResponseDTO noDisponible(ModalidadPlanProduccion modalidad, String motivo, double litrosAPlanificar) {
         return PlanProduccionResponseDTO.builder()
                 .modalidad(modalidad)
-                .criterio(criterio)
                 .disponible(false)
                 .motivoNoDisponible(motivo)
                 .litrosAPlanificar(litrosAPlanificar)
@@ -659,11 +613,6 @@ final class GeneradorPlanes {
             return MENSAJE_SIN_OLLAS;
         }
         return null;
-    }
-
-    private LocalDate calcularFin(LocalDate inicio, LoteDefinido lote) {
-        return EstimacionLote.calcularFechaFinalizacionEstimada(inicio, lote.volumen(), lote.molino().getRendimientoMolienda(),
-                lote.masaMalta(), escenario.versionReceta(), escenario.velocidadEnvasado());
     }
 
     /**

@@ -1,7 +1,5 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.planificacion_produccion;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.ConfiguracionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IConfiguracionProduccionServicio;
@@ -54,8 +52,6 @@ public class ConfiguracionProduccionController {
                 .velocidadEstandarEnvasado(actual.getVelocidadEstandarEnvasado())
                 .capacidadLoteEstandar(actual.getCapacidadLoteEstandar())
                 .porcentajeMinimoConsumoParaAvanzarEtapa(actual.getPorcentajeMinimoConsumoParaAvanzarEtapa())
-                .criterioSeleccionPlanSecuencial(actual.getCriterioSeleccionPlanSecuencial())
-                .criterioSeleccionPlanConcurrente(actual.getCriterioSeleccionPlanConcurrente())
                 .excedenteMaximoLitros(actual.getExcedenteMaximoLitros())
                 .build());
         cargarModeloFormulario(model, actual);
@@ -87,7 +83,5 @@ public class ConfiguracionProduccionController {
 
     private void cargarModeloFormulario(Model model, ConfiguracionProduccionResponseDTO vigente) {
         model.addAttribute("vigente", vigente);
-        model.addAttribute("criteriosSecuenciales", CriterioSeleccionPlanSecuencial.values());
-        model.addAttribute("criteriosConcurrentes", CriterioSeleccionPlanConcurrente.values());
     }
 }

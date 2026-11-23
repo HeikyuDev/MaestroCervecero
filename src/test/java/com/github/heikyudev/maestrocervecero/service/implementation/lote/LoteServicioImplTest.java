@@ -25,8 +25,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsu
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
@@ -80,6 +78,9 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
@@ -105,6 +106,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -6448,6 +6450,313 @@ class LoteServicioImplTest {
 
     // ==================== helpers ====================
 
+    // ==================== calcularFinDelLoteAnteriorEnCola ====================
+
+    /** Planificación PENDIENTE (id 1) del lote nuevo con la prioridad indicada: inicia hoy y finaliza en hoy + 30 (margen 30). */
+    private PlanificacionProduccionEntity mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion prioridad) {
+        PlanificacionProduccionEntity planificacion = crearPlanificacion(1L, EstadoSolicitud.PENDIENTE, null);
+        planificacion.setPrioridad(prioridad);
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        return planificacion;
+    }
+
+    @Test
+    @DisplayName("CP-FA-01: calcularFinDelLoteAnteriorEnCola — sin planificación informada lanza ReglaNegocioException sin consultar nada")
+    void calcularFinDelLoteAnteriorEnCola_debeRechazarLaPlanificacionNoInformada() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularFinDelLoteAnteriorEnCola(null, Set.of(5L)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación de producción es obligatoria");
+        verifyNoInteractions(planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FA-02: calcularFinDelLoteAnteriorEnCola — una planificación inexistente lanza RecursoNoEncontradoException")
+    void calcularFinDelLoteAnteriorEnCola_debeRechazarLaPlanificacionInexistente() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularFinDelLoteAnteriorEnCola(99L, Set.of(5L)))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la planificación de producción con ID: 99");
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+    }
+
+    @Test
+    @DisplayName("CP-FA-03: calcularFinDelLoteAnteriorEnCola — una planificación ALTA va delante de los BAJA: el piso es el lote en ejecución (arranca en hoy + 7, no tras el último BAJA)")
+    void calcularFinDelLoteAnteriorEnCola_debeUbicarUnaPlanificacionAltaDelanteDeLasBajas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.ALTA);
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 5L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
+        LoteEntity bajaB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
+        LoteEntity bajaC = crearLotePendienteBaja(12L, hoy.plusDays(19), hoy.plusDays(28));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(enEjecucion, bajaB, bajaC));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.plusDays(5)));
+        // Misma fecha de inicio que guarda registrarLote en CP-RL-50
+        assertThat(EstimacionLote.calcularFechaInicioEstimada(resultado.get(5L), hoy, hoy)).isEqualTo(hoy.plusDays(7));
+    }
+
+    @Test
+    @DisplayName("CP-FA-04: calcularFinDelLoteAnteriorEnCola — una planificación BAJA empata con las BAJA y va al final: el piso es el fin más lejano de los lotes vivos")
+    void calcularFinDelLoteAnteriorEnCola_debeUbicarUnaPlanificacionBajaAlFinal() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.BAJA);
+        // Mismo margen y mismo fin que las BAJA de la cola: empate completo, va detrás de ellas
+        planificacion.setFechaFinalizacionEstimada(hoy.plusDays(30));
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 5L, hoy.minusDays(10), hoy.plusDays(5), hoy.minusDays(10));
+        LoteEntity bajaB = crearLotePendienteBaja(11L, hoy.plusDays(7), hoy.plusDays(17));
+        LoteEntity bajaC = crearLotePendienteBaja(12L, hoy.plusDays(19), hoy.plusDays(28));
+        bajaB.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(30));
+        bajaC.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(30));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(enEjecucion, bajaB, bajaC));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.plusDays(28)));
+        assertThat(EstimacionLote.calcularFechaInicioEstimada(resultado.get(5L), hoy, hoy)).isEqualTo(hoy.plusDays(30));
+    }
+
+    @Test
+    @DisplayName("CP-FA-05: calcularFinDelLoteAnteriorEnCola — a igual prioridad va detrás del de menor margen y delante del de mayor margen")
+    void calcularFinDelLoteAnteriorEnCola_debeDesempatarPorMargenAIgualPrioridad() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.MEDIA);
+        LoteEntity margen10 = crearLotePendienteConMargen(11L, 10, hoy, hoy.plusDays(10));
+        LoteEntity margen40 = crearLotePendienteConMargen(12L, 40, hoy.plusDays(12), hoy.plusDays(22));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(margen10, margen40));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.plusDays(10)));
+    }
+
+    @Test
+    @DisplayName("CP-FA-06: calcularFinDelLoteAnteriorEnCola — ante un empate completo va detrás del que llegó primero")
+    void calcularFinDelLoteAnteriorEnCola_debeIrDetrasDeUnEmpateCompleto() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.MEDIA);
+        LoteEntity empate = crearLotePendienteConMargen(11L, 30, hoy, hoy.plusDays(10));
+        LoteEntity baja = crearLotePendienteBaja(12L, hoy.plusDays(12), hoy.plusDays(22));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(empate, baja));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.plusDays(10)));
+    }
+
+    @Test
+    @DisplayName("CP-FA-07: calcularFinDelLoteAnteriorEnCola — los lotes por delante se reencadenan como en el registro: un hueco de la cola se cierra")
+    void calcularFinDelLoteAnteriorEnCola_debeReencadenarLosLotesDeDelanteComoElRegistro() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.ALTA);
+        // A (ALTA, 10 días) quedó con un hueco: guardado de hoy + 5 a hoy + 15, sin lote en ejecución delante
+        LoteEntity altaA = crearLotePendienteConPrioridad(11L, PrioridadPlanificacion.ALTA, hoy.plusDays(5), hoy.plusDays(15));
+        altaA.getPlanificacionProduccion().setFechaFinalizacionEstimada(hoy.plusDays(10));
+        LoteEntity bajaB = crearLotePendienteBaja(12L, hoy.plusDays(17), hoy.plusDays(27));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(altaA, bajaB));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        // El registro reencadena A desde hoy (de hoy a hoy + 10): el lote nuevo va detrás de ese fin, no del guardado
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.plusDays(10)));
+        // Solo lectura: las fechas guardadas no cambian
+        assertFechas(altaA, hoy.plusDays(5), hoy.plusDays(15));
+        verify(loteRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("CP-FA-08: calcularFinDelLoteAnteriorEnCola — con el lote en ejecución atrasado, el piso es su fin y el lote nuevo arranca en hoy + 2")
+    void calcularFinDelLoteAnteriorEnCola_debeRespetarElLoteEnEjecucionAtrasado() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.ALTA);
+        LoteEntity enEjecucion = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 5L, hoy.minusDays(20), hoy.minusDays(3), hoy.minusDays(20));
+        LoteEntity bajaB = crearLotePendienteBaja(11L, hoy.plusDays(2), hoy.plusDays(12));
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L))).thenReturn(List.of(enEjecucion, bajaB));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L));
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(Map.entry(5L, hoy.minusDays(3)));
+        // Misma fecha de inicio que guarda registrarLote en CP-RL-51
+        assertThat(EstimacionLote.calcularFechaInicioEstimada(resultado.get(5L), hoy, hoy)).isEqualTo(hoy.plusDays(2));
+    }
+
+    @Test
+    @DisplayName("CP-FA-09: calcularFinDelLoteAnteriorEnCola — un fermentador libre no figura y se consulta una sola vez por todos los fermentadores")
+    void calcularFinDelLoteAnteriorEnCola_debeOmitirLosFermentadoresLibresYConsultarUnaSolaVez() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.ALTA);
+        LoteEntity soloBaja = crearLotePendienteBaja(11L, hoy, hoy.plusDays(10));
+        LoteEntity delSiete = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 3L, 7L, hoy, hoy.plusDays(12), hoy);
+        delSiete.getPlanificacionProduccion().setPrioridad(PrioridadPlanificacion.ALTA);
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(5L, 7L, 9L))).thenReturn(List.of(soloBaja, delSiete));
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(5L, 7L, 9L));
+
+        // === ASSERTS ===
+        // 5: solo hay un BAJA y ningún lote en ejecución, el lote nuevo arranca con el fermentador libre; 9: sin lotes;
+        // 7: el ALTA de la cola empata por completo con la planificación del lote nuevo, que va detrás de él
+        assertThat(resultado).containsExactly(Map.entry(7L, hoy.plusDays(12)));
+        verify(loteRepository, times(1)).buscarVivosDeFermentadores(any());
+    }
+
+    @Test
+    @DisplayName("CP-FA-10: calcularFinDelLoteAnteriorEnCola — sin fermentadores no consulta lotes")
+    void calcularFinDelLoteAnteriorEnCola_sinFermentadoresNoDebeConsultarLotes() {
+        // === PREPARACION DE DATOS ===
+        mockearPlanificacionDelLoteNuevo(PrioridadPlanificacion.ALTA);
+
+        // === EJECUCION ===
+        Map<Long, LocalDate> resultado = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of());
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+    }
+
+    // ==================== Vista previa del plan == registro real ====================
+
+    /**
+     * Escenarios de la cola del fermentador 4 para comparar la vista previa con el registro real: la prioridad de la
+     * planificación del lote nuevo, el fin estimado del lote en ejecución ({@code null} si no hay) y los pendientes en
+     * el orden de la cola. Todo lote de la cola dura 10 días.
+     */
+    static Stream<Arguments> escenariosVistaPreviaIgualAlRegistro() {
+        LocalDate hoy = LocalDate.now();
+        return Stream.of(
+                Arguments.of("CP-FA-11: posición intermedia con lote en ejecución y un hueco en la cola", PrioridadPlanificacion.MEDIA, hoy.plusDays(5),
+                        List.of(pendienteEnFermentador4(21L, PrioridadPlanificacion.ALTA, hoy.plusDays(10)),
+                                pendienteEnFermentador4(22L, PrioridadPlanificacion.BAJA, hoy.plusDays(22)))),
+                Arguments.of("CP-FA-12: posición intermedia con lote en ejecución atrasado", PrioridadPlanificacion.MEDIA, hoy.minusDays(3),
+                        List.of(pendienteEnFermentador4(21L, PrioridadPlanificacion.ALTA, hoy.plusDays(6)),
+                                pendienteEnFermentador4(22L, PrioridadPlanificacion.BAJA, hoy.plusDays(18)))),
+                Arguments.of("CP-FA-13: primera posición, detrás del lote en ejecución", PrioridadPlanificacion.ALTA, hoy.plusDays(5),
+                        List.of(pendienteEnFermentador4(21L, PrioridadPlanificacion.BAJA, hoy.plusDays(7)),
+                                pendienteEnFermentador4(22L, PrioridadPlanificacion.BAJA, hoy.plusDays(19)))),
+                Arguments.of("CP-FA-14: primera posición sin lote en ejecución", PrioridadPlanificacion.ALTA, null,
+                        List.of(pendienteEnFermentador4(21L, PrioridadPlanificacion.BAJA, hoy.plusDays(3)))),
+                Arguments.of("CP-FA-15: última posición", PrioridadPlanificacion.BAJA, hoy.plusDays(5),
+                        List.of(pendienteEnFermentador4(21L, PrioridadPlanificacion.ALTA, hoy.plusDays(7)),
+                                pendienteEnFermentador4(22L, PrioridadPlanificacion.MEDIA, hoy.plusDays(19)))));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("escenariosVistaPreviaIgualAlRegistro")
+    @DisplayName("CP-FA-11 a CP-FA-15: la fecha de inicio de la vista previa (fin del lote anterior + EstimacionLote) es la que guarda registrarLote")
+    void calcularFinDelLoteAnteriorEnCola_debeDarLaMismaFechaDeInicioQueElRegistro(String escenario, PrioridadPlanificacion prioridad,
+                                                                                  LocalDate finEnEjecucion, List<LoteEntity> pendientes) {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = prepararColaDelFermentador4(prioridad, finEnEjecucion, pendientes);
+
+        // === EJECUCION ===
+        // La vista previa se calcula antes del registro, que modifica las fechas de la cola al reencadenarla
+        LocalDate finLoteAnterior = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(4L)).get(4L);
+        LocalDate inicioDeLaVistaPrevia = EstimacionLote.calcularFechaInicioEstimada(finLoteAnterior, planificacion.getFechaInicioEstimada(), hoy);
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        loteServicio.registrarLote(loteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getFechaInicioEstimada()).as(escenario).isEqualTo(inicioDeLaVistaPrevia);
+    }
+
+    @Test
+    @DisplayName("CP-FA-16: dos lotes seguidos de la misma planificación: el registro guarda las fechas que encadena la vista previa (el segundo, dos días después del fin del primero)")
+    void calcularFinDelLoteAnteriorEnCola_dosLotesSeguidosDeLaMismaPlanificacionCoincidenConElRegistro() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity alta = pendienteEnFermentador4(21L, PrioridadPlanificacion.ALTA, hoy.plusDays(10));
+        LoteEntity baja = pendienteEnFermentador4(22L, PrioridadPlanificacion.BAJA, hoy.plusDays(22));
+        PlanificacionProduccionEntity planificacion = prepararColaDelFermentador4(PrioridadPlanificacion.MEDIA, hoy.plusDays(5), List.of(alta, baja));
+        LocalDate finLoteAnterior = loteServicio.calcularFinDelLoteAnteriorEnCola(1L, Set.of(4L)).get(4L);
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        // Primer lote: arranca detrás del lote que indica la prioridad
+        loteServicio.registrarLote(loteFormDTOBase());
+        LoteEntity primero = captor.getValue();
+        LocalDate inicioPrimero = primero.getFechaInicioEstimada();
+        LocalDate finPrimero = primero.getFechaFinalizacionEstimada();
+
+        // Segundo lote: la cola ya tiene al primero (empata con él y va detrás) y al BAJA empujado
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(List.of(alta, primero, baja));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(baja.getFechaFinalizacionEstimada()));
+        loteServicio.registrarLote(loteFormDTOBase());
+        LoteEntity segundo = captor.getValue();
+
+        // === ASSERTS ===
+        // Las fechas que encadena la vista previa (GeneradorPlanes.encadenarFechas usa las mismas fórmulas)
+        assertThat(inicioPrimero).isEqualTo(EstimacionLote.calcularFechaInicioEstimada(finLoteAnterior, planificacion.getFechaInicioEstimada(), hoy));
+        assertThat(segundo.getFechaInicioEstimada()).isEqualTo(EstimacionLote.calcularFechaInicioEstimada(finPrimero, planificacion.getFechaInicioEstimada(), hoy));
+        assertFechas(primero, inicioPrimero, finPrimero);
+        assertThat(baja.getFechaInicioEstimada()).isAfter(segundo.getFechaFinalizacionEstimada());
+    }
+
+    /**
+     * Prepara la planificación 1 (con la prioridad indicada, inicia hoy y finaliza en hoy + 30) y la cola del
+     * fermentador 4 con los mismos datos para la vista previa ({@code buscarVivosDeFermentadores}) y para el registro
+     * real (cola pendiente, lote en ejecución y fin más lejano de los lotes vivos).
+     */
+    private PlanificacionProduccionEntity prepararColaDelFermentador4(PrioridadPlanificacion prioridad, LocalDate finEnEjecucion, List<LoteEntity> pendientes) {
+        LocalDate hoy = LocalDate.now();
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.setPrioridad(prioridad);
+        mockearConfiguracionYReceta();
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+
+        List<LoteEntity> vivos = new ArrayList<>();
+        Optional<LoteEntity> enEjecucion = Optional.empty();
+        if (finEnEjecucion != null) {
+            LoteEntity lote = crearLoteEnFermentador(20L, EstadoLote.EN_EJECUCION, 9L, 4L, hoy.minusDays(20), finEnEjecucion, hoy.minusDays(20));
+            vivos.add(lote);
+            enEjecucion = Optional.of(lote);
+        }
+        vivos.addAll(pendientes);
+        LocalDate finMasLejano = vivos.stream().map(LoteEntity::getFechaFinalizacionEstimada).max(Comparator.naturalOrder()).orElse(null);
+
+        when(loteRepository.buscarVivosDeFermentadores(Set.of(4L))).thenReturn(vivos);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(4L)).thenReturn(pendientes);
+        lenient().when(loteRepository.buscarLoteEnEjecucionDeFermentador(4L)).thenReturn(enEjecucion);
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.ofNullable(finMasLejano));
+        return planificacion;
+    }
+
+    /**
+     * Lote PENDIENTE de 10 días en el fermentador 4 desde la fecha indicada, cuya planificación tiene la prioridad
+     * indicada, inicia hoy y finaliza en hoy + 30.
+     */
+    private static LoteEntity pendienteEnFermentador4(Long id, PrioridadPlanificacion prioridad, LocalDate inicio) {
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = crearLoteEnFermentador(id, EstadoLote.PENDIENTE, id, 4L, inicio, inicio.plusDays(10), hoy);
+        lote.getPlanificacionProduccion().setPrioridad(prioridad);
+        return lote;
+    }
+
     /**
      * Construye un lote PENDIENTE de la cola de un fermentador (id 5) con sus fechas estimadas, la
      * fecha de inicio estimada de su planificación y una etapa de FERMENTACION en ese fermentador.
@@ -6740,8 +7049,6 @@ class LoteServicioImplTest {
                 .velocidadEstandarEnvasado(10.0)
                 .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(80.0)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build();
         lenient().when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
     }
@@ -6752,8 +7059,6 @@ class LoteServicioImplTest {
                 .velocidadEstandarEnvasado(10.0)
                 .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build();
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
     }
@@ -7608,8 +7913,6 @@ class LoteServicioImplTest {
                 .velocidadEstandarEnvasado(10.0)
                 .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build();
     }
 

@@ -83,11 +83,12 @@ public final class EstimacionLote {
     }
 
     /**
-     * Calcula la fecha de inicio estimada de un lote encolado detrás del último lote vivo de su fermentador: dos días
-     * después de la fecha de finalización estimada de ese lote (si está atrasado se cuenta desde hoy), u hoy si el
-     * fermentador no tiene lotes vivos, pero nunca antes de la fecha de inicio estimada de la planificación ni de hoy.
+     * Calcula la fecha de inicio estimada de un lote encolado detrás de otro lote de su fermentador (en el registro, el
+     * último lote vivo): dos días después de la fecha de finalización estimada de ese lote (si está atrasado se cuenta
+     * desde hoy), u hoy si no va detrás de ningún lote, pero nunca antes de la fecha de inicio estimada de la
+     * planificación ni de hoy.
      *
-     * @param finUltimoLoteVivo Fecha de finalización estimada del último lote vivo del fermentador, o {@code null} si no tiene.
+     * @param finUltimoLoteVivo Fecha de finalización estimada del lote detrás del cual va, o {@code null} si no va detrás de ninguno.
      * @param inicioPlanificacion Fecha de inicio estimada de la planificación de producción del lote.
      * @param hoy La fecha actual.
      * @return {@code max(max(fin del último lote, hoy) + 2 días, inicio de la planificación, hoy)}, o

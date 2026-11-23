@@ -496,6 +496,10 @@ Datos existentes: de cada solicitud se conserva un solo plan, el `ELEGIDO` si lo
 
 `V36__quitar_fecha_entrega_estimada_cotizacion.sql` elimina `invitacion_cotizacion.fecha_entrega_estimada`: el proveedor cotiza solo el precio y la cantidad de cada presentación. La fecha estimada de entrega la indica el gerente de compras en el formulario de la orden de compra que se abre prearmado desde la orden propuesta del plan; llega vacía y es obligatoria, con las reglas del alta de órdenes de compra.
 
+### Criterio fijo de los planes de producción
+
+`V37__criterio_fijo_planes_produccion.sql` quita de `configuracion_produccion` las columnas `criterio_seleccion_plan_secuencial` y `criterio_seleccion_plan_concurrente` con sus restricciones `ck_configuracion_produccion_criterio_seleccion_plan_secuencial` y `ck_configuracion_produccion_criterio_seleccion_plan_concurrente`. La generación de planes de producción usa un único criterio por modalidad: el plan secuencial elige el fermentador de mayor capacidad efectiva (a igualdad, el que se libera antes y luego el identificador interno) y el plan concurrente, la combinación de menor cantidad de lotes. Usa `IF EXISTS`, de modo que también se aplica sobre una base de desarrollo armada con un esquema sin esas columnas.
+
 ## Auditoría y transacciones
 
 `AuditAspect` registra la bitácora solo después de que la operación se confirma:

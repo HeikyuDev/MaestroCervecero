@@ -27,9 +27,12 @@ import java.util.Optional;
  *     lote). Su capacidad efectiva es el menor valor entre su capacidad útil y el mayor volumen entero de lote que
  *     admiten algún macerador activo y alguna olla de hervor activa, con las mismas fórmulas del registro. Los de
  *     capacidad efectiva 0 se descartan.</li>
- *     <li>Fechas de cada lote: las mismas fórmulas del registro ({@code EstimacionLote}); los lotes del propio plan
- *     también ocupan su fermentador para los lotes siguientes. La vista previa no contempla la prioridad de la
- *     planificación frente a los lotes pendientes de otras planificaciones, que el registro sí aplica.</li>
+ *     <li>Fechas de cada lote: las mismas fórmulas y la misma ubicación en la cola que el registro. El primer lote del
+ *     plan en cada fermentador va detrás del lote que le indica la prioridad de la planificación
+ *     ({@link ILoteServicio#calcularFinDelLoteAnteriorEnCola}): pasa por delante de los pendientes de planificaciones
+ *     que le pierden, igual que al confirmarse, y esos pendientes empujados no se muestran en el plan. Los lotes del
+ *     propio plan también ocupan su fermentador para los lotes siguientes. Así las fechas del plan son las que guarda
+ *     la confirmación.</li>
  *     <li>Volumen de cada lote: proporcional a la capacidad de su fermentador, en litros enteros por el método del resto
  *     (piso de la cuota y 1 L más en los lotes de mayor parte fraccionaria) con un total de {@code ceil(litros)}, sin
  *     superar la capacidad. Si ese excedente (menor a 1 L) supera el excedente máximo, el total entero es
@@ -45,18 +48,19 @@ import java.util.Optional;
 public interface IPlanProduccionServicio {
 
     /**
-     * Genera los dos planes de producción alternativos para una planificación: el secuencial y el concurrente, cada
-     * uno con el criterio de selección de equipos de la configuración de producción.
+     * Genera los dos planes de producción alternativos para una planificación: el secuencial y el concurrente.
      * <ul>
-     *     <li>Secuencial: un único fermentador ({@code FERMENTADOR_MAYOR_CAPACIDAD}: el de mayor capacidad efectiva, a
-     *     igualdad el que se libera antes; {@code FERMENTADOR_LIBERACION_MAS_TEMPRANA}: el que se libera antes, a
-     *     igualdad el de mayor capacidad) con {@code ceil(litros / capacidad)} lotes.</li>
-     *     <li>Concurrente (exige al menos dos fermentadores utilizables): {@code MENOR_CANTIDAD_DE_LOTES} prueba los k
-     *     fermentadores de mayor capacidad (k = 2..n) en olas de un lote por fermentador y elige la menor cantidad de
-     *     lotes, a igualdad la menor cantidad de olas y luego el fin de plan más temprano;
-     *     {@code EQUIPOS_LIBERACION_MAS_TEMPRANA} asigna cada lote al fermentador que se libera antes (contando los
-     *     lotes del plan ya asignados), a igualdad el de mayor capacidad, hasta cubrir los litros.</li>
+     *     <li>Secuencial: un único fermentador, el de mayor capacidad efectiva (a igualdad, el que se libera antes y
+     *     luego el identificador interno), con {@code ceil(litros / capacidad)} lotes.</li>
+     *     <li>Concurrente (exige al menos dos fermentadores utilizables): menor cantidad de lotes. Prueba los k
+     *     fermentadores de mayor capacidad (k = 2..n; a igual capacidad, el que se libera antes) en olas de un lote por
+     *     fermentador y elige la menor cantidad de lotes, a igualdad la menor cantidad de olas y luego el fin de plan
+     *     más temprano.</li>
      * </ul>
+     * <p>
+     * Cuándo se libera cada fermentador sale de la cola de pendientes según la prioridad de la planificación, con la
+     * misma regla del registro de un lote.
+     * </p>
      * <p>
      * Nunca rechaza la generación por una regla de negocio: si un plan no se puede generar (la planificación no está
      * Pendiente, sus lotes ya cubren la cantidad a producir, faltan equipos activos, el plan supera el máximo de lotes o

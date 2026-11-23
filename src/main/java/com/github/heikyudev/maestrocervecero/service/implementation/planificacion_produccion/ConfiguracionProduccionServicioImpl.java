@@ -54,12 +54,6 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() == null) {
             throw new ReglaNegocioException("El porcentaje mínimo de consumo es obligatorio");
         }
-        if (configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial() == null) {
-            throw new ReglaNegocioException("El criterio de selección secuencial es obligatorio");
-        }
-        if (configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente() == null) {
-            throw new ReglaNegocioException("El criterio de selección concurrente es obligatorio");
-        }
         if (configuracionProduccionFormDTO.getExcedenteMaximoLitros() == null) {
             throw new ReglaNegocioException("El excedente máximo de un plan es obligatorio");
         }
@@ -92,8 +86,6 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         configuracionProduccionEntity.setVelocidadEstandarEnvasado(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado());
         configuracionProduccionEntity.setCapacidadLoteEstandar(configuracionProduccionFormDTO.getCapacidadLoteEstandar());
         configuracionProduccionEntity.setPorcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa());
-        configuracionProduccionEntity.setCriterioSeleccionPlanSecuencial(configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial());
-        configuracionProduccionEntity.setCriterioSeleccionPlanConcurrente(configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente());
         configuracionProduccionEntity.setExcedenteMaximoLitros(configuracionProduccionFormDTO.getExcedenteMaximoLitros());
 
         return MapperConfiguracionProduccion.toDTO(configuracionProduccionRepository.save(configuracionProduccionEntity));

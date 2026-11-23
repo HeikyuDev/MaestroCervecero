@@ -60,20 +60,6 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
     // === SECCION 3: generación automática de planes de producción ===
 
     /**
-     * Criterio para elegir el fermentador de un plan en modalidad secuencial.
-     */
-    @Column(name = "criterio_seleccion_plan_secuencial", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private CriterioSeleccionPlanSecuencial criterioSeleccionPlanSecuencial;
-
-    /**
-     * Criterio para elegir la combinación de equipos de un plan en modalidad concurrente.
-     */
-    @Column(name = "criterio_seleccion_plan_concurrente", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
-
-    /**
      * Litros que la suma de los lotes de un plan de producción puede superar a la cantidad a producir de su
      * planificación al confirmarlo. El valor 0 exige no superarla.
      */

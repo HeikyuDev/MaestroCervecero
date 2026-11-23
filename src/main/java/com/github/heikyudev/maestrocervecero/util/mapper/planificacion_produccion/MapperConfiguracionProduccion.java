@@ -25,8 +25,6 @@ public class MapperConfiguracionProduccion {
                 .velocidadEstandarEnvasado(configuracionProduccionEntity.getVelocidadEstandarEnvasado())
                 .capacidadLoteEstandar(configuracionProduccionEntity.getCapacidadLoteEstandar())
                 .porcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionEntity.getPorcentajeMinimoConsumoParaAvanzarEtapa())
-                .criterioSeleccionPlanSecuencial(configuracionProduccionEntity.getCriterioSeleccionPlanSecuencial())
-                .criterioSeleccionPlanConcurrente(configuracionProduccionEntity.getCriterioSeleccionPlanConcurrente())
                 .excedenteMaximoLitros(configuracionProduccionEntity.getExcedenteMaximoLitros())
                 .build();
     }

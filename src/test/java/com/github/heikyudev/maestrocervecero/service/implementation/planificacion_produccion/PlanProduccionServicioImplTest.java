@@ -6,12 +6,11 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mac
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.PrioridadPlanificacion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
@@ -50,6 +49,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -114,8 +114,6 @@ class PlanProduccionServicioImplTest {
                 .velocidadEstandarEnvasado(100.0)
                 .capacidadLoteEstandar(500.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES)
                 .excedenteMaximoLitros(300.0)
                 .build();
         lenient().when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
@@ -123,7 +121,7 @@ class PlanProduccionServicioImplTest {
                 .thenAnswer(inv -> List.of(new RequerimientoInsumo(null, null, KG_MALTA_POR_LITRO * (double) inv.getArgument(1))));
         lenient().when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
         lenient().when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(0.0);
-        lenient().when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        lenient().when(loteServicio.calcularFinDelLoteAnteriorEnCola(any(), any())).thenReturn(Map.of());
     }
 
     // ==================== generarPlanes ====================
@@ -181,18 +179,17 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPL-06: el plan secuencial con FERMENTADOR_MAYOR_CAPACIDAD usa el fermentador más grande aunque esté ocupado y encadena sus lotes")
+    @DisplayName("CP-GPL-06: el plan secuencial usa el fermentador de mayor capacidad aunque esté ocupado y encadena sus lotes")
     void secuencial_mayorCapacidad() {
         mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
         FermentadorEntity grande = fermentador(1L, 500.0);
         FermentadorEntity chico = fermentador(2L, 300.0);
         mockearEquipos(List.of(grande, chico), List.of(molino(1L, 100.0)), List.of(maceradorGrande(1L, 75.0)), List.of(ollaGrande(1L, 1.0, 5.0)));
-        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(eq(grande), anyList())).thenReturn(Optional.of(HOY.plusDays(30)));
+        when(loteServicio.calcularFinDelLoteAnteriorEnCola(eq(1L), any())).thenReturn(Map.of(1L, HOY.plusDays(30)));
 
         PlanProduccionResponseDTO plan = planProduccionServicio.generarPlanes(1L).getSecuencial();
 
         assertThat(plan.isDisponible()).isTrue();
-        assertThat(plan.getCriterio()).isEqualTo("Fermentador de mayor capacidad");
         assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 1L);
         assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(500.0, 500.0);
         LotePlanProduccionResponseDTO primero = plan.getLotes().get(0);
@@ -209,27 +206,27 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPL-07: el plan secuencial con FERMENTADOR_LIBERACION_MAS_TEMPRANA usa el que se libera antes y reparte los litros en partes iguales")
-    void secuencial_liberacionMasTemprana() {
-        configuracion.setCriterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA);
-        mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
-        FermentadorEntity grande = fermentador(1L, 500.0);
-        FermentadorEntity chico = fermentador(2L, 300.0);
-        mockearEquipos(List.of(grande, chico), List.of(molino(1L, 100.0)), List.of(maceradorGrande(1L, 75.0)), List.of(ollaGrande(1L, 1.0, 5.0)));
-        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(eq(grande), anyList())).thenReturn(Optional.of(HOY.plusDays(30)));
+    @DisplayName("CP-GPL-07: a igual capacidad, el plan secuencial usa el fermentador que se libera antes según la cola por prioridad de la planificación")
+    void secuencial_igualCapacidadUsaElQueSeLiberaAntesPorPrioridad() {
+        PlanificacionProduccionEntity planificacion = mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
+        planificacion.setPrioridad(PrioridadPlanificacion.ALTA);
+        mockearEquipos(List.of(fermentador(1L, 500.0), fermentador(2L, 500.0)), List.of(molino(1L, 100.0)),
+                List.of(maceradorGrande(1L, 75.0)), List.of(ollaGrande(1L, 1.0, 5.0)));
+        // El 1 queda detrás de un lote que termina en hoy + 30; en el 2 la planificación ALTA pasa por delante de los
+        // pendientes BAJA y va detrás del lote en ejecución, que termina en hoy + 5
+        when(loteServicio.calcularFinDelLoteAnteriorEnCola(eq(1L), any())).thenReturn(Map.of(1L, HOY.plusDays(30), 2L, HOY.plusDays(5)));
 
         PlanProduccionResponseDTO plan = planProduccionServicio.generarPlanes(1L).getSecuencial();
 
-        assertThat(plan.getCriterio()).isEqualTo("Fermentador que se libera más temprano");
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsOnly(2L).hasSize(4);
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsOnly(250.0);
-        assertThat(plan.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY);
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getOrden).containsExactly(1, 2, 3, 4);
-        assertThat(plan.getVolumenTotal()).isEqualTo(1000.0);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(2L, 2L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(500.0, 500.0);
+        assertThat(plan.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(7));
+        assertThat(plan.getLotes().get(1).getFechaInicioEstimada()).isEqualTo(plan.getLotes().get(0).getFechaFinalizacionEstimada().plusDays(2));
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getOrden).containsExactly(1, 2);
     }
 
     @Test
-    @DisplayName("CP-GPL-08: el plan concurrente MENOR_CANTIDAD_DE_LOTES reparte 2.000 L en dos olas de 500/300/223 L como 489/293/218 L (2.000 L, método del resto)")
+    @DisplayName("CP-GPL-08: el plan concurrente (menor cantidad de lotes) reparte 2.000 L en dos olas de 500/300/223 L como 489/293/218 L (2.000 L, método del resto)")
     void concurrente_menorCantidadDeLotes() {
         mockearPlanificacion(EstadoSolicitud.PENDIENTE, 2000.0);
         mockearEquipos(List.of(fermentador(1L, 500.0), fermentador(2L, 300.0), fermentador(3L, 223.0)),
@@ -238,7 +235,6 @@ class PlanProduccionServicioImplTest {
         PlanProduccionResponseDTO plan = planProduccionServicio.generarPlanes(1L).getConcurrente();
 
         assertThat(plan.isDisponible()).isTrue();
-        assertThat(plan.getCriterio()).isEqualTo("Menor cantidad de lotes");
         assertThat(plan.getCantidadLotes()).isEqualTo(6);
         assertThat(plan.getFermentadoresUtilizados()).isEqualTo(3);
         assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 3L, 1L, 2L, 3L);
@@ -250,20 +246,19 @@ class PlanProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPL-09: el plan concurrente EQUIPOS_LIBERACION_MAS_TEMPRANA asigna cada lote al fermentador que se libera antes: A, B, C y otra vez A")
-    void concurrente_liberacionMasTemprana() {
-        configuracion.setCriterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA);
-        mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1500.0);
-        mockearEquipos(List.of(fermentador(1L, 500.0), fermentador(2L, 400.0), fermentador(3L, 300.0)),
+    @DisplayName("CP-GPL-09: a igual capacidad, el plan concurrente toma los fermentadores que se liberan antes según la cola por prioridad, consultada una vez con todos los activos")
+    void concurrente_igualCapacidadTomaLosQueSeLiberanAntesPorPrioridad() {
+        mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
+        mockearEquipos(List.of(fermentador(1L, 500.0), fermentador(2L, 500.0), fermentador(3L, 500.0)),
                 List.of(molino(1L, 100.0)), List.of(maceradorGrande(1L, 75.0)), List.of(ollaGrande(1L, 1.0, 5.0)));
+        when(loteServicio.calcularFinDelLoteAnteriorEnCola(eq(1L), any())).thenReturn(Map.of(1L, HOY.plusDays(30), 2L, HOY.plusDays(5)));
 
         PlanProduccionResponseDTO plan = planProduccionServicio.generarPlanes(1L).getConcurrente();
 
-        assertThat(plan.getCriterio()).isEqualTo("Equipos que se liberan más temprano");
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(1L, 2L, 3L, 1L);
-        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getVolumenObjetivo).containsExactly(441.0, 353.0, 265.0, 441.0);
-        assertThat(plan.getVolumenTotal()).isEqualTo(1500.0);
-        assertThat(plan.getLotes().get(3).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(24));
+        assertThat(plan.isDisponible()).isTrue();
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getIdFermentador).containsExactly(3L, 2L);
+        assertThat(plan.getLotes()).extracting(LotePlanProduccionResponseDTO::getFechaInicioEstimada).containsExactly(HOY, HOY.plusDays(7));
+        verify(loteServicio, times(1)).calcularFinDelLoteAnteriorEnCola(1L, List.of(1L, 2L, 3L));
     }
 
     @Test
@@ -511,6 +506,20 @@ class PlanProduccionServicioImplTest {
         PlanProduccionResponseDTO plan = planProduccionServicio.recalcularPlan(1L, plan(ModalidadPlanProduccion.SECUENCIAL, lote(500.0, 1L)));
 
         assertThat(plan.getAvisos()).singleElement().asString().startsWith("El plan finaliza el ");
+    }
+
+    @Test
+    @DisplayName("CP-RPL-07: recalcularPlan encadena el primer lote de cada fermentador detrás del lote que indica la prioridad de la planificación, consultando cada fermentador una sola vez")
+    void recalcular_encadenaDetrasDelLoteQueIndicaLaPrioridad() {
+        mockearPlanificacion(EstadoSolicitud.PENDIENTE, 1000.0);
+        mockearEquiposPorId(fermentador(1L, 500.0));
+        when(loteServicio.calcularFinDelLoteAnteriorEnCola(eq(1L), any())).thenReturn(Map.of(1L, HOY.plusDays(5)));
+
+        PlanProduccionResponseDTO plan = planProduccionServicio.recalcularPlan(1L, plan(ModalidadPlanProduccion.SECUENCIAL, lote(500.0, 1L), lote(500.0, 1L)));
+
+        assertThat(plan.getLotes().get(0).getFechaInicioEstimada()).isEqualTo(HOY.plusDays(7));
+        assertThat(plan.getLotes().get(1).getFechaInicioEstimada()).isEqualTo(plan.getLotes().get(0).getFechaFinalizacionEstimada().plusDays(2));
+        verify(loteServicio, times(1)).calcularFinDelLoteAnteriorEnCola(1L, List.of(1L));
     }
 
     // ==================== confirmarPlan ====================

@@ -477,16 +477,113 @@ public class LoteServicioImpl implements ILoteServicio {
         //     prioridad, el lote nuevo pasa por delante y se reencadenan las fechas de toda la cola en su nuevo orden
         //     (los lotes en ejecución no forman parte de la cola y son el piso de la cadena). Si no, queda al final
         //     con las fechas ya calculadas
-        List<MetodosCronograma.CriterioDeCola> criteriosDeLaCola = colaPendiente.stream()
-                .map(l -> criterioDeCola(l.getPlanificacionProduccion()))
-                .toList();
-        int posicionEnCola = MetodosCronograma.calcularPosicionEnCola(criteriosDeLaCola, criterioDeCola(planificacionProduccion));
+        int posicionEnCola = calcularPosicionDelLoteNuevoEnCola(colaPendiente, planificacionProduccion);
         if (posicionEnCola < colaPendiente.size()) {
             colaPendiente.add(posicionEnCola, loteEntity);
             reencadenarLotesPendientes(loteFormDTO.getIdFermentador(), colaPendiente, false);
         }
 
         return MapperLote.toDTO(loteRepository.save(loteEntity));
+    }
+
+    /**
+     * Calcula, por fermentador, el fin del lote detrás del cual el registro ubicaría un lote nuevo de la planificación.
+     * Ver {@link ILoteServicio#calcularFinDelLoteAnteriorEnCola(Long, Collection)}.
+     * <p>
+     * Usa los lotes vivos de los fermentadores sin bloquearlos, en el mismo orden de cola que el registro (fecha de inicio
+     * estimada y, ante igual fecha, ID), la misma posición ({@link #calcularPosicionDelLoteNuevoEnCola}) y el mismo
+     * encadenado ({@link #encadenarInicios}) con la misma base que {@link #reencadenarLotesPendientes}.
+     * </p>
+     *
+     * @param idPlanificacionProduccion ID de la planificación de producción del lote nuevo.
+     * @param idsFermentadores IDs de los fermentadores a evaluar.
+     * @return La fecha por ID de fermentador; los fermentadores en los que el lote nuevo arrancaría libre no figuran.
+     * @throws ReglaNegocioException Si no se informó la planificación de producción, o si algún lote que queda delante no tiene fechas estimadas válidas.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, LocalDate> calcularFinDelLoteAnteriorEnCola(Long idPlanificacionProduccion, Collection<Long> idsFermentadores) {
+        // 1. Validar la planificación del lote nuevo
+        validarInformado(idPlanificacionProduccion, "La planificación de producción es obligatoria");
+        PlanificacionProduccionEntity planificacion = planificacionProduccionRepository.findById(idPlanificacionProduccion)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + idPlanificacionProduccion));
+
+        Map<Long, LocalDate> resultado = new LinkedHashMap<>();
+        if (idsFermentadores == null || idsFermentadores.isEmpty()) {
+            return resultado;
+        }
+
+        // 2. Recuperar con una sola consulta los lotes vivos de los fermentadores y separarlos por fermentador
+        //    (la consulta los trae en el orden de la cola: fecha de inicio estimada y, ante igual fecha, ID)
+        Map<Long, List<LoteEntity>> vivosPorFermentador = new LinkedHashMap<>();
+        for (LoteEntity lote : loteRepository.buscarVivosDeFermentadores(idsFermentadores)) {
+            Long idFermentador = idFermentadorONulo(lote);
+            if (idFermentador != null) {
+                vivosPorFermentador.computeIfAbsent(idFermentador, k -> new ArrayList<>()).add(lote);
+            }
+        }
+
+        // 3. Calcular en cada fermentador el fin del lote detrás del cual iría el lote nuevo
+        LocalDate hoy = LocalDate.now();
+        for (Long idFermentador : idsFermentadores) {
+            LocalDate fin = calcularFinDelLoteAnterior(vivosPorFermentador.getOrDefault(idFermentador, List.of()), planificacion, hoy);
+            if (fin != null) {
+                resultado.put(idFermentador, fin);
+            }
+        }
+        return resultado;
+    }
+
+    /**
+     * Fin del lote detrás del cual {@link #registrarLote} ubica un lote nuevo de la planificación en la cola de un
+     * fermentador, con sus lotes vivos:
+     * <ul>
+     *     <li>Al final de la cola (no pasa por delante de ningún pendiente): la finalización estimada más lejana de los
+     *     lotes vivos, la misma que usa el registro, o {@code null} si no hay ninguno.</li>
+     *     <li>Delante de algún pendiente: el registro reencadena la cola desde el lote en ejecución. Si queda primero, el
+     *     fin estimado del lote en ejecución ({@code null} si no hay); si no, el fin del último lote que queda delante
+     *     una vez reencadenado.</li>
+     * </ul>
+     */
+    private LocalDate calcularFinDelLoteAnterior(List<LoteEntity> vivos, PlanificacionProduccionEntity planificacion, LocalDate hoy) {
+        List<LoteEntity> colaPendiente = vivos.stream().filter(l -> l.getEstado() == EstadoLote.PENDIENTE).toList();
+        LocalDate finEnEjecucion = vivos.stream()
+                .filter(l -> l.getEstado() == EstadoLote.EN_EJECUCION)
+                .map(LoteEntity::getFechaFinalizacionEstimada)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+
+        int posicion = calcularPosicionDelLoteNuevoEnCola(colaPendiente, planificacion);
+        if (posicion == colaPendiente.size()) {
+            return vivos.stream().map(LoteEntity::getFechaFinalizacionEstimada).filter(Objects::nonNull)
+                    .max(Comparator.naturalOrder()).orElse(null);
+        }
+        if (posicion == 0) {
+            return finEnEjecucion;
+        }
+
+        List<LoteEntity> delante = colaPendiente.subList(0, posicion);
+        List<Long> duraciones = delante.stream().map(this::calcularDuracionEnDias).toList();
+        LocalDate base = finEnEjecucion == null ? hoy : EstimacionLote.calcularInicioTrasLote(finEnEjecucion, hoy);
+        List<LocalDate> inicios = encadenarInicios(duraciones,
+                delante.stream().map(l -> l.getPlanificacionProduccion().getFechaInicioEstimada()).toList(), base, hoy);
+        return inicios.get(posicion - 1).plusDays(duraciones.get(posicion - 1));
+    }
+
+    /**
+     * Posición de un lote nuevo de la planificación en la cola de pendientes de un fermentador, según la prioridad de su
+     * planificación ({@link MetodosCronograma#calcularPosicionEnCola}).
+     *
+     * @param colaPendiente Los lotes pendientes del fermentador, en el orden de la cola.
+     * @return El índice donde se inserta el lote nuevo; igual al tamaño de la cola si va al final.
+     */
+    private static int calcularPosicionDelLoteNuevoEnCola(List<LoteEntity> colaPendiente, PlanificacionProduccionEntity planificacion) {
+        List<MetodosCronograma.CriterioDeCola> criteriosDeLaCola = colaPendiente.stream()
+                .map(l -> criterioDeCola(l.getPlanificacionProduccion()))
+                .toList();
+        return MetodosCronograma.calcularPosicionEnCola(criteriosDeLaCola, criterioDeCola(planificacion));
     }
 
     /**

@@ -1,7 +1,5 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
@@ -42,18 +40,6 @@ public class ConfiguracionProduccionFormDTO {
      */
     @NotNull(message = "El porcentaje mínimo de consumo es obligatorio")
     private Double porcentajeMinimoConsumoParaAvanzarEtapa;
-
-    /**
-     * Criterio para elegir el fermentador de un plan en modalidad secuencial.
-     */
-    @NotNull(message = "El criterio de selección secuencial es obligatorio")
-    private CriterioSeleccionPlanSecuencial criterioSeleccionPlanSecuencial;
-
-    /**
-     * Criterio para elegir la combinación de equipos de un plan en modalidad concurrente.
-     */
-    @NotNull(message = "El criterio de selección concurrente es obligatorio")
-    private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
 
     /**
      * Litros (0 o más) que un plan de producción puede superar a la cantidad a producir de su planificación al confirmarlo.

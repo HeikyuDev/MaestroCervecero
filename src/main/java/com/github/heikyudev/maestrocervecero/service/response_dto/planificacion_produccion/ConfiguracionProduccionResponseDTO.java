@@ -1,7 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,16 +34,6 @@ public class ConfiguracionProduccionResponseDTO {
      * Porcentaje mínimo (0-100) de consumo requerido para poder avanzar de etapa.
      */
     private Double porcentajeMinimoConsumoParaAvanzarEtapa;
-
-    /**
-     * Criterio para elegir el fermentador de un plan en modalidad secuencial.
-     */
-    private CriterioSeleccionPlanSecuencial criterioSeleccionPlanSecuencial;
-
-    /**
-     * Criterio para elegir la combinación de equipos de un plan en modalidad concurrente.
-     */
-    private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
 
     /**
      * Litros que un plan de producción puede superar a la cantidad a producir de su planificación al confirmarlo.
