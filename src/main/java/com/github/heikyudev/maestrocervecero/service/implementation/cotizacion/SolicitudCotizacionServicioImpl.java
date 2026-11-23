@@ -353,19 +353,11 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         }
 
         // 3. Volver a verificar a los proveedores candidatos: se quitan los que se dieron de baja o ya no ofrecen ningún
-        //    insumo faltante en su catálogo vigente, y se recalcula qué insumos quedan sin proveedor
-        Set<Long> idsFaltantes = solicitud.getLineas().stream().map(linea -> linea.getInsumo().getId()).collect(Collectors.toSet());
-        Set<Long> insumosConProveedor = new HashSet<>();
-        solicitud.getInvitaciones().removeIf(invitacion -> {
-            VersionProveedorEntity version = MapperSolicitudCotizacion.versionVigente(invitacion.getProveedor());
-            if (invitacion.getProveedor().getEstado() != Estado.ACTIVO || version == null) {
-                return true;
-            }
-            Set<Long> ofrecidos = version.getCatalogoProveedor().stream().map(item -> item.getInsumo().getId())
-                    .filter(idsFaltantes::contains).collect(Collectors.toSet());
-            insumosConProveedor.addAll(ofrecidos);
-            return ofrecidos.isEmpty();
-        });
+        //    insumo faltante en su catálogo vigente, y se recalcula qué insumos quedan sin proveedor (la misma regla con la
+        //    que se muestran los insumos sin proveedor mientras la solicitud está pendiente de confirmación)
+        Set<Long> idsFaltantes = MapperSolicitudCotizacion.idsInsumosFaltantes(solicitud);
+        Set<Long> insumosConProveedor = MapperSolicitudCotizacion.insumosCubiertosPorInvitados(solicitud);
+        solicitud.getInvitaciones().removeIf(invitacion -> MapperSolicitudCotizacion.insumosOfrecidosPorInvitado(invitacion, idsFaltantes).isEmpty());
         if (solicitud.getInvitaciones().isEmpty()) {
             throw new ReglaNegocioException("No se puede confirmar el envío porque ningún proveedor candidato sigue activo y ofrece los insumos faltantes: cancele la solicitud");
         }

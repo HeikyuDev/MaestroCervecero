@@ -40,11 +40,15 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * MapperSolicitudCotizacion tiene la responsabilidad de mapear una solicitud de cotización, con sus líneas,
@@ -82,6 +86,7 @@ public final class MapperSolicitudCotizacion {
 
     private static SolicitudCotizacionResponseDTO armar(SolicitudCotizacionEntity entity, boolean completo) {
         PlanCompraResponseDTO plan = entity.getPlan() == null ? null : toPlanDTO(entity.getPlan(), entity.getLineas());
+        Set<LineaSolicitudCotizacionEntity> sinProveedor = lineasSinProveedor(entity);
         int respuestas = (int) entity.getInvitaciones().stream().filter(invitacion -> invitacion.getFechaRespuesta() != null).count();
 
         return SolicitudCotizacionResponseDTO.builder()
@@ -106,21 +111,23 @@ public final class MapperSolicitudCotizacion {
                 .motivoFallaCierre(entity.getMotivoFallaCierre())
                 .tiempoRestante(entity.getEstado() == EstadoSolicitudCotizacion.ABIERTA ? tiempoRestante(entity.getFechaLimiteRespuesta(), LocalDateTime.now()) : null)
                 .planElegido(entity.getPlan() != null && entity.getPlan().getEstado() == EstadoPlanCompra.ELEGIDO)
-                .avisos(armarAvisos(entity, respuestas, plan))
-                .lineas(completo ? entity.getLineas().stream().map(MapperSolicitudCotizacion::toLineaDTO).toList() : null)
+                .avisos(armarAvisos(entity, respuestas, plan, sinProveedor))
+                .lineas(completo ? entity.getLineas().stream().map(linea -> toLineaDTO(linea, sinProveedor.contains(linea))).toList() : null)
                 .invitaciones(completo ? entity.getInvitaciones().stream().map(MapperSolicitudCotizacion::toInvitacionDTO).toList() : null)
                 .plan(completo ? plan : null)
                 .build();
     }
 
     /**
-     * Las situaciones que el gerente de compras debe conocer: insumos que ningún proveedor ofrecía, solicitud cerrada
-     * sin respuestas o sin ofertas útiles, y plan que no cubre todo el faltante.
+     * Las situaciones que el gerente de compras debe conocer: insumos que ningún proveedor ofrece (ver
+     * {@link #lineasSinProveedor}), solicitud cerrada sin respuestas o sin ofertas útiles, y plan que no cubre todo el
+     * faltante.
      */
-    private static List<String> armarAvisos(SolicitudCotizacionEntity entity, int respuestas, PlanCompraResponseDTO plan) {
+    private static List<String> armarAvisos(SolicitudCotizacionEntity entity, int respuestas, PlanCompraResponseDTO plan,
+                                            Set<LineaSolicitudCotizacionEntity> lineasSinProveedor) {
         List<String> avisos = new ArrayList<>();
         List<String> sinProveedor = entity.getLineas().stream()
-                .filter(LineaSolicitudCotizacionEntity::isSinProveedor)
+                .filter(lineasSinProveedor::contains)
                 .map(linea -> linea.getInsumo().getNombre())
                 .toList();
         if (!sinProveedor.isEmpty()) {
@@ -164,9 +171,64 @@ public final class MapperSolicitudCotizacion {
     }
 
     /**
-     * Mapea una línea de la solicitud.
+     * Las líneas de la solicitud cuyo insumo ningún proveedor ofrece. Mientras la solicitud está pendiente de
+     * confirmación se calcula en el momento con la misma regla que la confirmación del envío
+     * ({@link #insumosCubiertosPorInvitados}): un insumo queda sin proveedor si ningún proveedor invitado que sigue activo
+     * lo ofrece en su catálogo vigente. En los demás estados es la marca guardada en cada línea. Es de solo lectura: no
+     * modifica la marca guardada.
      */
-    public static LineaSolicitudCotizacionResponseDTO toLineaDTO(LineaSolicitudCotizacionEntity linea) {
+    public static Set<LineaSolicitudCotizacionEntity> lineasSinProveedor(SolicitudCotizacionEntity solicitud) {
+        Set<LineaSolicitudCotizacionEntity> sinProveedor = Collections.newSetFromMap(new IdentityHashMap<>());
+        if (solicitud.getEstado() == EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION) {
+            Set<Long> cubiertos = insumosCubiertosPorInvitados(solicitud);
+            solicitud.getLineas().stream().filter(linea -> !cubiertos.contains(linea.getInsumo().getId())).forEach(sinProveedor::add);
+        } else {
+            solicitud.getLineas().stream().filter(LineaSolicitudCotizacionEntity::isSinProveedor).forEach(sinProveedor::add);
+        }
+        return sinProveedor;
+    }
+
+    /**
+     * Los insumos faltantes de la solicitud que ofrece al menos un proveedor invitado (ver
+     * {@link #insumosOfrecidosPorInvitado}).
+     */
+    public static Set<Long> insumosCubiertosPorInvitados(SolicitudCotizacionEntity solicitud) {
+        Set<Long> idsFaltantes = idsInsumosFaltantes(solicitud);
+        return solicitud.getInvitaciones().stream()
+                .flatMap(invitacion -> insumosOfrecidosPorInvitado(invitacion, idsFaltantes).stream())
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Los insumos faltantes que un proveedor invitado ofrece en el catálogo de su versión vigente; ninguno si el
+     * proveedor está dado de baja o no tiene versión vigente.
+     *
+     * @param invitacion La invitación del proveedor.
+     * @param idsFaltantes IDs de los insumos faltantes de la solicitud.
+     */
+    public static Set<Long> insumosOfrecidosPorInvitado(InvitacionCotizacionEntity invitacion, Set<Long> idsFaltantes) {
+        VersionProveedorEntity version = versionVigente(invitacion.getProveedor());
+        if (invitacion.getProveedor().getEstado() != Estado.ACTIVO || version == null) {
+            return Set.of();
+        }
+        return version.getCatalogoProveedor().stream()
+                .map(item -> item.getInsumo().getId())
+                .filter(idsFaltantes::contains)
+                .collect(Collectors.toSet());
+    }
+
+    /** IDs de los insumos faltantes de la solicitud (uno por línea). */
+    public static Set<Long> idsInsumosFaltantes(SolicitudCotizacionEntity solicitud) {
+        return solicitud.getLineas().stream().map(linea -> linea.getInsumo().getId()).collect(Collectors.toSet());
+    }
+
+    /**
+     * Mapea una línea de la solicitud.
+     *
+     * @param linea La línea.
+     * @param sinProveedor Si ningún proveedor ofrece su insumo (ver {@link #lineasSinProveedor}).
+     */
+    public static LineaSolicitudCotizacionResponseDTO toLineaDTO(LineaSolicitudCotizacionEntity linea, boolean sinProveedor) {
         InsumoEntity insumo = linea.getInsumo();
         return LineaSolicitudCotizacionResponseDTO.builder()
                 .id(linea.getId())
@@ -179,7 +241,7 @@ public final class MapperSolicitudCotizacion {
                 .cantidadComprometidaLotes(linea.getCantidadComprometidaLotes())
                 .cantidadPendienteRecepcion(linea.getCantidadPendienteRecepcion())
                 .cantidadFaltante(linea.getCantidadFaltante())
-                .sinProveedor(linea.isSinProveedor())
+                .sinProveedor(sinProveedor)
                 .build();
     }
 

@@ -65,7 +65,9 @@ public class LineaSolicitudCotizacionResponseDTO {
     private Double cantidadFaltante;
 
     /**
-     * {@code true} si ningún proveedor activo ofrecía el insumo al generar la solicitud.
+     * {@code true} si ningún proveedor ofrece el insumo: mientras la solicitud está pendiente de confirmación, ningún
+     * proveedor invitado que sigue activo lo ofrece hoy en su catálogo vigente; en los demás estados, la marca guardada
+     * en la línea.
      */
     private boolean sinProveedor;
 }

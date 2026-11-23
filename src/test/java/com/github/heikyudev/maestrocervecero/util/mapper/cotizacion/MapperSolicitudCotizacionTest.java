@@ -1,14 +1,24 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.cotizacion;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.InvitacionCotizacionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.LineaSolicitudCotizacionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.OfertaCotizacionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.SolicitudCotizacionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.LineaSolicitudCotizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion.SolicitudCotizacionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -118,5 +128,119 @@ class MapperSolicitudCotizacionTest {
         // Sin versión vigente no queda ninguna oferta
         vigente.setEsUltimaVersion(false);
         assertThat(MapperSolicitudCotizacion.ofertasVigentes(invitacion)).isEmpty();
+    }
+
+    // ==================== Insumos sin proveedor ====================
+
+    private static final MaltaEntity PILSEN = MaltaEntity.builder().id(1L).nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+    private static final LupuloEntity CASCADE = LupuloEntity.builder().id(2L).nombre("Cascade").unidadDeMedida(UnidadDeMedida.GRAMO).build();
+
+    /** Solicitud #12 de la planificación #45 en el estado indicado, sin líneas ni invitaciones. */
+    private static SolicitudCotizacionEntity solicitud(EstadoSolicitudCotizacion estado) {
+        return SolicitudCotizacionEntity.builder().id(12L).estado(estado)
+                .planificacionProduccion(PlanificacionProduccionEntity.builder().id(45L)
+                        .versionReceta(VersionRecetaEntity.builder().nombre("Pale Ale").build()).build())
+                .build();
+    }
+
+    /** Agrega una línea del insumo con la marca de "sin proveedor" guardada al generar la solicitud. */
+    private static LineaSolicitudCotizacionEntity agregarLinea(SolicitudCotizacionEntity solicitud, InsumoEntity insumo, boolean sinProveedorGuardado) {
+        LineaSolicitudCotizacionEntity linea = LineaSolicitudCotizacionEntity.builder().solicitud(solicitud).insumo(insumo)
+                .cantidadRequerida(10.0).cantidadDisponible(0.0).cantidadComprometidaLotes(0.0).cantidadPendienteRecepcion(0.0).cantidadFaltante(10.0)
+                .sinProveedor(sinProveedorGuardado).build();
+        solicitud.getLineas().add(linea);
+        return linea;
+    }
+
+    /** Invita a un proveedor en el estado indicado cuya versión vigente ofrece los insumos indicados. */
+    private static ProveedorEntity invitar(SolicitudCotizacionEntity solicitud, Long idProveedor, Estado estado, InsumoEntity... insumosVigentes) {
+        ProveedorEntity proveedor = ProveedorEntity.builder().id(idProveedor).estado(estado).build();
+        VersionProveedorEntity vigente = VersionProveedorEntity.builder().id(idProveedor * 10).esUltimaVersion(true).razonSocial("Proveedor " + idProveedor)
+                .proveedor(proveedor).build();
+        for (InsumoEntity insumo : insumosVigentes) {
+            vigente.getCatalogoProveedor().add(CatalogoProveedorEntity.builder().version(vigente).insumo(insumo).build());
+        }
+        proveedor.getVersiones().add(vigente);
+        solicitud.getInvitaciones().add(InvitacionCotizacionEntity.builder().solicitud(solicitud).proveedor(proveedor)
+                .estadoEnvio(EstadoEnvioInvitacion.PENDIENTE).intentosEnvio(0).build());
+        return proveedor;
+    }
+
+    private static List<String> avisosDeSinProveedor(SolicitudCotizacionResponseDTO dto) {
+        return dto.getAvisos().stream().filter(aviso -> aviso.startsWith("Ningún proveedor activo ofrece")).toList();
+    }
+
+    @Test
+    @DisplayName("CP-MSC-06: pendiente de confirmación, el insumo que un proveedor invitado agregó a su catálogo vigente deja de estar sin proveedor, sin modificar la línea")
+    void sinProveedor_pendienteCubiertoPorElCatalogoVigenteDelInvitado() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitud(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION);
+        LineaSolicitudCotizacionEntity pilsen = agregarLinea(solicitud, PILSEN, true);
+        agregarLinea(solicitud, CASCADE, false);
+        invitar(solicitud, 1L, Estado.ACTIVO, PILSEN, CASCADE);
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO completo = MapperSolicitudCotizacion.toDTO(solicitud);
+        SolicitudCotizacionResponseDTO resumen = MapperSolicitudCotizacion.toDTOResumen(solicitud);
+
+        // === ASSERTS ===
+        assertThat(avisosDeSinProveedor(completo)).isEmpty();
+        assertThat(avisosDeSinProveedor(resumen)).isEmpty();
+        assertThat(completo.getLineas()).extracting(LineaSolicitudCotizacionResponseDTO::isSinProveedor).containsExactly(false, false);
+        // Solo lectura: la marca guardada no cambia al consultar
+        assertThat(pilsen.isSinProveedor()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-MSC-07: pendiente de confirmación, el aviso lista solo los insumos que ningún proveedor invitado activo ofrece hoy en su catálogo vigente")
+    void sinProveedor_pendienteListaSoloLosQueSiguenSinProveedor() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitud(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION);
+        agregarLinea(solicitud, PILSEN, true);
+        agregarLinea(solicitud, CASCADE, true);
+        invitar(solicitud, 1L, Estado.ACTIVO, PILSEN);
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO dto = MapperSolicitudCotizacion.toDTO(solicitud);
+
+        // === ASSERTS ===
+        assertThat(avisosDeSinProveedor(dto)).containsExactly("Ningún proveedor activo ofrece Cascade");
+        assertThat(dto.getLineas()).extracting(LineaSolicitudCotizacionResponseDTO::isSinProveedor).containsExactly(false, true);
+    }
+
+    @Test
+    @DisplayName("CP-MSC-08: pendiente de confirmación, un proveedor invitado dado de baja después de generar la solicitud deja de cubrir sus insumos")
+    void sinProveedor_pendienteConProveedorDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitud(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION);
+        agregarLinea(solicitud, PILSEN, false);
+        agregarLinea(solicitud, CASCADE, false);
+        invitar(solicitud, 1L, Estado.BAJA, PILSEN);
+        invitar(solicitud, 2L, Estado.ACTIVO, CASCADE);
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO dto = MapperSolicitudCotizacion.toDTO(solicitud);
+
+        // === ASSERTS ===
+        assertThat(avisosDeSinProveedor(dto)).containsExactly("Ningún proveedor activo ofrece Pilsen");
+        assertThat(dto.getLineas()).extracting(LineaSolicitudCotizacionResponseDTO::isSinProveedor).containsExactly(true, false);
+    }
+
+    @Test
+    @DisplayName("CP-MSC-09: una solicitud que ya no está pendiente de confirmación usa la marca guardada, aunque el catálogo de los invitados haya cambiado")
+    void sinProveedor_abiertaUsaLaMarcaGuardada() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitud(EstadoSolicitudCotizacion.ABIERTA);
+        agregarLinea(solicitud, PILSEN, true);
+        agregarLinea(solicitud, CASCADE, false);
+        // Hoy el invitado ofrece Pilsen y ya no ofrece Cascade
+        invitar(solicitud, 1L, Estado.ACTIVO, PILSEN);
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO dto = MapperSolicitudCotizacion.toDTO(solicitud);
+
+        // === ASSERTS ===
+        assertThat(avisosDeSinProveedor(dto)).containsExactly("Ningún proveedor activo ofrece Pilsen");
+        assertThat(dto.getLineas()).extracting(LineaSolicitudCotizacionResponseDTO::isSinProveedor).containsExactly(true, false);
     }
 }

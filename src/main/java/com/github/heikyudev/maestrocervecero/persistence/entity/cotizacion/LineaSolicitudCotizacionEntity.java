@@ -10,7 +10,9 @@ import lombok.*;
  * (siempre mayor a 0).
  * <p>
  * {@code sinProveedor} queda en {@code true} si, al generar la solicitud, ningún proveedor activo ofrecía el insumo en
- * su catálogo vigente.
+ * su catálogo vigente, y se recalcula al confirmar el envío con los proveedores invitados que siguen activos. Mientras la
+ * solicitud está pendiente de confirmación las pantallas no usan esta marca: la calculan en el momento con la misma regla
+ * ({@code MapperSolicitudCotizacion.lineasSinProveedor}).
  * </p>
  */
 @Entity
