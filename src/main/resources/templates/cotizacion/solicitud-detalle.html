@@ -312,7 +312,7 @@
 
     <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
     <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-cancelar', 'Cancelar solicitud de cotización',
-            'Se cancela y queda registrado el motivo. Los enlaces de los proveedores dejan de servir en el momento y su plan queda cancelado. Esta acción no se puede deshacer.',
+            'Se cancela y queda registrado el motivo. Los enlaces de los proveedores dejan de servir en el momento, si la solicitud está abierta, se avisa por correo a los que recibieron la invitación, y su plan queda cancelado. Esta acción no se puede deshacer.',
             'Confirmar cancelación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
             'Se consiguió el insumo por otro medio')}"></div>
 </div>

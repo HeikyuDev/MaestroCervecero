@@ -44,11 +44,6 @@ public class InvitacionCotizacionResponseDTO {
     private boolean proveedorActivo;
 
     /**
-     * Momento en que se envió la invitación.
-     */
-    private LocalDateTime fechaEnvio;
-
-    /**
      * Momento del último envío de la respuesta, o {@code null} si no respondió.
      */
     private LocalDateTime fechaRespuesta;

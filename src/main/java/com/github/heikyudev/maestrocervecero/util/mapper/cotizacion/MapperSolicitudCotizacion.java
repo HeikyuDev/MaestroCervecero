@@ -260,7 +260,6 @@ public final class MapperSolicitudCotizacion {
                 .razonSocial(version == null ? null : version.getRazonSocial())
                 .cuit(version == null ? null : ValidacionesTexto.formatearCuit(version.getCuit()))
                 .proveedorActivo(proveedor.getEstado() == Estado.ACTIVO)
-                .fechaEnvio(invitacion.getCreatedDate())
                 .fechaRespuesta(invitacion.getFechaRespuesta())
                 .cantidadOfertas((int) ofertas.stream().map(OfertaVigente::oferta).filter(MapperSolicitudCotizacion::tieneStock).count())
                 .estadoParticipacion(estadoParticipacion(invitacion))

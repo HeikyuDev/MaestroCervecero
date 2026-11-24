@@ -249,4 +249,54 @@ class ProcesosCotizacionTest {
         assertThat(html).containsPattern("<li>Malta Pilsen: faltan 120 kg</li>\\s*<li>Lúpulo Cascade: faltan 2,5 kg</li>\\s*</ul>\\s*"
                 + "<p[^>]*>Ningún proveedor activo ofrece Cascade</p>\\s*<p[^>]*>Confirme el envío a los proveedores o cancele la solicitud</p>");
     }
+
+    @Test
+    @DisplayName("CP-PRC-10: el aviso de cancelación llega al proveedor en un hilo aparte con su razón social y el número de la solicitud, sin enlace")
+    @SuppressWarnings("unchecked")
+    void notificador_avisaCancelacionAProveedor() {
+        // === PREPARACION DE DATOS ===
+        ICorreoServicio correo = mock(ICorreoServicio.class);
+        NotificadorCotizaciones notificador = new NotificadorCotizaciones(correo, mock(IUsuarioRepository.class), "https://cerveceria.com");
+        ArgumentCaptor<Map<String, Object>> variables = ArgumentCaptor.forClass(Map.class);
+
+        // === EJECUCION ===
+        notificador.avisarCancelacionAProveedor("ventas@malteria.com", "MALTERIA SUR", 90L);
+
+        // === ASSERTS ===
+        verify(correo).enviarCorreoHtml(eq("ventas@malteria.com"), eq("Solicitud de cotización cancelada"),
+                eq("correo/cancelacion-solicitud-cotizacion"), variables.capture());
+        verify(correo, never()).intentarEnviarCorreoHtml(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        assertThat(variables.getValue())
+                .containsEntry("razonSocial", "MALTERIA SUR")
+                .containsEntry("numeroSolicitud", 90L)
+                .doesNotContainKey("enlace");
+    }
+
+    @Test
+    @DisplayName("CP-PRC-11: la plantilla real del aviso de cancelación informa que la solicitud se canceló y que no hace falta responder, sin enlace a la cotización")
+    void plantillaCancelacion_informaQueNoHaceFaltaResponder() {
+        // === PREPARACION DE DATOS ===
+        ClassLoaderTemplateResolver resolutor = new ClassLoaderTemplateResolver();
+        resolutor.setPrefix("templates/");
+        resolutor.setSuffix(".html");
+        resolutor.setTemplateMode(TemplateMode.HTML);
+        resolutor.setCharacterEncoding("UTF-8");
+        SpringTemplateEngine motor = new SpringTemplateEngine();
+        motor.setTemplateResolver(resolutor);
+        Context contexto = new Context();
+        contexto.setVariables(Map.of("razonSocial", "MALTERIA SUR", "numeroSolicitud", 90L));
+
+        // === EJECUCION ===
+        String html = motor.process(NotificadorCotizaciones.PLANTILLA_CANCELACION, contexto);
+
+        // === ASSERTS ===
+        assertThat(html).contains("Hola MALTERIA SUR:")
+                .contains("La solicitud de cotización N° 90 de Maestro Cervecero fue cancelada")
+                .contains("No es necesario que responda")
+                .contains("El enlace que recibió ya no acepta respuestas")
+                .contains("MAESTRO").contains("CERVECERO")
+                .doesNotContain("/cotizacion/")
+                .doesNotContain("Motivo");
+    }
 }

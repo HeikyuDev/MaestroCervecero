@@ -17,11 +17,13 @@ import java.util.Map;
 
 /**
  * Correos del proceso de generación automática de planes de órdenes de compra: la invitación a cada proveedor, con el
- * enlace a su formulario de cotización, y los avisos a los gerentes de compras activos, con el enlace a la solicitud.
+ * enlace a su formulario de cotización; el aviso a cada proveedor invitado de que la solicitud se canceló; y los avisos
+ * a los gerentes de compras activos, con el enlace a la solicitud.
  * <p>
  * La invitación se envía en el hilo de quien la invoca e informa si el servidor de correo la aceptó, para que el proceso
- * guarde el resultado y reintente las fallidas. Los avisos se envían en un hilo aparte: una falla se registra en el log
- * y nunca llega a quien los dispara; quien llama los invoca recién cuando su transacción se confirmó.
+ * guarde el resultado y reintente las fallidas. Los avisos (a proveedores y a gerentes) se envían en un hilo aparte: una
+ * falla se registra en el log, no se reintenta y nunca llega a quien los dispara; quien llama los invoca recién cuando
+ * su transacción se confirmó.
  * </p>
  */
 @Component
@@ -29,7 +31,9 @@ public class NotificadorCotizaciones {
 
     static final String PLANTILLA_INVITACION = "correo/solicitud-cotizacion";
     static final String PLANTILLA_AVISO = "correo/aviso-solicitud-cotizacion";
+    static final String PLANTILLA_CANCELACION = "correo/cancelacion-solicitud-cotizacion";
     static final String ASUNTO_INVITACION = "Solicitud de cotización de Maestro Cervecero";
+    static final String ASUNTO_CANCELACION = "Solicitud de cotización cancelada";
     static final String RUTA_COTIZACION = "/cotizacion/";
     static final String RUTA_SOLICITUD = "/solicitudes-cotizacion/";
     static final String RUTA_LISTADO = "/solicitudes-cotizacion";
@@ -65,6 +69,21 @@ public class NotificadorCotizaciones {
         variables.put("fechaLimite", fechaLimite.format(FORMATO_FECHA_HORA));
         variables.put("insumos", insumos);
         return correoServicio.intentarEnviarCorreoHtml(correo, ASUNTO_INVITACION, PLANTILLA_INVITACION, variables);
+    }
+
+    /**
+     * Avisa a un proveedor invitado que la solicitud de cotización se canceló y que no hace falta responder. No incluye
+     * el motivo de la cancelación ni el enlace al formulario.
+     *
+     * @param correo Dirección de correo del proveedor.
+     * @param razonSocial Razón social del proveedor.
+     * @param idSolicitud Número de la solicitud cancelada.
+     */
+    public void avisarCancelacionAProveedor(String correo, String razonSocial, Long idSolicitud) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("razonSocial", razonSocial);
+        variables.put("numeroSolicitud", idSolicitud);
+        correoServicio.enviarCorreoHtml(correo, ASUNTO_CANCELACION, PLANTILLA_CANCELACION, variables);
     }
 
     /**

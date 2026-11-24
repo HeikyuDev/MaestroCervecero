@@ -86,8 +86,8 @@ import java.util.stream.Collectors;
 /**
  * Implementación de {@link ISolicitudCotizacionServicio}.
  * <p>
- * Los avisos a los gerentes de compras se envían recién cuando la transacción se confirma: si la solicitud o su plan
- * no llegan a guardarse, no se avisa nada. Las invitaciones a los proveedores nunca se envían con la solicitud
+ * Los avisos a los gerentes de compras y el aviso de cancelación a los proveedores se envían recién cuando la
+ * transacción se confirma: si la solicitud o su plan no llegan a guardarse, no se avisa nada. Las invitaciones a los proveedores nunca se envían con la solicitud
  * bloqueada: {@link #prepararEnvios(Long)} guarda el token de cada intento en una transacción corta, el correo se envía
  * fuera de toda transacción ({@code EnvioInvitacionesCotizacion}) y {@link #registrarResultadosEnvio(Long, Map)} guarda
  * el resultado en otra. El cálculo del plan lo hace
@@ -712,7 +712,11 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 continue;
             }
             SolicitudCotizacionEntity solicitud = bloqueada.get();
+            boolean estabaAbierta = solicitud.getEstado() == EstadoSolicitudCotizacion.ABIERTA;
             marcarCancelada(solicitud, MOTIVO_CANCELACION, ahora);
+            if (estabaAbierta) {
+                avisarCancelacionAProveedores(solicitud);
+            }
             PlanCompraEntity plan = solicitud.getPlan();
             if (plan != null) {
                 // El plan elegido con órdenes ya confirmadas conserva su estado: esas órdenes de compra siguen vigentes
@@ -754,8 +758,13 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             throw new ReglaNegocioException("No se puede cancelar la solicitud de cotización porque su plan ya fue elegido");
         }
 
-        // 4. Cancelarla: los enlaces vencen en el momento y el plan queda cancelado
+        // 4. Cancelarla: los enlaces vencen en el momento y el plan queda cancelado; si estaba abierta, se avisa a los
+        //    proveedores que recibieron la invitación (una cerrada ya no acepta respuestas)
+        boolean estabaAbierta = solicitud.getEstado() == EstadoSolicitudCotizacion.ABIERTA;
         marcarCancelada(solicitud, motivoCancelacion, LocalDateTime.now());
+        if (estabaAbierta) {
+            avisarCancelacionAProveedores(solicitud);
+        }
         if (plan != null) {
             plan.setEstado(EstadoPlanCompra.CANCELADO);
             descartarPendientes(plan);
@@ -779,6 +788,42 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 invitacion.setFechaExpiracion(ahora);
             }
         });
+    }
+
+    /**
+     * Se invoca solo cuando la solicitud estaba {@code ABIERTA} al cancelarse: una pendiente de confirmación no envió
+     * invitaciones y una cerrada o con el plan generado ya no acepta respuestas, así que en esos casos no se avisa a nadie.
+     * Al confirmarse la cancelación, avisa por correo a cada proveedor que recibió la invitación ({@code ENVIADA}) y sigue
+     * activo con una versión vigente, en la dirección de esa versión. Los que nunca recibieron el enlace (pendientes, en
+     * envío, fallidos u omitidos) no se avisan. El aviso no lleva el motivo; una falla al enviarlo se registra en el log,
+     * no se reintenta y no afecta la cancelación.
+     */
+    private void avisarCancelacionAProveedores(SolicitudCotizacionEntity solicitud) {
+        List<DestinatarioProveedor> destinatarios = new ArrayList<>();
+        for (InvitacionCotizacionEntity invitacion : solicitud.getInvitaciones()) {
+            if (invitacion.getEstadoEnvio() != EstadoEnvioInvitacion.ENVIADA || invitacion.getProveedor().getEstado() != Estado.ACTIVO) {
+                continue;
+            }
+            VersionProveedorEntity version = MapperSolicitudCotizacion.versionVigente(invitacion.getProveedor());
+            if (version != null) {
+                destinatarios.add(new DestinatarioProveedor(version.getEmail(), version.getRazonSocial()));
+            }
+        }
+        if (destinatarios.isEmpty()) {
+            return;
+        }
+        Long idSolicitud = solicitud.getId();
+        ejecutarAlConfirmar(() -> destinatarios.forEach(destinatario -> {
+            try {
+                notificador.avisarCancelacionAProveedor(destinatario.correo(), destinatario.razonSocial(), idSolicitud);
+            } catch (RuntimeException e) {
+                log.error("No se pudo avisar la cancelación de la solicitud de cotización {} a un proveedor: {}", idSolicitud, e.getMessage());
+            }
+        }));
+    }
+
+    /** Dirección y razón social de la versión vigente de un proveedor, tomadas antes de que termine la transacción. */
+    private record DestinatarioProveedor(String correo, String razonSocial) {
     }
 
     /**

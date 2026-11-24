@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+    Correo con el que se avisa a un proveedor invitado que una solicitud de cotización se canceló. Lo procesa
+    ICorreoServicio fuera de una request HTTP. No incluye el motivo de la cancelación ni el enlace al formulario.
+    Variables: razonSocial, numeroSolicitud.
+    Los estilos van en línea porque los clientes de correo ignoran las hojas de estilo.
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de cotización cancelada - Maestro Cervecero</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:24px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+                   style="max-width:560px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+                <tr>
+                    <td style="background-color:#0f172a;padding:24px;text-align:center;">
+                        <span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#ffffff;">MAESTRO</span><span
+                            style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#f59e0b;">CERVECERO</span>
+                        <div style="font-size:13px;color:#94a3b8;margin-top:4px;">Solicitud de cotización cancelada</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:32px 32px 32px 32px;font-size:15px;line-height:1.6;">
+                        <p style="margin:0 0 16px 0;" th:text="|Hola ${razonSocial}:|">Hola Malterías del Sur S.A.:</p>
+                        <p style="margin:0 0 16px 0;"
+                           th:text="|La solicitud de cotización N° ${numeroSolicitud} de Maestro Cervecero fue cancelada.|">
+                            La solicitud de cotización N° 12 de Maestro Cervecero fue cancelada.
+                        </p>
+                        <p style="margin:0;">
+                            No es necesario que responda. El enlace que recibió ya no acepta respuestas.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color:#f8fafc;padding:16px 32px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+                        Este correo se envió automáticamente: no lo responda.
+                        <br>&copy; 2026 Maestro Cervecero. Todos los derechos reservados.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

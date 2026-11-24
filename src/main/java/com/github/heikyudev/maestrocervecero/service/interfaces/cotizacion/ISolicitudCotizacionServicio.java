@@ -190,6 +190,8 @@ public interface ISolicitudCotizacionServicio {
      * Postcondiciones: cada solicitud no cancelada de la planificación queda {@code CANCELADA} con la fecha y el
      * motivo y sus enlaces dejan de servir. Un plan elegido que ya tiene órdenes confirmadas sigue {@code ELEGIDO}; en
      * cualquier otro caso el plan queda {@code CANCELADO}. Las órdenes propuestas sin confirmar quedan {@code DESCARTADA} y las órdenes de compra ya confirmadas no se modifican.
+     * Al confirmarse la transacción, si la solicitud estaba {@code ABIERTA}, cada proveedor activo cuya invitación se
+     * entregó recibe un correo que avisa la cancelación, sin el motivo; una falla del correo solo se registra en el log.
      * </p>
      *
      * @param idPlanificacion ID de la planificación que se anula.
@@ -203,7 +205,9 @@ public interface ISolicitudCotizacionServicio {
      * elegido.
      * Postcondiciones: queda {@code CANCELADA} con la fecha y el motivo (el usuario queda en la auditoría de la última
      * modificación); los enlaces de los proveedores dejan de servir en el momento; su plan queda {@code CANCELADO} y
-     * sus órdenes propuestas sin confirmar, {@code DESCARTADA}.
+     * sus órdenes propuestas sin confirmar, {@code DESCARTADA}. Al confirmarse la transacción, si la solicitud estaba
+     * {@code ABIERTA}, cada proveedor activo cuya invitación se entregó recibe un correo que avisa la cancelación, sin el
+     * motivo; una falla del correo solo se registra en el log.
      * </p>
      *
      * @param id ID de la solicitud.

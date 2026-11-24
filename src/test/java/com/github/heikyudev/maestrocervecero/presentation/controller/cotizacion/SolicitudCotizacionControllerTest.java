@@ -111,11 +111,11 @@ class SolicitudCotizacionControllerTest {
                         .unidad("kg").cantidadRequerida(200.0).cantidadDisponible(30.0).cantidadPendienteRecepcion(20.0).cantidadFaltante(150.0).build()))
                 .invitaciones(List.of(
                         InvitacionCotizacionResponseDTO.builder().id(1L).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
-                                .proveedorActivo(true).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
+                                .proveedorActivo(true).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.ENVIADA).intentosEnvio(1)
                                 .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00")).build(),
                         InvitacionCotizacionResponseDTO.builder().id(2L).idProveedor(2L).razonSocial("LUPULOS DEL VALLE").cuit("30-87654321-0")
-                                .proveedorActivo(false).fechaEnvio(LocalDateTime.of(2026, 11, 18, 9, 0)).cantidadOfertas(0)
+                                .proveedorActivo(false).cantidadOfertas(0)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
                                 .estadoParticipacion("Dado de baja").insumosCotizados(List.of()).build()))
                 .plan(plan)

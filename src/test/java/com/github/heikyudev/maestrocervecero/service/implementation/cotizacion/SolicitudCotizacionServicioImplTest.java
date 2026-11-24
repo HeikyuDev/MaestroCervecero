@@ -1632,4 +1632,135 @@ class SolicitudCotizacionServicioImplTest {
         assertThat(fijada.getCatalogoProveedor()).isSameAs(itemFijado);
         assertThat(MapperSolicitudCotizacion.toInvitacionDTO(invitacionConPlan).getCantidadOfertas()).isEqualTo(1);
     }
+
+    // ==================== Aviso de cancelación a los proveedores ====================
+
+    /**
+     * Solicitud abierta con una invitación por cada situación: entregada a un proveedor activo (1), entregada a un proveedor
+     * dado de baja que conserva su versión (2), entregada a un proveedor sin versión vigente (3), fallida (4), pendiente
+     * (5), en envío (6) y omitida (7). Solo la primera debe recibir el aviso.
+     */
+    private SolicitudCotizacionEntity solicitudAbiertaConInvitacionesVariadas() {
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusHours(10));
+        invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), null);
+        invitar(solicitud, proveedor(2L, "DE BAJA", Estado.BAJA, malta), null);
+        invitar(solicitud, proveedorDadoDeBaja(3L, "SIN VERSION"), null);
+        invitar(solicitud, proveedor(4L, "FALLIDA", Estado.ACTIVO, malta), null).setEstadoEnvio(EstadoEnvioInvitacion.FALLIDA);
+        invitar(solicitud, proveedor(5L, "PENDIENTE", Estado.ACTIVO, malta), null).setEstadoEnvio(EstadoEnvioInvitacion.PENDIENTE);
+        invitar(solicitud, proveedor(6L, "EN ENVIO", Estado.ACTIVO, malta), null).setEstadoEnvio(EstadoEnvioInvitacion.EN_ENVIO);
+        invitar(solicitud, proveedor(7L, "OMITIDA", Estado.ACTIVO, malta), null).setEstadoEnvio(EstadoEnvioInvitacion.OMITIDA);
+        return solicitud;
+    }
+
+    @Test
+    @DisplayName("CP-SCO-53: cancelarSolicitud de una solicitud abierta avisa por correo solo a los proveedores activos cuya invitación se entregó, sin el motivo")
+    void cancelarSolicitud_avisaAProveedoresConInvitacionEntregada() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbiertaConInvitacionesVariadas();
+        when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        verify(notificador).avisarCancelacionAProveedor("ventas1@proveedor.com", "MALTERIA SUR", 90L);
+        verify(notificador, org.mockito.Mockito.times(1)).avisarCancelacionAProveedor(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-SCO-54: al anular la planificación, una solicitud abierta avisa por correo solo a los proveedores activos cuya invitación se entregó")
+    void anularPlanificacion_avisaAProveedoresConInvitacionEntregada() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbiertaConInvitacionesVariadas();
+        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(90L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cancelarPorAnulacionDePlanificacion(7L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        verify(notificador).avisarCancelacionAProveedor("ventas1@proveedor.com", "MALTERIA SUR", 90L);
+        verify(notificador, org.mockito.Mockito.times(1)).avisarCancelacionAProveedor(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-SCO-55: una solicitud pendiente de confirmación cancelada a mano o al anular la planificación no avisa a ningún proveedor")
+    void cancelarPendienteDeConfirmacion_noAvisaAProveedores() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudPendiente();
+        candidato(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta));
+        SolicitudCotizacionEntity otra = solicitudAbierta(null);
+        otra.setId(91L);
+        otra.setEstado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION);
+        candidato(otra, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(91L));
+        when(solicitudRepository.buscarPorIdParaActualizar(91L)).thenReturn(Optional.of(otra));
+
+        // === EJECUCION ===
+        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+        servicio.cancelarPorAnulacionDePlanificacion(7L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(otra.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        verify(notificador, never()).avisarCancelacionAProveedor(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-SCO-56: una falla al enviar el aviso de cancelación a un proveedor no impide la cancelación ni el aviso a los demás")
+    void cancelar_fallaDelAvisoNoImpideLaCancelacion() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusHours(10));
+        invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), null);
+        invitar(solicitud, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), null);
+        when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+        org.mockito.Mockito.doThrow(new IllegalStateException("SMTP caído")).when(notificador)
+                .avisarCancelacionAProveedor(eq("ventas1@proveedor.com"), any(), any());
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO resultado = servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        verify(solicitudRepository).save(solicitud);
+        verify(notificador).avisarCancelacionAProveedor("ventas2@proveedor.com", "LUPULOS DEL VALLE", 90L);
+    }
+
+    @Test
+    @DisplayName("CP-SCO-57: una solicitud cerrada o con el plan generado no avisa a ningún proveedor al cancelarse a mano ni al anular la planificación")
+    void cancelarNoAbierta_noAvisaAProveedores() {
+        // === PREPARACION DE DATOS ===
+        // Cancelación manual de la 90, con el plan generado
+        SolicitudCotizacionEntity conPlan = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
+                proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        invitar(conPlan, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), LocalDateTime.now().minusHours(2));
+        when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(conPlan));
+        // Anulación de la planificación con la 91 cerrada y la 92 con el plan generado
+        SolicitudCotizacionEntity cerrada = solicitudAbierta(LocalDateTime.now().minusHours(1));
+        cerrada.setId(91L);
+        cerrada.setEstado(EstadoSolicitudCotizacion.CERRADA);
+        invitar(cerrada, proveedor(3L, "CEBADAS", Estado.ACTIVO, malta), null);
+        SolicitudCotizacionEntity otraConPlan = solicitudConPlan(proveedor(4L, "MALTAS DEL SUR", Estado.ACTIVO, malta),
+                proveedor(5L, "LEVADURAS", Estado.ACTIVO, malta));
+        otraConPlan.setId(92L);
+        invitar(otraConPlan, proveedor(4L, "MALTAS DEL SUR", Estado.ACTIVO, malta), LocalDateTime.now().minusHours(2));
+        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(91L, 92L));
+        when(solicitudRepository.buscarPorIdParaActualizar(91L)).thenReturn(Optional.of(cerrada));
+        when(solicitudRepository.buscarPorIdParaActualizar(92L)).thenReturn(Optional.of(otraConPlan));
+
+        // === EJECUCION ===
+        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+        servicio.cancelarPorAnulacionDePlanificacion(7L);
+
+        // === ASSERTS ===
+        assertThat(conPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(cerrada.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(otraConPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        verify(notificador, never()).avisarCancelacionAProveedor(any(), any(), any());
+    }
 }
