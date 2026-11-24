@@ -791,9 +791,9 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AU-17: altaUsuario rechaza un teléfono con caracteres que no son dígitos")
+    @DisplayName("CP-AU-17: altaUsuario rechaza un teléfono que, quitados los separadores, conserva letras o un signo + interno")
     void altaUsuario_debeRechazarTelefonoConCaracteresNoNumericos() {
-        for (String telefono : new String[]{"351-123456", "+54351123456", "351 123456", "abc123", "(351)123456"}) {
+        for (String telefono : new String[]{"abc123", "351-12345a", "54+351123456"}) {
             UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", telefono, Rol.OPERARIO_DE_PRODUCCION);
 
             assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
@@ -803,6 +803,20 @@ class UsuarioServicioImplTest {
         }
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-24: altaUsuario quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void altaUsuario_debeNormalizarTelefonoConSeparadores() {
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (String[] caso : new String[][]{{"351-123456", "351123456"}, {"+54 351 123456", "54351123456"}, {"(351) 123.456", "351123456"}}) {
+            UsuarioResponseDTO resultado = usuarioServicio.altaUsuario(
+                    usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", caso[0], Rol.OPERARIO_DE_PRODUCCION));
+
+            assertThat(resultado.getTelefono()).as("telefono: '%s'", caso[0]).isEqualTo(caso[1]);
+        }
     }
 
     @Test
@@ -934,9 +948,9 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MU-16: modificarUsuario rechaza un teléfono con caracteres que no son dígitos y no consulta la BD")
+    @DisplayName("CP-MU-16: modificarUsuario rechaza un teléfono que, quitados los separadores, conserva letras o un signo + interno, y no consulta la BD")
     void modificarUsuario_debeRechazarTelefonoConCaracteresNoNumericos() {
-        for (String telefono : new String[]{"351-123456", "+54351123456", "abc123"}) {
+        for (String telefono : new String[]{"abc123", "351-12345a", "54+351123456"}) {
             UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan", "juan@mail.com", telefono, Rol.OPERARIO_DE_PRODUCCION);
 
             assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
@@ -946,6 +960,19 @@ class UsuarioServicioImplTest {
         }
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-22: modificarUsuario quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void modificarUsuario_debeNormalizarTelefonoConSeparadores() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "juan@mail.com", "+54 351 12-3456", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.save(existente)).thenReturn(existente);
+
+        usuarioServicio.modificarUsuario(1L, formDTO);
+
+        assertThat(existente.getTelefono()).isEqualTo("54351123456");
     }
 
     @Test

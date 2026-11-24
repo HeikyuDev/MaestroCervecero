@@ -46,13 +46,14 @@ Códigos e identificadores (identificación de lote del proveedor y texto buscad
 
 ### `telefono(String)`
 
-El teléfono es un dato opcional.
+El teléfono es un dato opcional. Se guarda solo con sus dígitos.
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-NT-15** | Recorte | `"1144445555"`, `"  1144445555  "`, NBSP + `"1144445555"` + NBSP | Se recortan los extremos | Devuelve `"1144445555"` en todos los casos. |
 | **CP-NT-16** | Sin contenido | `null`, `""`, `" "`, `"   \t "`, NBSP, `U+200B` | Un teléfono vacío equivale a no informado | Devuelve `null` en todos los casos. |
-| **CP-NT-17** | Caracteres que no son dígitos | `"011-4444-5555"`, `"+54 9 11 4444 5555"`, `"011   4444"` | Los símbolos y espacios internos se conservan para que `validarTelefono` los rechace; solo se colapsan los espacios repetidos | Devuelve `"011-4444-5555"`, `"+54 9 11 4444 5555"` y `"011 4444"`. |
+| **CP-NT-17** | Separadores y signo + inicial | `"3764 42-1180"`, `"+54 376 4421180"`, `"011-4444-5555"`, `"(0376) 442.1180"`, `"011/4444/5555"`, `"  +54 9 11 4444 5555  "`, NBSP + `"011‐4444–5555"` + NBSP (guiones Unicode) | Se eliminan los espacios, guiones (incluidos los Unicode), puntos, barras y paréntesis, y el signo `+` del inicio | Devuelve `"3764421180"`, `"543764421180"`, `"01144445555"`, `"03764421180"`, `"01144445555"`, `"5491144445555"` y `"01144445555"`. |
+| **CP-NT-24** | Letras y signo + interno | `"011-4444-555a"`, `"Tel 3764421180"`, `"54+3764421180"`, `"++543764421180"` | Las letras y el signo `+` que no está al inicio se conservan para que `validarTelefono` los rechace; solo se quita un `+` inicial | Devuelve `"0114444555a"`, `"Tel3764421180"`, `"54+3764421180"` y `"+543764421180"`. |
 
 ### `username(String)`
 

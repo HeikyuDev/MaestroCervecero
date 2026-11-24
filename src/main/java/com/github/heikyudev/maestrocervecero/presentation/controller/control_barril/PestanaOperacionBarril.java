@@ -27,27 +27,27 @@ public enum PestanaOperacionBarril {
     LIMPIEZAS("limpiezas", "limpieza", TipoOperacionBarril.LIMPIEZA, "una limpieza", "Limpiezas", "bi-stars", EstadoOperativoBarril.EN_LIMPIEZA,
             Permiso.LIMPIEZA_BARRIL_CONSULTAR, Permiso.LIMPIEZA_BARRIL_REGISTRAR, Permiso.LIMPIEZA_BARRIL_ANULAR,
             "Limpieza registrada correctamente", "Limpieza anulada correctamente",
-            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el barril equivocado", "Observaciones de la limpieza"),
+            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el barril equivocado"),
     FALLAS("fallas", "falla", TipoOperacionBarril.FALLA, "una falla", "Fallas", "bi-exclamation-triangle", EstadoOperativoBarril.DISPONIBLE,
             Permiso.FALLA_BARRIL_CONSULTAR, Permiso.FALLA_BARRIL_REGISTRAR, Permiso.FALLA_BARRIL_ANULAR,
             "Falla registrada correctamente", "Falla anulada correctamente",
-            "Ej: Pérdida en la válvula del barril", "No hay fallas registradas", "Se registró la falla en el barril equivocado", "Observaciones de la falla"),
+            "Ej: Pérdida en la válvula del barril", "No hay fallas registradas", "Se registró la falla en el barril equivocado"),
     FRACCIONAMIENTOS("fraccionamientos", "fraccionamiento", TipoOperacionBarril.FRACCIONAMIENTO, "un fraccionamiento", "Fraccionamientos", "bi-droplet-half", EstadoOperativoBarril.CON_CERVEZA,
             Permiso.FRACCIONAMIENTO_BARRIL_CONSULTAR, Permiso.FRACCIONAMIENTO_BARRIL_REGISTRAR, Permiso.FRACCIONAMIENTO_BARRIL_ANULAR,
             "Fraccionamiento registrado correctamente", "Fraccionamiento anulado correctamente",
-            "Ej: Muestra para control de calidad", "No hay fraccionamientos registrados", "Se registró el fraccionamiento en el barril equivocado", "Observaciones del fraccionamiento"),
+            "Ej: Muestra para control de calidad", "No hay fraccionamientos registrados", "Se registró el fraccionamiento en el barril equivocado"),
     MANTENIMIENTOS("mantenimientos", "mantenimiento", TipoOperacionBarril.MANTENIMIENTO, "un mantenimiento", "Mantenimientos", "bi-wrench", EstadoOperativoBarril.EN_MANTENIMIENTO,
             Permiso.MANTENIMIENTO_BARRIL_CONSULTAR, Permiso.MANTENIMIENTO_BARRIL_REGISTRAR, Permiso.MANTENIMIENTO_BARRIL_ANULAR,
             "Mantenimiento registrado correctamente", "Mantenimiento anulado correctamente",
-            "Ej: Cambio de juntas y revisión de la válvula", "No hay mantenimientos registrados", "Se registró el mantenimiento en el barril equivocado", "Observaciones del mantenimiento"),
+            "Ej: Cambio de juntas y revisión de la válvula", "No hay mantenimientos registrados", "Se registró el mantenimiento en el barril equivocado"),
     DESPACHOS("despachos", "despacho", TipoOperacionBarril.DESPACHO, "un despacho", "Despachos", "bi-truck", EstadoOperativoBarril.CON_CERVEZA,
             Permiso.DESPACHO_BARRIL_CONSULTAR, Permiso.DESPACHO_BARRIL_REGISTRAR, Permiso.DESPACHO_BARRIL_ANULAR,
             "Despacho registrado correctamente", "Despacho anulado correctamente",
-            "Ej: Entrega para el evento del sábado", "No hay despachos registrados", "Se registró el despacho en el barril equivocado", "Observaciones del despacho"),
+            "Ej: Entrega para el evento del sábado", "No hay despachos registrados", "Se registró el despacho en el barril equivocado"),
     DEVOLUCIONES("devoluciones", "devolucion", TipoOperacionBarril.DEVOLUCION, "una devolución", "Devoluciones", "bi-arrow-return-left", EstadoOperativoBarril.DESPACHADO,
             Permiso.DEVOLUCION_BARRIL_CONSULTAR, Permiso.DEVOLUCION_BARRIL_REGISTRAR, Permiso.DEVOLUCION_BARRIL_ANULAR,
             "Devolución registrada correctamente", "Devolución anulada correctamente",
-            "Ej: El cliente devolvió el barril con restos de cerveza", "No hay devoluciones registradas", "Se registró la devolución en el barril equivocado", "Observaciones de la devolución");
+            "Ej: El cliente devolvió el barril con restos de cerveza", "No hay devoluciones registradas", "Se registró la devolución en el barril equivocado");
 
     /** Aviso del panel de un barril dado de baja: no admite el registro de operaciones. */
     static final String MOTIVO_DADO_DE_BAJA = "No se pueden registrar operaciones porque el barril está dado de baja";
@@ -72,13 +72,11 @@ public enum PestanaOperacionBarril {
     private final String textoSinRegistros;
     /** Texto de ejemplo del motivo de anulación, sin el prefijo "Ej: " (lo agrega el diálogo). */
     private final String ejemploMotivo;
-    /** Título del diálogo con las observaciones de una operación de este tipo. */
-    private final String tituloObservaciones;
 
     PestanaOperacionBarril(String clave, String claveOperacion, TipoOperacionBarril tipo, String articulo, String etiqueta, String icono,
                            EstadoOperativoBarril estadoRequerido, Permiso permisoConsultar, Permiso permisoRegistrar, Permiso permisoAnular,
                            String mensajeRegistrada, String mensajeAnulada, String ejemploObservaciones, String textoSinRegistros,
-                           String ejemploMotivo, String tituloObservaciones) {
+                           String ejemploMotivo) {
         this.clave = clave;
         this.claveOperacion = claveOperacion;
         this.tipo = tipo;
@@ -94,7 +92,6 @@ public enum PestanaOperacionBarril {
         this.ejemploObservaciones = ejemploObservaciones;
         this.textoSinRegistros = textoSinRegistros;
         this.ejemploMotivo = ejemploMotivo;
-        this.tituloObservaciones = tituloObservaciones;
     }
 
     private boolean esMasculina() {

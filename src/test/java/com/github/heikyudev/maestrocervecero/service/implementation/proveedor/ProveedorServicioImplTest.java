@@ -440,6 +440,27 @@ class ProveedorServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @ParameterizedTest(name = "CP-AP-42: teléfono [{0}]")
+    @MethodSource("telefonosConSeparadores")
+    @DisplayName("CP-AP-42: altaProveedor quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void altaProveedor_debeNormalizarTelefonoConSeparadores(String telefono, String esperado) {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().telefono(telefono).build();
+        mockearAltaExitosa(versionFormDTO);
+
+        proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO));
+
+        ArgumentCaptor<ProveedorEntity> captor = ArgumentCaptor.forClass(ProveedorEntity.class);
+        verify(proveedorRepository).save(captor.capture());
+        assertThat(captor.getValue().getVersiones().get(0).getTelefono()).isEqualTo(esperado);
+    }
+
+    static Stream<Arguments> telefonosConSeparadores() {
+        return Stream.of(
+                Arguments.of("3764 42-1180", "3764421180"),
+                Arguments.of("+54 376 4421180", "543764421180"),
+                Arguments.of("(0376) 442.1180", "03764421180"));
+    }
+
     @ParameterizedTest(name = "CP-AP-15: teléfono [{0}]")
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
@@ -1092,6 +1113,19 @@ class ProveedorServicioImplTest {
         verify(proveedorRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-MP-37: modificarProveedor quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void modificarProveedor_debeNormalizarTelefonoConSeparadores() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().telefono("+54 376 442-1180").build();
+        ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, crearVersionProveedorEntity(10L, "Maltería del Sur S.A.", "30111111111", true));
+        mockearModificacionSinGuardado(versionFormDTO, proveedorEntityExistente);
+        when(proveedorRepository.save(proveedorEntityExistente)).thenReturn(proveedorEntityExistente);
+
+        proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO));
+
+        assertThat(proveedorEntityExistente.getVersiones().get(1).getTelefono()).isEqualTo("543764421180");
+    }
+
     @ParameterizedTest(name = "CP-MP-17: teléfono [{0}]")
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
@@ -1618,10 +1652,11 @@ class ProveedorServicioImplTest {
 
     static Stream<Arguments> versionesConTelefonoInvalido() {
         return Stream.of(
-                Arguments.of("teléfono con guiones", versionValidaBuilder().telefono("11-2233-4455").build(), "El teléfono solo puede contener dígitos"),
-                Arguments.of("teléfono con signo más y espacios", versionValidaBuilder().telefono("+54 11 2233 4455").build(), "El teléfono solo puede contener dígitos"),
                 Arguments.of("teléfono con letras", versionValidaBuilder().telefono("abc123").build(), "El teléfono solo puede contener dígitos"),
-                Arguments.of("teléfono de 16 dígitos", versionValidaBuilder().telefono("1".repeat(16)).build(), "El teléfono no puede superar 15 dígitos"));
+                Arguments.of("teléfono con separadores y una letra", versionValidaBuilder().telefono("11-2233-445a").build(), "El teléfono solo puede contener dígitos"),
+                Arguments.of("teléfono con signo más interno", versionValidaBuilder().telefono("54+1122334455").build(), "El teléfono solo puede contener dígitos"),
+                Arguments.of("teléfono de 16 dígitos", versionValidaBuilder().telefono("1".repeat(16)).build(), "El teléfono no puede superar 15 dígitos"),
+                Arguments.of("teléfono de 16 dígitos con separadores", versionValidaBuilder().telefono("+549 3764 4211-80001").build(), "El teléfono no puede superar 15 dígitos"));
     }
 
     // ==================== helpers de construcción ====================

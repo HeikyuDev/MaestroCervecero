@@ -53,7 +53,7 @@ public class UsuarioFormDTO {
     private String correo;
 
     /**
-     * Teléfono del usuario. Es opcional: si se informa, el service exige solo dígitos.
+     * Teléfono del usuario. Es opcional: si se informa, el service quita los separadores y exige solo dígitos.
      */
     private String telefono;
 

@@ -222,12 +222,31 @@ class NormalizacionTextoTest {
         return Stream.of("", " ", "   \t ", NBSP, "​");
     }
 
+    static Stream<Arguments> telefonosConSeparadores() {
+        return Stream.of(
+                Arguments.of("3764 42-1180", "3764421180"),
+                Arguments.of("+54 376 4421180", "543764421180"),
+                Arguments.of("011-4444-5555", "01144445555"),
+                Arguments.of("(0376) 442.1180", "03764421180"),
+                Arguments.of("011/4444/5555", "01144445555"),
+                Arguments.of("  +54 9 11 4444 5555  ", "5491144445555"),
+                Arguments.of(NBSP + "011‐4444–5555" + NBSP, "01144445555"));
+    }
+
+    @ParameterizedTest(name = "[{index}] \"{0}\"")
+    @MethodSource("telefonosConSeparadores")
+    @DisplayName("CP-NT-17: telefono elimina los separadores (espacios, guiones, puntos, barras y paréntesis) y el signo + inicial")
+    void telefono_debeEliminarSeparadoresYSignoMasInicial(String entrada, String esperado) {
+        assertThat(NormalizacionTexto.telefono(entrada)).isEqualTo(esperado);
+    }
+
     @Test
-    @DisplayName("CP-NT-17: telefono conserva los caracteres que no son dígitos para que la validación los rechace")
-    void telefono_noDebeEliminarSimbolos() {
-        assertThat(NormalizacionTexto.telefono("011-4444-5555")).isEqualTo("011-4444-5555");
-        assertThat(NormalizacionTexto.telefono("+54 9 11 4444 5555")).isEqualTo("+54 9 11 4444 5555");
-        assertThat(NormalizacionTexto.telefono("011   4444")).isEqualTo("011 4444");
+    @DisplayName("CP-NT-24: telefono conserva las letras y el signo + que no está al inicio para que la validación los rechace")
+    void telefono_noDebeEliminarLetrasNiSignoMasInterno() {
+        assertThat(NormalizacionTexto.telefono("011-4444-555a")).isEqualTo("0114444555a");
+        assertThat(NormalizacionTexto.telefono("Tel 3764421180")).isEqualTo("Tel3764421180");
+        assertThat(NormalizacionTexto.telefono("54+3764421180")).isEqualTo("54+3764421180");
+        assertThat(NormalizacionTexto.telefono("++543764421180")).isEqualTo("+543764421180");
     }
 
     // ==================== username ====================

@@ -29,15 +29,15 @@ public enum PestanaOperacion {
     LIMPIEZAS("limpiezas", "limpieza", TipoOperacionEquipamiento.LIMPIEZA, "una limpieza", "Limpiezas", "bi-stars",
             EstadoOperativo.EN_LIMPIEZA, Permiso.LIMPIEZA_EQUIPAMIENTO_CONSULTAR, Permiso.LIMPIEZA_EQUIPAMIENTO_REGISTRAR,
             Permiso.LIMPIEZA_EQUIPAMIENTO_ANULAR, "Limpieza registrada correctamente", "Limpieza anulada correctamente",
-            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el equipamiento equivocado", "Observaciones de la limpieza"),
+            "Ej: Limpieza con soda cáustica y enjuague", "No hay limpiezas registradas", "Se registró la limpieza en el equipamiento equivocado"),
     FALLAS("fallas", "falla", TipoOperacionEquipamiento.FALLA, "una falla", "Fallas", "bi-exclamation-triangle",
             EstadoOperativo.DISPONIBLE, Permiso.FALLA_EQUIPAMIENTO_CONSULTAR, Permiso.FALLA_EQUIPAMIENTO_REGISTRAR,
             Permiso.FALLA_EQUIPAMIENTO_ANULAR, "Falla registrada correctamente", "Falla anulada correctamente",
-            "Ej: Falla en la resistencia de calentamiento", "No hay fallas registradas", "Se registró la falla en el equipamiento equivocado", "Observaciones de la falla"),
+            "Ej: Falla en la resistencia de calentamiento", "No hay fallas registradas", "Se registró la falla en el equipamiento equivocado"),
     MANTENIMIENTOS("mantenimientos", "mantenimiento", TipoOperacionEquipamiento.MANTENIMIENTO, "un mantenimiento", "Mantenimientos", "bi-wrench",
             EstadoOperativo.EN_MANTENIMIENTO, Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR, Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR,
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR, "Mantenimiento registrado correctamente", "Mantenimiento anulado correctamente",
-            "Ej: Cambio de juntas y revisión de válvulas", "No hay mantenimientos registrados", "Se registró el mantenimiento en el equipamiento equivocado", "Observaciones del mantenimiento");
+            "Ej: Cambio de juntas y revisión de válvulas", "No hay mantenimientos registrados", "Se registró el mantenimiento en el equipamiento equivocado");
 
     /** Aviso del panel de un equipamiento dado de baja: no admite el registro de operaciones. */
     static final String MOTIVO_DADO_DE_BAJA = "No se pueden registrar operaciones porque el equipamiento está dado de baja";
@@ -60,14 +60,12 @@ public enum PestanaOperacion {
     private final String mensajeAnulada;
     private final String ejemploObservaciones;
     private final String textoSinRegistros;
-    /** Título del diálogo con las observaciones de una operación de este tipo. */
-    private final String tituloObservaciones;
     /** Texto de ejemplo del motivo de anulación, sin el prefijo "Ej: " (lo agrega el diálogo). */
     private final String ejemploMotivo;
 
     PestanaOperacion(String clave, String claveOperacion, TipoOperacionEquipamiento tipo, String articulo, String etiqueta, String icono,
                      EstadoOperativo estadoRequerido, Permiso permisoConsultar, Permiso permisoRegistrar, Permiso permisoAnular,
-                     String mensajeRegistrada, String mensajeAnulada, String ejemploObservaciones, String textoSinRegistros, String ejemploMotivo, String tituloObservaciones) {
+                     String mensajeRegistrada, String mensajeAnulada, String ejemploObservaciones, String textoSinRegistros, String ejemploMotivo) {
         this.clave = clave;
         this.claveOperacion = claveOperacion;
         this.tipo = tipo;
@@ -82,7 +80,6 @@ public enum PestanaOperacion {
         this.mensajeAnulada = mensajeAnulada;
         this.ejemploObservaciones = ejemploObservaciones;
         this.textoSinRegistros = textoSinRegistros;
-        this.tituloObservaciones = tituloObservaciones;
         this.ejemploMotivo = ejemploMotivo;
     }
 

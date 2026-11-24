@@ -525,9 +525,9 @@ class ClienteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AC-10: altaCliente rechaza un teléfono con caracteres que no son dígitos")
+    @DisplayName("CP-AC-10: altaCliente rechaza un teléfono que, quitados los separadores, conserva letras o un signo + interno")
     void altaCliente_debeRechazarTelefonoConCaracteresNoNumericos() {
-        for (String telefono : new String[]{"11-2233-4455", "+541122334455", "11 2233 4455", "abc123"}) {
+        for (String telefono : new String[]{"abc123", "11-2233-445a", "54+1122334455"}) {
             ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", telefono, "juan@mail.com", "Calle Falsa 123", 1L);
 
             assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
@@ -537,6 +537,19 @@ class ClienteServicioImplTest {
         }
 
         verifyNoInteractions(clienteRepository, localidadRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-16: altaCliente quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void altaCliente_debeNormalizarTelefonoConSeparadores() {
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity(1L)));
+        when(clienteRepository.save(any(ClienteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (String[] caso : new String[][]{{"3764 42-1180", "3764421180"}, {"+54 376 4421180", "543764421180"}, {"(0376) 442.1180", "03764421180"}}) {
+            ClienteResponseDTO resultado = clienteServicio.altaCliente(clienteFormDTO("Juan Pérez", caso[0], "juan@mail.com", "Calle Falsa 123", 1L));
+
+            assertThat(resultado.getTelefono()).as("telefono: '%s'", caso[0]).isEqualTo(caso[1]);
+        }
     }
 
     @Test
@@ -623,7 +636,7 @@ class ClienteServicioImplTest {
         ClienteFormDTO sinEmail = clienteFormDTO("Juan Pérez", "1122334455", "   ", "Calle Falsa 123", 1L);
         ClienteFormDTO sinDireccion = clienteFormDTO("Juan Pérez", "1122334455", "juan@mail.com", "   ", 1L);
         ClienteFormDTO emailLargo = clienteFormDTO("Juan Pérez", "1122334455", "e".repeat(256), "Calle Falsa 123", 1L);
-        ClienteFormDTO telefonoInvalido = clienteFormDTO("Juan Pérez", "11-2233-4455", "juan@mail.com", "Calle Falsa 123", 1L);
+        ClienteFormDTO telefonoInvalido = clienteFormDTO("Juan Pérez", "11-2233-445a", "juan@mail.com", "Calle Falsa 123", 1L);
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, sinNombre))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre es obligatorio");
@@ -684,6 +697,20 @@ class ClienteServicioImplTest {
         assertThatCode(() -> clienteServicio.modificarCliente(1L, formDTO)).doesNotThrowAnyException();
 
         assertThat(existente.getEmail()).isEqualTo("baja@mail.com");
+    }
+
+    @Test
+    @DisplayName("CP-MC-15: modificarCliente quita los separadores y el signo + inicial del teléfono y guarda solo los dígitos")
+    void modificarCliente_debeNormalizarTelefonoConSeparadores() {
+        ClienteEntity existente = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
+        ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "+54 376 442-1180", "juan@mail.com", "Calle Falsa 123", 1L);
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity(1L)));
+        when(clienteRepository.save(existente)).thenReturn(existente);
+
+        clienteServicio.modificarCliente(1L, formDTO);
+
+        assertThat(existente.getTelefono()).isEqualTo("543764421180");
     }
 
     @Test

@@ -142,27 +142,37 @@ class ControlBarrilPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PCB-10: ninguna tabla escribe las observaciones en la fila: usan el botón i del fragmento compartido dentro de la celda Acciones, que va a la derecha")
-    void observacionesSoloEnElDialogo() throws IOException {
+    @DisplayName("CP-PCB-10: ninguna tabla de Control de Barriles muestra las observaciones ni usa un botón i para ellas: el botón i de la fila es solo el del detalle de la anulación y las observaciones se consultan en el detalle de la operación, con el ojo Ver")
+    void botonISoloParaElDetalleDeLaAnulacion() throws IOException {
         for (String plantilla : List.of("control_barril/control-historial.html", "control_barril/control-panel.html")) {
             String html = leer(plantilla);
             String tabla = html.substring(html.indexOf("<table"), html.indexOf("</table>"));
-            assertThat(tabla).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(").doesNotContain("th:text=\"${o.observaciones}\"").doesNotContain("th:text=\"${a.observaciones");
+            assertThat(tabla).as(plantilla).doesNotContain("detalle-anulacion :: observaciones(").doesNotContain("observaciones")
+                    .doesNotContain("tituloObservaciones");
             String cuerpo = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
             assertThat(cuerpo).as(plantilla).doesNotContain("text-amber-700").contains("bi bi-eye");
-            String acciones = cuerpo.substring(cuerpo.indexOf("<td class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("<td class=\"col-acciones")));
-            assertThat(acciones).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(");
         }
-        assertThat(leer("control_barril/operacion-detalle.html")).contains("break-words").contains("operacion.observaciones");
+        // En el panel, el único botón i de la fila es el de la anulación y solo se incluye en una operación anulada
+        String panel = leer("control_barril/control-panel.html");
+        String acciones = panel.substring(panel.indexOf("<td class=\"col-acciones"), panel.indexOf("</td>", panel.indexOf("<td class=\"col-acciones")));
+        assertThat(acciones.split("fragments/detalle-anulacion ::", -1)).hasSize(2);
+        assertThat(acciones).contains("th:if=\"${o.estado.name() == 'ANULADO'}\"><th:block th:replace=\"~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}\"")
+                .contains("data-ver-operacion");
+        assertThat(leer("control_barril/control-historial.html")).doesNotContain("fragments/detalle-anulacion ::");
+        assertThat(leer("control_barril/operacion-detalle.html")).contains("break-words").contains("operacion.observaciones").contains("data-operacion-observaciones");
+        // El fragmento compartido solo ofrece botones de anulación, cancelación y finalización: no hay uno de observaciones
+        String fragmento = leer("fragments/detalle-anulacion.html");
+        assertThat(fragmento).doesNotContain("th:fragment=\"observaciones(").doesNotContain("Ver observaciones")
+                .contains("th:fragment=\"boton(cancelacion, motivo, usuario, fecha)\"").contains("th:fragment=\"botonSinUsuario(cancelacion, motivo, fecha)\"");
     }
 
     @Test
-    @DisplayName("CP-PCB-11: en la celda de acciones del panel el orden es i, ojo y anular al final")
+    @DisplayName("CP-PCB-11: en la celda de acciones del panel el orden es i de la anulación, ojo y anular al final")
     void ordenDeLosBotonesDeFila() throws IOException {
         String panel = leer("control_barril/control-panel.html");
         String cuerpo = panel.substring(panel.indexOf("<tbody"), panel.indexOf("</tbody>"));
 
-        assertThat(cuerpo.indexOf("detalle-anulacion :: observaciones(")).isLessThan(cuerpo.indexOf("botonSinUsuario"));
+        assertThat(cuerpo.indexOf("botonSinUsuario")).isNotNegative();
         assertThat(cuerpo.indexOf("botonSinUsuario")).isLessThan(cuerpo.indexOf("data-ver-operacion"));
         assertThat(cuerpo.indexOf("data-ver-operacion")).isLessThan(cuerpo.indexOf("data-motivo-dialogo"));
     }

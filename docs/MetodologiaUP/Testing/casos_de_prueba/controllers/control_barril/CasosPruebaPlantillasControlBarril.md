@@ -13,6 +13,6 @@
 | **CP-PCB-07** | Historial | Patrón de las listas: filtros con Limpiar y Buscar a la derecha, tabla estándar, badge del barril y paginación. |
 | **CP-PCB-08** | Sin accesos cruzados ni personas | Ninguna pantalla lleva Abrir, el ojo del historial, Responsable ni el usuario que anuló; solo el detalle muestra Registrado por. |
 | **CP-PCB-09** | Consistencia con las pantallas de referencia | Encabezados, tarjeta con botón + Nueva, aviso de solo consulta, formulario con Cancelar y Registrar. |
-| **CP-PCB-10** | Observaciones solo en el diálogo | El botón i del fragmento compartido, dentro de la celda Acciones. |
-| **CP-PCB-11** | Orden de los botones de fila | i, i de la anulación, ojo y anular al final. |
+| **CP-PCB-10** | El botón i es solo el de la anulación | Ninguna tabla (panel e historial) muestra las observaciones ni incluye `detalle-anulacion :: observaciones(`; en el panel la celda Acciones tiene un único fragmento de `detalle-anulacion`, `botonSinUsuario`, solo para la operación anulada, junto al ojo; el historial no tiene botón i; el detalle de la operación muestra las observaciones con `break-words`; el fragmento compartido no ofrece un botón de observaciones. |
+| **CP-PCB-11** | Orden de los botones de fila | i de la anulación, ojo y anular al final. |
 | **CP-PCB-12** | Buscador de clientes | Tabla de buscador, botón Elegir sin alta al vuelo y paginación del modal. |

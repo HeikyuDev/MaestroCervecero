@@ -185,8 +185,8 @@ public class ControlBarrilControllerTest {
         assertThat(encabezado.split("<th ", -1)).hasSize(5);
         assertThat(tabla).contains("Lote · LOT-R1-01 · Envasado").contains("href=\"/lotes/12/detalle\"").contains("20/10/2026 08:00")
                 .contains("href=\"/control-barriles/5/operaciones/limpieza/7\"").contains("22/10/2026 08:00").contains("En uso").contains("Disponible");
-        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-motivo=\"Limpieza con soda\"")
-                .doesNotContain(">Limpieza con soda<");
+        // Las observaciones no aparecen en el historial: se consultan en el detalle de la operación, con el ojo Ver
+        assertThat(tabla).doesNotContain("Limpieza con soda").doesNotContain("Ver observaciones").doesNotContain("data-detalle-anulacion");
         String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
         assertThat(cuerpo).doesNotContain("text-amber-700").contains("data-ver-actividad").contains("class=\"col-acciones");
     }
@@ -309,16 +309,69 @@ public class ControlBarrilControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CBC-18: la tabla del panel pone las observaciones en el diálogo del botón i y todos los botones de fila en la columna Acciones")
+    @DisplayName("CP-CBC-18: la tabla del panel no muestra las observaciones (se consultan con el ojo Ver) y lleva todos los botones de fila en la columna Acciones; una operación anulada con observaciones tiene un único botón i, el del detalle de la anulación, y el ojo")
     void panel_columnaAcciones() throws Exception {
         String html = html(get("/control-barriles/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_barril/control-panel");
 
         String tabla = html.substring(html.indexOf("data-operaciones-registradas"));
-        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-sin-usuario").doesNotContain(">Limpieza con soda cáustica<");
+        assertThat(tabla).doesNotContain("Limpieza con soda cáustica").doesNotContain("Ver observaciones").doesNotContain("Observaciones de la limpieza");
         String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
-        String celda = cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("class=\"col-acciones")));
-        assertThat(celda).contains("Ver observaciones").contains("data-ver-operacion").contains("data-motivo-dialogo");
         assertThat(cuerpo).doesNotContain("text-amber-700");
+
+        // Operación registrada (7), con observaciones: ningún botón i, solo el ojo y Anular
+        String registrada = fila(cuerpo, "data-operacion=\"7\"");
+        assertThat(contar(registrada, "data-detalle-anulacion")).isZero();
+        assertThat(contar(registrada, "data-ver-operacion")).isEqualTo(1);
+        assertThat(registrada).contains("bi-eye").contains("data-motivo-dialogo");
+
+        // Operación anulada (6), con observaciones: exactamente un botón i (la anulación) y el ojo
+        String anulada = fila(cuerpo, "data-operacion=\"6\"");
+        assertThat(contar(anulada, "data-detalle-anulacion")).isEqualTo(1);
+        assertThat(contar(anulada, "bi-info-circle")).isEqualTo(1);
+        assertThat(anulada).contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Error de carga\"")
+                .contains("title=\"Ver detalle de la anulación\"");
+        assertThat(contar(anulada, "data-ver-operacion")).isEqualTo(1);
+        assertThat(anulada).contains("bi-eye").contains("href=\"/control-barriles/5/operaciones/limpieza/6\"");
+    }
+
+    private static String fila(String cuerpo, String marca) {
+        int inicio = cuerpo.indexOf(marca);
+        assertThat(inicio).as("fila %s", marca).isNotNegative();
+        return cuerpo.substring(inicio, cuerpo.indexOf("</tr>", inicio));
+    }
+
+    private static int contar(String texto, String buscado) {
+        return texto.split(java.util.regex.Pattern.quote(buscado), -1).length - 1;
+    }
+
+    @Test
+    @DisplayName("CP-CBC-31: la pestaña Despachos muestra las columnas Cliente, Fecha y hora, Fecha estimada de devolución, Estado y Acciones, con el cliente y la fecha estimada de cada despacho; las demás pestañas no tienen esas columnas")
+    void panel_despachosConClienteYFechaEstimada() throws Exception {
+        configurarBarril(EstadoOperativoBarril.CON_CERVEZA);
+        when(servicio.listarOperaciones(5L, TipoOperacionBarril.DESPACHO)).thenReturn(List.of(
+                OperacionBarrilResponseDTO.builder().id(9L).tipo(TipoOperacionBarril.DESPACHO).estado(EstadoTransaccion.REGISTRADO).fecha(FIN)
+                        .observaciones("Entrega").cliente("Bar El Puerto").fechaDevolucionEstimada(LocalDate.of(2026, 11, 30)).anulable(false).build()));
+
+        String despachos = html(get("/control-barriles/5").param("pestana", "despachos").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)), "control_barril/control-panel");
+        String limpiezas = html(get("/control-barriles/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_barril/control-panel");
+
+        String tabla = despachos.substring(despachos.indexOf("data-operaciones-registradas"));
+        String encabezado = tabla.substring(tabla.indexOf("<thead"), tabla.indexOf("</thead>"));
+        assertThat(encabezado.split("<th ", -1)).hasSize(6);
+        assertThat(encabezado.indexOf(">Cliente<")).isNotNegative().isLessThan(encabezado.indexOf(">Fecha y hora<"));
+        assertThat(encabezado.indexOf(">Fecha y hora<")).isLessThan(encabezado.indexOf(">Fecha estimada de devolución<"));
+        assertThat(encabezado.indexOf(">Fecha estimada de devolución<")).isLessThan(encabezado.indexOf(">Estado<"));
+        assertThat(encabezado.indexOf(">Estado<")).isLessThan(encabezado.indexOf(">Acciones<"));
+        String fila = tabla.substring(tabla.indexOf("data-operacion=\"9\""), tabla.indexOf("</tr>", tabla.indexOf("data-operacion=\"9\"")));
+        assertThat(fila).contains("data-despacho-cliente").contains(">Bar El Puerto<").contains("data-despacho-fecha-devolucion").contains(">30/11/2026<");
+        assertThat(fila.indexOf(">Bar El Puerto<")).isLessThan(fila.indexOf(">30/11/2026<"));
+        assertThat(fila).doesNotContain("Entrega");
+
+        String tablaLimpiezas = limpiezas.substring(limpiezas.indexOf("data-operaciones-registradas"));
+        String encabezadoLimpiezas = tablaLimpiezas.substring(tablaLimpiezas.indexOf("<thead"), tablaLimpiezas.indexOf("</thead>"));
+        assertThat(encabezadoLimpiezas.split("<th ", -1)).hasSize(4);
+        assertThat(encabezadoLimpiezas).doesNotContain("Cliente").doesNotContain("Fecha estimada de devolución");
+        assertThat(tablaLimpiezas).doesNotContain("data-despacho-cliente").doesNotContain("data-despacho-fecha-devolucion");
     }
 
     @Test
@@ -499,7 +552,7 @@ public class ControlBarrilControllerTest {
         String historial = html(get("/control-barriles/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_barril/control-historial");
         String detalle = html(get("/control-barriles/5/operaciones/limpieza/7").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_barril/operacion-detalle");
 
-        assertThat(historial).contains("data-barril-dado-de-baja").contains("Limpieza con soda");
+        assertThat(historial).contains("data-barril-dado-de-baja").contains("href=\"/control-barriles/5/operaciones/limpieza/7\"");
         assertThat(detalle).contains("data-barril-dado-de-baja").contains("Dado de baja");
     }
 

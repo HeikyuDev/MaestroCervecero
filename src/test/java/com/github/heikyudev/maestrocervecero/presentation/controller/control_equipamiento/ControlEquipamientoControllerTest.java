@@ -173,16 +173,14 @@ public class ControlEquipamientoControllerTest {
         assertThat(encabezado.split("<th ", -1)).hasSize(5);
         assertThat(encabezado).contains("Fecha y hora").contains("Operación").contains("Estado resultante").contains(">Acciones<").doesNotContain("Detalle").doesNotContain(">Tipo<");
         assertThat(tabla).contains("Lote · LOT-R1-01 · Fermentación").contains("href=\"/lotes/12/detalle\"").contains("20/10/2026 08:00").contains("En curso")
-                .contains("href=\"/control-equipamiento/5/operaciones/limpieza/7\"").contains("Limpieza con soda").contains("22/10/2026 08:00")
+                .contains("href=\"/control-equipamiento/5/operaciones/limpieza/7\"").contains("22/10/2026 08:00")
                 .contains("En uso").contains("Disponible");
-        // Las observaciones no se escriben en la fila: van en el botón i que abre el diálogo compartido
-        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-motivo=\"Limpieza con soda\"")
-                .contains("data-detalle-etiqueta-motivo=\"Observaciones\"").contains("aria-label=\"Ver observaciones\"")
-                .doesNotContain(">Limpieza con soda<");
+        // Las observaciones no aparecen en el historial: se consultan en el detalle de la operación, con el ojo Ver
+        assertThat(tabla).doesNotContain("Limpieza con soda").doesNotContain("Ver observaciones").doesNotContain("data-detalle-anulacion");
         // Ningún dato es un enlace: la navegación va en los botones de la columna Acciones
         String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
         assertThat(cuerpo).doesNotContain("text-amber-700").contains("data-ver-actividad").contains("aria-label=\"Ver el lote LOT-R1-01\"").contains("class=\"col-acciones");
-        assertThat(cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"))).contains("Ver observaciones");
+        assertThat(cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"))).contains("aria-label=\"Ver limpieza del 22/10/2026 08:00\"");
     }
 
     @Test
@@ -240,25 +238,46 @@ public class ControlEquipamientoControllerTest {
     // ==================== Panel ====================
 
     @Test
-    @DisplayName("CP-CCE-20: la tabla de operaciones del panel no escribe las observaciones en la fila: el botón i las abre en el diálogo compartido, con el título del tipo y la fecha de la operación")
-    void panel_observacionesEnElDialogo() throws Exception {
+    @DisplayName("CP-CCE-20: la tabla de operaciones del panel no muestra las observaciones: se consultan con el ojo Ver; una operación anulada con observaciones lleva un único botón i, el del detalle de la anulación, y el ojo")
+    void panel_botonISoloParaLaAnulacion() throws Exception {
         String html = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
         String tabla = html.substring(html.indexOf("data-operaciones-registradas"));
-        assertThat(tabla).contains("data-detalle-titulo=\"Observaciones de la limpieza\"").contains("data-detalle-motivo=\"Limpieza con soda cáustica\"")
-                .contains("data-detalle-fecha=\"").contains("data-detalle-sin-usuario").contains("title=\"Ver observaciones\"")
-                .doesNotContain(">Limpieza con soda cáustica<");
+        assertThat(tabla).doesNotContain("Limpieza con soda cáustica").doesNotContain("Ver observaciones").doesNotContain("Observaciones de la limpieza");
         String encabezado = tabla.substring(tabla.indexOf("<thead"), tabla.indexOf("</thead>"));
         assertThat(encabezado).doesNotContain("Observaciones").contains("Fecha");
         String cuerpo = tabla.substring(tabla.indexOf("<tbody"), tabla.indexOf("</tbody>"));
-        String celdaAcciones = cuerpo.substring(cuerpo.indexOf("class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("class=\"col-acciones")));
-        assertThat(celdaAcciones).contains("Ver observaciones").contains("data-ver-operacion").contains("data-motivo-dialogo");
         assertThat(cuerpo).doesNotContain("text-amber-700");
-        assertThat(html).contains("id=\"dialogo-detalle-anulacion\"").contains("data-detalle-etiqueta-motivo-destino");
+
+        // Operación registrada (7), con observaciones: ningún botón i, solo el ojo y Anular
+        String registrada = fila(cuerpo, "data-operacion=\"7\"");
+        assertThat(contar(registrada, "data-detalle-anulacion")).isZero();
+        assertThat(contar(registrada, "data-ver-operacion")).isEqualTo(1);
+        assertThat(registrada).contains("bi-eye").contains("data-motivo-dialogo");
+
+        // Operación anulada (6), con observaciones: exactamente un botón i (la anulación) y el ojo
+        String anulada = fila(cuerpo, "data-operacion=\"6\"");
+        assertThat(contar(anulada, "data-detalle-anulacion")).isEqualTo(1);
+        assertThat(contar(anulada, "bi-info-circle")).isEqualTo(1);
+        assertThat(anulada).contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Error de carga\"")
+                .contains("title=\"Ver detalle de la anulación\"");
+        assertThat(contar(anulada, "data-ver-operacion")).isEqualTo(1);
+        assertThat(anulada).contains("bi-eye").contains("href=\"/control-equipamiento/5/operaciones/limpieza/6\"");
+        assertThat(html).contains("id=\"dialogo-detalle-anulacion\"");
+    }
+
+    private static String fila(String cuerpo, String marca) {
+        int inicio = cuerpo.indexOf(marca);
+        assertThat(inicio).as("fila %s", marca).isNotNegative();
+        return cuerpo.substring(inicio, cuerpo.indexOf("</tr>", inicio));
+    }
+
+    private static int contar(String texto, String buscado) {
+        return texto.split(java.util.regex.Pattern.quote(buscado), -1).length - 1;
     }
 
     @Test
-    @DisplayName("CP-CCE-21: la columna Acciones del panel lleva siempre el ojo y el botón i, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género")
+    @DisplayName("CP-CCE-21: la columna Acciones del panel lleva siempre el ojo, nunca el botón de observaciones, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género")
     void panel_columnaAcciones() throws Exception {
         when(servicio.listarOperaciones(5L)).thenReturn(OperacionesEquipamientoResponseDTO.builder()
                 .limpiezas(List.of(operacion(6L, TipoOperacionEquipamiento.LIMPIEZA, EstadoTransaccion.REGISTRADO, false)))
@@ -271,7 +290,7 @@ public class ControlEquipamientoControllerTest {
 
         assertThat(sinAnulable).contains("Limpiezas registradas").contains(">Acciones<").contains("data-ver-operacion").doesNotContain("data-motivo-url");
         assertThat(mantenimientos).contains("Mantenimientos registrados");
-        assertThat(gerente).contains(">Acciones<").contains("data-ver-operacion").contains("Ver observaciones").doesNotContain("data-motivo-url");
+        assertThat(gerente).contains(">Acciones<").contains("data-ver-operacion").doesNotContain("Ver observaciones").doesNotContain("data-motivo-url");
     }
 
     @Test
@@ -407,7 +426,7 @@ public class ControlEquipamientoControllerTest {
         String historial = html(get("/control-equipamiento/5/historial").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-historial");
         String detalle = html(get("/control-equipamiento/5/operaciones/limpieza/7").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/operacion-detalle");
 
-        assertThat(historial).contains("data-equipo-dado-de-baja").contains("Limpieza con soda");
+        assertThat(historial).contains("data-equipo-dado-de-baja").contains("href=\"/control-equipamiento/5/operaciones/limpieza/7\"");
         assertThat(detalle).contains("data-equipo-dado-de-baja").contains("Dado de baja");
     }
 

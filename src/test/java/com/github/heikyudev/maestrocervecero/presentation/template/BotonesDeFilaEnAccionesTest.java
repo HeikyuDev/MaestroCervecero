@@ -83,6 +83,6 @@ class BotonesDeFilaEnAccionesTest {
             assertThat(html).as(plantilla).contains(">Acciones</th>").contains("col-acciones px-");
         }
         assertThat(Files.readString(TEMPLATES.resolve("control_equipamiento/control-panel.html"), StandardCharsets.UTF_8))
-                .contains("botonSinUsuario").contains("observaciones(");
+                .contains("botonSinUsuario").doesNotContain("detalle-anulacion :: observaciones(");
     }
 }

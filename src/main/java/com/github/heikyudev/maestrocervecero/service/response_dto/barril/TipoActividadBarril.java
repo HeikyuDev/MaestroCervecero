@@ -11,17 +11,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum TipoActividadBarril {
 
-    ENVASADO("Envasado", null),
-    LIMPIEZA("Limpieza", "Observaciones de la limpieza"),
-    FALLA("Falla", "Observaciones de la falla"),
-    FRACCIONAMIENTO("Fraccionamiento", "Observaciones del fraccionamiento"),
-    MANTENIMIENTO("Mantenimiento", "Observaciones del mantenimiento"),
-    DESPACHO("Despacho", "Observaciones del despacho"),
-    DEVOLUCION("Devolución", "Observaciones de la devolución");
+    ENVASADO("Envasado"),
+    LIMPIEZA("Limpieza"),
+    FALLA("Falla"),
+    FRACCIONAMIENTO("Fraccionamiento"),
+    MANTENIMIENTO("Mantenimiento"),
+    DESPACHO("Despacho"),
+    DEVOLUCION("Devolución");
 
     /** Nombre del tipo para mostrar en pantalla. */
     private final String etiqueta;
-
-    /** Título del diálogo con las observaciones de una operación de este tipo, o {@code null} para un envasado. */
-    private final String tituloObservaciones;
 }

@@ -175,7 +175,7 @@ unicidad y el índice de la base trabajan sobre el mismo valor.
 | Número de serie del barril (`nombrePropio`) | Igual que los textos libres | Con las mayúsculas escritas |
 | CUIT (`cuit`) | Eliminación de espacios, guiones, puntos y barras | Solo los 11 dígitos, sin guiones |
 | Correo (`correo`) | Eliminación de caracteres invisibles de ancho cero, recorte, colapso de espacios y minúsculas con `Locale.ROOT` | En minúsculas |
-| Teléfono (`telefono`) | Igual que `nombrePropio` (recorte, colapso de espacios, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC); vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
+| Teléfono (`telefono`) | Eliminación de caracteres invisibles de ancho cero, espacios, guiones, puntos, barras, paréntesis y un signo `+` inicial; vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
 | Nombre de usuario (`username`) | Eliminación de caracteres invisibles de ancho cero, recorte, colapso de espacios y minúsculas con `Locale.ROOT` | En minúsculas; solo letras, números, `.`, `_` y `-` |
 
 Las tildes y la puntuación son caracteres distintos: `Pale Ale` y `Palé Ale` no son el mismo nombre. Dos nombres son

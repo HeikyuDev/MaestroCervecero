@@ -374,7 +374,7 @@ class ClienteControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Seleccione país\"")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione provincia\"")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione localidad\"")))
-                .andExpect(content().string(containsString("Opcional. Solo dígitos, hasta 15.</p>")))
+                .andExpect(content().string(containsString("Opcional. Hasta 15 dígitos; puede escribirlo con espacios, guiones, paréntesis o el prefijo +.</p>")))
                 .andExpect(content().string(containsString("Único entre los clientes, sin distinguir mayúsculas. Hasta 255 caracteres.</p>")))
                 .andExpect(content().string(containsString("Hasta 100 caracteres.</p>")))
                 .andExpect(content().string(containsString("Hasta 255 caracteres.</p>")))

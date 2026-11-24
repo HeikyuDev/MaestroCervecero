@@ -9,7 +9,7 @@
 | **CP-CCE-03** | Roles sin permiso de consulta | La lista, el historial y el panel redirigen con alerta de peligro y no se invoca el service. |
 | **CP-CCE-04** | Criterios de la lista | El identificador sin espacios, el tipo y el estado operativo se pasan al service. |
 | **CP-CCE-05** | Tipo o estado operativo inválidos | No filtran y se avisa con una alerta warning. |
-| **CP-CCE-06** | Historial del equipo para el gerente | Muestra la información del equipo, los filtros y una fila por actividad con su estado resultante, el botón de acciones hacia el lote o la operación y el botón i de observaciones. |
+| **CP-CCE-06** | Historial del equipo para el gerente | Muestra la información del equipo, los filtros y una fila por actividad con su estado resultante, y el ojo hacia el lote o la operación ("Ver limpieza del 22/10/2026 08:00"); las observaciones no aparecen en la tabla ni hay botón i. |
 | **CP-CCE-07** | Historial del equipo para el operario | Redirige con alerta de peligro y no se invoca el service. |
 | **CP-CCE-08** | Historial vacío | Sin actividad muestra "El equipamiento no tiene operaciones registradas" y con filtros sin resultados, "No se encontraron resultados". |
 | **CP-CCE-09** | Filtros del historial | El tipo y las fechas se pasan al service (la fecha hasta incluye todo su día) y se conservan en el formulario y en los enlaces de paginación. |
@@ -22,8 +22,8 @@
 | **CP-CCE-16** | Detalle de una operación anulada | Muestra la fecha y el motivo de la anulación, sin el usuario que anuló. |
 | **CP-CCE-17** | Operación o equipamiento inexistente | Vuelve al origen con alerta de error. |
 | **CP-CCE-18** | Dónde aparece Registrado por | Aparece solo en el detalle de la operación, no en el panel ni en el historial, y "Responsable" no aparece en ninguna pantalla. |
-| **CP-CCE-20** | Observaciones en la tabla del panel | No se escriben en la fila: el botón i las abre en el diálogo compartido, con el título del tipo y la fecha de la operación. |
-| **CP-CCE-21** | Columna Acciones del panel | Lleva siempre el ojo y el botón i, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género. |
+| **CP-CCE-20** | El botón i del panel es solo el de la anulación | Las observaciones no aparecen en la tabla (se consultan con el ojo Ver). La limpieza registrada (7), con observaciones, no tiene botón i y tiene un ojo y Anular; la limpieza anulada (6), con observaciones, tiene exactamente un botón i, el del detalle de la anulación ("Detalle de la anulación", motivo "Error de carga"), y un ojo hacia `/control-equipamiento/5/operaciones/limpieza/6`. |
+| **CP-CCE-21** | Columna Acciones del panel | Lleva siempre el ojo, nunca un botón de observaciones, y Anular solo en la operación anulable y solo para el operario; los títulos de las tablas concuerdan en género. |
 | **CP-CCE-22** | Paginación de la tabla del panel | Se pagina de a 20 con el pie de paginación del sistema, que conserva la pestaña. |
 | **CP-CCE-23** | Panel de un equipo dado de baja | El operario abre el panel en solo lectura: la información muestra la marca "Dado de baja", la tabla lista las operaciones, no hay botón de alta ni de anular, y el aviso dice "No se pueden registrar operaciones porque el equipamiento está dado de baja". |
-| **CP-CCE-24** | Historial y detalle de una operación de un equipo dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del equipo. |
+| **CP-CCE-24** | Historial y detalle de una operación de un equipo dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del equipo, y el historial conserva el ojo hacia la operación. |

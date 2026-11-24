@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  *     <li>{@link #codigo(String)}: códigos e identificadores. Se guardan en mayúsculas.</li>
  *     <li>{@link #correo(String)}: correos electrónicos, en minúsculas.</li>
  *     <li>{@link #cuit(String)}: CUIT sin separadores (el proveedor lo guarda luego con el formato XX-XXXXXXXX-X).</li>
- *     <li>{@link #telefono(String)}: teléfonos, opcionales.</li>
+ *     <li>{@link #telefono(String)}: teléfonos, opcionales, sin separadores ni signo {@code +} inicial.</li>
  *     <li>{@link #username(String)}: nombres de usuario, en minúsculas.</li>
  * </ul>
  * <p>
@@ -34,6 +34,12 @@ public final class NormalizacionTexto {
 
     /** Separadores que se aceptan al tipear un CUIT: espacios, guiones, puntos y barras. */
     private static final Pattern SEPARADORES_CUIT = Pattern.compile("[\\s\\p{Z}\\u0085\\-./\\u2010-\\u2015\\u2212]");
+
+    /**
+     * Separadores que se aceptan al tipear un teléfono: espacios, guiones (también los tipográficos), puntos, barras y
+     * paréntesis.
+     */
+    private static final Pattern SEPARADORES_TELEFONO = Pattern.compile("[\\s\\p{Z}\\u0085\\-./()\\u2010-\\u2015\\u2212]");
 
     private NormalizacionTexto() {
     }
@@ -97,16 +103,24 @@ public final class NormalizacionTexto {
     }
 
     /**
-     * Normaliza un teléfono, que es un dato opcional: recorta los espacios de los extremos y devuelve
-     * {@code null} si no queda contenido. Los caracteres que no son dígitos se conservan para que
-     * {@link ValidacionesTexto#validarTelefono(String)} los rechace.
+     * Normaliza un teléfono, que es un dato opcional: elimina los separadores habituales (espacios, guiones, puntos,
+     * barras y paréntesis) y un signo {@code +} inicial, por lo que {@code "3764 42-1180"} resulta en
+     * {@code "3764421180"} y {@code "+54 376 4421180"} en {@code "543764421180"}. Devuelve {@code null} si no queda
+     * contenido. Cualquier otro carácter (por ejemplo una letra o un {@code +} que no está al inicio) se conserva para
+     * que {@link ValidacionesTexto#validarTelefono(String)} rechace el valor en lugar de aceptarlo en silencio.
      *
      * @param valor Teléfono a normalizar.
-     * @return El teléfono recortado, o {@code null} si el valor es nulo, vacío o solo tiene espacios.
+     * @return El teléfono sin separadores, o {@code null} si el valor es nulo o no tiene más que separadores.
      */
     public static String telefono(String valor) {
-        String recortado = nombrePropio(valor);
-        return (recortado == null || recortado.isEmpty()) ? null : recortado;
+        if (valor == null) {
+            return null;
+        }
+        String sinSeparadores = SEPARADORES_TELEFONO.matcher(ANCHO_CERO.matcher(valor).replaceAll("")).replaceAll("");
+        if (sinSeparadores.startsWith("+")) {
+            sinSeparadores = sinSeparadores.substring(1);
+        }
+        return sinSeparadores.isEmpty() ? null : sinSeparadores;
     }
 
     /**

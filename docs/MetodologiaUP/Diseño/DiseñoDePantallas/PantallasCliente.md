@@ -39,7 +39,7 @@ No hay pantalla de detalle: la tabla muestra todos los datos del cliente.
 **Formulario.** Una sola página para el alta ("Nuevo cliente", botón "Crear cliente") y la modificación ("Editar cliente", botón "Guardar cambios"), con "Volver a clientes", el aviso de campos obligatorios y "Cancelar". El formulario no valida en el navegador (`novalidate`) y cada campo muestra el error del servidor debajo; un resumen superior lista todos los errores. Una fila por tema:
 
 1. Nombre, obligatorio (placeholder "Ej: Bar El Puerto", hasta 100 caracteres).
-2. Correo electrónico, obligatorio, único entre los clientes sin distinguir mayúsculas (placeholder "Ej: contacto@elpuerto.com", hasta 255 caracteres) y Teléfono, opcional, solo dígitos y hasta 15 (placeholder "Ej: 3764123456").
+2. Correo electrónico, obligatorio, único entre los clientes sin distinguir mayúsculas (placeholder "Ej: contacto@elpuerto.com", hasta 255 caracteres) y Teléfono, opcional, hasta 15 dígitos; acepta espacios, guiones, puntos, paréntesis y el prefijo + y se guarda solo con los dígitos (placeholder "Ej: 3764123456").
 3. País, Provincia y Localidad, obligatorios, con los tres buscadores modales enlazados. Solo viaja el id de la localidad: país y provincia son ayuda de pantalla y se vuelven a cargar desde la localidad al editar y al volver con errores. Solo el administrador da de alta ubicaciones, por eso los selectores no ofrecen alta al vuelo.
 4. Dirección, obligatoria, a todo el ancho debajo de la ubicación (placeholder "Ej: Av. Corrientes 1234", hasta 255 caracteres).
 

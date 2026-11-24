@@ -10,7 +10,7 @@
 | **CP-CBC-04** | Roles sin permisos de barril (encargado de depósito, gerente de compras, administrador) | La lista, el historial, el panel y el detalle redirigen con alerta de peligro y no se invoca el service. |
 | **CP-CBC-05** | Criterios de la lista | El identificador sin espacios, el fabricante y el estado operativo se pasan al service, de a 20, y se conservan en el formulario. |
 | **CP-CBC-06** | Estado inválido o fabricante inexistente | No filtran; el estado inválido se avisa con una alerta warning. |
-| **CP-CBC-07** | Historial del gerente | Muestra el bloque de información, los filtros y una fila por actividad con su estado resultante, el ojo al lote o a la operación y el botón i de observaciones. |
+| **CP-CBC-07** | Historial del gerente | Muestra el bloque de información, los filtros y una fila por actividad con su estado resultante, y el ojo al lote o a la operación; las observaciones no aparecen en la tabla ni hay botón i. |
 | **CP-CBC-08** | Historial para el operario y el encargado | Redirige con alerta de peligro y no se invoca el service. |
 | **CP-CBC-09** | Historial vacío | Sin actividad muestra "El barril no tiene operaciones registradas" y con filtros, "No se encontraron resultados". |
 | **CP-CBC-10** | Filtros del historial | El tipo y las fechas se pasan al service (la fecha hasta incluye todo su día) y se conservan en el formulario. |
@@ -21,7 +21,7 @@
 | **CP-CBC-15** | Panel del gerente | Ve las seis pestañas en modo consulta, sin botón de alta, de anular ni diálogo de motivo. |
 | **CP-CBC-16** | Panel del operario con el barril En limpieza | Muestra "+ Nueva limpieza" hacia su formulario y Anular solo en la operación anulable. |
 | **CP-CBC-17** | Estado que no permite registrar | Explica el motivo con el texto del service y, con el barril En uso, avisa que lo ocupa un lote. |
-| **CP-CBC-18** | Columna Acciones del panel | Las observaciones van en el diálogo del botón i y todos los botones de fila dentro de la columna Acciones. |
+| **CP-CBC-18** | Columna Acciones del panel | Las observaciones no aparecen en la tabla (se consultan con el ojo Ver) y todos los botones de fila van en la columna Acciones. La limpieza registrada (7), con observaciones, no tiene botón i y tiene un ojo y Anular; la limpieza anulada (6), con observaciones, tiene exactamente un botón i, el del detalle de la anulación ("Detalle de la anulación", motivo "Error de carga"), y un ojo hacia `/control-barriles/5/operaciones/limpieza/6`. |
 | **CP-CBC-19** | Paginación del panel | Se pagina de a 20 con el pie del sistema, que conserva la pestaña. |
 | **CP-CBC-20** | Detalle de una limpieza | El operario y el gerente ven la información del barril y los datos por tema. |
 | **CP-CBC-21** | Detalle de despacho, fraccionamiento y devolución | Muestra el cliente y la fecha estimada, la cantidad extraída y los litros descartados. |
@@ -33,4 +33,5 @@
 | **CP-CBC-27** | Cerveza en el panel con enlace | El operario y el gerente de producción (con `LOTE_CONSULTAR`) ven la cerveza y el lote con enlace a `/lotes/{id}` y `aria-label`. |
 | **CP-CBC-28** | Cerveza en el panel sin enlace | El encargado de distribución (sin `LOTE_CONSULTAR`) ve la receta y el código del lote como texto; un barril sin contenido no muestra la fila. |
 | **CP-CBC-29** | Panel de un barril dado de baja | El operario abre el panel en solo lectura: la información muestra la marca "Dado de baja", la tabla lista las operaciones, no hay botón de alta ni de anular, y el aviso dice "No se pueden registrar operaciones porque el barril está dado de baja". |
-| **CP-CBC-30** | Historial y detalle de una operación de un barril dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del barril. |
+| **CP-CBC-30** | Historial y detalle de una operación de un barril dado de baja | El gerente abre el historial y el detalle de una operación; ambos muestran la marca "Dado de baja" en la información del barril, y el historial conserva el ojo hacia la operación. |
+| **CP-CBC-31** | Pestaña Despachos con cliente y fecha estimada de devolución | Con el barril Con cerveza y un despacho (9) a "Bar El Puerto" con fecha estimada 30/11/2026, el encargado de distribución ve en la pestaña Despachos las columnas Cliente, Fecha y hora, Fecha estimada de devolución, Estado y Acciones, en ese orden, y en la fila "Bar El Puerto" y "30/11/2026" (las observaciones no aparecen). La pestaña Limpiezas conserva sus tres columnas, sin Cliente ni Fecha estimada de devolución. |

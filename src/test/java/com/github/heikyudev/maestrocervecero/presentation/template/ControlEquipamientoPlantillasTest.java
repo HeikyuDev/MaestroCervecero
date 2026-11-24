@@ -156,34 +156,28 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-12: ninguna tabla de Control de Equipamientos escribe las observaciones en la fila: usan el botón i del fragmento compartido, cuyo diálogo recibe el título, la etiqueta y la fecha por atributo")
-    void observacionesSoloEnElDialogo() throws IOException {
+    @DisplayName("CP-PEQ-12: ninguna tabla de Control de Equipamientos muestra las observaciones ni usa un botón i para ellas: el botón i de la fila es solo el del detalle de la anulación y las observaciones se consultan en el detalle de la operación, con el ojo Ver")
+    void botonISoloParaElDetalleDeLaAnulacion() throws IOException {
         for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html")) {
             String html = leer(plantilla);
             String tabla = html.substring(html.indexOf("<table"), html.indexOf("</table>"));
-            assertThat(tabla).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(").doesNotContain("th:text=\"${o.observaciones}\"").doesNotContain("th:text=\"${a.observaciones")
-                    .doesNotContain("${a.observaciones != null} ?");
-        }
-        // Sin una columna propia para el botón i: va en la celda de la fecha (panel) o de la operación (historial)
-        assertThat(leer("control_equipamiento/control-panel.html")).doesNotContain("<th class=\"px-4 py-3\">Observaciones</th>");
-        String historial = leer("control_equipamiento/control-historial.html");
-        assertThat(historial.substring(historial.indexOf("<thead"), historial.indexOf("</thead>")).split("<th ", -1)).hasSize(5);
-        // Ningún dato es un enlace de texto: la navegación va en botones de la columna Acciones, y el botón i está dentro de esa celda
-        for (String plantilla : List.of("control_equipamiento/control-historial.html", "control_equipamiento/control-panel.html")) {
-            String html = leer(plantilla);
+            assertThat(tabla).as(plantilla).doesNotContain("detalle-anulacion :: observaciones(").doesNotContain("observaciones")
+                    .doesNotContain("tituloObservaciones");
             String cuerpo = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
             assertThat(cuerpo).as(plantilla).doesNotContain("text-amber-700").contains("bi bi-eye");
-            String acciones = cuerpo.substring(cuerpo.indexOf("<td class=\"col-acciones"), cuerpo.indexOf("</td>", cuerpo.indexOf("<td class=\"col-acciones")));
-            assertThat(acciones).as(plantilla).contains("fragments/detalle-anulacion :: observaciones(");
-            assertThat(cuerpo.indexOf("fragments/detalle-anulacion :: observaciones(")).as(plantilla).isGreaterThan(cuerpo.indexOf("<td class=\"col-acciones"));
         }
-        assertThat(leer("control_equipamiento/operacion-detalle.html")).contains("break-words").contains("operacion.observaciones");
+        // En el panel, el único botón i de la fila es el de la anulación y solo se incluye en una operación anulada
+        String panel = leer("control_equipamiento/control-panel.html");
+        String acciones = panel.substring(panel.indexOf("<td class=\"col-acciones"), panel.indexOf("</td>", panel.indexOf("<td class=\"col-acciones")));
+        assertThat(acciones.split("fragments/detalle-anulacion ::", -1)).hasSize(2);
+        assertThat(acciones).contains("th:if=\"${o.estado.name() == 'ANULADO'}\"><th:block th:replace=\"~{fragments/detalle-anulacion :: botonSinUsuario(false, ${o.motivoAnulacion}, ${o.fechaAnulacion})}\"")
+                .contains("data-ver-operacion");
+        assertThat(leer("control_equipamiento/control-historial.html")).doesNotContain("fragments/detalle-anulacion ::");
+        assertThat(leer("control_equipamiento/operacion-detalle.html")).contains("break-words").contains("operacion.observaciones").contains("data-operacion-observaciones");
+        // El fragmento compartido solo ofrece botones de anulación, cancelación y finalización: no hay uno de observaciones
         String fragmento = leer("fragments/detalle-anulacion.html");
-        assertThat(fragmento).contains("th:fragment=\"observaciones(titulo, texto, fecha)\"").contains("bi bi-info-circle").contains("aria-label=\"Ver observaciones\"")
-                .contains("data-detalle-etiqueta-motivo=\"Observaciones\"").contains("th:fragment=\"boton(cancelacion, motivo, usuario, fecha)\"");
-        assertThat(leer("fragments/dialogo-detalle-anulacion.html")).contains("data-detalle-etiqueta-motivo-destino").contains("data-detalle-etiqueta-fecha-destino");
-        String js = Files.readString(Path.of("").toAbsolutePath().resolve("src/main/resources/static/js/modales.js"), StandardCharsets.UTF_8);
-        assertThat(js).contains("data-detalle-etiqueta-motivo").contains("'Motivo'").contains("'Fecha y hora'");
+        assertThat(fragmento).doesNotContain("th:fragment=\"observaciones(").doesNotContain("Ver observaciones")
+                .contains("th:fragment=\"boton(cancelacion, motivo, usuario, fecha)\"").contains("th:fragment=\"botonSinUsuario(cancelacion, motivo, fecha)\"");
     }
 
     private static List<String> filas(String html) {

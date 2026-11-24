@@ -85,7 +85,6 @@
                     <td class="col-acciones px-4 py-3">
                         <div class="flex items-center justify-center gap-1">
                             <th:block th:if="${a.tipo.name() != 'LOTE'}">
-                                <th:block th:replace="~{fragments/detalle-anulacion :: observaciones(${a.tipo.tituloObservaciones}, ${a.observaciones}, ${a.fechaInicio})}"></th:block>
                                 <a th:href="@{/control-equipamiento/{id}/operaciones/{tipo}/{idOperacion}(id=${equipo.id}, tipo=${#strings.toLowerCase(a.tipo.name())}, idOperacion=${a.idReferencia})}"
                                    data-ver-actividad th:aria-label="'Ver ' + ${#strings.toLowerCase(a.tipo.etiqueta)} + ' del ' + ${#temporals.format(a.fechaInicio, 'dd/MM/yyyy HH:mm')}"
                                    class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">

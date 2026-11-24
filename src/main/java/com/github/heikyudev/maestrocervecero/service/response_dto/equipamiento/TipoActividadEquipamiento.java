@@ -10,14 +10,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TipoActividadEquipamiento {
-    LOTE("Lote", null),
-    LIMPIEZA("Limpieza", "Observaciones de la limpieza"),
-    FALLA("Falla", "Observaciones de la falla"),
-    MANTENIMIENTO("Mantenimiento", "Observaciones del mantenimiento");
+    LOTE("Lote"),
+    LIMPIEZA("Limpieza"),
+    FALLA("Falla"),
+    MANTENIMIENTO("Mantenimiento");
 
     /** Nombre del tipo para mostrar en pantalla. */
     private final String etiqueta;
-
-    /** Título del diálogo con las observaciones de una operación de este tipo, o {@code null} para un lote. */
-    private final String tituloObservaciones;
 }
