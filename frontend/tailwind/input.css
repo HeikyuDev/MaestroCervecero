@@ -43,11 +43,15 @@
  * la columna se ve sin sombra.
  */
 @layer components {
+  /* La columna ocupa solo el ancho de su contenido (el encabezado o los botones, el mayor de los dos): en una tabla
+     con pocas columnas no se estira con el espacio sobrante, y los botones quedan siempre debajo de "Acciones" */
   .col-acciones {
     position: sticky;
     right: 0;
     z-index: 1;
     background-color: inherit;
+    width: 1%;
+    white-space: nowrap;
   }
 
   :where(tbody > tr:has(> .col-acciones)) {
