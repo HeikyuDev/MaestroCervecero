@@ -8,7 +8,7 @@
 
     Hay dos formas de usarlo:
       - Texto simple: cualquier elemento enfocable con data-tooltip="texto" (ej. el nombre de un insumo en una fila).
-      - Contenido con formato: el fragmento ayuda(etiqueta, idContenido), un botón con ícono de información que muestra
+      - Contenido con formato: el fragmento ayuda(etiqueta, idContenido), un botón con ícono de ayuda (bi-question-circle) que muestra
         el elemento oculto con ese id (el contenido va en un elemento con hidden, junto al botón).
 
     Uso: <th:block th:replace="~{fragments/tooltip :: ayuda('Ver cómo se calcula el agua de macerado', 'info-agua')}"></th:block>
@@ -16,7 +16,7 @@
 -->
 <button th:fragment="ayuda(etiqueta, idContenido)" type="button" th:data-tooltip-contenido="${idContenido}" th:aria-label="${etiqueta}"
         class="inline-flex items-center rounded text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
-    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <i class="bi bi-question-circle" aria-hidden="true"></i>
 </button>
 
 </html>

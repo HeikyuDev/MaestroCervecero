@@ -3034,7 +3034,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-140: junto a Agua de macerado hay un botón de información (bi-info-circle, aria-label) que muestra como tooltip flotante el cálculo, contenido en un elemento oculto que no ocupa lugar en el diseño; las demás etapas no lo tienen")
+    @DisplayName("CP-LCT-140: junto a Agua de macerado hay un botón de información (bi-question-circle, aria-label) que muestra como tooltip flotante el cálculo, contenido en un elemento oculto que no ocupa lugar en el diseño; las demás etapas no lo tienen")
     void detalle_tooltipDelAguaDeMacerado() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION, etapasEnCurso(TipoEtapa.MACERACION)).build());
@@ -3049,7 +3049,7 @@ class LoteControllerTest {
         assertThat(boton.find()).isTrue();
         assertThat(boton.group()).contains("type=\"button\"").contains("data-tooltip-contenido=\"info-agua-macerado\"").containsPattern("aria-label=\"[^\"]+\"")
                 .doesNotContain("aria-expanded").doesNotContain("aria-controls");
-        assertThat(aguaMacerado).contains("bi-info-circle");
+        assertThat(aguaMacerado).contains("bi-question-circle");
         assertThat(cuenta(html, "data-tooltip-contenido")).isEqualTo(1);
         String panel = elementoConAtributo(html, "div", "id=\"info-agua-macerado\"");
         assertThat(panel).contains("data-info-panel").contains("hidden");
