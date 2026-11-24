@@ -50,6 +50,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -102,7 +103,6 @@ class SolicitudCotizacionControllerTest {
         return SolicitudCotizacionResponseDTO.builder().id(90L).estado(estado).idPlanificacion(7L).etiquetaPlanificacion("Plan #7 - Pale Ale")
                 .fechaSolicitud(LocalDateTime.of(2026, 11, 18, 9, 0)).fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0))
                 .tiempoRestante(estado == EstadoSolicitudCotizacion.ABIERTA ? "1 día y 3 horas" : null)
-                .planElegido(plan != null && plan.getEstado() == EstadoPlanCompra.ELEGIDO)
                 .fechaCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? LocalDateTime.of(2026, 11, 19, 8, 0) : null)
                 .motivoCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "Se consiguió el insumo" : null)
                 .usuarioCancelacion(estado == EstadoSolicitudCotizacion.CANCELADA ? "compras1" : null)
@@ -178,7 +178,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-03: el detalle muestra los datos con el enlace a la planificación, los insumos, la situación de cada proveedor con cada presentación que cotizó, los avisos, la cancelación y el plan de órdenes de compra")
+    @DisplayName("CP-SCC-03: con el plan generado y sin pestaña pedida, el detalle abre en la pestaña del plan: el encabezado sin cancelar, los avisos y las tres pestañas arriba, el plan con confirmar y descartar en cada orden pendiente y sin el contenido de las otras pestañas")
     void caso_cp_scc_03() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
@@ -188,34 +188,38 @@ class SolicitudCotizacionControllerTest {
         String html = mockMvc.perform(get(URL + "/90"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("cotizacion/solicitud-detalle"))
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.PLAN))
+                .andExpect(model().attribute("pestanas", List.of(PestanaSolicitudCotizacion.SOLICITUD,
+                        PestanaSolicitudCotizacion.PROVEEDORES, PestanaSolicitudCotizacion.PLAN)))
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
         assertThat(html)
-                .contains("Solicitud de cotización #90").contains("Plan #7 - Pale Ale")
+                .contains("Solicitud de cotización #90")
                 .contains("El plan no cubre todo el faltante: revise la cantidad sin cubrir de cada insumo")
-                .contains("Insumos solicitados").contains("Malta Pilsen").contains("200 kg").contains("30 kg").contains("20 kg").contains("150 kg")
-                .contains("href=\"/planificaciones-produccion/7\"")
-                .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
-                .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
-                .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
-                .doesNotContain("Entrega estimada").doesNotContain("data-fecha-entrega")
-                .contains("data-boton-cancelar").contains("dialogo-cancelar")
+                .doesNotContain("data-boton-cancelar")
+                .contains("data-pestanas-solicitud")
+                .contains("href=\"/solicitudes-cotizacion/90?pestana=solicitud\"").contains("href=\"/solicitudes-cotizacion/90?pestana=proveedores\"")
+                .contains("href=\"/solicitudes-cotizacion/90?pestana=plan\"")
+                .containsPattern("data-pestana-plan=\"true\"[^>]*aria-current=\"page\"").contains("Plan de compra")
                 .contains("data-plan>").contains("Plan de órdenes de compra").contains("Resumen del plan").contains("Propuesto")
+                .contains("Confirme o descarte cada orden propuesta. Cuando no quedan órdenes pendientes, la solicitud queda finalizada")
+                .doesNotContain("elige el plan")
                 .doesNotContain("?plan=").doesNotContain("Plan 1").doesNotContain("Planes de órdenes de compra")
                 .contains("Cobertura de los insumos").contains("50 kg")
                 .contains("Bolsa (25 kg)").contains("$ 1.200,00 / kg").contains("$ 120.000,00")
                 .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=801\"")
-                .doesNotContain("/descartar");
+                .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/801/descartar\"")
+                .doesNotContain("Datos de la solicitud").doesNotContain("Insumos solicitados").doesNotContain("Proveedores participantes");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-04: en el plan elegido cada orden pendiente ofrece confirmar y descartar, la confirmada enlaza a su orden de compra, la descartada no ofrece acciones y la solicitud ya no se puede cancelar")
+    @DisplayName("CP-SCC-04: en el plan propuesto con órdenes ya resueltas, la pendiente ofrece confirmar y descartar, la confirmada enlaza a su orden de compra, la descartada no ofrece acciones y la solicitud no se puede cancelar")
     void caso_cp_scc_04() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
-                plan(EstadoPlanCompra.ELEGIDO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null),
+                plan(EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.DESCARTADA, null),
                         orden(802L, EstadoOrdenCompraPropuesta.CONFIRMADA, 12L), orden(803L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
 
         // Act
@@ -223,7 +227,7 @@ class SolicitudCotizacionControllerTest {
 
         // Assert
         assertThat(html)
-                .contains("Elegido").contains("Confirmada")
+                .contains("Propuesto").contains("Confirmada").doesNotContain("Elegido")
                 .contains("href=\"/ordenes-compra/12\"").contains("Ver orden de compra #12")
                 .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=803\"")
                 .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/803/descartar\"")
@@ -235,7 +239,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-05: una solicitud cancelada muestra el detalle de su cancelación en un diálogo y no ofrece acciones; una abierta muestra el tiempo restante y ofrece cancelar, sin sección del plan")
+    @DisplayName("CP-SCC-05: una solicitud cancelada abre en su plan cancelado sin acciones y, en la pestaña de la solicitud, muestra el detalle de su cancelación en un diálogo; una abierta abre en la solicitud con el tiempo restante y ofrece cancelar, sin pestaña ni sección del plan")
     void caso_cp_scc_05() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.CANCELADA,
@@ -244,14 +248,16 @@ class SolicitudCotizacionControllerTest {
 
         // Act
         String cancelada = mockMvc.perform(get(URL + "/90")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String canceladaSolicitud = mockMvc.perform(get(URL + "/90").param("pestana", "solicitud")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String abierta = mockMvc.perform(get(URL + "/91")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(cancelada).contains("Cancelado").doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar")
-                .doesNotContain("data-boton-cancelar")
+        assertThat(cancelada).contains("data-plan>").contains("Cancelado").doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar")
+                .doesNotContain("data-boton-cancelar");
+        assertThat(canceladaSolicitud).doesNotContain("data-plan>").doesNotContain("data-boton-cancelar")
                 .contains("data-detalle-motivo=\"Se consiguió el insumo\"").contains("data-detalle-usuario=\"compras1\"")
                 .contains("Detalle de la cancelación").doesNotContain(">Se consiguió el insumo<");
-        assertThat(abierta).doesNotContain("data-plan>").doesNotContain("Cobertura de los insumos")
+        assertThat(abierta).doesNotContain("data-plan>").doesNotContain("Cobertura de los insumos").doesNotContain("data-pestana-plan")
                 .contains("data-tiempo-restante").contains("1 día y 3 horas").contains("data-boton-cancelar");
     }
 
@@ -270,11 +276,11 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-07: descartar una orden propuesta delega en el service y vuelve al detalle de la solicitud con alerta de éxito")
+    @DisplayName("CP-SCC-07: descartar una orden propuesta delega en el service y vuelve a la pestaña del plan de la solicitud con alerta de éxito")
     void caso_cp_scc_07() throws Exception {
         mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/solicitudes-cotizacion/90"))
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/90?pestana=plan"))
                 .andExpect(flash().attribute("mensaje", "Orden propuesta descartada correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
@@ -285,11 +291,11 @@ class SolicitudCotizacionControllerTest {
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
     @DisplayName("CP-SCC-08: si el service rechaza el descarte, vuelve al origen con el motivo")
     void caso_cp_scc_08() throws Exception {
-        when(solicitudCotizacionServicio.descartarOrdenPropuesta(90L, 803L)).thenThrow(new ReglaNegocioException("Solo se pueden descartar órdenes propuestas del plan elegido"));
+        when(solicitudCotizacionServicio.descartarOrdenPropuesta(90L, 803L)).thenThrow(new ReglaNegocioException("No se puede descartar la orden propuesta porque su plan está finalizado"));
 
         mockMvc.perform(post(URL + "/90/ordenes-propuestas/803/descartar").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("mensaje", "Solo se pueden descartar órdenes propuestas del plan elegido"));
+                .andExpect(flash().attribute("mensaje", "No se puede descartar la orden propuesta porque su plan está finalizado"));
     }
 
     // ==================== Seguridad ====================
@@ -340,7 +346,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-12: si el service rechaza la cancelación (sin motivo o con plan elegido), vuelve al origen con el motivo")
+    @DisplayName("CP-SCC-12: si el service rechaza la cancelación (sin motivo o con el plan generado), vuelve al origen con el motivo")
     void caso_cp_scc_12() throws Exception {
         when(solicitudCotizacionServicio.cancelarSolicitud(90L, null)).thenThrow(new ReglaNegocioException("El motivo de cancelación es obligatorio"));
 
@@ -418,5 +424,120 @@ class SolicitudCotizacionControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verify(solicitudCotizacionServicio).descartarOrdenPropuesta(91L, 803L);
+    }
+
+    // ==================== Pestañas del detalle ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-17: la pestaña de la solicitud muestra los datos con el enlace a la planificación y los insumos solicitados, sin los proveedores ni el plan")
+    void caso_cp_scc_17() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
+                plan(EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/90").param("pestana", "SOLICITUD"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.SOLICITUD))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .containsPattern("data-pestana-solicitud=\"true\"[^>]*aria-current=\"page\"")
+                .contains("Datos de la solicitud").contains("Plan #7 - Pale Ale").contains("href=\"/planificaciones-produccion/7\"")
+                .contains("Insumos solicitados").contains("Malta Pilsen").contains("200 kg").contains("30 kg").contains("20 kg").contains("150 kg")
+                .contains("El plan no cubre todo el faltante: revise la cantidad sin cubrir de cada insumo")
+                .doesNotContain("Proveedores participantes").doesNotContain("data-plan>").doesNotContain("Cobertura de los insumos");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-18: la pestaña de proveedores muestra la situación de cada proveedor con cada presentación que cotizó; sin invitaciones muestra que no hay proveedores participantes")
+    void caso_cp_scc_18() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
+                plan(EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
+        SolicitudCotizacionResponseDTO sinInvitaciones = SolicitudCotizacionResponseDTO.builder().id(12L).estado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION)
+                .idPlanificacion(45L).etiquetaPlanificacion("Plan #45 - Pale Ale").avisos(List.of()).lineas(List.of()).invitaciones(List.of()).build();
+        when(solicitudCotizacionServicio.buscarPorId(12L)).thenReturn(sinInvitaciones);
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/90").param("pestana", "proveedores"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.PROVEEDORES))
+                .andReturn().getResponse().getContentAsString();
+        String vacio = mockMvc.perform(get(URL + "/12").param("pestana", "proveedores"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.PROVEEDORES))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html)
+                .containsPattern("data-pestana-proveedores=\"true\"[^>]*aria-current=\"page\"")
+                .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
+                .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
+                .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
+                .doesNotContain("Entrega estimada").doesNotContain("data-fecha-entrega")
+                .doesNotContain("Insumos solicitados").doesNotContain("data-plan>").doesNotContain("data-sin-proveedores");
+        assertThat(vacio).contains("Proveedores participantes").contains("data-sin-proveedores").contains("No hay proveedores participantes")
+                .doesNotContain("data-estado-participacion");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-19: sin plan el detalle abre en la solicitud y no ofrece la pestaña del plan aunque se la pida; con plan, una pestaña inexistente abre en el plan")
+    void caso_cp_scc_19() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(91L)).thenReturn(detalle(EstadoSolicitudCotizacion.ABIERTA, null));
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
+                plan(EstadoPlanCompra.PROPUESTO, orden(801L, EstadoOrdenCompraPropuesta.PROPUESTA, null))));
+        List<PestanaSolicitudCotizacion> sinPlan = List.of(PestanaSolicitudCotizacion.SOLICITUD, PestanaSolicitudCotizacion.PROVEEDORES);
+
+        // Act
+        String porDefecto = mockMvc.perform(get(URL + "/91"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.SOLICITUD))
+                .andExpect(model().attribute("pestanas", sinPlan))
+                .andReturn().getResponse().getContentAsString();
+        String planPedido = mockMvc.perform(get(URL + "/91").param("pestana", "plan"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.SOLICITUD))
+                .andExpect(model().attribute("pestanas", sinPlan))
+                .andReturn().getResponse().getContentAsString();
+        mockMvc.perform(get(URL + "/90").param("pestana", "inexistente"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.PLAN));
+
+        // Assert
+        for (String html : List.of(porDefecto, planPedido)) {
+            assertThat(html).contains("Datos de la solicitud").contains("Insumos solicitados")
+                    .contains("href=\"/solicitudes-cotizacion/90?pestana=proveedores\"")
+                    .doesNotContain("data-pestana-plan").doesNotContain("pestana=plan").doesNotContain("data-plan>");
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-20: una solicitud finalizada abre en su plan finalizado sin acciones sobre las órdenes ni cancelar; el listado ofrece filtrar por Finalizada")
+    void caso_cp_scc_20() throws Exception {
+        // Arrange
+        when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.FINALIZADA,
+                plan(EstadoPlanCompra.FINALIZADO, orden(801L, EstadoOrdenCompraPropuesta.CONFIRMADA, 12L),
+                        orden(802L, EstadoOrdenCompraPropuesta.DESCARTADA, null))));
+        when(solicitudCotizacionServicio.filtrarSolicitudes(any(), isNull(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/90"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pestanaActiva", PestanaSolicitudCotizacion.PLAN))
+                .andReturn().getResponse().getContentAsString();
+        String lista = mockMvc.perform(get(URL).param("estado", "finalizada")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("data-plan>").contains("Finalizado").contains("href=\"/ordenes-compra/12\"")
+                .doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar").doesNotContain("data-boton-cancelar");
+        assertThat(lista).contains("<option value=\"FINALIZADA\" selected=\"selected\">Finalizada</option>");
+        verify(solicitudCotizacionServicio).filtrarSolicitudes(eq(EstadoSolicitudCotizacion.FINALIZADA), isNull(), any(Pageable.class));
     }
 }

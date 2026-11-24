@@ -84,11 +84,6 @@ public class SolicitudCotizacionResponseDTO {
     private int cantidadRespuestas;
 
     /**
-     * {@code true} si su plan ya fue elegido.
-     */
-    private boolean planElegido;
-
-    /**
      * Situaciones que el gerente de compras debe conocer (insumos sin proveedor, sin respuestas, plan que no cubre todo).
      */
     private List<String> avisos;

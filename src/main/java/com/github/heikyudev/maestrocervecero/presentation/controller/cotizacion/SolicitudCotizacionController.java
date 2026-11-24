@@ -33,8 +33,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * El listado muestra primero las solicitudes pendientes de confirmación, después las abiertas con el tiempo que les
  * queda y luego las demás, de la más nueva a la más vieja. Una solicitud pendiente de confirmación se confirma (envío a
  * los proveedores) o se cancela desde su detalle. El detalle muestra el plan de órdenes de compra generado; cada orden propuesta se confirma en el alta
- * de órdenes de compra prearmada ({@code /ordenes-compra/nuevo?idOrdenPropuesta=X}) y las del plan elegido se pueden
- * descartar.
+ * de órdenes de compra prearmada ({@code /ordenes-compra/nuevo?idOrdenPropuesta=X}) y las pendientes se pueden
+ * descartar; sin órdenes pendientes, la solicitud queda finalizada.
  * </p>
  */
 @Controller
@@ -69,17 +69,24 @@ public class SolicitudCotizacionController {
     }
 
     /**
-     * Muestra el detalle de una solicitud: sus datos, los insumos solicitados, los proveedores invitados y su plan de
-     * órdenes de compra. Si la solicitud no existe, el {@code ControllerAdvices} vuelve al origen con el motivo.
+     * Muestra el detalle de una solicitud en pestañas: la solicitud (sus datos y los insumos solicitados), los
+     * proveedores participantes y, si tiene un plan generado, el plan de órdenes de compra. La pestaña activa viaja en
+     * {@code ?pestana=}; sin ella, o si la pedida no se ofrece, se abre la del plan cuando existe y la de la solicitud en
+     * caso contrario. Si la solicitud no existe, el {@code ControllerAdvices} vuelve al origen con el motivo.
      */
     @GetMapping("/{id}")
-    public String mostrarDetalle(@PathVariable Long id, Model model) {
-        model.addAttribute("solicitud", solicitudCotizacionServicio.buscarPorId(id));
+    public String mostrarDetalle(@PathVariable Long id,
+                                 @RequestParam(required = false) String pestana,
+                                 Model model) {
+        SolicitudCotizacionResponseDTO solicitud = solicitudCotizacionServicio.buscarPorId(id);
+        model.addAttribute("solicitud", solicitud);
+        model.addAttribute("pestanas", PestanaSolicitudCotizacion.disponibles(solicitud));
+        model.addAttribute("pestanaActiva", PestanaSolicitudCotizacion.resolver(pestana, solicitud));
         return VISTA_DETALLE;
     }
 
     /**
-     * Descarta una orden propuesta del plan elegido y vuelve al detalle de la solicitud. Si el service la rechaza, el
+     * Descarta una orden propuesta pendiente del plan y vuelve a la pestaña del plan de la solicitud. Si el service la rechaza, el
      * {@code ControllerAdvices} vuelve al origen con el motivo.
      */
     @PostMapping("/{id}/ordenes-propuestas/{idOrdenPropuesta}/descartar")
@@ -88,7 +95,7 @@ public class SolicitudCotizacionController {
                                           RedirectAttributes redirectAttributes) {
         solicitudCotizacionServicio.descartarOrdenPropuesta(id, idOrdenPropuesta);
         agregarMensaje(redirectAttributes, "Orden propuesta descartada correctamente", TipoAlerta.SUCCESS);
-        return "redirect:" + URL_LISTA + "/" + id;
+        return "redirect:" + URL_LISTA + "/" + id + "?pestana=" + PestanaSolicitudCotizacion.PLAN.getClave();
     }
 
     /**
@@ -105,7 +112,7 @@ public class SolicitudCotizacionController {
     }
 
     /**
-     * Cancela a mano una solicitud pendiente de confirmación, abierta o con el plan sin elegir y vuelve a su detalle. El motivo es obligatorio: si
+     * Cancela a mano una solicitud pendiente de confirmación o abierta y vuelve a su detalle. El motivo es obligatorio: si
      * falta o el service rechaza la cancelación, el {@code ControllerAdvices} vuelve al origen con el motivo del rechazo.
      */
     @PostMapping("/{id}/cancelar")

@@ -72,6 +72,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -965,39 +966,51 @@ class SolicitudCotizacionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SCO-14: al anular la planificación, el plan elegido con órdenes confirmadas sigue ELEGIDO, el propuesto queda CANCELADO y las órdenes sin confirmar quedan DESCARTADA")
+    @DisplayName("CP-SCO-14: al anular la planificación, el plan con órdenes confirmadas queda FINALIZADO, el que no tiene confirmadas queda CANCELADO, las órdenes sin confirmar quedan DESCARTADA y una solicitud FINALIZADA no cambia")
     void cancelar_solicitudesConPlan() {
         // === PREPARACION DE DATOS ===
         ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
         ProveedorEntity p2 = proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta);
-        // Solicitud 90: plan elegido con la orden 801 confirmada y la 802 pendiente
-        SolicitudCotizacionEntity conElegido = solicitudConPlan(p1, p2);
-        PlanCompraEntity elegido = conElegido.getPlan();
-        elegido.setEstado(EstadoPlanCompra.ELEGIDO);
-        OrdenCompraPropuestaEntity confirmada = elegido.getOrdenes().get(0);
+        // Solicitud 90: plan propuesto con la orden 801 confirmada y la 802 pendiente
+        SolicitudCotizacionEntity conConfirmadas = solicitudConPlan(p1, p2);
+        PlanCompraEntity planConConfirmadas = conConfirmadas.getPlan();
+        OrdenCompraPropuestaEntity confirmada = planConConfirmadas.getOrdenes().get(0);
         confirmada.setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
-        OrdenCompraPropuestaEntity pendiente = elegido.getOrdenes().get(1);
+        OrdenCompraPropuestaEntity pendiente = planConConfirmadas.getOrdenes().get(1);
         // Solicitud 91: plan propuesto, sin órdenes confirmadas
         SolicitudCotizacionEntity conPropuesto = solicitudConPlan(p1, p2);
         conPropuesto.setId(91L);
         PlanCompraEntity propuesto = conPropuesto.getPlan();
-        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(90L, 91L));
-        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(conElegido));
+        // Solicitud 92: finalizada (todas sus órdenes resueltas) mientras se esperaba el bloqueo
+        SolicitudCotizacionEntity finalizada = solicitudConPlan(p1, p2);
+        finalizada.setId(92L);
+        finalizada.setEstado(EstadoSolicitudCotizacion.FINALIZADA);
+        finalizada.getPlan().setEstado(EstadoPlanCompra.FINALIZADO);
+        finalizada.getPlan().getOrdenes().forEach(orden -> orden.setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA));
+        when(solicitudRepository.buscarIdsPorPlanificacionYEstados(eq(7L), anyCollection())).thenReturn(List.of(90L, 91L, 92L));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(conConfirmadas));
         when(solicitudRepository.buscarPorIdParaActualizar(91L)).thenReturn(Optional.of(conPropuesto));
+        when(solicitudRepository.buscarPorIdParaActualizar(92L)).thenReturn(Optional.of(finalizada));
 
         // === EJECUCION ===
         servicio.cancelarPorAnulacionDePlanificacion(7L);
 
         // === ASSERTS ===
-        assertThat(conElegido.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(conConfirmadas.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
         assertThat(conPropuesto.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
-        assertThat(elegido.getEstado()).isEqualTo(EstadoPlanCompra.ELEGIDO);
+        assertThat(planConConfirmadas.getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
         assertThat(confirmada.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.CONFIRMADA);
         assertThat(pendiente.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.DESCARTADA);
         assertThat(propuesto.getEstado()).isEqualTo(EstadoPlanCompra.CANCELADO);
         assertThat(propuesto.getOrdenes()).allMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.DESCARTADA);
+        assertThat(finalizada.getEstado()).isEqualTo(EstadoSolicitudCotizacion.FINALIZADA);
+        assertThat(finalizada.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
+        verify(solicitudRepository, never()).save(finalizada);
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        ArgumentCaptor<Collection<EstadoSolicitudCotizacion>> estados = (ArgumentCaptor) ArgumentCaptor.forClass(Collection.class);
+        verify(solicitudRepository).buscarIdsPorPlanificacionYEstados(eq(7L), estados.capture());
+        assertThat(estados.getValue()).doesNotContain(EstadoSolicitudCotizacion.FINALIZADA, EstadoSolicitudCotizacion.CANCELADA);
     }
-
     @Test
     @DisplayName("CP-SCO-15: al anular la planificación sin solicitudes vigentes no se cambia nada")
     void cancelar_sinSolicitudes() {
@@ -1011,7 +1024,7 @@ class SolicitudCotizacionServicioImplTest {
     // ==================== cancelarSolicitud ====================
 
     @Test
-    @DisplayName("CP-SCO-32: cancelarSolicitud rechaza un motivo faltante o largo, una solicitud inexistente, una que no está pendiente, abierta ni con el plan generado y una con el plan elegido")
+    @DisplayName("CP-SCO-32: cancelarSolicitud rechaza un motivo faltante o largo, una solicitud inexistente y una que no está pendiente de confirmación ni abierta (con el plan generado, finalizada o cerrada)")
     void cancelarSolicitud_reglas() {
         // === PREPARACION DE DATOS ===
         SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
@@ -1025,42 +1038,42 @@ class SolicitudCotizacionServicioImplTest {
         assertThatThrownBy(() -> servicio.cancelarSolicitud(90L, "a".repeat(256))).hasMessage("El motivo de cancelación no puede superar 255 caracteres");
         assertThatThrownBy(() -> servicio.cancelarSolicitud(99L, "Ya no hace falta"))
                 .isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró la solicitud de cotización con ID: 99");
-        solicitud.getPlan().setEstado(EstadoPlanCompra.ELEGIDO);
-        assertThatThrownBy(() -> servicio.cancelarSolicitud(90L, "Ya no hace falta"))
-                .hasMessage("No se puede cancelar la solicitud de cotización porque su plan ya fue elegido");
-        solicitud.setEstado(EstadoSolicitudCotizacion.CERRADA);
-        assertThatThrownBy(() -> servicio.cancelarSolicitud(90L, "Ya no hace falta"))
-                .hasMessage("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación, abiertas o con el plan generado");
+        for (EstadoSolicitudCotizacion estado : List.of(EstadoSolicitudCotizacion.PLAN_GENERADO, EstadoSolicitudCotizacion.FINALIZADA,
+                EstadoSolicitudCotizacion.CERRADA)) {
+            solicitud.setEstado(estado);
+            assertThatThrownBy(() -> servicio.cancelarSolicitud(90L, "Ya no hace falta"))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación o abiertas");
+        }
+        assertThat(solicitud.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.PROPUESTO);
+        assertThat(solicitud.getPlan().getOrdenes()).allMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.PROPUESTA);
         verify(solicitudRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-SCO-33: cancelarSolicitud cancela con el motivo, vence los enlaces en el momento y cancela el plan, bloqueando la planificación y luego la solicitud")
+    @DisplayName("CP-SCO-33: cancelarSolicitud cancela una solicitud abierta con el motivo y vence los enlaces en el momento, bloqueando la planificación y luego la solicitud")
     void cancelarSolicitud_cancela() {
         // === PREPARACION DE DATOS ===
-        SolicitudCotizacionEntity conPlan = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
-                proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
-        InvitacionCotizacionEntity invitacion = invitar(conPlan, proveedor(3L, "CEBADAS", Estado.ACTIVO, malta), null);
+        SolicitudCotizacionEntity abierta = solicitudAbierta(LocalDateTime.now().plusHours(5));
+        InvitacionCotizacionEntity invitacion = invitar(abierta, proveedor(3L, "CEBADAS", Estado.ACTIVO, malta), null);
         invitacion.setFechaExpiracion(LocalDateTime.now().plusDays(1));
         when(solicitudRepository.buscarIdPlanificacion(90L)).thenReturn(Optional.of(7L));
-        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(conPlan));
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(abierta));
 
         // === EJECUCION ===
         SolicitudCotizacionResponseDTO resultado = servicio.cancelarSolicitud(90L, "  Se consiguió   el insumo  ");
 
         // === ASSERTS ===
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
-        assertThat(conPlan.getMotivoCancelacion()).isEqualTo("Se consiguió el insumo");
-        assertThat(conPlan.getFechaCancelacion()).isNotNull();
+        assertThat(abierta.getMotivoCancelacion()).isEqualTo("Se consiguió el insumo");
+        assertThat(abierta.getFechaCancelacion()).isNotNull();
         assertThat(invitacion.getFechaExpiracion()).isBeforeOrEqualTo(LocalDateTime.now());
-        assertThat(conPlan.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.CANCELADO);
-        assertThat(conPlan.getPlan().getOrdenes()).allMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.DESCARTADA);
+        assertThat(abierta.getPlan()).isNull();
         InOrder orden = inOrder(planificacionProduccionRepository, solicitudRepository);
         orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(7L);
         orden.verify(solicitudRepository).buscarPorIdParaActualizar(90L);
-        orden.verify(solicitudRepository).save(conPlan);
+        orden.verify(solicitudRepository).save(abierta);
     }
-
     // ==================== prepararOrdenCompra ====================
 
     @Test
@@ -1156,8 +1169,8 @@ class SolicitudCotizacionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SCO-20: la primera orden confirmada registra la orden de compra, la vincula y elige el plan; las demás órdenes del plan siguen pendientes")
-    void confirmar_primeraOrden_eligePlan() {
+    @DisplayName("CP-SCO-20: la primera orden confirmada registra la orden de compra y la vincula; con otra orden pendiente el plan sigue PROPUESTO y la solicitud con el plan generado")
+    void confirmar_primeraOrden_conPendientes() {
         // === PREPARACION DE DATOS ===
         SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
                 proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
@@ -1176,7 +1189,8 @@ class SolicitudCotizacionServicioImplTest {
         assertThat(resultado.getId()).isEqualTo(55L);
         assertThat(orden.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.CONFIRMADA);
         assertThat(orden.getOrdenCompra()).isSameAs(referencia);
-        assertThat(solicitud.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.ELEGIDO);
+        assertThat(solicitud.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.PROPUESTO);
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
         assertThat(otra.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.PROPUESTA);
         // Orden de bloqueo: planificación, solicitud y recién después el alta de la orden de compra
         InOrder orden1 = inOrder(planificacionProduccionRepository, solicitudRepository, ordenCompraServicio);
@@ -1187,15 +1201,14 @@ class SolicitudCotizacionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SCO-21: una orden más del plan elegido se confirma y el plan sigue ELEGIDO")
-    void confirmar_planYaElegido() {
+    @DisplayName("CP-SCO-21: al confirmar la última orden pendiente (la otra ya confirmada), el plan queda FINALIZADO y la solicitud FINALIZADA")
+    void confirmar_ultimaPendiente_finaliza() {
         // === PREPARACION DE DATOS ===
         ProveedorEntity p2 = proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta);
         SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), p2);
-        PlanCompraEntity elegido = solicitud.getPlan();
-        elegido.setEstado(EstadoPlanCompra.ELEGIDO);
-        elegido.getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
-        OrdenCompraPropuestaEntity segunda = elegido.getOrdenes().get(1);
+        PlanCompraEntity plan = solicitud.getPlan();
+        plan.getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
+        OrdenCompraPropuestaEntity segunda = plan.getOrdenes().get(1);
         conOrdenPropuesta(segunda);
         OrdenCompraFormDTO form = formOrden(7L, 2L);
         when(ordenCompraServicio.registrarOrdenCompra(form)).thenReturn(OrdenCompraResponseDTO.builder().id(56L).build());
@@ -1207,10 +1220,15 @@ class SolicitudCotizacionServicioImplTest {
         // === ASSERTS ===
         assertThat(segunda.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.CONFIRMADA);
         assertThat(segunda.getOrdenCompra().getId()).isEqualTo(56L);
-        assertThat(elegido.getEstado()).isEqualTo(EstadoPlanCompra.ELEGIDO);
-        assertThat(elegido.getOrdenes().get(0).getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.CONFIRMADA);
+        assertThat(plan.getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.FINALIZADA);
+        assertThat(plan.getOrdenes().get(0).getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.CONFIRMADA);
+        // Finalizado el plan, ya no se confirma ni se descarta ninguna orden
+        plan.getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.PROPUESTA);
+        conOrdenPropuesta(plan.getOrdenes().get(0));
+        assertThatThrownBy(() -> servicio.prepararOrdenCompra(801L)).hasMessage("No se puede confirmar la orden propuesta porque su plan está finalizado");
+        assertThatThrownBy(() -> servicio.descartarOrdenPropuesta(90L, 801L)).hasMessage("No se puede descartar la orden propuesta porque su plan está finalizado");
     }
-
     @Test
     @DisplayName("CP-SCO-22: si el alta de la orden de compra la rechaza, la orden propuesta y el plan no cambian")
     void confirmar_rechazoDelAlta() {
@@ -1243,34 +1261,95 @@ class SolicitudCotizacionServicioImplTest {
     // ==================== descartarOrdenPropuesta ====================
 
     @Test
-    @DisplayName("CP-SCO-24: descartarOrdenPropuesta solo descarta órdenes pendientes del plan elegido")
+    @DisplayName("CP-SCO-24: descartarOrdenPropuesta descarta una orden pendiente del plan propuesto sin órdenes confirmadas; con otra pendiente el plan sigue PROPUESTO; rechaza una orden ya confirmada, un plan que no está propuesto y una solicitud sin el plan generado")
     void descartar_reglas() {
         // === PREPARACION DE DATOS ===
         SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
                 proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
-        OrdenCompraPropuestaEntity orden = solicitud.getPlan().getOrdenes().get(0);
+        PlanCompraEntity plan = solicitud.getPlan();
+        OrdenCompraPropuestaEntity orden = plan.getOrdenes().get(0);
         conOrdenPropuesta(orden);
 
         // === EJECUCION Y VERIFICACION ===
-        assertThatThrownBy(() -> servicio.descartarOrdenPropuesta(90L, 801L)).hasMessage("Solo se pueden descartar órdenes propuestas del plan elegido");
-        solicitud.getPlan().setEstado(EstadoPlanCompra.ELEGIDO);
         orden.setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
         assertThatThrownBy(() -> servicio.descartarOrdenPropuesta(90L, 801L)).hasMessage("Solo se pueden descartar órdenes propuestas pendientes de confirmar");
         orden.setEstado(EstadoOrdenCompraPropuesta.PROPUESTA);
+        plan.setEstado(EstadoPlanCompra.CANCELADO);
+        assertThatThrownBy(() -> servicio.descartarOrdenPropuesta(90L, 801L)).hasMessage("No se puede descartar la orden propuesta porque su plan está cancelado");
+        plan.setEstado(EstadoPlanCompra.PROPUESTO);
+        solicitud.setEstado(EstadoSolicitudCotizacion.CANCELADA);
+        assertThatThrownBy(() -> servicio.descartarOrdenPropuesta(90L, 801L))
+                .hasMessage("No se puede descartar la orden propuesta porque la solicitud de cotización está cancelada");
+        solicitud.setEstado(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        verify(ordenPropuestaRepository, never()).save(any());
 
         assertThat(servicio.descartarOrdenPropuesta(90L, 801L).getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.DESCARTADA);
         assertThat(orden.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.DESCARTADA);
-        assertThat(solicitud.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.ELEGIDO);
+        assertThat(plan.getEstado()).isEqualTo(EstadoPlanCompra.PROPUESTO);
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        assertThat(plan.getOrdenes().get(1).getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.PROPUESTA);
         verify(solicitudRepository, org.mockito.Mockito.atLeastOnce()).buscarPorIdParaActualizar(90L);
     }
 
+    @Test
+    @DisplayName("CP-SCO-58: al descartar la última orden pendiente (todas descartadas), el plan queda FINALIZADO y la solicitud FINALIZADA")
+    void descartar_ultimaPendiente_todasDescartadas_finaliza() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
+                proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        PlanCompraEntity plan = solicitud.getPlan();
+        plan.getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.DESCARTADA);
+        OrdenCompraPropuestaEntity ultima = plan.getOrdenes().get(1);
+        conOrdenPropuesta(ultima);
+
+        // === EJECUCION ===
+        servicio.descartarOrdenPropuesta(90L, 802L);
+
+        // === ASSERTS ===
+        assertThat(ultima.getEstado()).isEqualTo(EstadoOrdenCompraPropuesta.DESCARTADA);
+        assertThat(plan.getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.FINALIZADA);
+        verify(ordenPropuestaRepository).save(ultima);
+    }
+
+    @Test
+    @DisplayName("CP-SCO-59: con órdenes confirmadas y descartadas mezcladas, la solicitud queda FINALIZADA tanto al descartar como al confirmar la última pendiente")
+    void ultimaPendiente_combinacion_finaliza() {
+        // === PREPARACION DE DATOS ===
+        // Solicitud 90: la 801 confirmada; se descarta la 802
+        SolicitudCotizacionEntity alDescartar = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
+                proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        alDescartar.getPlan().getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
+        conOrdenPropuesta(alDescartar.getPlan().getOrdenes().get(1));
+        // Otra solicitud 90: la 801 descartada; se confirma la 802
+        SolicitudCotizacionEntity alConfirmar = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
+                proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        alConfirmar.getPlan().getOrdenes().get(0).setEstado(EstadoOrdenCompraPropuesta.DESCARTADA);
+        OrdenCompraFormDTO form = formOrden(7L, 2L);
+        when(ordenCompraServicio.registrarOrdenCompra(form)).thenReturn(OrdenCompraResponseDTO.builder().id(57L).build());
+        when(ordenCompraRepository.getReferenceById(57L)).thenReturn(OrdenCompraEntity.builder().id(57L).build());
+
+        // === EJECUCION ===
+        servicio.descartarOrdenPropuesta(90L, 802L);
+        conOrdenPropuesta(alConfirmar.getPlan().getOrdenes().get(1));
+        servicio.confirmarOrdenPropuesta(802L, form);
+
+        // === ASSERTS ===
+        assertThat(alDescartar.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
+        assertThat(alDescartar.getEstado()).isEqualTo(EstadoSolicitudCotizacion.FINALIZADA);
+        assertThat(alDescartar.getPlan().getOrdenes()).extracting(OrdenCompraPropuestaEntity::getEstado)
+                .containsExactly(EstadoOrdenCompraPropuesta.CONFIRMADA, EstadoOrdenCompraPropuesta.DESCARTADA);
+        assertThat(alConfirmar.getPlan().getEstado()).isEqualTo(EstadoPlanCompra.FINALIZADO);
+        assertThat(alConfirmar.getEstado()).isEqualTo(EstadoSolicitudCotizacion.FINALIZADA);
+        assertThat(alConfirmar.getPlan().getOrdenes()).extracting(OrdenCompraPropuestaEntity::getEstado)
+                .containsExactly(EstadoOrdenCompraPropuesta.DESCARTADA, EstadoOrdenCompraPropuesta.CONFIRMADA);
+    }
     @Test
     @DisplayName("CP-SCO-42: descartarOrdenPropuesta rechaza una orden propuesta que no pertenece a la solicitud indicada, sin bloquear ni cambiar nada")
     void descartar_deOtraSolicitud() {
         // === PREPARACION DE DATOS ===
         SolicitudCotizacionEntity solicitud = solicitudConPlan(proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta),
                 proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
-        solicitud.getPlan().setEstado(EstadoPlanCompra.ELEGIDO);
         OrdenCompraPropuestaEntity orden = solicitud.getPlan().getOrdenes().get(0);
         conOrdenPropuesta(orden);
         when(ordenPropuestaRepository.buscarIdSolicitud(999L)).thenReturn(Optional.empty());
@@ -1309,7 +1388,6 @@ class SolicitudCotizacionServicioImplTest {
         // === ASSERTS ===
         assertThat(listado.getContent()).singleElement().satisfies(resumen -> {
             assertThat(resumen.getEtiquetaPlanificacion()).isEqualTo("Plan #7 - Pale Ale");
-            assertThat(resumen.isPlanElegido()).isFalse();
             assertThat(resumen.getLineas()).isNull();
             assertThat(resumen.getPlan()).isNull();
         });
@@ -1731,7 +1809,7 @@ class SolicitudCotizacionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SCO-57: una solicitud cerrada o con el plan generado no avisa a ningún proveedor al cancelarse a mano ni al anular la planificación")
+    @DisplayName("CP-SCO-57: una solicitud cerrada o con el plan generado no avisa a ningún proveedor al anular la planificación; con el plan generado no se cancela a mano")
     void cancelarNoAbierta_noAvisaAProveedores() {
         // === PREPARACION DE DATOS ===
         // Cancelación manual de la 90, con el plan generado
@@ -1754,11 +1832,12 @@ class SolicitudCotizacionServicioImplTest {
         when(solicitudRepository.buscarPorIdParaActualizar(92L)).thenReturn(Optional.of(otraConPlan));
 
         // === EJECUCION ===
-        servicio.cancelarSolicitud(90L, "Se consiguió el insumo");
+        assertThatThrownBy(() -> servicio.cancelarSolicitud(90L, "Se consiguió el insumo"))
+                .hasMessage("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación o abiertas");
         servicio.cancelarPorAnulacionDePlanificacion(7L);
 
         // === ASSERTS ===
-        assertThat(conPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
+        assertThat(conPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
         assertThat(cerrada.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
         assertThat(otraConPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
         verify(notificador, never()).avisarCancelacionAProveedor(any(), any(), any());

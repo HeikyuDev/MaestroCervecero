@@ -719,12 +719,10 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
             }
             PlanCompraEntity plan = solicitud.getPlan();
             if (plan != null) {
-                // El plan elegido con órdenes ya confirmadas conserva su estado: esas órdenes de compra siguen vigentes
-                boolean elegidoConConfirmadas = plan.getEstado() == EstadoPlanCompra.ELEGIDO && plan.getOrdenes().stream()
+                // Con órdenes ya confirmadas el plan queda finalizado: esas órdenes de compra siguen vigentes
+                boolean conConfirmadas = plan.getOrdenes().stream()
                         .anyMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.CONFIRMADA);
-                if (!elegidoConConfirmadas) {
-                    plan.setEstado(EstadoPlanCompra.CANCELADO);
-                }
+                plan.setEstado(conConfirmadas ? EstadoPlanCompra.FINALIZADO : EstadoPlanCompra.CANCELADO);
                 descartarPendientes(plan);
             }
             solicitudRepository.save(solicitud);
@@ -748,26 +746,18 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         SolicitudCotizacionEntity solicitud = solicitudRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la solicitud de cotización con ID: " + id));
 
-        // 3. Validar que esté pendiente de confirmación, abierta o con el plan generado sin elegir
-        if (solicitud.getEstado() != EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION && solicitud.getEstado() != EstadoSolicitudCotizacion.ABIERTA
-                && solicitud.getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
-            throw new ReglaNegocioException("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación, abiertas o con el plan generado");
-        }
-        PlanCompraEntity plan = solicitud.getPlan();
-        if (plan != null && plan.getEstado() == EstadoPlanCompra.ELEGIDO) {
-            throw new ReglaNegocioException("No se puede cancelar la solicitud de cotización porque su plan ya fue elegido");
+        // 3. Validar que esté pendiente de confirmación o abierta: con el plan generado ya no se cancela (sus órdenes
+        //    propuestas se confirman o se descartan)
+        if (solicitud.getEstado() != EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION && solicitud.getEstado() != EstadoSolicitudCotizacion.ABIERTA) {
+            throw new ReglaNegocioException("Solo se pueden cancelar solicitudes de cotización pendientes de confirmación o abiertas");
         }
 
-        // 4. Cancelarla: los enlaces vencen en el momento y el plan queda cancelado; si estaba abierta, se avisa a los
-        //    proveedores que recibieron la invitación (una cerrada ya no acepta respuestas)
+        // 4. Cancelarla: los enlaces vencen en el momento; si estaba abierta, se avisa a los proveedores que recibieron
+        //    la invitación
         boolean estabaAbierta = solicitud.getEstado() == EstadoSolicitudCotizacion.ABIERTA;
         marcarCancelada(solicitud, motivoCancelacion, LocalDateTime.now());
         if (estabaAbierta) {
             avisarCancelacionAProveedores(solicitud);
-        }
-        if (plan != null) {
-            plan.setEstado(EstadoPlanCompra.CANCELADO);
-            descartarPendientes(plan);
         }
         return MapperSolicitudCotizacion.toDTO(solicitudRepository.save(solicitud));
     }
@@ -926,11 +916,8 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         orden.setOrdenCompra(ordenCompraRepository.getReferenceById(ordenCompra.getId()));
         orden.setEstado(EstadoOrdenCompraPropuesta.CONFIRMADA);
 
-        // 6. La primera orden confirmada elige el plan: desde ese momento la solicitud no se puede cancelar
-        PlanCompraEntity plan = orden.getPlan();
-        if (plan.getEstado() == EstadoPlanCompra.PROPUESTO) {
-            plan.setEstado(EstadoPlanCompra.ELEGIDO);
-        }
+        // 6. Sin órdenes propuestas pendientes, el plan y la solicitud quedan finalizados
+        finalizarSiNoQuedanPendientes(orden.getPlan());
         ordenPropuestaRepository.save(orden);
         return ordenCompra;
     }
@@ -950,23 +937,29 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         if (orden.getEstado() != EstadoOrdenCompraPropuesta.PROPUESTA) {
             throw new ReglaNegocioException("Solo se pueden descartar órdenes propuestas pendientes de confirmar");
         }
-        if (orden.getPlan().getEstado() != EstadoPlanCompra.ELEGIDO) {
-            throw new ReglaNegocioException("Solo se pueden descartar órdenes propuestas del plan elegido");
+        PlanCompraEntity plan = orden.getPlan();
+        if (plan.getEstado() != EstadoPlanCompra.PROPUESTO) {
+            throw new ReglaNegocioException("No se puede descartar la orden propuesta porque su plan está " + plan.getEstado().getEtiqueta().toLowerCase());
+        }
+        if (plan.getSolicitud().getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
+            throw new ReglaNegocioException("No se puede descartar la orden propuesta porque la solicitud de cotización está "
+                    + plan.getSolicitud().getEstado().getEtiqueta().toLowerCase());
         }
         orden.setEstado(EstadoOrdenCompraPropuesta.DESCARTADA);
+        finalizarSiNoQuedanPendientes(plan);
         return MapperSolicitudCotizacion.toOrdenDTO(ordenPropuestaRepository.save(orden));
     }
 
     /**
-     * Valida que una orden propuesta se pueda confirmar: está pendiente, su plan está propuesto o elegido, su solicitud
-     * tiene el plan vigente y el proveedor sigue activo.
+     * Valida que una orden propuesta se pueda confirmar: está pendiente, su plan está propuesto, su solicitud tiene el
+     * plan vigente y el proveedor sigue activo.
      */
     private static void validarConfirmable(OrdenCompraPropuestaEntity orden) {
         if (orden.getEstado() != EstadoOrdenCompraPropuesta.PROPUESTA) {
             throw new ReglaNegocioException("La orden propuesta ya fue " + orden.getEstado().getEtiqueta().toLowerCase());
         }
         PlanCompraEntity plan = orden.getPlan();
-        if (plan.getEstado() != EstadoPlanCompra.PROPUESTO && plan.getEstado() != EstadoPlanCompra.ELEGIDO) {
+        if (plan.getEstado() != EstadoPlanCompra.PROPUESTO) {
             throw new ReglaNegocioException("No se puede confirmar la orden propuesta porque su plan está " + plan.getEstado().getEtiqueta().toLowerCase());
         }
         if (plan.getSolicitud().getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
@@ -976,6 +969,23 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
         if (orden.getProveedor().getEstado() != Estado.ACTIVO) {
             throw new ReglaNegocioException("No se puede confirmar la orden propuesta porque el proveedor fue dado de baja");
         }
+    }
+
+    /**
+     * Si al plan propuesto de una solicitud con el plan generado ya no le quedan órdenes propuestas pendientes (todas
+     * confirmadas o descartadas, en cualquier combinación), el plan pasa a {@code FINALIZADO} y la solicitud a
+     * {@code FINALIZADA}, en la misma transacción.
+     */
+    private static void finalizarSiNoQuedanPendientes(PlanCompraEntity plan) {
+        SolicitudCotizacionEntity solicitud = plan.getSolicitud();
+        boolean quedanPendientes = plan.getOrdenes().stream()
+                .anyMatch(orden -> orden.getEstado() == EstadoOrdenCompraPropuesta.PROPUESTA);
+        if (quedanPendientes || plan.getEstado() != EstadoPlanCompra.PROPUESTO
+                || solicitud.getEstado() != EstadoSolicitudCotizacion.PLAN_GENERADO) {
+            return;
+        }
+        plan.setEstado(EstadoPlanCompra.FINALIZADO);
+        solicitud.setEstado(EstadoSolicitudCotizacion.FINALIZADA);
     }
 
     private void bloquearSolicitudDe(Long idOrdenPropuesta) {

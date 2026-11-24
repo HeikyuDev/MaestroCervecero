@@ -9,11 +9,11 @@
     estadoOrdenPropuesta(estado): insignia del estado de una orden propuesta.
 -->
 <span th:fragment="estadoSolicitud(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-      th:classappend="${estado.name() == 'PENDIENTE_DE_CONFIRMACION'} ? 'bg-violet-100 text-violet-700' : (${estado.name() == 'ABIERTA'} ? 'bg-blue-100 text-blue-700' : (${estado.name() == 'PLAN_GENERADO'} ? 'bg-emerald-100 text-emerald-700' : (${estado.name() == 'CERRADA'} ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700')))"
+      th:classappend="${estado.name() == 'PENDIENTE_DE_CONFIRMACION'} ? 'bg-violet-100 text-violet-700' : (${estado.name() == 'ABIERTA'} ? 'bg-blue-100 text-blue-700' : (${estado.name() == 'PLAN_GENERADO'} ? 'bg-emerald-100 text-emerald-700' : (${estado.name() == 'FINALIZADA'} ? 'bg-emerald-50 text-emerald-700' : (${estado.name() == 'CERRADA'} ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'))))"
       th:text="${estado.etiqueta}">Abierta</span>
 
 <span th:fragment="estadoPlan(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-      th:classappend="${estado.name() == 'PROPUESTO'} ? 'bg-blue-100 text-blue-700' : (${estado.name() == 'ELEGIDO'} ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')"
+      th:classappend="${estado.name() == 'PROPUESTO'} ? 'bg-blue-100 text-blue-700' : (${estado.name() == 'FINALIZADO'} ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-100 text-rose-700')"
       th:text="${estado.etiqueta}">Propuesto</span>
 
 <span th:fragment="estadoOrdenPropuesta(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"

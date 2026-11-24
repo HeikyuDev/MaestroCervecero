@@ -24,7 +24,7 @@
             <span th:if="${ordenPropuesta.idSolicitud != null}"
                   th:text="|Orden propuesta por el plan de la solicitud de cotización #${ordenPropuesta.idSolicitud}.|">Orden propuesta por el plan de la solicitud de cotización #3.</span>
             Revise la fecha de entrega estimada que indicó el proveedor y, si hace falta, modifíquela junto con cantidades, costos o ítems antes de registrarla.
-            Al registrar la primera orden del plan, el plan queda elegido y la solicitud de cotización ya no se puede cancelar.
+            Cuando el plan ya no tiene órdenes propuestas pendientes, la solicitud de cotización queda finalizada.
         </p>
     </div>
 

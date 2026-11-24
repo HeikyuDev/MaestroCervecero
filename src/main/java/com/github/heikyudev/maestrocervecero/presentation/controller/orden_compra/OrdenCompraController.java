@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.presentation.controller.cotizacion.PestanaSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.AnulacionOrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.DetalleCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.FinalizacionForzadaOrdenCompraFormDTO;
@@ -251,13 +252,14 @@ public class OrdenCompraController {
     }
 
     /**
-     * Carga la orden propuesta que se confirma: el aviso de la pantalla, el campo oculto que la envía y el regreso a su
-     * solicitud de cotización.
+     * Carga la orden propuesta que se confirma: el aviso de la pantalla, el campo oculto que la envía y el regreso a la
+     * pestaña del plan de su solicitud de cotización.
      */
     private static void cargarOrdenPropuesta(Model model, OrdenCompraPrearmadaResponseDTO prearmada) {
         model.addAttribute("ordenPropuesta", prearmada);
         if (prearmada.getIdSolicitud() != null) {
-            model.addAttribute("urlCancelar", URL_SOLICITUDES_COTIZACION + "/" + prearmada.getIdSolicitud());
+            model.addAttribute("urlCancelar", URL_SOLICITUDES_COTIZACION + "/" + prearmada.getIdSolicitud()
+                    + "?pestana=" + PestanaSolicitudCotizacion.PLAN.getClave());
         }
     }
 

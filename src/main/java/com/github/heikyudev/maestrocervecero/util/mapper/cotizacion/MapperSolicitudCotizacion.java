@@ -2,7 +2,6 @@ package com.github.heikyudev.maestrocervecero.util.mapper.cotizacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoOrdenCompraPropuesta;
-import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoPlanCompra;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoSolicitudCotizacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.InvitacionCotizacionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.OfertaCotizacionEntity;
@@ -111,7 +110,6 @@ public final class MapperSolicitudCotizacion {
                 .fallaCierre(entity.isFallaCierre())
                 .motivoFallaCierre(entity.getMotivoFallaCierre())
                 .tiempoRestante(entity.getEstado() == EstadoSolicitudCotizacion.ABIERTA ? tiempoRestante(entity.getFechaLimiteRespuesta(), LocalDateTime.now()) : null)
-                .planElegido(entity.getPlan() != null && entity.getPlan().getEstado() == EstadoPlanCompra.ELEGIDO)
                 .avisos(armarAvisos(entity, respuestas, plan, sinProveedor))
                 .lineas(completo ? entity.getLineas().stream().map(linea -> toLineaDTO(linea, sinProveedor.contains(linea))).toList() : null)
                 .invitaciones(completo ? entity.getInvitaciones().stream().map(MapperSolicitudCotizacion::toInvitacionDTO).toList() : null)

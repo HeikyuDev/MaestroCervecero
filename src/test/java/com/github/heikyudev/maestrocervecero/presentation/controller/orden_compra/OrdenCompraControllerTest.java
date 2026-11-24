@@ -1486,7 +1486,7 @@ class OrdenCompraControllerTest {
                 .contains(com.github.heikyudev.maestrocervecero.util.TextosProcesoCompra.ENTRADA)
                 .contains("data-aviso-planes-pendientes")
                 .contains("Hay 1 solicitud de cotización con el plan de órdenes de compra listo para revisar")
-                .contains("href=\"/solicitudes-cotizacion/90\"").contains("Solicitud #90 - Plan #7 - Pale Ale").doesNotContain("planes)")
+                .contains("href=\"/solicitudes-cotizacion/90?pestana=plan\"").contains("Solicitud #90 - Plan #7 - Pale Ale").doesNotContain("planes)")
                 .doesNotContain("data-aviso-por-confirmar");
     }
 
@@ -1561,7 +1561,7 @@ class OrdenCompraControllerTest {
                 .contains("Confirmar orden de compra propuesta")
                 .contains("Orden propuesta por el plan de la solicitud de cotización #90.")
                 .contains("name=\"idOrdenPropuesta\" value=\"801\"")
-                .contains("href=\"/solicitudes-cotizacion/90\"")
+                .contains("href=\"/solicitudes-cotizacion/90?pestana=plan\"")
                 .contains("Volver a la solicitud de cotización")
                 .contains("name=\"idPlanificacionProduccion\" value=\"7\"")
                 .contains("name=\"idProveedor\" value=\"4\"")

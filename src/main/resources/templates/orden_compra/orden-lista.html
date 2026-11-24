@@ -51,7 +51,7 @@
         </p>
         <ul class="mt-2 space-y-1">
             <li th:each="p : ${procesosPendientes}">
-                <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id})}" class="font-medium text-amber-700 hover:text-amber-900 hover:underline"
+                <a th:href="@{/solicitudes-cotizacion/{id}(id=${p.id}, pestana='plan')}" class="font-medium text-amber-700 hover:text-amber-900 hover:underline"
                    th:text="|Solicitud #${p.id} - ${p.etiquetaPlanificacion}|">Solicitud #3 - Plan #7 - Pale Ale</a>
             </li>
         </ul>

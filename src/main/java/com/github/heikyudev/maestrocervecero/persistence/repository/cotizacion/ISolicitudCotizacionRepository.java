@@ -85,13 +85,13 @@ public interface ISolicitudCotizacionRepository extends JpaRepository<SolicitudC
                                                  @Param("estados") Collection<EstadoSolicitudCotizacion> estados);
 
     /**
-     * Las solicitudes que esperan una decisión del gerente de compras: tienen el plan generado y todavía no elegido, de
-     * la más nueva a la más vieja.
+     * Las solicitudes que esperan una decisión del gerente de compras: tienen el plan generado con órdenes propuestas
+     * pendientes de confirmar o descartar (al no quedar ninguna, la solicitud pasa a {@code FINALIZADA}), de la más
+     * nueva a la más vieja.
      *
      * @return Las solicitudes con el plan listo para revisar.
      */
-    @Query("SELECT s FROM SolicitudCotizacionEntity s WHERE s.estado = 'PLAN_GENERADO' AND NOT EXISTS "
-            + "(SELECT p FROM PlanCompraEntity p WHERE p.solicitud = s AND p.estado = 'ELEGIDO') ORDER BY s.id DESC")
+    @Query("SELECT s FROM SolicitudCotizacionEntity s WHERE s.estado = 'PLAN_GENERADO' ORDER BY s.id DESC")
     List<SolicitudCotizacionEntity> buscarConPlanPendienteDeDecision();
 
     /**
