@@ -131,7 +131,8 @@ public class SolicitudCotizacionResponseDTO {
 
     /**
      * Por qué se generó la solicitud (un renglón por cada insumo que el stock no cubre) y, mientras está pendiente de
-     * confirmación, qué falta hacer, o {@code null} si la solicitud no tiene líneas.
+     * confirmación, qué falta hacer. Solo mientras la solicitud está pendiente de confirmación o abierta; en otro
+     * estado, o si la solicitud no tiene líneas, es {@code null}.
      */
     private ExplicacionSolicitudCotizacionResponseDTO explicacion;
 }

@@ -102,7 +102,7 @@ public final class MapperSolicitudCotizacion {
                 .fechaCancelacion(entity.getFechaCancelacion())
                 .motivoCancelacion(entity.getMotivoCancelacion())
                 .fechaConfirmacionEnvio(entity.getFechaConfirmacionEnvio())
-                .explicacion(entity.getLineas().isEmpty() ? null : explicacion(entity))
+                .explicacion(entity.getLineas().isEmpty() || !esperaAlProceso(entity) ? null : explicacion(entity))
                 .usuarioCancelacion(entity.getEstado() == EstadoSolicitudCotizacion.CANCELADA ? entity.getLastModifiedBy() : null)
                 .cantidadInsumos(entity.getLineas().size())
                 .cantidadInvitaciones(entity.getInvitaciones().size())
@@ -273,6 +273,16 @@ public final class MapperSolicitudCotizacion {
 
     /** Lo que falta hacer con una solicitud pendiente de confirmación. */
     public static final String ACCION_PENDIENTE_CONFIRMACION = "Confirme el envío a los proveedores o cancele la solicitud";
+
+    /**
+     * Indica si la solicitud todavía espera una etapa del proceso (confirmar el envío o recibir respuestas). Solo
+     * entonces se informa la explicación: después, el faltante guardado ya no describe el stock actual y queda como
+     * historial en las líneas de la solicitud.
+     */
+    private static boolean esperaAlProceso(SolicitudCotizacionEntity solicitud) {
+        return solicitud.getEstado() == EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION
+                || solicitud.getEstado() == EstadoSolicitudCotizacion.ABIERTA;
+    }
 
     /**
      * Por qué se generó la solicitud y qué falta hacer, en partes para mostrarla como una lista:

@@ -248,4 +248,21 @@ class MapperSolicitudCotizacionTest {
         assertThat(avisosDeSinProveedor(dto)).containsExactly("Ningún proveedor activo ofrece Pilsen");
         assertThat(dto.getLineas()).extracting(LineaSolicitudCotizacionResponseDTO::isSinProveedor).containsExactly(true, false);
     }
+
+    @Test
+    @DisplayName("CP-MSC-10: la explicación se informa solo mientras la solicitud está pendiente de confirmación o abierta")
+    void explicacion_soloPendienteDeConfirmacionOAbierta() {
+        for (EstadoSolicitudCotizacion estado : EstadoSolicitudCotizacion.values()) {
+            // === PREPARACION DE DATOS ===
+            SolicitudCotizacionEntity solicitud = solicitud(estado);
+            agregarLinea(solicitud, PILSEN, false);
+
+            // === EJECUCION ===
+            SolicitudCotizacionResponseDTO dto = MapperSolicitudCotizacion.toDTO(solicitud);
+
+            // === ASSERTS ===
+            boolean enCurso = estado == EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION || estado == EstadoSolicitudCotizacion.ABIERTA;
+            assertThat(dto.getExplicacion()).as(estado.name()).matches(explicacion -> enCurso == (explicacion != null));
+        }
+    }
 }
