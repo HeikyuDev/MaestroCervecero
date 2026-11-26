@@ -3,7 +3,10 @@
 
 <!--
     Ventana emergente para agregar un ítem a la orden de compra. La abre /js/orden-compra-form.js desde el botón
-    "Agregar ítem" (data-abrir-agregar) y, al confirmar, agrega una fila a la tabla de ítems.
+    "Agregar ítem" (data-abrir-agregar) y, al confirmar, agrega una fila a la tabla de ítems. El botón "Modificar" de una
+    fila (data-modificar-fila) abre el mismo modal con los datos de la fila (por ejemplo, para ajustar el precio o la
+    cantidad de una orden propuesta), con el título de data-titulo-modificar y el botón de data-texto-modificar; al
+    confirmar reemplaza esa fila en su lugar y recalcula el subtotal y el total, y al cancelar la deja como estaba.
 
     El ítem se elige con el selector de entidad compartido (campo en blanco con botón de lista que abre el buscador).
     /js/orden-compra-form.js le indica al selector, justo antes de abrirse, la planificación, el proveedor y los ítems
@@ -19,7 +22,7 @@
         class="m-auto w-full max-w-lg rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
     <div class="p-6 space-y-5">
         <div class="flex items-start justify-between gap-4">
-            <h3 class="text-lg font-semibold text-slate-900">Agregar ítem a la orden</h3>
+            <h3 class="text-lg font-semibold text-slate-900" data-titulo-dialogo data-titulo-modificar="Modificar ítem de la orden">Agregar ítem a la orden</h3>
             <button type="button" data-cerrar-agregar title="Cerrar" aria-label="Cerrar"
                     class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                 <i class="bi bi-x-lg"></i>
@@ -54,7 +57,7 @@
         <div class="flex justify-end gap-3">
             <button type="button" data-cerrar-agregar
                     class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
-            <button type="button" data-confirmar-agregar
+            <button type="button" data-confirmar-agregar data-texto-modificar="Guardar cambios"
                     class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Agregar a la orden</button>
         </div>
     </div>

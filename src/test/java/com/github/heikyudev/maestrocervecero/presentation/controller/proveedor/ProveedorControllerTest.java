@@ -517,13 +517,21 @@ class ProveedorControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert: las dos filas con error quedan resaltadas; la fila válida y la plantilla, no
-        String filaResaltada = "<tr data-fila data-prefijo=\"version.catalogoProveedor\" class=\"bg-rose-50\">";
-        String filaSinResaltar = "<tr data-fila data-prefijo=\"version.catalogoProveedor\">";
-        assertThat(html.split(Pattern.quote(filaResaltada), -1)).hasSize(3);
-        assertThat(html.split(Pattern.quote(filaSinResaltar), -1)).hasSize(3);
-        assertThat(html.indexOf(filaResaltada)).isLessThan(html.indexOf("name=\"version.catalogoProveedor[0].idInsumo\""));
-        assertThat(html.lastIndexOf(filaResaltada)).isLessThan(html.indexOf("name=\"version.catalogoProveedor[1].idInsumo\""));
-        assertThat(html.indexOf(filaSinResaltar)).isGreaterThan(html.indexOf("name=\"version.catalogoProveedor[1].idInsumo\""));
+        // La etiqueta de la fila puede llevar además los textos de sus selectores (data-etiqueta-*), antes de la clase
+        Matcher resaltadas = Pattern.compile("<tr data-fila data-prefijo=\"version.catalogoProveedor\"[^>]*class=\"bg-rose-50\"[^>]*>").matcher(html);
+        assertThat(resaltadas.find()).isTrue();
+        int primeraResaltada = resaltadas.start();
+        assertThat(resaltadas.find()).isTrue();
+        int segundaResaltada = resaltadas.start();
+        assertThat(resaltadas.find()).isFalse();
+        Matcher sinResaltar = Pattern.compile("<tr data-fila data-prefijo=\"version.catalogoProveedor\"(?![^>]*class=)[^>]*>").matcher(html);
+        assertThat(sinResaltar.find()).isTrue();
+        int primeraSinResaltar = sinResaltar.start();
+        assertThat(sinResaltar.find()).isTrue();
+        assertThat(sinResaltar.find()).isFalse();
+        assertThat(primeraResaltada).isLessThan(html.indexOf("name=\"version.catalogoProveedor[0].idInsumo\""));
+        assertThat(segundaResaltada).isLessThan(html.indexOf("name=\"version.catalogoProveedor[1].idInsumo\""));
+        assertThat(primeraSinResaltar).isGreaterThan(html.indexOf("name=\"version.catalogoProveedor[1].idInsumo\""));
         verify(proveedorServicio, never()).altaProveedor(any());
     }
 
@@ -554,8 +562,10 @@ class ProveedorControllerTest {
                 .contains("name=\"version.catalogoProveedor[1].idPresentacionComercial\" value=\"\"")
                 .contains("name=\"version.catalogoProveedor[2].idPresentacionComercial\" value=\"6\"")
                 .contains(">Insumo no disponible<", ">Presentación no disponible<");
-        String filaResaltada = "<tr data-fila data-prefijo=\"version.catalogoProveedor\" class=\"bg-rose-50\">";
-        assertThat(html.split(Pattern.quote(filaResaltada), -1)).hasSize(2);
+        Matcher resaltada = Pattern.compile("<tr data-fila data-prefijo=\"version.catalogoProveedor\"[^>]*class=\"bg-rose-50\"[^>]*>").matcher(html);
+        assertThat(resaltada.find()).isTrue();
+        String filaResaltada = resaltada.group();
+        assertThat(resaltada.find()).isFalse();
         assertThat(html.indexOf(filaResaltada)).isGreaterThan(html.indexOf("name=\"version.catalogoProveedor[0].idInsumo\""))
                 .isLessThan(html.indexOf("name=\"version.catalogoProveedor[1].idInsumo\""));
         verify(proveedorServicio, never()).altaProveedor(any());
@@ -738,11 +748,11 @@ class ProveedorControllerTest {
                         .catalogoProveedor(List.of(CatalogoProveedorResponseDTO.builder().insumo(malta).presentacionComercial(bolsa).build()))
                         .build()).build());
 
-        // Act + Assert: table-fixed reparte el ancho entre las columnas y la de "Quitar" tiene ancho fijo (w-32)
+        // Act + Assert: table-fixed reparte el ancho entre las columnas y la de "Modificar" y "Quitar" tiene ancho fijo (w-48)
         mockMvc.perform(get(URL + "/4/editar"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*<table class=\"[^\"]*\\btable-fixed\\b[^\"]*\" data-tabla-catalogo>.*")))
-                .andExpect(content().string(matchesPattern("(?s).*data-tabla-catalogo>.*<th class=\"[^\"]*\\bw-32\\b[^\"]*\"></th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-tabla-catalogo>.*<th class=\"[^\"]*\\bw-48\\b[^\"]*\"></th>.*")))
                 // Los nombres completos (sin truncar) se parten dentro de su celda con break-words
                 .andExpect(content().string(matchesPattern("(?s).*<span class=\"[^\"]*\\bbreak-words\\b[^\"]*\" data-celda=\"insumo\">" + nombreInsumo + "</span>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<span class=\"[^\"]*\\bbreak-words\\b[^\"]*\" data-celda=\"presentacion\">" + nombrePresentacion + "</span>.*")));
@@ -1157,6 +1167,9 @@ class ProveedorControllerTest {
         }
         assertThat(medidas).containsExactly("25 kg", "1.000 g", "2,5 g", "1.234,5 kg");
         assertThat(medidas).allSatisfy(medida -> assertThat(formulario).contains("data-celda=\"medidaPresentacion\">" + medida + "</span>"));
+        // Las filas que pinta el servidor también se pueden modificar: llevan los textos de los selectores de la ventana
+        assertThat(formulario).contains("data-etiqueta-insumo=\"Pilsen\"").contains("data-etiqueta-presentacion=\"" + presentaciones.get(0).getNombre() + "\"")
+                .contains("data-modificar-fila").contains("data-titulo-modificar=\"Modificar ítem del catálogo\"");
     }
 
     // ==================== Sidebar ====================

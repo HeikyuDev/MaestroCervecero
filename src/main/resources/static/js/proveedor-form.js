@@ -7,12 +7,15 @@
  *
  *   data-detalle="catalogo"      sección de la tabla del catálogo.
  *   data-abrir-agregar           botón "Agregar ítem": abre la ventana emergente.
+ *   data-modificar-fila          botón "Modificar" de una fila: abre la ventana con los datos de la fila.
  *   data-quitar-fila             botón "Quitar" de una fila.
  *   data-fila / data-prefijo     fila de la tabla y prefijo de sus campos (version.catalogoProveedor).
  *   data-fila-vacia              fila con el texto de tabla vacía.
  *   data-campo                   campo oculto de una fila (idInsumo, idPresentacionComercial); su nombre es
  *                                prefijo[indice].campo.
  *   data-celda                   texto visible de una fila (insumo, tipoInsumo, presentacion, medidaPresentacion).
+ *   data-etiqueta-insumo / data-etiqueta-presentacion
+ *                                nombres de la fila tal como los muestran los selectores de la ventana.
  *   template[data-plantilla]     fila vacía que se clona al agregar.
  *
  * Dentro de la ventana emergente (dialog[data-dialogo-agregar]):
@@ -22,7 +25,8 @@
  *                                receta/formato :: numero) y el símbolo de la unidad de la presentación
  *                                (data-cantidad, data-unidad), que se guardan para escribir la fila.
  *   data-error="<clave>"         aviso (insumo, presentacion, duplicado), oculto mientras no haga falta.
- *   data-confirmar-agregar       "Agregar al catálogo".
+ *   data-titulo-dialogo          título de la ventana; data-titulo-modificar es el que lleva al modificar una fila.
+ *   data-confirmar-agregar       "Agregar al catálogo"; data-texto-modificar es el texto que lleva al modificar.
  *   data-cerrar-agregar          cierra la ventana sin agregar.
  *
  * Validación: es la excepción acordada a la regla de "validar solo en el servidor", igual que en la receta. La ventana
@@ -33,6 +37,9 @@
  * CUIT: el usuario escribe solo números y el campo [data-cuit] inserta los guiones mientras escribe (XX-XXXXXXXX-X) y
  * limita la entrada a 11 dígitos. Es solo ayuda de formato: no valida. El servidor acepta el CUIT con o sin guiones, exige
  * 11 dígitos y lo guarda con ese formato.
+ *
+ * Modificar: "Modificar" abre la misma ventana con el insumo y la presentación de la fila. Al confirmar, la fila se
+ * reemplaza en su lugar; el repetido no se compara con la propia fila. Al cancelar, la fila queda como estaba.
  *
  * Índices: Spring solo enlaza listas sin huecos (catalogoProveedor[0], [1], [2]...). Por eso después de cada alta o
  * baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el formulario.
@@ -90,8 +97,11 @@
         if (vacia) { vacia.hidden = filas.length > 0; }
     }
 
-    /** Clona la fila vacía de la sección, la completa con los datos y la agrega al final de la tabla. */
-    function agregarFila(seccion, datos) {
+    /**
+     * Clona la fila vacía de la sección y la completa con los datos. Con {@code reemplazada} ocupa el lugar de esa fila
+     * (una fila modificada); sin ella se agrega al final de la tabla.
+     */
+    function escribirFila(seccion, datos, reemplazada) {
         var plantilla = seccion.querySelector('template[data-plantilla]');
         var fila = plantilla.content.firstElementChild.cloneNode(true);
 
@@ -102,9 +112,15 @@
             var texto = datos.celdas[celda.getAttribute('data-celda')];
             celda.textContent = texto !== undefined ? texto : '';
         });
+        fila.setAttribute('data-etiqueta-insumo', datos.celdas.insumo || '');
+        fila.setAttribute('data-etiqueta-presentacion', datos.celdas.presentacion || '');
 
-        var tbody = seccion.querySelector('tbody');
-        tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        if (reemplazada) {
+            reemplazada.replaceWith(fila);
+        } else {
+            var tbody = seccion.querySelector('tbody');
+            tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        }
         sincronizar(seccion);
     }
 
@@ -130,9 +146,47 @@
         limpiarErrores(dialogo);
     }
 
+    /**
+     * Deja la ventana para agregar una fila o, con {@code fila}, para modificarla: guarda la fila y cambia el título y el
+     * botón de confirmar por los de data-titulo-modificar y data-texto-modificar (el texto original se conserva).
+     */
+    function prepararModo(dialogo, fila) {
+        dialogo.filaModificada = fila || null;
+        [[dialogo.querySelector('[data-titulo-dialogo]'), 'data-titulo-modificar'],
+            [dialogo.querySelector('[data-confirmar-agregar]'), 'data-texto-modificar']].forEach(function (par) {
+            var elemento = par[0];
+            if (!elemento) { return; }
+            if (!elemento.hasAttribute('data-texto-agregar')) { elemento.setAttribute('data-texto-agregar', elemento.textContent); }
+            elemento.textContent = fila ? elemento.getAttribute(par[1]) : elemento.getAttribute('data-texto-agregar');
+        });
+    }
+
     function abrirAgregar(tipo) {
         var dialogo = document.getElementById('dialogo-agregar-' + tipo);
         reiniciar(dialogo);
+        prepararModo(dialogo, null);
+        dialogo.showModal();
+        selectorDe(dialogo, 'insumo').querySelector('[data-selector-texto]').focus();
+    }
+
+    /** Deja elegido en un selector de la ventana el id y el texto indicados, con sus datos extra para escribir la fila. */
+    function elegir(selector, id, texto, datos) {
+        selector.querySelector('[data-selector-id]').value = id || '';
+        selector.querySelector('[data-selector-texto]').value = texto || '';
+        selector.datosElegidos = datos;
+    }
+
+    /** Abre la ventana con el insumo y la presentación comercial de la fila. */
+    function abrirModificar(fila) {
+        var seccion = fila.closest('[data-detalle]');
+        var dialogo = document.getElementById('dialogo-agregar-' + seccion.getAttribute('data-detalle'));
+        reiniciar(dialogo);
+        prepararModo(dialogo, fila);
+        function campo(nombre) { return fila.querySelector('[data-campo="' + nombre + '"]').value; }
+        function celda(nombre) { return fila.querySelector('[data-celda="' + nombre + '"]').textContent.trim(); }
+        elegir(selectorDe(dialogo, 'insumo'), campo('idInsumo'), fila.getAttribute('data-etiqueta-insumo'), {tipo: celda('tipoInsumo')});
+        elegir(selectorDe(dialogo, 'presentacion'), campo('idPresentacionComercial'), fila.getAttribute('data-etiqueta-presentacion'),
+            {medida: celda('medidaPresentacion')});
         dialogo.showModal();
         selectorDe(dialogo, 'insumo').querySelector('[data-selector-texto]').focus();
     }
@@ -152,7 +206,9 @@
                 insumo: insumo.querySelector('[data-selector-texto]').value,
                 tipoInsumo: datosInsumo.tipo || '',
                 presentacion: presentacion.querySelector('[data-selector-texto]').value,
-                medidaPresentacion: formatearMedida(datosPresentacion.cantidad, datosPresentacion.unidad)
+                // Al modificar una fila sin volver a elegir la presentación se conserva la medida que ya mostraba
+                medidaPresentacion: datosPresentacion.medida !== undefined ? datosPresentacion.medida
+                    : formatearMedida(datosPresentacion.cantidad, datosPresentacion.unidad)
             }
         };
     }
@@ -164,9 +220,11 @@
         return campos.idInsumo + '|' + campos.idPresentacionComercial;
     }
 
-    /** Claves de las filas que ya están en la tabla, leídas de sus campos ocultos. */
-    function clavesExistentes(seccion) {
-        return Array.prototype.map.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+    /** Claves de las filas que ya están en la tabla, leídas de sus campos ocultos, sin la fila {@code excluida}. */
+    function clavesExistentes(seccion, excluida) {
+        return Array.prototype.filter.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+            return fila !== excluida;
+        }).map(function (fila) {
             var campos = {};
             fila.querySelectorAll('[data-campo]').forEach(function (campo) {
                 campos[campo.getAttribute('data-campo')] = campo.value;
@@ -191,7 +249,7 @@
             foco = foco || selectorDe(dialogo, 'presentacion').querySelector('[data-selector-texto]');
         }
         // El repetido solo se evalúa con los dos datos elegidos: la clave depende de ambos
-        if (!foco && clavesExistentes(seccion).indexOf(claveDeRepetido(datos.campos)) !== -1) {
+        if (!foco && clavesExistentes(seccion, dialogo.filaModificada).indexOf(claveDeRepetido(datos.campos)) !== -1) {
             mostrarError(dialogo, 'duplicado', true);
             foco = selectorDe(dialogo, 'insumo').querySelector('[data-selector-texto]');
         }
@@ -200,7 +258,7 @@
             return;
         }
 
-        agregarFila(seccion, datos);
+        escribirFila(seccion, datos, dialogo.filaModificada);
         dialogo.close();
     }
 
@@ -222,6 +280,11 @@
         var abrir = evento.target.closest('[data-abrir-agregar]');
         if (abrir) {
             abrirAgregar(abrir.getAttribute('data-abrir-agregar'));
+            return;
+        }
+        var modificar = evento.target.closest('[data-modificar-fila]');
+        if (modificar) {
+            abrirModificar(modificar.closest('[data-fila]'));
             return;
         }
         var quitar = evento.target.closest('[data-quitar-fila]');

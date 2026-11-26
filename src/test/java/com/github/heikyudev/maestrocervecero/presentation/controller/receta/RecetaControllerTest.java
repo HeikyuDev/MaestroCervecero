@@ -502,7 +502,7 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-21: las ventanas emergentes de agregar usan el selector de entidad con ícono de lista, el buscador de cada insumo, las unidades en el encabezado y \"Agregar a la receta\"")
+    @DisplayName("CP-RCC-21: las ventanas emergentes de agregar usan el selector de entidad con ícono de lista, el buscador de cada insumo, las unidades en el encabezado y \"Agregar a la receta\"; cada fila se puede modificar con la misma ventana")
     void formularioAlta_debeIncluirLasVentanasEmergentesDeAgregar() throws Exception {
         mockMvc.perform(get("/recetas/nuevo"))
                 .andExpect(status().isOk())
@@ -541,7 +541,13 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("data-plantilla=\"malta\"")))
                 .andExpect(content().string(containsString("data-plantilla=\"lupulo\"")))
                 .andExpect(content().string(containsString("data-plantilla=\"levadura\"")))
-                .andExpect(content().string(containsString("data-quitar-fila")));
+                .andExpect(content().string(containsString("data-quitar-fila")))
+                // Cada fila también se puede modificar con la misma ventana, que cambia su título y su botón
+                .andExpect(content().string(containsString("data-modificar-fila")))
+                .andExpect(content().string(containsString("data-titulo-modificar=\"Modificar malta\"")))
+                .andExpect(content().string(containsString("data-titulo-modificar=\"Modificar lúpulo\"")))
+                .andExpect(content().string(containsString("data-titulo-modificar=\"Modificar levadura\"")))
+                .andExpect(content().string(containsString("data-texto-modificar=\"Guardar cambios\"")));
     }
 
     @Test

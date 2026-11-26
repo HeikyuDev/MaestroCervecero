@@ -108,8 +108,11 @@ class OrdenCompraControllerTest {
     private static final String VISTA_FORMULARIO = "orden_compra/orden-form";
     private static final String ENLACE_RESALTADO =
             "(?s).*href=\"/ordenes-compra\"[^>]*bg-amber-500/10[^>]*>\\s*<i class=\"bi text-lg bi-cart3\"></i>\\s*<span>Órdenes de Compra</span>.*";
-    private static final String FILA_RESALTADA = "<tr data-fila data-prefijo=\"detallesCompra\" class=\"bg-rose-50\">";
-    private static final String FILA_SIN_RESALTAR = "<tr data-fila data-prefijo=\"detallesCompra\">";
+    // Expresiones regulares de la etiqueta de una fila resaltada y de una sin resaltar (la fila puede llevar además los
+    // textos de sus selectores, data-etiqueta-*)
+    private static final String FILA_RESALTADA = "<tr data-fila data-prefijo=\"detallesCompra\"[^>]*class=\"bg-rose-50\"[^>]*>";
+    private static final String FILA_SIN_RESALTAR = "<tr data-fila data-prefijo=\"detallesCompra\"(?![^>]*class=)[^>]*>";
+
     private static final String FECHA = "2027-07-15";
     private static final String TITULO_AUTOMATICA = "Finalizada automáticamente";
 
@@ -433,7 +436,8 @@ class OrdenCompraControllerTest {
         assertThat(formulario).doesNotContain("data-deshabilitado");
         assertThat(formulario).contains("data-seccion-datos", "data-selector-de=\"planificacion\"", "data-selector-de=\"proveedor\"",
                 "data-detalle=\"item\"", "data-abrir-agregar=\"item\"", "data-ayuda-agregar", "data-tabla-items", "data-filas",
-                "data-fila-vacia", "data-total", "data-quitar-fila");
+                "data-fila-vacia", "data-total", "data-quitar-fila", "data-modificar-fila");
+        assertThat(html).contains("data-titulo-modificar=\"Modificar ítem de la orden\"", "data-texto-modificar=\"Guardar cambios\"");
         assertThat(formulario).containsPattern("<div data-aviso-bloqueo [^>]*hidden=\"hidden\">");
         assertThat(formulario).contains("Para cambiar la planificación o el proveedor, quite primero todos los ítems");
         assertThat(formulario).containsPattern("(?s)<button type=\"button\" data-abrir-agregar=\"item\"[^>]*disabled=\"disabled\"");
@@ -550,8 +554,8 @@ class OrdenCompraControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert: cuatro filas resaltadas; la fila válida y la plantilla, no
-        assertThat(html.split(Pattern.quote(FILA_RESALTADA), -1)).hasSize(5);
-        assertThat(html.split(Pattern.quote(FILA_SIN_RESALTAR), -1)).hasSize(3);
+        assertThat(html.split(FILA_RESALTADA, -1)).hasSize(5);
+        assertThat(html.split(FILA_SIN_RESALTAR, -1)).hasSize(3);
         verify(ordenCompraServicio, never()).registrarOrdenCompra(any());
     }
 
@@ -600,8 +604,8 @@ class OrdenCompraControllerTest {
                 .contains("name=\"detallesCompra[1].idCatalogoProveedor\" value=\"\"")
                 .contains("name=\"detallesCompra[2].idCatalogoProveedor\" value=\"104\"")
                 .contains(">Ítem no disponible<");
-        assertThat(html.split(Pattern.quote(FILA_RESALTADA), -1)).hasSize(2);
-        assertThat(html.indexOf(FILA_RESALTADA)).isGreaterThan(html.indexOf("name=\"detallesCompra[0].idCatalogoProveedor\""))
+        assertThat(html.split(FILA_RESALTADA, -1)).hasSize(2);
+        assertThat(posicion(html, FILA_RESALTADA)).isGreaterThan(html.indexOf("name=\"detallesCompra[0].idCatalogoProveedor\""))
                 .isLessThan(html.indexOf("name=\"detallesCompra[1].idCatalogoProveedor\""));
         verify(ordenCompraServicio, never()).registrarOrdenCompra(any());
     }
@@ -1461,7 +1465,7 @@ class OrdenCompraControllerTest {
         assertThat(html).contains("name=\"detallesCompra[0].idCatalogoProveedor\" value=\"\"")
                 .contains("name=\"detallesCompra[1].idCatalogoProveedor\" value=\"\"")
                 .contains("name=\"detallesCompra[2].idCatalogoProveedor\" value=\"104\"");
-        assertThat(html.split(Pattern.quote(FILA_RESALTADA), -1)).hasSize(3);
+        assertThat(html.split(FILA_RESALTADA, -1)).hasSize(3);
         verify(ordenCompraServicio, never()).registrarOrdenCompra(any());
     }
 
@@ -1570,6 +1574,7 @@ class OrdenCompraControllerTest {
                 .contains("La fecha estimada de entrega es la que indicó el proveedor en su cotización: revísela y, si hace falta, modifíquela")
                 .contains("name=\"detallesCompra[0].idCatalogoProveedor\" value=\"100\"")
                 .contains("name=\"detallesCompra[0].cantidad\" value=\"4\"")
+                .containsPattern("(?s)<tr data-fila data-prefijo=\"detallesCompra\"[^>]*>.*?data-modificar-fila")
                 .contains("El proveedor ya no ofrece Cascade en Bolsa (1 kg): el ítem no se incluyó")
                 .doesNotContain("name=\"detallesCompra[1].idCatalogoProveedor\"");
     }
@@ -1799,5 +1804,11 @@ class OrdenCompraControllerTest {
 
         // Assert
         assertThat(html).contains(aviso).contains("name=\"fechaEntregaEstimada\" value=\"\"");
+    }
+
+    /** Posición de la primera coincidencia de la expresión regular, o -1. */
+    private static int posicion(String html, String expresion) {
+        java.util.regex.Matcher coincidencia = Pattern.compile(expresion).matcher(html);
+        return coincidencia.find() ? coincidencia.start() : -1;
     }
 }

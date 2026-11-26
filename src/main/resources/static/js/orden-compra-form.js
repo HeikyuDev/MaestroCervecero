@@ -1,9 +1,9 @@
 /*
  * Formulario de orden de compra: tabla de ítems con modal para agregarlos (ítem del catálogo del proveedor + cantidad +
  * costo unitario). Usa el mismo mecanismo de filas, plantilla e índices que /js/proveedor-form.js: ahí está el contrato
- * de los atributos data-* compartidos (data-detalle, data-abrir-agregar, data-quitar-fila, data-fila, data-prefijo,
- * data-fila-vacia, data-campo, data-celda, template[data-plantilla], data-selector-de, data-error, data-confirmar-agregar
- * y data-cerrar-agregar). Los propios de este formulario son:
+ * de los atributos data-* compartidos (data-detalle, data-abrir-agregar, data-modificar-fila, data-quitar-fila, data-fila,
+ * data-prefijo, data-fila-vacia, data-campo, data-celda, data-etiqueta-*, template[data-plantilla], data-selector-de,
+ * data-error, data-titulo-dialogo, data-confirmar-agregar y data-cerrar-agregar). Los propios de este formulario son:
  *
  *   data-seccion-datos           sección de la planificación, el proveedor y la fecha.
  *   data-aviso-bloqueo           aviso "quite primero todos los ítems", visible mientras la orden tiene filas.
@@ -27,6 +27,11 @@
  * Importes: el subtotal y el total solo se muestran (el servidor los vuelve a calcular). Se calculan con enteros (BigInt)
  * en la escala del costo unitario, 4 decimales, para no arrastrar errores de coma flotante, y se escriben igual que
  * FormatoImporte: punto de miles, coma decimal, mínimo 2 y máximo 4 decimales.
+ *
+ * Modificar: "Modificar" abre el mismo modal con los datos de la fila (ítem, cantidad y costo). Al confirmar, la fila se
+ * reemplaza en su lugar y se recalculan el subtotal y el total; el ítem repetido no se compara con la propia fila y el
+ * buscador vuelve a ofrecer su ítem. Al cancelar, la fila queda como estaba. Es el uso principal al confirmar una orden
+ * propuesta por un plan de compra: ajustar el precio o la cantidad acordados con el proveedor.
  *
  * Índices: Spring solo enlaza listas sin huecos (detallesCompra[0], [1], [2]...). Por eso después de cada alta o baja de
  * fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el formulario.
@@ -127,8 +132,11 @@
         actualizarBotonAgregar();
     }
 
-    /** Clona la fila vacía de la sección, la completa con los datos y la agrega al final de la tabla. */
-    function agregarFila(seccion, datos) {
+    /**
+     * Clona la fila vacía de la sección y la completa con los datos. Con {@code reemplazada} ocupa el lugar de esa fila
+     * (una fila modificada); sin ella se agrega al final de la tabla.
+     */
+    function escribirFila(seccion, datos, reemplazada) {
         var plantilla = seccion.querySelector('template[data-plantilla]');
         var fila = plantilla.content.firstElementChild.cloneNode(true);
 
@@ -139,9 +147,14 @@
             var texto = datos.celdas[celda.getAttribute('data-celda')];
             celda.textContent = texto !== undefined ? texto : '';
         });
+        fila.setAttribute('data-etiqueta-insumo', datos.celdas.insumo || '');
 
-        var tbody = seccion.querySelector('tbody');
-        tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        if (reemplazada) {
+            reemplazada.replaceWith(fila);
+        } else {
+            var tbody = seccion.querySelector('tbody');
+            tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        }
         sincronizar(seccion);
     }
 
@@ -176,9 +189,14 @@
         limpiarErrores(dialogo);
     }
 
-    /** Ids de los ítems del catálogo que la orden ya tiene, leídos de los campos ocultos de sus filas. */
-    function idsAgregados(seccion) {
-        return Array.prototype.map.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+    /**
+     * Ids de los ítems del catálogo que la orden ya tiene, leídos de los campos ocultos de sus filas. La fila que se
+     * está modificando ({@code excluida}) no cuenta: su ítem se puede volver a elegir.
+     */
+    function idsAgregados(seccion, excluida) {
+        return Array.prototype.filter.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+            return fila !== excluida;
+        }).map(function (fila) {
             return campoDe(fila, 'idCatalogoProveedor').value;
         });
     }
@@ -196,18 +214,65 @@
         var parametros = new URLSearchParams();
         parametros.set('idProveedor', valorDeSeccionDatos('idProveedor'));
         parametros.set('idPlanificacion', valorDeSeccionDatos('idPlanificacionProduccion'));
-        var agregados = idsAgregados(seccion);
+        var agregados = idsAgregados(seccion, dialogo.filaModificada);
         if (agregados.length > 0) { parametros.set('idsAgregados', agregados.join(',')); }
         selector.setAttribute('data-buscador-url', selector.getAttribute('data-buscador-base') + '?' + parametros.toString());
+    }
+
+    /**
+     * Deja el modal para agregar una fila o, con {@code fila}, para modificarla: guarda la fila y cambia el título y el
+     * botón de confirmar por los de data-titulo-modificar y data-texto-modificar (el texto original se conserva).
+     */
+    function prepararModo(dialogo, fila) {
+        dialogo.filaModificada = fila || null;
+        [[dialogo.querySelector('[data-titulo-dialogo]'), 'data-titulo-modificar'],
+            [dialogo.querySelector('[data-confirmar-agregar]'), 'data-texto-modificar']].forEach(function (par) {
+            var elemento = par[0];
+            if (!elemento) { return; }
+            if (!elemento.hasAttribute('data-texto-agregar')) { elemento.setAttribute('data-texto-agregar', elemento.textContent); }
+            elemento.textContent = fila ? elemento.getAttribute(par[1]) : elemento.getAttribute('data-texto-agregar');
+        });
     }
 
     function abrirAgregar(tipo) {
         var dialogo = document.getElementById('dialogo-agregar-' + tipo);
         var seccion = document.querySelector('[data-detalle="' + tipo + '"]');
         reiniciar(dialogo);
+        prepararModo(dialogo, null);
         prepararBuscadorDeItems(dialogo, seccion);
         dialogo.showModal();
         selectorDe(dialogo, 'item').querySelector('[data-selector-texto]').focus();
+    }
+
+    /** Un costo de la fila ("30000.0000") como se escribe en el campo del modal ("30000"), sin ceros decimales sobrantes. */
+    function sinCerosSobrantes(texto) {
+        return /\./.test(texto) ? texto.replace(/0+$/, '').replace(/\.$/, '') : texto;
+    }
+
+    /** Abre el modal con los datos de la fila: el ítem elegido (con sus textos), la cantidad y el costo unitario. */
+    function abrirModificar(fila) {
+        var seccion = fila.closest('[data-detalle]');
+        var dialogo = document.getElementById('dialogo-agregar-' + seccion.getAttribute('data-detalle'));
+        reiniciar(dialogo);
+        prepararModo(dialogo, fila);
+
+        var insumo = fila.getAttribute('data-etiqueta-insumo') || '';
+        var presentacion = fila.querySelector('[data-celda="presentacion"]').textContent.trim();
+        var item = selectorDe(dialogo, 'item');
+        item.querySelector('[data-selector-id]').value = campoDe(fila, 'idCatalogoProveedor').value;
+        // El mismo texto que escribe el buscador de ítems al elegir: insumo - presentación
+        item.querySelector('[data-selector-texto]').value = insumo ? insumo + ' - ' + presentacion : '';
+        item.datosElegidos = {
+            insumo: insumo,
+            presentacion: presentacion,
+            medida: fila.querySelector('[data-celda="medida"]').textContent.trim()
+        };
+        campoModal(dialogo, 'cantidad').value = campoDe(fila, 'cantidad').value;
+        campoModal(dialogo, 'costoUnitario').value = sinCerosSobrantes(campoDe(fila, 'costoUnitario').value);
+
+        prepararBuscadorDeItems(dialogo, seccion);
+        dialogo.showModal();
+        campoModal(dialogo, 'cantidad').focus();
     }
 
     /** Lee lo cargado en el modal, sin validarlo, y arma los datos de la fila ({campos: ocultos, celdas: visibles}). */
@@ -257,7 +322,7 @@
         if (!datos.campos.idCatalogoProveedor) {
             mostrarError(dialogo, 'item', true);
             foco = foco || selectorDe(dialogo, 'item').querySelector('[data-selector-texto]');
-        } else if (idsAgregados(seccion).indexOf(datos.campos.idCatalogoProveedor) !== -1) {
+        } else if (idsAgregados(seccion, dialogo.filaModificada).indexOf(datos.campos.idCatalogoProveedor) !== -1) {
             mostrarError(dialogo, 'duplicado', true);
             foco = foco || selectorDe(dialogo, 'item').querySelector('[data-selector-texto]');
         }
@@ -274,7 +339,7 @@
             return;
         }
 
-        agregarFila(seccion, datos);
+        escribirFila(seccion, datos, dialogo.filaModificada);
         dialogo.close();
     }
 
@@ -297,6 +362,11 @@
         var abrir = evento.target.closest('[data-abrir-agregar]');
         if (abrir) {
             if (!abrir.disabled) { abrirAgregar(abrir.getAttribute('data-abrir-agregar')); }
+            return;
+        }
+        var modificar = evento.target.closest('[data-modificar-fila]');
+        if (modificar) {
+            abrirModificar(modificar.closest('[data-fila]'));
             return;
         }
         var quitar = evento.target.closest('[data-quitar-fila]');

@@ -11,12 +11,14 @@
 
       data-campo   campo oculto del DTO; /js/receta-form.js recalcula el índice del nombre.
       data-celda   celda visible; /js/receta-form.js escribe ahí el valor ingresado.
+      data-etiqueta-insumo  nombre del insumo tal como lo muestra su selector; "Modificar" (data-modificar-fila) lo usa
+                   para volver a abrir la ventana con la fila cargada.
 
     Parámetros comunes: indice (posición en la lista), nombre (del insumo, null si ya no existe) y
     conError (true si el servidor rechazó algún campo de la fila: se resalta; la plantilla pasa false).
 -->
 
-<tr th:fragment="malta(indice, idMalta, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesMalta" th:classappend="${conError} ? 'bg-rose-50'">
+<tr th:fragment="malta(indice, idMalta, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesMalta" th:classappend="${conError} ? 'bg-rose-50'" th:data-etiqueta-insumo="${nombre}">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idMalta" th:name="|version.detallesMalta[${indice}].idMalta|" th:value="${idMalta}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesMalta[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
@@ -24,15 +26,21 @@
     </td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'kg')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
-        <button type="button" data-quitar-fila
-                class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
-            <i class="bi bi-trash"></i> Quitar
-        </button>
+        <div class="flex items-center justify-end gap-1">
+            <button type="button" data-modificar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
+                <i class="bi bi-pencil-square"></i> Modificar
+            </button>
+            <button type="button" data-quitar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
+                <i class="bi bi-trash"></i> Quitar
+            </button>
+        </div>
     </td>
 </tr>
 
 <!-- conTiempo: el tiempo de hervor solo viaja en el uso Hervor; para los demás usos la celda muestra un guion -->
-<tr th:fragment="lupulo(indice, idLupulo, nombre, cantidad, uso, etapaDeUso, tiempoDeHervor, conTiempo, conError)" data-fila data-prefijo="version.detallesLupulo" th:classappend="${conError} ? 'bg-rose-50'">
+<tr th:fragment="lupulo(indice, idLupulo, nombre, cantidad, uso, etapaDeUso, tiempoDeHervor, conTiempo, conError)" data-fila data-prefijo="version.detallesLupulo" th:classappend="${conError} ? 'bg-rose-50'" th:data-etiqueta-insumo="${nombre}">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLupulo" th:name="|version.detallesLupulo[${indice}].idLupulo|" th:value="${idLupulo}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesLupulo[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
@@ -49,14 +57,20 @@
     </td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
-        <button type="button" data-quitar-fila
-                class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
-            <i class="bi bi-trash"></i> Quitar
-        </button>
+        <div class="flex items-center justify-end gap-1">
+            <button type="button" data-modificar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
+                <i class="bi bi-pencil-square"></i> Modificar
+            </button>
+            <button type="button" data-quitar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
+                <i class="bi bi-trash"></i> Quitar
+            </button>
+        </div>
     </td>
 </tr>
 
-<tr th:fragment="levadura(indice, idLevadura, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesLevadura" th:classappend="${conError} ? 'bg-rose-50'">
+<tr th:fragment="levadura(indice, idLevadura, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesLevadura" th:classappend="${conError} ? 'bg-rose-50'" th:data-etiqueta-insumo="${nombre}">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLevadura" th:name="|version.detallesLevadura[${indice}].idLevadura|" th:value="${idLevadura}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesLevadura[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
@@ -64,10 +78,16 @@
     </td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
-        <button type="button" data-quitar-fila
-                class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
-            <i class="bi bi-trash"></i> Quitar
-        </button>
+        <div class="flex items-center justify-end gap-1">
+            <button type="button" data-modificar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
+                <i class="bi bi-pencil-square"></i> Modificar
+            </button>
+            <button type="button" data-quitar-fila
+                    class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
+                <i class="bi bi-trash"></i> Quitar
+            </button>
+        </div>
     </td>
 </tr>
 

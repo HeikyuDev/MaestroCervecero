@@ -6,12 +6,14 @@
  *
  *   data-detalle                 sección de una tabla (malta, lupulo o levadura).
  *   data-abrir-agregar           botón "Agregar ..." de la sección: abre su ventana emergente.
+ *   data-modificar-fila          botón "Modificar" de una fila: abre su ventana con los datos de la fila.
  *   data-quitar-fila             botón "Quitar" de una fila.
  *   data-fila / data-prefijo     fila de la tabla y prefijo de sus campos (version.detallesMalta, etc.).
  *   data-fila-vacia              fila con el texto de tabla vacía.
  *   data-campo                   campo oculto de una fila (idMalta, cantidad, ...); su nombre es
  *                                prefijo[indice].campo.
  *   data-celda                   celda visible de una fila.
+ *   data-etiqueta-insumo         nombre del insumo de la fila tal como lo muestra el selector de la ventana.
  *   template[data-plantilla]     fila vacía que se clona al agregar.
  *
  * Dentro de cada ventana emergente (dialog[data-dialogo-agregar]):
@@ -19,7 +21,8 @@
  *   data-grupo                   bloque que solo aparece para ciertos usos del lúpulo.
  *   data-error="<clave>"         aviso del campo (insumo, duplicado, cantidad, uso, tiempoDeHervor, etapaDeUso),
  *                                oculto mientras no haga falta; el texto lo trae la página.
- *   data-confirmar-agregar       "Agregar a la receta".
+ *   data-titulo-dialogo          título de la ventana; data-titulo-modificar es el que lleva al modificar una fila.
+ *   data-confirmar-agregar       "Agregar a la receta"; data-texto-modificar es el texto que lleva al modificar.
  *   data-cerrar-agregar          cierra la ventana sin agregar.
  * El insumo se elige con el selector de entidad de /js/modales.js (data-selector).
  *
@@ -28,6 +31,10 @@
  * (insumo elegido, cantidad mayor a 0, sin repetidos, y uso / tiempo de hervor / etapa del lúpulo). Los
  * avisos se muestran dentro de la ventana, que queda abierta. Nada de esto reemplaza al servidor: al
  * enviar el formulario valida todo de nuevo (Bean Validation y reglas del service).
+ *
+ * Modificar: "Modificar" abre la ventana de la tabla con los datos de la fila (insumo, cantidad y, en el lúpulo, uso,
+ * tiempo de hervor y etapa). Al confirmar, la fila se reemplaza en su lugar; el repetido no se compara con la propia
+ * fila. Al cancelar, la fila queda como estaba.
  *
  * Índices: Spring solo enlaza listas sin huecos (detallesMalta[0], [1], [2]...). Por eso después de
  * cada alta o baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el
@@ -87,8 +94,11 @@
         if (vacia) { vacia.hidden = filas.length > 0; }
     }
 
-    /** Clona la fila vacía de la sección, la completa con los valores y la agrega al final de la tabla. */
-    function agregarFila(tipo, seccion, datos) {
+    /**
+     * Clona la fila vacía de la sección y la completa con los valores. Con {@code reemplazada} ocupa el lugar de esa fila
+     * (una fila modificada); sin ella se agrega al final de la tabla.
+     */
+    function escribirFila(seccion, datos, reemplazada) {
         var plantilla = seccion.querySelector('template[data-plantilla]');
         var fila = plantilla.content.firstElementChild.cloneNode(true);
 
@@ -104,9 +114,14 @@
             var texto = datos.celdas[celda.getAttribute('data-celda')];
             if (texto !== undefined) { celda.textContent = texto; }
         });
+        fila.setAttribute('data-etiqueta-insumo', datos.celdas.nombre || '');
 
-        var tbody = seccion.querySelector('tbody');
-        tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        if (reemplazada) {
+            reemplazada.replaceWith(fila);
+        } else {
+            var tbody = seccion.querySelector('tbody');
+            tbody.insertBefore(fila, tbody.querySelector('[data-fila-vacia]'));
+        }
         sincronizar(seccion);
     }
 
@@ -141,11 +156,52 @@
         actualizarGrupos(dialogo);
     }
 
+    /**
+     * Deja la ventana para agregar una fila o, con {@code fila}, para modificarla: guarda la fila y cambia el título y el
+     * botón de confirmar por los de data-titulo-modificar y data-texto-modificar (el texto original se conserva).
+     */
+    function prepararModo(dialogo, fila) {
+        dialogo.filaModificada = fila || null;
+        [[dialogo.querySelector('[data-titulo-dialogo]'), 'data-titulo-modificar'],
+            [dialogo.querySelector('[data-confirmar-agregar]'), 'data-texto-modificar']].forEach(function (par) {
+            var elemento = par[0];
+            if (!elemento) { return; }
+            if (!elemento.hasAttribute('data-texto-agregar')) { elemento.setAttribute('data-texto-agregar', elemento.textContent); }
+            elemento.textContent = fila ? elemento.getAttribute(par[1]) : elemento.getAttribute('data-texto-agregar');
+        });
+    }
+
     function abrirAgregar(tipo) {
         var dialogo = document.getElementById('dialogo-agregar-' + tipo);
         reiniciar(dialogo);
+        prepararModo(dialogo, null);
         dialogo.showModal();
         dialogo.querySelector('[data-selector-texto]').focus();
+    }
+
+    /** Abre la ventana de la tabla con los datos de la fila: el insumo elegido, la cantidad y, en el lúpulo, el uso. */
+    function abrirModificar(fila) {
+        var tipo = fila.closest('[data-detalle]').getAttribute('data-detalle');
+        var dialogo = document.getElementById('dialogo-agregar-' + tipo);
+        reiniciar(dialogo);
+        prepararModo(dialogo, fila);
+        function valor(nombre) {
+            var campo = fila.querySelector('[data-campo="' + nombre + '"]');
+            return campo ? campo.value : '';
+        }
+
+        dialogo.querySelector('[data-selector-id]').value = valor(TIPOS[tipo].campoId);
+        dialogo.querySelector('[data-selector-texto]').value = fila.getAttribute('data-etiqueta-insumo') || '';
+        campoModal(dialogo, 'cantidad').value = valor('cantidad');
+        if (tipo === 'lupulo') {
+            campoModal(dialogo, 'uso').value = valor('uso');
+            campoModal(dialogo, 'tiempoDeHervor').value = valor('tiempoDeHervor');
+            // La etapa solo se elige en el Dry hop; en los demás usos la define el sistema
+            campoModal(dialogo, 'etapaDeUso').value = valor('uso') === 'DRY_HOP' ? valor('etapaDeUso') : '';
+            actualizarGrupos(dialogo);
+        }
+        dialogo.showModal();
+        campoModal(dialogo, 'cantidad').focus();
     }
 
     /**
@@ -198,9 +254,11 @@
         return [campos.idLupulo, campos.uso, tiempo].join('|');
     }
 
-    /** Claves de las filas que ya están en la tabla, leídas de sus campos ocultos. */
-    function clavesExistentes(tipo, seccion) {
-        return Array.prototype.map.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+    /** Claves de las filas que ya están en la tabla, leídas de sus campos ocultos, sin la fila {@code excluida}. */
+    function clavesExistentes(tipo, seccion, excluida) {
+        return Array.prototype.filter.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+            return fila !== excluida;
+        }).map(function (fila) {
             var campos = {};
             fila.querySelectorAll('[data-campo]').forEach(function (campo) {
                 campos[campo.getAttribute('data-campo')] = campo.value;
@@ -232,7 +290,7 @@
         }
 
         // El repetido solo se evalúa con el resto de los datos bien: la clave del lúpulo depende de ellos
-        if (!problemas.length && clavesExistentes(tipo, seccion).indexOf(claveDeRepetido(tipo, campos)) !== -1) {
+        if (!problemas.length && clavesExistentes(tipo, seccion, dialogo.filaModificada).indexOf(claveDeRepetido(tipo, campos)) !== -1) {
             problemas.push({clave: 'duplicado', foco: dialogo.querySelector('[data-selector-texto]')});
         }
         return problemas;
@@ -259,7 +317,7 @@
             return;
         }
 
-        agregarFila(tipo, seccion, datos);
+        escribirFila(seccion, datos, dialogo.filaModificada);
         dialogo.close();
     }
 
@@ -284,6 +342,11 @@
         var abrir = evento.target.closest('[data-abrir-agregar]');
         if (abrir) {
             abrirAgregar(abrir.getAttribute('data-abrir-agregar'));
+            return;
+        }
+        var modificar = evento.target.closest('[data-modificar-fila]');
+        if (modificar) {
+            abrirModificar(modificar.closest('[data-fila]'));
             return;
         }
         var quitar = evento.target.closest('[data-quitar-fila]');
@@ -317,7 +380,7 @@
         if (campo) { corregido(campo); }
     });
 
-    // Enter en un campo de la ventana equivale a "Agregar a la receta"
+    // Enter en un campo de la ventana equivale a confirmarla ("Agregar a la receta" o "Guardar cambios")
     document.addEventListener('keydown', function (evento) {
         var campo = evento.target.closest ? evento.target.closest('input[data-campo-modal]') : null;
         if (campo && evento.key === 'Enter') {
