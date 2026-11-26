@@ -38,7 +38,7 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a 0 o supera su máximo técnico, si el porcentaje mínimo de consumo no es un número entre 0 y 100, o si el excedente máximo de un plan no es un número mayor o igual a 0 o supera su máximo técnico.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado no es un número mayor a 0 o supera su máximo técnico, si el porcentaje mínimo de consumo no es un número entre 0 y 100, o si el excedente máximo de un plan no es un número mayor o igual a 0 o supera su máximo técnico.
      */
     @Override
     @Transactional
@@ -48,9 +48,6 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() == null) {
             throw new ReglaNegocioException("La velocidad de envasado es obligatoria");
         }
-        if (configuracionProduccionFormDTO.getCapacidadLoteEstandar() == null) {
-            throw new ReglaNegocioException("La capacidad de lote estándar es obligatoria");
-        }
         if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() == null) {
             throw new ReglaNegocioException("El porcentaje mínimo de consumo es obligatorio");
         }
@@ -58,17 +55,12 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
             throw new ReglaNegocioException("El excedente máximo de un plan es obligatorio");
         }
 
-        // 2. Validar que la velocidad de envasado y la capacidad de lote sean mayores a 0
+        // 2. Validar que la velocidad de envasado sea mayor a 0
         if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0) {
             throw new ReglaNegocioException("La velocidad de envasado debe ser mayor a 0");
         }
-        if (configuracionProduccionFormDTO.getCapacidadLoteEstandar() <= 0) {
-            throw new ReglaNegocioException("La capacidad de lote estándar debe ser mayor a 0");
-        }
         ValidacionesNumericas.validarMayorACeroConMaximo(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado(),
                 LimitesTecnicos.VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA, "La velocidad de envasado", "litros por hora");
-        ValidacionesNumericas.validarMayorACeroConMaximo(configuracionProduccionFormDTO.getCapacidadLoteEstandar(),
-                LimitesTecnicos.CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS, "La capacidad de lote estándar", "litros");
 
         // 3. Validar que el porcentaje mínimo de consumo para avanzar de etapa esté entre 0 y 100
         if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() < 0 || configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() > 100) {
@@ -84,7 +76,6 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
         // 4. Localizar la configuración vigente, aplicar los nuevos valores y persistirla
         ConfiguracionProduccionEntity configuracionProduccionEntity = buscarEntidadSingleton();
         configuracionProduccionEntity.setVelocidadEstandarEnvasado(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado());
-        configuracionProduccionEntity.setCapacidadLoteEstandar(configuracionProduccionFormDTO.getCapacidadLoteEstandar());
         configuracionProduccionEntity.setPorcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa());
         configuracionProduccionEntity.setExcedenteMaximoLitros(configuracionProduccionFormDTO.getExcedenteMaximoLitros());
 

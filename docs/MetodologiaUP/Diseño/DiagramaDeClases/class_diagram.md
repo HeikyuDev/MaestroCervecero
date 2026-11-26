@@ -63,7 +63,6 @@ namespace Capa_Servicio {
         +registrarPlanificacionProduccion(form) PlanificacionResponseDTO
         +anularPlanificacionProduccion(id, form) PlanificacionResponseDTO
         +finalizarPlanificacionProduccion(id, form) PlanificacionResponseDTO
-        +sugerirFechaFinalizacion() SugerenciaFechaDTO
     }
     class PlanificacionProduccionServicioImpl
     class IOrdenCompraServicio {

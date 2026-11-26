@@ -42,7 +42,6 @@ class LimitesTecnicosTest {
         // Act & Assert
         assertThat(LimitesTecnicos.CANTIDAD_A_PRODUCIR_MAXIMA_LITROS).isEqualTo(10_000_000.0);
         assertThat(LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS).isEqualTo(1_825);
-        assertThat(LimitesTecnicos.CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS).isEqualTo(100_000.0);
         assertThat(LimitesTecnicos.VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA).isEqualTo(100_000.0);
     }
 

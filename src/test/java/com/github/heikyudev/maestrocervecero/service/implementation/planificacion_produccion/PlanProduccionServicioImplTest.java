@@ -112,7 +112,6 @@ class PlanProduccionServicioImplTest {
         configuracion = ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarEnvasado(100.0)
-                .capacidadLoteEstandar(500.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
                 .excedenteMaximoLitros(300.0)
                 .build();

@@ -214,7 +214,7 @@ class OrdenDeCamposTest {
         assertThat(filaCon(presentacion, "for=\"nombre\"")).doesNotContain("for=\"cantidad\"");
         assertThat(filaCon(presentacion, "for=\"cantidad\"")).contains("for=\"unidadDeMedida\"");
         assertThat(filaCon(costo, "for=\"nombre\"")).doesNotContain("costoPorLitro");
-        assertThat(filaCon(configuracion, "for=\"capacidadLoteEstandar\"")).contains("for=\"velocidadEstandarEnvasado\"").doesNotContain("porcentajeMinimoConsumoParaAvanzarEtapa");
+        assertThat(filaCon(configuracion, "for=\"velocidadEstandarEnvasado\"")).doesNotContain("porcentajeMinimoConsumoParaAvanzarEtapa");
     }
 
     @Test

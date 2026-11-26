@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** capa web (`@WebMvcTest`, clase `PlanificacionProduccionControllerTest`). Se ejecutan sobre Spring MVC, Spring Security (`SecurityConfig`, con CSRF y `@PreAuthorize`), el `ControllerAdvices` y las plantillas Thymeleaf reales; los services (`IPlanificacionProduccionServicio`, `IRecetaServicio`, `ILoteServicio`) están simulados (mock) y no hay base de datos. La lógica de negocio se prueba aparte, en `services/planificacion_produccion/`; la geometría del diagrama de Gantt, en `CasosPruebaGanttPlanificacionBuilder.md`.
 
-**Roles requeridos:** el listado (`GET /planificaciones-produccion`) y el estado actual (`GET /planificaciones-produccion/{id}`) los ven el `GERENTE_DE_PRODUCCION` y el `GERENTE_DE_COMPRAS` (`@PreAuthorize` a nivel de clase), igual que el buscador de recetas del filtro del listado (`GET /planificaciones-produccion/filtros/recetas`). Todo lo demás (alta, anulación, finalización, sugerencia de fecha, buscador de recetas del formulario de alta, `GET /planificaciones-produccion/buscador/recetas`, y la receta de la planificación, `GET /planificaciones-produccion/{id}/receta`) es solo del `GERENTE_DE_PRODUCCION` (`@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")` en cada método). Cualquier otro rol es rechazado.
+**Roles requeridos:** el listado (`GET /planificaciones-produccion`) y el estado actual (`GET /planificaciones-produccion/{id}`) los ven el `GERENTE_DE_PRODUCCION` y el `GERENTE_DE_COMPRAS` (`@PreAuthorize` a nivel de clase), igual que el buscador de recetas del filtro del listado (`GET /planificaciones-produccion/filtros/recetas`). Todo lo demás (alta, anulación, finalización, buscador de recetas del formulario de alta, `GET /planificaciones-produccion/buscador/recetas`, y la receta de la planificación, `GET /planificaciones-produccion/{id}/receta`) es solo del `GERENTE_DE_PRODUCCION` (`@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")` en cada método). Cualquier otro rol es rechazado.
 
 **Convenciones de los resultados:**
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout. Un rol no autorizado y un POST sin token CSRF redirigen con alerta `danger` y no llegan al service.
@@ -15,7 +15,6 @@
 - El formulario de alta es una única página (`novalidate`, sin validación en JavaScript) con la sección "Datos de la planificación". La receta se elige con el selector de entidad (campo en blanco con ícono de lista que abre el buscador; sin menú de alta al vuelo). Las unidades van en las etiquetas, los campos tienen un placeholder de ejemplo y los obligatorios llevan asterisco rojo.
 - Un error de validación (`@Valid`) o una regla del service vuelven a mostrar el formulario (sin redirigir) con lo que el usuario había cargado, incluida la receta elegida; los mensajes aparecen en el resumen de errores y, los de campo, debajo del campo.
 - El filtro de receta del listado es un selector de entidad (campo en blanco con ícono de lista, placeholder "Seleccione receta" y botón para quitar la selección) cuyo buscador, `GET /planificaciones-produccion/filtros/recetas`, ofrece las recetas activas y, con la casilla "Incluir dados de baja", las dadas de baja que tienen alguna planificación en cualquier estado: una receta solo se puede dar de baja si todas sus planificaciones están anuladas, y esas planificaciones se encuentran filtrando por ella. El formulario de alta usa otro buscador, `GET /planificaciones-produccion/buscador/recetas`, que ofrece solo recetas activas y no tiene la casilla. Ambos comparten el fragmento `planificacion_produccion/buscador-receta :: buscador`, parametrizado por la URL del buscador y por si muestra la casilla. Un `idReceta` del listado que el buscador del filtro no ofrece (inexistente, o dada de baja sin planificaciones) se ignora: se lista sin filtrar por receta y el selector queda en blanco.
-- El botón "Sugerir fecha" está junto a la fecha de finalización y nunca corre solo: el HTML no tiene disparadores automáticos (`onload`, `onchange`, `data-auto`). Al apretarlo, `planificacion-form.js` pide `GET /planificaciones-produccion/sugerencia-fecha` y muestra el fragmento devuelto; completa la fecha de fin solo si está vacía (o si la puso antes ese botón) y, si el usuario ya escribió una, ofrece "Usar esta fecha". Ese comportamiento del navegador no se prueba aquí.
 - El estado actual muestra la cabecera, los contadores de lotes, el diagrama de Gantt y la tabla de lotes. Cada barra del diagrama es un enlace al detalle del lote (`/lotes/{id}`) para quien tiene `LOTE_CONSULTAR`, igual que en el cronograma de producción; sin ese permiso la barra no es un enlace. Sin lotes, el diagrama y la tabla muestran "No hay lotes registrados para esta planificación". El diagrama dibuja los lotes pendientes, en ejecución y finalizados con tres colores (azul planificado, naranja sólido un lote en ejecución, verde finalizado), con el código completo del lote en cada barra y los bloques celestes de limpieza de equipamientos; los lotes cancelados no se dibujan y solo figuran en los contadores y en la tabla. Si todos los lotes son cancelados, el diagrama dice "No hay lotes para mostrar en el diagrama (los lotes cancelados no se dibujan)".
 - La receta de la planificación (`GET /planificaciones-produccion/{id}/receta`) es una pantalla de solo lectura: muestra los datos de la versión exacta de la receta que se asoció a la planificación al registrarla, que no es necesariamente la versión vigente. Se llega con el nombre de la receta, que es un link en el detalle de la planificación (solo para el `GERENTE_DE_PRODUCCION`, en cualquier estado). El encabezado indica el nombre de la receta y una etiqueta "Versión vigente" o "Versión histórica"; solo una versión histórica muestra además el texto "Versión N de M" y un aviso, y una receta dada de baja se sigue viendo con la etiqueta "Receta dada de baja". Las secciones (datos generales, duraciones estimadas, maltas, lúpulos y levaduras) son las mismas que las del detalle de receta, porque ambas pantallas comparten el fragmento `receta/receta-datos :: datos`. No hay botones de modificación ni de baja, enlaces a `/recetas/{id}/editar` ni formularios. La única acción es "Volver a la planificación" (`/planificaciones-produccion/{id}`). Los detalles se muestran en el orden en que el service los entrega (el de carga de la versión).
 - El estado actual (`GET /planificaciones-produccion/{id}`) enlaza con el módulo de lotes. El botón "Nuevo lote" (ícono `bi-plus-lg`) solo aparece en una planificación Pendiente y solo para quien tiene `LOTE_REGISTRAR` (el `GERENTE_DE_PRODUCCION`); lleva a `/lotes/nuevo?idPlanificacion={id}`, donde el formulario de registro del lote ya muestra la planificación elegida (ver `lote/CasosPruebaLoteController.md`, CP-LCT-21); al registrar, el gerente vuelve a la lista de lotes (CP-LCT-25). La tabla de lotes lleva, por fila, el link "Ver" al detalle del lote (`/lotes/{id}`), solo para quien tiene `LOTE_CONSULTAR`.
@@ -53,7 +52,6 @@
 | --- | --- | --- | --- | --- |
 | **CP-PPC-15** | Formulario de alta | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `planificacion_produccion/planificacion-form`. Muestra "Nueva planificación", `action="/planificaciones-produccion"`, `novalidate`, la sección "Datos de la planificación", las etiquetas "Cantidad a producir" (con el sufijo "L"), "Fecha de inicio estimada" y "Fecha de finalización estimada", los placeholders "Seleccione receta", "Ej: 600", "Ej: 01/07/2027" y "Ej: 25/07/2027", campos `type="date"` con `min` igual a la fecha actual (solo una ayuda visual: la regla la valida el service), el asterisco rojo de obligatorio, el botón "Crear planificación", el link de cancelar y el token CSRF. |
 | **CP-PPC-16** | La receta se elige con el buscador | Rol `GERENTE_DE_PRODUCCION` | Elegir una entidad relacionada es un modal con filtros | El campo `idReceta` es el selector de entidad (`data-selector-buscar`, ícono `bi-list-ul`, `data-buscador-url="/planificaciones-produccion/buscador/recetas"`), sin menú de tres puntitos, sin alta al vuelo y sin botón de quitar. |
-| **CP-PPC-17** | Botón "Sugerir fecha" que no corre solo | Rol `GERENTE_DE_PRODUCCION` | La sugerencia la pide el usuario | Junto a la fecha de fin hay un `<button type="button" data-sugerir-fecha>` con el ícono `bi-magic`, el texto "Sugerir fecha", `whitespace-nowrap`, `data-sugerencia-url="/planificaciones-produccion/sugerencia-fecha"` y, debajo, el área `data-sugerencia-destino`. El HTML no contiene `data-auto`, `onload` ni `onchange`; carga `/js/planificacion-form.js`. |
 | **CP-PPC-18** | Rol no autorizado | Rol `GERENTE_DE_COMPRAS` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 
 ---
@@ -128,22 +126,7 @@
 
 ---
 
-### 7. `GET /planificaciones-produccion/sugerencia-fecha` — `sugerirFechaFinalizacion(...)`
-
-| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
-| --- | --- | --- | --- | --- |
-| **CP-PPC-46** | Sugerencia correcta | `idReceta: 3`, `cantidadAProducir: 4200`, `fechaInicioEstimada: 2027-07-01`. El service devuelve 14 lotes de 300 L, de 18 días, con fin sugerido el 2027-07-25 | El service acepta la simulación | Responde 200 con el fragmento `planificacion_produccion/sugerencia-fecha :: sugerencia` (HTML, sin layout ni `<html>`), con `data-fecha-sugerida="2027-07-25"` y el texto "14 lotes de 300 L, de 18 días cada uno, con 1 día de limpieza entre lotes. Fin sugerido: 25/07/2027." |
-| **CP-PPC-47** | Texto en singular | Sugerencia de 1 lote de 300,5 L y 1 día; `cantidadAProducir: "300,5"` | Concordancia de lote(s) y día(s) | El texto dice "1 lote de 300,5 L, de 1 día cada uno". La cantidad con coma decimal llega al service como `300.5`. |
-| **CP-PPC-48** | Regla rechazada | El service lanza `ReglaNegocioException("La cantidad a producir debe ser mayor a 0")` | Un rechazo no es un error del servidor | Responde 200 con el mismo fragmento en estilo de error (`data-sugerencia-error`, `text-rose-600`) con el mensaje del service y sin `data-fecha-sugerida`. |
-| **CP-PPC-49** | Receta sin versión activa | El service lanza `RecursoNoEncontradoException("No se encontró una versión activa para la receta con ID: 3")` | Un rechazo no es un error del servidor | Responde 200 con el fragmento de error y el mensaje del service, sin fecha. |
-| **CP-PPC-50** | Sin receta elegida | `idReceta` vacío | Sin receta no hay simulación posible | Responde 200 con el fragmento de error "Seleccione una receta para sugerir la fecha de finalización", sin fecha. No invoca al service. |
-| **CP-PPC-51** | Datos vacíos | Solo `idReceta: 3` | El service es la fuente de verdad de las reglas | Llama al service con cantidad y fecha en `null`; el fragmento de error muestra su mensaje ("La cantidad a producir debe ser mayor a 0"). |
-| **CP-PPC-52** | Datos mal escritos | `cantidadAProducir: "abc"`; y por separado `fechaInicioEstimada: "31/12/2027"` | Los datos llegan como texto para explicar el error | Responde 200 con el fragmento de error "Ingrese una cantidad a producir válida" y "Ingrese una fecha de inicio estimada válida". No invoca al service. |
-| **CP-PPC-53** | Rol no autorizado | Rol `GERENTE_DE_COMPRAS` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta `danger`. No invoca al service. |
-
----
-
-### 8. `GET /planificaciones-produccion/buscador/recetas` — `buscarRecetas(...)`
+### 7. `GET /planificaciones-produccion/buscador/recetas` — `buscarRecetas(...)`
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
@@ -154,7 +137,7 @@
 
 ---
 
-### 9. `GET /planificaciones-produccion/{id}/receta` — `mostrarRecetaDePlanificacion(...)`
+### 8. `GET /planificaciones-produccion/{id}/receta` — `mostrarRecetaDePlanificacion(...)`
 
 Escenario base: rol `GERENTE_DE_PRODUCCION`; `id: 7`; el service (`buscarVersionRecetaDePlanificacion(7)`) devuelve la versión "Pale Ale" (volumen base 20, relación de empaste 3, OG 1.05, FG 1.01, IBU 35, maceración 60 min, hervido 90 min, fermentación 10 días, maduración 4 días) de la receta `id: 3`, activa, que tiene 3 versiones y la planificación usa la 3 (`esUltimaVersion: true`); 1 malta (Pilsen, Base, 4.5 kg), 1 lúpulo (Cascade, Pellet, alfa 5.5, `HERVOR`, `HERVIDO`, 60 min, 25 g) y 1 levadura (US-05, Ale, 11.5 g).
 
@@ -179,7 +162,7 @@ Escenario base: rol `GERENTE_DE_PRODUCCION`; `id: 7`; el service (`buscarVersion
 
 ---
 
-### 10. Enlaces con el módulo de lotes
+### 9. Enlaces con el módulo de lotes
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
@@ -192,7 +175,7 @@ Escenario base: rol `GERENTE_DE_PRODUCCION`; `id: 7`; el service (`buscarVersion
 
 ---
 
-### 11. `GET /planificaciones-produccion/filtros/recetas` (buscador de recetas del filtro del listado)
+### 10. `GET /planificaciones-produccion/filtros/recetas` (buscador de recetas del filtro del listado)
 
 Devuelve el contenido del modal de búsqueda de recetas que abre el filtro "Receta" del listado. Lo usan los mismos roles que ven el listado (`GERENTE_DE_PRODUCCION` y `GERENTE_DE_COMPRAS`). Criterios, ambos opcionales y combinables: nombre (texto, coincidencia parcial sobre el nombre de la versión vigente; el service lo normaliza) e "Incluir dados de baja" (casilla `incluirDadosDeBaja`, desmarcada por defecto). Sin la casilla solo se ofrecen las recetas activas (`filtrarRecetas`); con ella se suman las dadas de baja que tienen alguna planificación en cualquier estado (`filtrarRecetasConDadasDeBajaConPlanificaciones`). Los resultados se listan de a 8 en orden alfabético por nombre.
 

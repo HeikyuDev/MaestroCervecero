@@ -25,7 +25,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaSe
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionConLitrosAPlanificarResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
@@ -422,26 +421,6 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(not(containsString("data-selector-alta"))))
                 .andExpect(content().string(not(containsString("data-selector-menu"))))
                 .andExpect(content().string(not(containsString("data-selector-limpiar"))));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-17: junto a la fecha de finalización hay un botón \"Sugerir fecha\" y un área para la ayuda; el botón no corre solo (sin disparadores automáticos) y el script es un archivo propio")
-    void formularioAlta_elBotonSugerirFechaNoCorreSolo() throws Exception {
-        mockMvc.perform(get("/planificaciones-produccion/nueva"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-sugerir-fecha")))
-                .andExpect(content().string(containsString("Sugerir fecha")))
-                .andExpect(content().string(containsString("bi-magic")))
-                .andExpect(content().string(containsString("data-sugerencia-url=\"/planificaciones-produccion/sugerencia-fecha\"")))
-                .andExpect(content().string(containsString("data-sugerencia-destino")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"fechaFinalizacionEstimada\".*data-sugerir-fecha.*data-sugerencia-destino.*")))
-                .andExpect(content().string(containsString("whitespace-nowrap")))
-                .andExpect(content().string(containsString("<button type=\"button\" data-sugerir-fecha")))
-                .andExpect(content().string(not(containsString("data-auto"))))
-                .andExpect(content().string(not(containsString("onload"))))
-                .andExpect(content().string(not(containsString("onchange"))))
-                .andExpect(content().string(containsString("/js/planificacion-form.js")));
     }
 
     @Test
@@ -928,128 +907,6 @@ class PlanificacionProduccionControllerTest {
     void cierres_sinCsrfSonRechazados() throws Exception {
         mockMvc.perform(post("/planificaciones-produccion/7/anular").param("motivo", "x"))
                 .andExpect(status().is3xxRedirection());
-
-        verifyNoInteractions(planificacionServicio);
-    }
-
-    // ==================== GET /planificaciones-produccion/sugerencia-fecha ====================
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-46: la sugerencia es un fragmento HTML (sin layout) con el texto de la simulación, el fin sugerido formateado y la fecha ISO en un atributo data")
-    void sugerencia_devuelveElFragmentoConLaFecha() throws Exception {
-        when(planificacionServicio.sugerirFechaFinalizacion(eq(3L), eq(4200.0), eq(LocalDate.of(2027, 7, 1))))
-                .thenReturn(sugerencia(14, 300.0, 18, LocalDate.of(2027, 7, 25)));
-
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "4200").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("planificacion_produccion/sugerencia-fecha :: sugerencia"))
-                .andExpect(content().string(containsString("data-fecha-sugerida=\"2027-07-25\"")))
-                .andExpect(content().string(containsString("data-sugerencia")))
-                .andExpect(content().string(matchesPattern("(?s).*14 lotes de 300 L, de 18 días cada uno, con 1 día de limpieza entre lotes\\. Fin sugerido: <strong[^>]*>25/07/2027</strong>\\..*")))
-                .andExpect(content().string(not(containsString("data-sugerencia-error"))))
-                .andExpect(content().string(not(containsString("<html"))))
-                .andExpect(content().string(not(containsString("Maestro Cervecero"))));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-47: con un solo lote y un solo día el texto va en singular")
-    void sugerencia_usaElSingularCuandoCorresponde() throws Exception {
-        when(planificacionServicio.sugerirFechaFinalizacion(any(), any(), any()))
-                .thenReturn(sugerencia(1, 300.5, 1, LocalDate.of(2027, 7, 2)));
-
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "300,5").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("1 lote de 300,5 L, de 1 día cada uno")));
-
-        verify(planificacionServicio).sugerirFechaFinalizacion(3L, 300.5, LocalDate.of(2027, 7, 1));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-48: si el service rechaza la regla (ReglaNegocioException) devuelve el mismo fragmento en estilo de error con el mensaje y sin fecha")
-    void sugerencia_conReglaRechazadaMuestraElError() throws Exception {
-        when(planificacionServicio.sugerirFechaFinalizacion(any(), any(), any()))
-                .thenThrow(new ReglaNegocioException("La cantidad a producir debe ser mayor a 0"));
-
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "0").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-sugerencia-error")))
-                .andExpect(content().string(containsString("text-rose-600")))
-                .andExpect(content().string(containsString("La cantidad a producir debe ser mayor a 0")))
-                .andExpect(content().string(not(containsString("data-fecha-sugerida"))));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-49: si la receta no existe o no tiene versión activa (RecursoNoEncontradoException) devuelve el fragmento de error con el mensaje, sin fecha y sin error del servidor")
-    void sugerencia_conRecursoNoEncontradoMuestraElError() throws Exception {
-        when(planificacionServicio.sugerirFechaFinalizacion(any(), any(), any()))
-                .thenThrow(new RecursoNoEncontradoException("No se encontró una versión activa para la receta con ID: 3"));
-
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "600").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-sugerencia-error")))
-                .andExpect(content().string(containsString("No se encontró una versión activa para la receta con ID: 3")))
-                .andExpect(content().string(not(containsString("data-fecha-sugerida"))));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-50: sin receta elegida avisa que hay que elegirla, sin llamar al service")
-    void sugerencia_sinRecetaPideElegirla() throws Exception {
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "").param("cantidadAProducir", "600").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-sugerencia-error")))
-                .andExpect(content().string(containsString("Seleccione una receta para sugerir la fecha de finalización")))
-                .andExpect(content().string(not(containsString("data-fecha-sugerida"))));
-
-        verifyNoInteractions(planificacionServicio);
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-51: los datos vacíos llegan como null al service, que los rechaza con su mensaje (nunca un error 500)")
-    void sugerencia_conDatosVaciosDejaQueElServiceLosRechace() throws Exception {
-        when(planificacionServicio.sugerirFechaFinalizacion(eq(3L), isNull(), isNull()))
-                .thenThrow(new ReglaNegocioException("La cantidad a producir debe ser mayor a 0"));
-
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha").param("idReceta", "3"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("La cantidad a producir debe ser mayor a 0")));
-
-        verify(planificacionServicio).sugerirFechaFinalizacion(3L, null, null);
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-52: una cantidad o una fecha mal escrita se informa en el fragmento de error y no llama al service")
-    void sugerencia_conDatosInvalidosMuestraElError() throws Exception {
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "abc").param("fechaInicioEstimada", "2027-07-01"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingrese una cantidad a producir válida")));
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
-                        .param("idReceta", "3").param("cantidadAProducir", "600").param("fechaInicioEstimada", "31/12/2027"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingrese una fecha de inicio estimada válida")));
-
-        verifyNoInteractions(planificacionServicio);
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-PPC-53: el GERENTE_DE_COMPRAS no puede pedir sugerencias y el service no se invoca")
-    void sugerencia_debeRechazarAlGerenteDeCompras() throws Exception {
-        mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha").param("idReceta", "3"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("tipo", "danger"));
 
         verifyNoInteractions(planificacionServicio);
     }
@@ -2427,16 +2284,6 @@ class PlanificacionProduccionControllerTest {
                 .fechaCancelacion(estado == EstadoLote.CANCELADO ? inicioEstimado.plusDays(2).atTime(10, 0) : null)
                 .idPlanificacionProduccion(7L)
                 .identificadorInternoFermentador(fermentador)
-                .build();
-    }
-
-    private static SugerenciaFechaFinalizacionResponseDTO sugerencia(int lotes, double capacidad, long duracion, LocalDate fin) {
-        return SugerenciaFechaFinalizacionResponseDTO.builder()
-                .fechaInicioEstimada(LocalDate.of(2027, 7, 1))
-                .fechaFinalizacionSugerida(fin)
-                .cantidadLotes(lotes)
-                .capacidadLoteEstandar(capacidad)
-                .duracionLoteDias(duracion)
                 .build();
     }
 }

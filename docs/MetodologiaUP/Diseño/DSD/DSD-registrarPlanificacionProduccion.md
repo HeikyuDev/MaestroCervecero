@@ -64,7 +64,7 @@ sequenceDiagram
 - **IRecetaRepository:** busca únicamente recetas activas mediante `findById`. El servicio resuelve su versión vigente con el método real `obtenerVersionActiva`, que utiliza `MetodosVersionado` sobre las versiones de la receta. Ese helper se encapsula para mantener el nivel de diseño.
 - **IPlanificacionProduccionRepository:** persiste la nueva planificación dentro de la transacción del servicio. Las entidades y DTO se representan como datos, sin líneas de vida propias, porque no coordinan este flujo.
 
-La planificación conserva una referencia a la **versión concreta** elegida al registrarla: una modificación posterior de la receta no cambia esa asociación. El usuario selecciona la receta, no una versión. Este registro no crea lotes ni solicita la sugerencia de fecha de finalización; ambas funcionalidades quedan fuera del flujo representado.
+La planificación conserva una referencia a la **versión concreta** elegida al registrarla: una modificación posterior de la receta no cambia esa asociación. El usuario selecciona la receta, no una versión. Este registro no crea lotes: esa funcionalidad queda fuera del flujo representado.
 
 Se omiten getters, setters, builders, conversión a DTO y la infraestructura transversal de seguridad y auditoría (`@AuditableAction`). `cargarModeloFormulario` encapsula la recuperación del nombre de la receta seleccionada mediante `recetaServicio.buscarPorId`, cuando hay un ID, y la preparación de la URL de cancelación. La consulta del listado tras la redirección también se resume. Las alternativas cubren las excepciones capturadas por este controlador, sin inventar recuperación de fallos técnicos no capturados.
 

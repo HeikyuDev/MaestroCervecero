@@ -38,13 +38,10 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id; // JPA Exige una ID, por lo tanto creamos una al iniciar la aplicacion utilizando la constante
 
-    // === SECCION 1: estimación de la fecha de finalización de una planificación de producción ===
+    // === SECCION 1: envasado ===
 
     @Column(name = "velocidad_estandar_envasado", nullable = false)
     private Double velocidadEstandarEnvasado;
-
-    @Column(name = "capacidad_lote_estandar", nullable = false)
-    private Double capacidadLoteEstandar;
 
     // === SECCION 2: lotes ===
 

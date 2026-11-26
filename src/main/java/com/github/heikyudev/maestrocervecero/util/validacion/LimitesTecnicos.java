@@ -93,9 +93,6 @@ public final class LimitesTecnicos {
      */
     public static final double CAPACIDAD_UTIL_MINIMA_LITROS = 10.0;
 
-    /** Capacidad máxima del lote estándar de la configuración de producción, en litros. */
-    public static final double CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS = 100_000.0;
-
     /** Excedente máximo que la configuración de producción admite para un plan de producción, en litros. */
     public static final double EXCEDENTE_MAXIMO_PLAN_LITROS = 100_000.0;
 

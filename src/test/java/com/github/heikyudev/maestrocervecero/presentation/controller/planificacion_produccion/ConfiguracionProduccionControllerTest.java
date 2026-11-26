@@ -85,7 +85,7 @@ class ConfiguracionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CPC-01: el GERENTE_DE_PRODUCCION ve la configuración vigente en los cuatro campos, sin ceros sobrantes, con asterisco, placeholder y unidades")
+    @DisplayName("CP-CPC-01: el GERENTE_DE_PRODUCCION ve la configuración vigente en sus tres campos, sin ceros sobrantes, con asterisco, placeholder y unidades")
     void caso_cp_cpc_01() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
@@ -97,12 +97,12 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("Configuración de Producción")))
                 .andExpect(content().string(containsString("action=\"/configuracion-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
-                .andExpect(content().string(containsString("Tiempos y capacidades")))
+                .andExpect(content().string(containsString("Tiempos de producción")))
                 .andExpect(content().string(containsString("Planes de producción")))
-                .andExpect(content().string(containsString("Capacidad de lote estándar <span")))
                 .andExpect(content().string(containsString("Velocidad de envasado <span")))
                 .andExpect(content().string(containsString("Porcentaje mínimo de consumo <span")))
-                .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"300\"")))
+                .andExpect(content().string(containsString("name=\"excedenteMaximoLitros\" value=\"300\"")))
+                .andExpect(content().string(not(containsString("Capacidad de lote"))))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"100.5\"")))
                 .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"90\"")))
                 .andExpect(content().string(not(containsString("value=\"300.0\""))))
@@ -124,11 +124,11 @@ class ConfiguracionProduccionControllerTest {
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Volumen por lote que usa la simulación al sugerir la fecha de finalización de una planificación.")))
                 .andExpect(content().string(containsString("Se usa para estimar la duración del envasado al calcular las fechas de cada lote.")))
                 .andExpect(content().string(containsString("Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa")))
                 .andExpect(content().string(containsString("Un número entre 0 y 100.")))
-                .andExpect(content().string(containsString("Litros que la suma de los lotes de un plan puede superar a la cantidad a producir al confirmarlo.")));
+                .andExpect(content().string(containsString("Litros que la suma de los lotes de un plan puede superar a la cantidad a producir al confirmarlo.")))
+                .andExpect(content().string(not(containsString("sugerir la fecha"))));
     }
 
     @Test
@@ -196,7 +196,6 @@ class ConfiguracionProduccionControllerTest {
 
         // === EJECUCION ===
         mockMvc.perform(post(URL).with(csrf())
-                        .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80.5")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("excedenteMaximoLitros", "300"))
@@ -208,7 +207,6 @@ class ConfiguracionProduccionControllerTest {
 
         ArgumentCaptor<ConfiguracionProduccionFormDTO> captor = ArgumentCaptor.forClass(ConfiguracionProduccionFormDTO.class);
         verify(configuracionServicio).actualizarConfiguracion(captor.capture());
-        assertThat(captor.getValue().getCapacidadLoteEstandar()).isEqualTo(250.0);
         assertThat(captor.getValue().getVelocidadEstandarEnvasado()).isEqualTo(80.5);
         assertThat(captor.getValue().getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(75.0);
         assertThat(captor.getValue().getExcedenteMaximoLitros()).isEqualTo(300.0);
@@ -225,7 +223,6 @@ class ConfiguracionProduccionControllerTest {
 
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL).with(csrf())
-                        .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "150")
                         .param("excedenteMaximoLitros", "300"))
@@ -233,7 +230,6 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(view().name("configuracion/configuracion-produccion"))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
                 .andExpect(content().string(containsString("debe estar entre 0 y 100")))
-                .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"250\"")))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"80\"")))
                 .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"150\"")));
     }
@@ -247,8 +243,7 @@ class ConfiguracionProduccionControllerTest {
 
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL).with(csrf())
-                        .param("capacidadLoteEstandar", "abc")
-                        .param("velocidadEstandarEnvasado", "80")
+                        .param("velocidadEstandarEnvasado", "abc")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("excedenteMaximoLitros", "300"))
                 .andExpect(status().isOk())
@@ -257,7 +252,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("Ingres")))
                 .andExpect(content().string(containsString("mero v")))
                 .andExpect(content().string(containsString("border-rose-400")))
-                .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"80\"")));
+                .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"75\"")));
 
         verify(configuracionServicio, never()).actualizarConfiguracion(any());
     }
@@ -271,12 +266,10 @@ class ConfiguracionProduccionControllerTest {
 
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL).with(csrf())
-                        .param("capacidadLoteEstandar", "")
                         .param("velocidadEstandarEnvasado", "")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "")
                         .param("excedenteMaximoLitros", ""))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("La capacidad de lote est")))
                 .andExpect(content().string(containsString("La velocidad de envasado es obligatoria")))
                 .andExpect(content().string(containsString("El porcentaje m")))
                 .andExpect(content().string(containsString("El excedente máximo de un plan es obligatorio")))
@@ -291,7 +284,6 @@ class ConfiguracionProduccionControllerTest {
     void caso_cp_cpc_12(String rol) throws Exception {
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL).with(csrf()).with(user("usuario").roles(rol))
-                        .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("excedenteMaximoLitros", "300"))
@@ -307,7 +299,6 @@ class ConfiguracionProduccionControllerTest {
     void caso_cp_cpc_13() throws Exception {
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL)
-                        .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("excedenteMaximoLitros", "300"))
@@ -375,7 +366,6 @@ class ConfiguracionProduccionControllerTest {
     private static ConfiguracionProduccionResponseDTO configuracion() {
         return ConfiguracionProduccionResponseDTO.builder()
                 .id(1L)
-                .capacidadLoteEstandar(300.0)
                 .velocidadEstandarEnvasado(100.5)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
                 .excedenteMaximoLitros(300.0)
@@ -426,7 +416,7 @@ class ConfiguracionProduccionControllerTest {
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
 
         // Act + Assert
-        mockMvc.perform(post(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("capacidadLoteEstandar", ""))
+        mockMvc.perform(post(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("velocidadEstandarEnvasado", ""))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-pestana-parametros")))
                 .andExpect(content().string(containsString("data-pestana-costos")));
@@ -456,7 +446,6 @@ class ConfiguracionProduccionControllerTest {
 
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(post(URL).with(csrf())
-                        .param("capacidadLoteEstandar", "250")
                         .param("velocidadEstandarEnvasado", "80")
                         .param("porcentajeMinimoConsumoParaAvanzarEtapa", "75")
                         .param("excedenteMaximoLitros", "-5"))

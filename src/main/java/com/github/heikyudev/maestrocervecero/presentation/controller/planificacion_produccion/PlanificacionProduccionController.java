@@ -15,7 +15,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_pr
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
@@ -39,7 +38,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
@@ -54,9 +52,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * GERENTE_DE_PRODUCCION.
  * </p>
  * <p>
- * El formulario de alta elige la receta con un buscador (modal) que solo ofrece recetas activas, y ofrece una
- * sugerencia de fecha de finalización: un fragmento HTML que el navegador pide a pedido del usuario y que nunca se
- * aplica solo. El filtro de receta del listado usa otro buscador, que también ofrece las recetas dadas de baja con
+ * El formulario de alta elige la receta con un buscador (modal) que solo ofrece recetas activas. El filtro de receta del listado usa otro buscador, que también ofrece las recetas dadas de baja con
  * planificaciones, para poder consultar su historial.
  * </p>
  */
@@ -70,7 +66,6 @@ public class PlanificacionProduccionController {
     private static final String VISTA_DETALLE = "planificacion_produccion/planificacion-detalle";
     private static final String VISTA_RECETA = "planificacion_produccion/planificacion-receta";
     private static final String VISTA_FORMULARIO = "planificacion_produccion/planificacion-form";
-    private static final String VISTA_SUGERENCIA = "planificacion_produccion/sugerencia-fecha :: sugerencia";
     private static final String ATRIBUTO_FORMULARIO = "planificacionForm";
     private static final String URL_LISTA = "/planificaciones-produccion";
     private static final String URL_BUSCADOR_RECETAS = "/planificaciones-produccion/buscador/recetas";
@@ -237,36 +232,6 @@ public class PlanificacionProduccionController {
         return "redirect:" + URL_LISTA + "/" + id;
     }
 
-    // ==================== Sugerencia de fecha de finalización ====================
-
-    /**
-     * Devuelve el fragmento HTML (no JSON) con la fecha de finalización sugerida y los datos de la
-     * simulación. Si el service la rechaza, o falta o es inválido un dato, devuelve el mismo fragmento en
-     * estilo de error con el mensaje y sin fecha: nunca responde un error del servidor. La sugerencia no se
-     * aplica sola: la elige el usuario desde la página.
-     * <p>
-     * Los datos llegan como texto para poder explicar un valor mal escrito en vez de fallar el pedido.
-     * </p>
-     */
-    @GetMapping("/sugerencia-fecha")
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String sugerirFechaFinalizacion(@RequestParam(required = false) Long idReceta,
-                                           @RequestParam(required = false) String cantidadAProducir,
-                                           @RequestParam(required = false) String fechaInicioEstimada,
-                                           Model model) {
-        try {
-            if (idReceta == null) {
-                throw new ReglaNegocioException("Seleccione una receta para sugerir la fecha de finalización");
-            }
-            SugerenciaFechaFinalizacionResponseDTO sugerencia = planificacionServicio.sugerirFechaFinalizacion(
-                    idReceta, aNumero(cantidadAProducir), aFecha(fechaInicioEstimada));
-            model.addAttribute("sugerencia", sugerencia);
-        } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
-            model.addAttribute("mensajeError", e.getMessage());
-        }
-        return VISTA_SUGERENCIA;
-    }
-
     // ==================== Buscadores de recetas ====================
 
     /**
@@ -361,29 +326,5 @@ public class PlanificacionProduccionController {
 
     private static long contar(List<LoteCronogramaResponseDTO> lotes, EstadoLote estado) {
         return lotes.stream().filter(l -> l.getEstado() == estado).count();
-    }
-
-    private static Double aNumero(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            return Double.valueOf(limpio.replace(',', '.'));
-        } catch (NumberFormatException e) {
-            throw new ReglaNegocioException("Ingrese una cantidad a producir válida");
-        }
-    }
-
-    private static LocalDate aFecha(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(limpio);
-        } catch (DateTimeParseException e) {
-            throw new ReglaNegocioException("Ingrese una fecha de inicio estimada válida");
-        }
     }
 }

@@ -26,11 +26,6 @@ public class ConfiguracionProduccionResponseDTO {
     private Double velocidadEstandarEnvasado;
 
     /**
-     * Capacidad de lote estándar (L).
-     */
-    private Double capacidadLoteEstandar;
-
-    /**
      * Porcentaje mínimo (0-100) de consumo requerido para poder avanzar de etapa.
      */
     private Double porcentajeMinimoConsumoParaAvanzarEtapa;

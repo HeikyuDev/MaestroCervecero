@@ -50,7 +50,6 @@ public class ConfiguracionProduccionController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, ConfiguracionProduccionFormDTO.builder()
                 .velocidadEstandarEnvasado(actual.getVelocidadEstandarEnvasado())
-                .capacidadLoteEstandar(actual.getCapacidadLoteEstandar())
                 .porcentajeMinimoConsumoParaAvanzarEtapa(actual.getPorcentajeMinimoConsumoParaAvanzarEtapa())
                 .excedenteMaximoLitros(actual.getExcedenteMaximoLitros())
                 .build());

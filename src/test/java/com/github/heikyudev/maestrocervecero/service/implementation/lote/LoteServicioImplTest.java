@@ -7046,7 +7046,6 @@ class LoteServicioImplTest {
         ConfiguracionProduccionEntity configuracion = ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarEnvasado(10.0)
-                .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(80.0)
                 .build();
         lenient().when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
@@ -7056,7 +7055,6 @@ class LoteServicioImplTest {
         ConfiguracionProduccionEntity configuracion = ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarEnvasado(10.0)
-                .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
                 .build();
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
@@ -7910,7 +7908,6 @@ class LoteServicioImplTest {
         return ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarEnvasado(10.0)
-                .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
                 .build();
     }

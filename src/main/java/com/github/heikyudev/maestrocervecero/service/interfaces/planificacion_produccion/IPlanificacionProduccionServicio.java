@@ -7,7 +7,6 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
-import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -94,34 +93,6 @@ public interface IPlanificacionProduccionServicio {
      * @return La planificación de producción finalizada.
      */
     PlanificacionProduccionResponseDTO finalizarPlanificacionProduccion(Long id, FinalizacionForzadaPlanificacionProduccionFormDTO finalizacionFormDTO);
-
-    /**
-     * Sugiere una fecha de finalización para una planificación que todavía no se registró,
-     * simulando una producción secuencial de todos sus lotes en un único fermentador.
-     * <p>
-     * Es solo una estimación: no persiste nada ni crea lotes, y no usa el molino, el macerador ni
-     * la olla de hervor, ni las velocidades de la configuración. El cálculo es:
-     * </p>
-     * <ul>
-     *     <li>Cantidad de lotes = {@code cantidadAProducir} / capacidad de lote estándar de la
-     *     configuración de producción, redondeada hacia arriba.</li>
-     *     <li>Duración de cada lote, en días = (duración de maceración + duración de hervido, en
-     *     minutos, / 1440) redondeado hacia arriba, más la duración de fermentación y la de
-     *     maduración de la última versión activa de la receta.</li>
-     *     <li>El primer lote comienza en {@code fechaInicioEstimada}; cada lote siguiente comienza
-     *     dos días después de que termina el anterior (el día intermedio es la limpieza del fermentador); cada lote
-     *     termina su duración en días después de su inicio.</li>
-     *     <li>La fecha sugerida es la de finalización del último lote.</li>
-     * </ul>
-     *
-     * @param idReceta ID de la receta contenedora cuya última versión activa se usa para la simulación.
-     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a 0.
-     * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
-     * @return La sugerencia con la fecha de finalización y los datos de la simulación.
-     * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a 0, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a 0, si la cantidad a producir supera el máximo técnico, si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}), o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
-     */
-    SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada);
 
     /**
      * Obtiene la versión de receta exacta que usa una planificación de producción: la que se asoció al

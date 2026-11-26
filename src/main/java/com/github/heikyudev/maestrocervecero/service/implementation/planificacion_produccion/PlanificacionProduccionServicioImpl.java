@@ -3,14 +3,12 @@ package com.github.heikyudev.maestrocervecero.service.implementation.planificaci
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
@@ -21,7 +19,6 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
@@ -37,23 +34,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class PlanificacionProduccionServicioImpl implements IPlanificacionProduccionServicio {
 
-    // Constantes de la estimación de la fecha de finalización (ver sugerirFechaFinalizacion)
-    private static final int MINUTOS_POR_DIA = 1440;
-    private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 2;
     private static final String MENSAJE_RANGO_PLANIFICACION_EXCEDIDO = "La planificación no puede durar más de 5 años (1.825 días) entre las fechas de inicio y de finalización estimadas";
     private static final String MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY = "La fecha de inicio estimada no puede ser anterior a la fecha actual";
 
@@ -61,7 +52,6 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     private final IRecetaRepository recetaRepository;
     private final ILoteRepository loteRepository;
     private final IEnvasadoLoteRepository envasadoLoteRepository;
-    private final IConfiguracionProduccionRepository configuracionProduccionRepository;
     private final ISolicitudCotizacionServicio solicitudCotizacionServicio;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -347,109 +337,6 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         // 7. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
-    }
-
-    /**
-     * Sugiere una fecha de finalización para una planificación que todavía no se registró,
-     * simulando la producción secuencial de todos sus lotes en un único fermentador.
-     * <p>
-     * Es solo una estimación: no persiste nada. La cantidad de lotes es la cantidad a producir
-     * dividida por la capacidad de lote estándar (redondeada hacia arriba); cada lote dura el día de
-     * brewing (maceración + hervido, redondeado hacia arriba a días completos) más la fermentación y
-     * la maduración de la última versión activa de la receta; y cada lote comienza dos días después
-     * de que termina el anterior (el día intermedio es la limpieza del fermentador).
-     * </p>
-     *
-     * @param idReceta ID de la receta contenedora cuya última versión activa se usa para la simulación.
-     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a 0.
-     * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
-     * @return {@link SugerenciaFechaFinalizacionResponseDTO} con la fecha de finalización sugerida y los datos de la simulación.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita, no es mayor a 0 o supera el máximo técnico, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a 0, o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
-     * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada) {
-        // 1. Validar la cantidad a producir
-        if (cantidadAProducir == null) {
-            throw new ReglaNegocioException("La cantidad a producir es obligatoria");
-        }
-        if (cantidadAProducir <= 0) {
-            throw new ReglaNegocioException("La cantidad a producir debe ser mayor a 0");
-        }
-        ValidacionesNumericas.validarMayorACero(cantidadAProducir, "La cantidad a producir");
-
-        // 2. Validar que se haya informado la fecha de inicio estimada
-        if (fechaInicioEstimada == null) {
-            throw new ReglaNegocioException("La fecha de inicio estimada es obligatoria");
-        }
-
-        // 3. Validar que la fecha de inicio estimada no sea anterior a la fecha actual (hoy es válido)
-        if (fechaInicioEstimada.isBefore(LocalDate.now())) {
-            throw new ReglaNegocioException(MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY);
-        }
-
-        // 4. Resolver la última versión activa de la receta seleccionada
-        VersionRecetaEntity versionRecetaEntity = obtenerVersionActiva(idReceta);
-
-        // 5. Localizar la configuración de producción vigente
-        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
-                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
-
-        // 6. Validar la capacidad de lote estándar (defensivo: la configuración ya lo exige al guardarse)
-        Double capacidadLoteEstandar = configuracion.getCapacidadLoteEstandar();
-        if (capacidadLoteEstandar == null) {
-            throw new ReglaNegocioException("La capacidad de lote estándar configurada es obligatoria");
-        }
-        if (capacidadLoteEstandar <= 0) {
-            throw new ReglaNegocioException("La capacidad de lote estándar configurada debe ser mayor a 0");
-        }
-        ValidacionesNumericas.validarMayorACero(capacidadLoteEstandar, "La capacidad de lote estándar configurada");
-
-        // 7. Cantidad de lotes: división decimal exacta redondeada hacia arriba. No se usa Math.ceil
-        //    sobre la división de doubles porque el error de punto flotante puede inflar un cociente
-        //    exacto (ej. 600 / 300) y sumar un lote de más; con BigDecimal los múltiplos exactos dan el entero justo.
-        BigDecimal lotes = BigDecimal.valueOf(cantidadAProducir)
-                .divide(BigDecimal.valueOf(capacidadLoteEstandar), 0, RoundingMode.CEILING);
-        if (lotes.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
-            throw new ReglaNegocioException("La cantidad a producir es demasiado grande para la capacidad de lote estándar configurada");
-        }
-        int cantidadLotes = lotes.intValue();
-
-        // 7 bis. Validar el techo técnico de la cantidad a producir (después de la cantidad de lotes: una
-        //        cantidad absurda frente a la capacidad se informa como tal, con su mensaje propio)
-        ValidacionesNumericas.validarMaximo(cantidadAProducir, LimitesTecnicos.CANTIDAD_A_PRODUCIR_MAXIMA_LITROS, "La cantidad a producir", "litros");
-
-        // 8. Duración de cada lote en días: día de brewing (maceración + hervido, en minutos, hacia arriba
-        //    a días completos; división entera con redondeo hacia arriba) + fermentación + maduración
-        long minutosBrewDay = (long) Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaceracion(), 0)
-                + Objects.requireNonNullElse(versionRecetaEntity.getDuracionHervido(), 0);
-        long diasBrewDay = (minutosBrewDay + MINUTOS_POR_DIA - 1) / MINUTOS_POR_DIA;
-        long duracionLoteDias = diasBrewDay
-                + Objects.requireNonNullElse(versionRecetaEntity.getDuracionFermentacion(), 0)
-                + Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaduracion(), 0);
-
-        // 9. Fecha de finalización: lotes secuenciales en un único fermentador. El lote k termina
-        //    duracionLoteDias después de su inicio y el siguiente empieza dos días después (el día
-        //    intermedio es la limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen.
-        //    Los días se calculan con aritmética long y se comparan contra el rango máximo antes de
-        //    construir la fecha, para que una simulación absurda no desborde el LocalDate
-        long diasTotales = cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR;
-        if (diasTotales > LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS) {
-            throw new ReglaNegocioException("La simulación supera los 5 años (" + cantidadLotes + " lotes de " + duracionLoteDias
-                    + " días). Reduzca la cantidad a producir o aumente la capacidad de lote estándar en la configuración");
-        }
-        LocalDate fechaFinalizacionSugerida = fechaInicioEstimada.plusDays(diasTotales);
-
-        // 10. Armar la sugerencia (nada se persiste)
-        return SugerenciaFechaFinalizacionResponseDTO.builder()
-                .fechaInicioEstimada(fechaInicioEstimada)
-                .fechaFinalizacionSugerida(fechaFinalizacionSugerida)
-                .cantidadLotes(cantidadLotes)
-                .capacidadLoteEstandar(capacidadLoteEstandar)
-                .duracionLoteDias(duracionLoteDias)
-                .build();
     }
 
     /**

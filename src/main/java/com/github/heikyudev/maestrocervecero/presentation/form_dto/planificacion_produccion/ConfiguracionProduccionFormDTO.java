@@ -29,12 +29,6 @@ public class ConfiguracionProduccionFormDTO {
     private Double velocidadEstandarEnvasado;
 
     /**
-     * Capacidad de lote estándar (L), usada como volumen por defecto al planificar producción.
-     */
-    @NotNull(message = "La capacidad de lote estándar es obligatoria")
-    private Double capacidadLoteEstandar;
-
-    /**
      * Porcentaje mínimo (0-100) que debe alcanzar el consumo de cada insumo requerido de la
      * etapa actual para poder finalizarla y avanzar a la siguiente.
      */
