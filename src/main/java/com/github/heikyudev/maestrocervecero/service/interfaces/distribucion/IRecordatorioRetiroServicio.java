@@ -80,8 +80,8 @@ public interface IRecordatorioRetiroServicio {
     void registrarResultadoEnvio(Long idInvitacion, boolean enviado);
 
     /**
-     * Registra, en su propia transacción, que se completó el envío de los recordatorios del día. Registrarlo dos veces no
-     * tiene efecto.
+     * Registra, en su propia transacción, que se completó el envío de los recordatorios del día. Registrarlo dos veces,
+     * aunque sea a la vez desde dos procesos, no tiene efecto ni falla.
      *
      * @param fecha El día.
      */

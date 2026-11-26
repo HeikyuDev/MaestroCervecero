@@ -224,7 +224,7 @@ class SolicitudRetiroControllerTest {
     }
 
     @Test
-    @DisplayName("CP-SRC-09: enviar los recordatorios vuelve a la lista con cuántos clientes se notificaron, en singular o plural, o con que no había a quién recordarles")
+    @DisplayName("CP-SRC-09: enviar los recordatorios vuelve a la lista con cuántos clientes se notificaron en este envío, en singular o plural, o con que no quedaba a quién recordarles")
     void caso_cp_src_09() throws Exception {
         when(envioRecordatoriosRetiro.enviarRecordatoriosDeHoy())
                 .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(3, true))
@@ -234,12 +234,12 @@ class SolicitudRetiroControllerTest {
         mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL))
-                .andExpect(flash().attribute("mensaje", "Recordatorios de retiro enviados correctamente a 3 clientes"))
+                .andExpect(flash().attribute("mensaje", "Se enviaron recordatorios de retiro a 3 clientes en este envío"))
                 .andExpect(flash().attribute("tipo", "success"));
         mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
-                .andExpect(flash().attribute("mensaje", "Recordatorios de retiro enviados correctamente a 1 cliente"));
+                .andExpect(flash().attribute("mensaje", "Se enviaron recordatorios de retiro a 1 cliente en este envío"));
         mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
-                .andExpect(flash().attribute("mensaje", "No hay clientes con barriles para recordarles el retiro hoy"))
+                .andExpect(flash().attribute("mensaje", "No quedan clientes a los que recordarles el retiro hoy"))
                 .andExpect(flash().attribute("tipo", "info"));
     }
 
@@ -252,7 +252,7 @@ class SolicitudRetiroControllerTest {
 
         mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
                 .andExpect(redirectedUrl(URL))
-                .andExpect(flash().attribute("mensaje", "Se envió el recordatorio de retiro a 2 clientes, pero algunos envíos fallaron: se reintentan automáticamente"))
+                .andExpect(flash().attribute("mensaje", "Se enviaron recordatorios de retiro a 2 clientes en este envío, pero algunos envíos fallaron: se reintentan automáticamente"))
                 .andExpect(flash().attribute("tipo", "warning"));
         mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()).header("Referer", URL))
                 .andExpect(status().is3xxRedirection())
@@ -263,5 +263,44 @@ class SolicitudRetiroControllerTest {
                 .andExpect(status().is3xxRedirection());
 
         verify(envioRecordatoriosRetiro, never()).enviarRecordatoriosDeHoy();
+    }
+
+    @Test
+    @DisplayName("CP-SRC-11: si fallan todos los correos avisa que no se pudo notificar a nadie; si hay un envío en curso vuelve al origen con el motivo")
+    void caso_cp_src_11() throws Exception {
+        when(envioRecordatoriosRetiro.enviarRecordatoriosDeHoy())
+                .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(0, false))
+                .thenThrow(new ReglaNegocioException("El envío de recordatorios está en curso, intente nuevamente en unos minutos"));
+
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "No se envió ningún recordatorio de retiro en este envío porque algunos envíos fallaron: se reintentan automáticamente"))
+                .andExpect(flash().attribute("tipo", "warning"));
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()).header("Referer", URL))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "El envío de recordatorios está en curso, intente nuevamente en unos minutos"));
+    }
+
+    @Test
+    @DisplayName("CP-SRC-12: enviar los recordatorios exige a la vez consultar las solicitudes de búsqueda y enviar los recordatorios")
+    void caso_cp_src_12() throws Exception {
+        mockMvc.perform(post(URL + "/recordatorios").with(csrf()).with(user("solo-envio").authorities(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("RECORDATORIO_RETIRO_ENVIAR"))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/recordatorios").with(csrf()).with(user("solo-consulta").authorities(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("SOLICITUD_BUSQUEDA_CONSULTAR"))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(envioRecordatoriosRetiro);
+
+        when(envioRecordatoriosRetiro.enviarRecordatoriosDeHoy()).thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(1, true));
+        mockMvc.perform(post(URL + "/recordatorios").with(csrf()).with(user("ambos").authorities(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("SOLICITUD_BUSQUEDA_CONSULTAR"),
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("RECORDATORIO_RETIRO_ENVIAR"))))
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("tipo", "success"));
     }
 }

@@ -5,7 +5,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoB
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.ConfiguracionDistribucionEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.EjecucionRecordatoriosRetiroEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.InvitacionRetiroBarrilesEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
@@ -273,17 +272,14 @@ class RecordatorioRetiroServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RRS-12: registrarEjecucion guarda el día una sola vez")
-    void registrarEjecucion_guardaUnaSolaVez() {
-        when(ejecucionRepository.existsById(HOY)).thenReturn(false, true);
-
+    @DisplayName("CP-RRS-12: registrarEjecucion inserta el día solo si no existe, en una sola sentencia, aunque se registre dos veces")
+    void registrarEjecucion_esIdempotente() {
         recordatorioRetiroServicio.registrarEjecucion(HOY);
         recordatorioRetiroServicio.registrarEjecucion(HOY);
 
-        ArgumentCaptor<EjecucionRecordatoriosRetiroEntity> captor = ArgumentCaptor.forClass(EjecucionRecordatoriosRetiroEntity.class);
-        verify(ejecucionRepository).save(captor.capture());
-        assertThat(captor.getValue().getFecha()).isEqualTo(HOY);
-        assertThat(captor.getValue().getFechaFin()).isNotNull();
+        verify(ejecucionRepository, org.mockito.Mockito.times(2)).registrarSiNoExiste(eq(HOY), org.mockito.ArgumentMatchers.notNull());
+        verify(ejecucionRepository, never()).save(any());
+        verify(ejecucionRepository, never()).existsById(any());
     }
 
     // ==================== helpers de construcción ====================

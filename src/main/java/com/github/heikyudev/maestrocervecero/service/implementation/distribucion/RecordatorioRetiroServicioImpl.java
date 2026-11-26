@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.DespachoB
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.ConfiguracionDistribucionEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.EjecucionRecordatoriosRetiroEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.distribucion.InvitacionRetiroBarrilesEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
@@ -134,9 +133,8 @@ public class RecordatorioRetiroServicioImpl implements IRecordatorioRetiroServic
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarEjecucion(LocalDate fecha) {
-        if (!ejecucionRepository.existsById(fecha)) {
-            ejecucionRepository.save(EjecucionRecordatoriosRetiroEntity.builder().fecha(fecha).fechaFin(LocalDateTime.now()).build());
-        }
+        // Una sola sentencia que no inserta si el día ya existe: dos procesos que lo registran a la vez no chocan
+        ejecucionRepository.registrarSiNoExiste(fecha, LocalDateTime.now());
     }
 
     /** Un barril como lo identifica el cliente: su número de serie y, entre paréntesis, el identificador interno. */

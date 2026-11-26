@@ -30,4 +30,4 @@ Un cliente recibe a lo sumo un recordatorio por día (unicidad de cliente y día
 |---|---|---|---|---|
 |**CP-RRS-10**|Resultado de un envío en curso|Recordatorios 90 y 91 `EN_ENVIO`; resultados aceptado y fallido|El recordatorio está en envío|El 90 queda `ENVIADA` y el 91 `FALLIDA`; ambos se persisten.|
 |**CP-RRS-11**|Recordatorio que ya no está en envío o inexistente|Recordatorio 90 `OMITIDA`; recordatorio 99 inexistente|No está en envío o no existe|No cambia ni persiste nada.|
-|**CP-RRS-12**|Ejecución del día una sola vez|Se registra dos veces el 19/11|`existsById` falso y luego verdadero|Se guarda una sola ejecución, con el día y la fecha de fin.|
+|**CP-RRS-12**|Ejecución del día una sola vez|Se registra dos veces el 19/11|Inserción que no hace nada si el día ya existe|Cada registro llama a `registrarSiNoExiste` con el 19/11 y la fecha de fin (una sola sentencia `ON CONFLICT DO NOTHING`, que no falla si otro proceso ya lo registró); nunca usa `existsById` ni `save`.|

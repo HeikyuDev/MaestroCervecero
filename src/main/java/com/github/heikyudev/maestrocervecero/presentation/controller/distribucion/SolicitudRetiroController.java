@@ -44,8 +44,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * del cliente.
  * </p>
  * <p>
- * Desde la lista, quien tiene el permiso {@code RECORDATORIO_RETIRO_ENVIAR} puede enviar los recordatorios de retiro de
- * hoy sin esperar la hora configurada.
+ * Desde la lista, quien además tiene el permiso {@code RECORDATORIO_RETIRO_ENVIAR} puede enviar los recordatorios de
+ * retiro de hoy sin esperar la hora configurada.
  * </p>
  */
 @Controller
@@ -113,21 +113,25 @@ public class SolicitudRetiroController {
 
     /**
      * Envía ahora los recordatorios de retiro de hoy, sin esperar la hora configurada, y vuelve a la lista con cuántos
-     * clientes se notificaron. Si los de hoy ya se enviaron, el {@code ControllerAdvices} vuelve al origen con el motivo.
+     * clientes se notificaron en este envío (no cuenta los que ya había notificado la corrida programada). Exige tanto
+     * consultar las solicitudes como enviar los recordatorios: la anotación del método reemplaza a la de la clase. Si hay
+     * otro envío en curso o los de hoy ya se enviaron, el {@code ControllerAdvices} vuelve al origen con el motivo.
      */
     @PostMapping("/recordatorios")
-    @PreAuthorize("hasAuthority('RECORDATORIO_RETIRO_ENVIAR')")
+    @PreAuthorize("hasAuthority('SOLICITUD_BUSQUEDA_CONSULTAR') and hasAuthority('RECORDATORIO_RETIRO_ENVIAR')")
     public String enviarRecordatorios(RedirectAttributes redirectAttributes) {
         EnvioRecordatoriosRetiroProgramado.ResultadoEnvio resultado = envioRecordatoriosRetiro.enviarRecordatoriosDeHoy();
         int notificados = resultado.clientesNotificados();
-        String clientes = notificados == 1 ? "1 cliente" : notificados + " clientes";
-        if (!resultado.completo()) {
-            agregarMensaje(redirectAttributes, "Se envió el recordatorio de retiro a " + clientes
-                    + ", pero algunos envíos fallaron: se reintentan automáticamente", TipoAlerta.WARNING);
+        String enviados = "Se enviaron recordatorios de retiro a " + (notificados == 1 ? "1 cliente" : notificados + " clientes") + " en este envío";
+        if (!resultado.completo() && notificados == 0) {
+            agregarMensaje(redirectAttributes, "No se envió ningún recordatorio de retiro en este envío porque algunos envíos fallaron: "
+                    + "se reintentan automáticamente", TipoAlerta.WARNING);
+        } else if (!resultado.completo()) {
+            agregarMensaje(redirectAttributes, enviados + ", pero algunos envíos fallaron: se reintentan automáticamente", TipoAlerta.WARNING);
         } else if (notificados == 0) {
-            agregarMensaje(redirectAttributes, "No hay clientes con barriles para recordarles el retiro hoy", TipoAlerta.INFO);
+            agregarMensaje(redirectAttributes, "No quedan clientes a los que recordarles el retiro hoy", TipoAlerta.INFO);
         } else {
-            agregarMensaje(redirectAttributes, "Recordatorios de retiro enviados correctamente a " + clientes, TipoAlerta.SUCCESS);
+            agregarMensaje(redirectAttributes, enviados, TipoAlerta.SUCCESS);
         }
         return "redirect:" + URL_LISTA;
     }
