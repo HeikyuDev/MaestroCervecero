@@ -172,6 +172,23 @@ public interface ISolicitudCotizacionServicio {
     void cerrarSolicitud(Long id);
 
     /**
+     * Cierra a mano una solicitud abierta antes de que venza su plazo y genera su plan de órdenes de compra con las
+     * respuestas recibidas hasta el momento.
+     * <p>
+     * Postcondiciones: la fecha límite de respuesta y el vencimiento de cada enlace pasan a ser la fecha actual, de modo
+     * que los proveedores ya no pueden responder; después se aplica el mismo cierre que {@link #cerrarSolicitud(Long)}:
+     * sin ofertas útiles queda {@code CERRADA} sin plan, y con ofertas queda {@code PLAN_GENERADO} con su plan
+     * {@code PROPUESTO}. En ambos casos se avisa a los gerentes de compras.
+     * </p>
+     *
+     * @param id ID de la solicitud.
+     * @return La solicitud cerrada.
+     * @throws RecursoNoEncontradoException Si la solicitud no existe.
+     * @throws ReglaNegocioException Si la solicitud no está abierta.
+     */
+    SolicitudCotizacionResponseDTO cerrarSolicitudAnticipadamente(Long id);
+
+    /**
      * Registra que el cierre programado de una solicitud falló.
      * <p>
      * Postcondiciones: suma un intento de cierre fallido y guarda un motivo genérico (el detalle técnico solo va al log). Al llegar a {@code LimitesTecnicos.INTENTOS_CIERRE_SOLICITUD_MAXIMO},

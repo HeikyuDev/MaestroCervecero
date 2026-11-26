@@ -17,7 +17,8 @@
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="|Solicitud de cotización #${solicitud.id}|">Solicitud de cotización #3</h1>
         <p class="text-sm text-slate-500">Insumos faltantes solicitados a los proveedores, la situación de cada proveedor y el plan de órdenes de compra generado.</p>
     </div>
-        <!-- Confirmar el envío (pendiente de confirmación) y cancelar (pendiente de confirmación o abierta) -->
+        <!-- Confirmar el envío (pendiente de confirmación), cerrar antes del plazo (abierta) y cancelar (pendiente de
+             confirmación o abierta) -->
         <div th:if="${solicitud.estado.name() == 'PENDIENTE_DE_CONFIRMACION' or solicitud.estado.name() == 'ABIERTA'}"
              class="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <form th:if="${solicitud.estado.name() == 'PENDIENTE_DE_CONFIRMACION'}" method="post"
@@ -26,6 +27,14 @@
                         data-confirmar-mensaje="Se enviará el enlace por correo a los proveedores participantes y el plazo de respuesta empezará a correr desde ahora."
                         class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
                     <i class="bi bi-send"></i> Confirmar envío
+                </button>
+            </form>
+            <form th:if="${solicitud.estado.name() == 'ABIERTA'}" method="post"
+                  th:action="@{/solicitudes-cotizacion/{id}/cerrar(id=${solicitud.id})}">
+                <button type="submit" data-boton-cerrar data-confirmar-titulo="Cerrar solicitud"
+                        data-confirmar-mensaje="La solicitud deja de recibir respuestas en este momento: los enlaces de los proveedores dejan de servir y se genera el plan de órdenes de compra con las respuestas recibidas hasta ahora. Esta acción no se puede deshacer."
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition-colors">
+                    <i class="bi bi-lock"></i> Cerrar solicitud
                 </button>
             </form>
             <button type="button" data-boton-cancelar data-motivo-dialogo="dialogo-cancelar"

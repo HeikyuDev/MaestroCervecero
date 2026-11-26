@@ -942,6 +942,87 @@ class SolicitudCotizacionServicioImplTest {
                 eq("La solicitud de cotización #90 cerró y su plan de órdenes de compra está listo para revisar"), eq(List.of("Órdenes de compra propuestas: 2")));
     }
 
+    // ==================== cerrarSolicitudAnticipadamente ====================
+
+    @Test
+    @DisplayName("CP-SCO-54: cerrarSolicitudAnticipadamente adelanta el plazo, vence los enlaces y genera el plan con las respuestas recibidas hasta ahora")
+    void cerrarAnticipadamente_generaElPlanConLoRecibido() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusDays(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        InvitacionCotizacionEntity respondio = invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), LocalDateTime.now().minusHours(2));
+        ofertar(respondio, 1L, linea, "25000", 4);
+        InvitacionCotizacionEntity sinResponder = invitar(solicitud, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), null);
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+        LocalDateTime antes = LocalDateTime.now();
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO resultado = servicio.cerrarSolicitudAnticipadamente(90L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now();
+        assertThat(solicitud.getFechaLimiteRespuesta()).isBetween(antes, despues);
+        assertThat(respondio.getFechaExpiracion()).isEqualTo(solicitud.getFechaLimiteRespuesta());
+        assertThat(sinResponder.getFechaExpiracion()).isEqualTo(solicitud.getFechaLimiteRespuesta());
+        assertThat(solicitud.getFechaCierre()).isEqualTo(solicitud.getFechaLimiteRespuesta());
+        assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudCotizacion.PLAN_GENERADO);
+        assertThat(solicitud.getPlan().getOrdenes()).extracting(orden -> orden.getProveedor().getId() + ":" + orden.getItems().get(0).getCantidad())
+                .containsExactly("1:4");
+        verify(solicitudRepository).save(solicitud);
+        verify(notificador).avisarGerentesDeCompras(eq(90L), eq(SolicitudCotizacionServicioImpl.ASUNTO_PLAN_LISTO),
+                eq("La solicitud de cotización #90 cerró y su plan de órdenes de compra está listo para revisar"), eq(List.of("Órdenes de compra propuestas: 1")));
+    }
+
+    @Test
+    @DisplayName("CP-SCO-55: cerrarSolicitudAnticipadamente sin respuestas deja la solicitud CERRADA sin plan y avisa que nadie respondió")
+    void cerrarAnticipadamente_sinRespuestas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().plusHours(5));
+        invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), null);
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        SolicitudCotizacionResponseDTO resultado = servicio.cerrarSolicitudAnticipadamente(90L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CERRADA);
+        assertThat(solicitud.getPlan()).isNull();
+        assertThat(solicitud.getFechaLimiteRespuesta()).isBeforeOrEqualTo(LocalDateTime.now());
+        verify(notificador).avisarGerentesDeCompras(eq(90L), eq(SolicitudCotizacionServicioImpl.ASUNTO_SIN_RESPUESTAS),
+                eq("La solicitud de cotización #90 cerró sin que ningún proveedor respondiera: no se generó el plan"), eq(List.of("Malta Pilsen")));
+    }
+
+    @Test
+    @DisplayName("CP-SCO-56: cerrarSolicitudAnticipadamente rechaza una solicitud inexistente o que no está abierta, sin cambiar nada")
+    void cerrarAnticipadamente_rechazaSiNoEstaAbierta() {
+        // === PREPARACION DE DATOS ===
+        when(solicitudRepository.buscarPorIdParaActualizar(91L)).thenReturn(Optional.empty());
+        LocalDateTime limite = LocalDateTime.now().plusDays(1);
+
+        // === EJECUCION Y VERIFICACION ===
+        assertThatThrownBy(() -> servicio.cerrarSolicitudAnticipadamente(91L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la solicitud de cotización con ID: 91");
+        for (EstadoSolicitudCotizacion estado : List.of(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION, EstadoSolicitudCotizacion.CERRADA,
+                EstadoSolicitudCotizacion.PLAN_GENERADO, EstadoSolicitudCotizacion.FINALIZADA, EstadoSolicitudCotizacion.CANCELADA)) {
+            SolicitudCotizacionEntity solicitud = solicitudAbierta(limite);
+            solicitud.setEstado(estado);
+            InvitacionCotizacionEntity invitacion = invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), null);
+            when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+            assertThatThrownBy(() -> servicio.cerrarSolicitudAnticipadamente(90L))
+                    .as(estado.name())
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("Solo se pueden cerrar solicitudes de cotización abiertas");
+            assertThat(solicitud.getFechaLimiteRespuesta()).isEqualTo(limite);
+            assertThat(invitacion.getFechaExpiracion()).isEqualTo(limite);
+            assertThat(solicitud.getEstado()).isEqualTo(estado);
+        }
+        verify(solicitudRepository, never()).save(any());
+        verifyNoInteractions(notificador);
+    }
+
     // ==================== cancelarPorAnulacionDePlanificacion ====================
 
     @Test

@@ -242,7 +242,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-05: una solicitud cancelada abre en su plan cancelado sin acciones y, en la pestaña de la solicitud, muestra el detalle de su cancelación en un diálogo; una abierta abre en la solicitud con el tiempo restante y ofrece cancelar, sin pestaña ni sección del plan")
+    @DisplayName("CP-SCC-05: una solicitud cancelada abre en su plan cancelado sin acciones y, en la pestaña de la solicitud, muestra el detalle de su cancelación en un diálogo; una abierta abre en la solicitud con el tiempo restante y ofrece cerrarla (con diálogo) y cancelar, sin pestaña ni sección del plan")
     void caso_cp_scc_05() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.CANCELADA,
@@ -256,12 +256,17 @@ class SolicitudCotizacionControllerTest {
 
         // Assert
         assertThat(cancelada).contains("data-plan>").contains("Cancelado").doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar")
-                .doesNotContain("data-boton-cancelar");
+                .doesNotContain("data-boton-cancelar").doesNotContain("data-boton-cerrar");
         assertThat(canceladaSolicitud).doesNotContain("data-plan>").doesNotContain("data-boton-cancelar")
                 .contains("data-detalle-motivo=\"Se consiguió el insumo\"").contains("data-detalle-usuario=\"compras1\"")
                 .contains("Detalle de la cancelación").doesNotContain(">Se consiguió el insumo<");
         assertThat(abierta).doesNotContain("data-plan>").doesNotContain("Cobertura de los insumos").doesNotContain("data-pestana-plan")
-                .contains("data-tiempo-restante").contains("1 día y 3 horas").contains("data-boton-cancelar");
+                .contains("data-tiempo-restante").contains("1 día y 3 horas").contains("data-boton-cancelar")
+                .contains("action=\"/solicitudes-cotizacion/90/cerrar\"").contains("data-boton-cerrar")
+                .contains("data-confirmar-titulo=\"Cerrar solicitud\"")
+                .contains("se genera el plan de órdenes de compra con las respuestas recibidas hasta ahora")
+                .containsPattern("data-boton-cerrar[^>]*>\\s*<i class=\"bi bi-lock\"></i> Cerrar solicitud")
+                .doesNotContain("Simular");
     }
 
     @Test
@@ -305,7 +310,7 @@ class SolicitudCotizacionControllerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DISTRIBUCION"})
-    @DisplayName("CP-SCC-09: ningún otro rol accede a las solicitudes de cotización, ni las cancela ni descarta órdenes propuestas")
+    @DisplayName("CP-SCC-09: ningún otro rol accede a las solicitudes de cotización, ni las cierra, cancela ni descarta órdenes propuestas")
     void caso_cp_scc_09(String rol) throws Exception {
         for (String ruta : List.of(URL, URL + "/90")) {
             mockMvc.perform(get(ruta).with(user("usuario").roles(rol)))
@@ -319,6 +324,9 @@ class SolicitudCotizacionControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
         mockMvc.perform(post(URL + "/90/confirmar-envio").with(user("usuario").roles(rol)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/90/cerrar").with(user("usuario").roles(rol)).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -362,7 +370,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-13: una solicitud pendiente de confirmación muestra la explicación y ofrece confirmar el envío (con diálogo) y cancelar")
+    @DisplayName("CP-SCC-13: una solicitud pendiente de confirmación muestra la explicación y ofrece confirmar el envío (con diálogo) y cancelar, pero no cerrarla")
     void caso_cp_scc_13() throws Exception {
         // Arrange
         SolicitudCotizacionResponseDTO pendiente = SolicitudCotizacionResponseDTO.builder().id(12L).estado(EstadoSolicitudCotizacion.PENDIENTE_DE_CONFIRMACION)
@@ -384,7 +392,7 @@ class SolicitudCotizacionControllerTest {
                 .contains("Confirme el envío a los proveedores o cancele la solicitud")
                 .contains("Pendiente de confirmación")
                 .contains("action=\"/solicitudes-cotizacion/12/confirmar-envio\"").contains("data-confirmar-titulo=\"Confirmar envío\"")
-                .contains("data-boton-cancelar").doesNotContain("data-tiempo-restante");
+                .contains("data-boton-cancelar").doesNotContain("data-tiempo-restante").doesNotContain("data-boton-cerrar");
     }
 
     @Test
@@ -542,5 +550,37 @@ class SolicitudCotizacionControllerTest {
                 .doesNotContain("idOrdenPropuesta=").doesNotContain("/descartar").doesNotContain("data-boton-cancelar");
         assertThat(lista).contains("<option value=\"FINALIZADA\" selected=\"selected\">Finalizada</option>");
         verify(solicitudCotizacionServicio).filtrarSolicitudes(eq(EstadoSolicitudCotizacion.FINALIZADA), isNull(), any(Pageable.class));
+    }
+
+    // ==================== Cierre anticipado ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-21: cerrar una solicitud abierta delega en el service y vuelve al detalle con alerta de éxito")
+    void caso_cp_scc_21() throws Exception {
+        mockMvc.perform(post(URL + "/91/cerrar").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/91"))
+                .andExpect(flash().attribute("mensaje", "Solicitud de cotización cerrada correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(solicitudCotizacionServicio).cerrarSolicitudAnticipadamente(91L);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-SCC-22: si el service rechaza el cierre, vuelve al origen con el motivo; sin token CSRF no llega al service")
+    void caso_cp_scc_22() throws Exception {
+        when(solicitudCotizacionServicio.cerrarSolicitudAnticipadamente(90L))
+                .thenThrow(new ReglaNegocioException("Solo se pueden cerrar solicitudes de cotización abiertas"));
+
+        mockMvc.perform(post(URL + "/90/cerrar").with(csrf()).header("Referer", "/solicitudes-cotizacion/90"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/solicitudes-cotizacion/90"))
+                .andExpect(flash().attribute("mensaje", "Solo se pueden cerrar solicitudes de cotización abiertas"));
+        mockMvc.perform(post(URL + "/91/cerrar"))
+                .andExpect(status().is3xxRedirection());
+
+        verify(solicitudCotizacionServicio, never()).cerrarSolicitudAnticipadamente(91L);
     }
 }

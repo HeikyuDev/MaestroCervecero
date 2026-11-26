@@ -112,6 +112,18 @@ public class SolicitudCotizacionController {
     }
 
     /**
+     * Cierra a mano una solicitud abierta antes de que venza su plazo: deja de recibir respuestas y genera el plan con las
+     * respuestas recibidas hasta ahora. Vuelve al detalle; si el service rechaza el cierre, el {@code ControllerAdvices}
+     * vuelve al origen con el motivo del rechazo.
+     */
+    @PostMapping("/{id}/cerrar")
+    public String cerrarSolicitud(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        solicitudCotizacionServicio.cerrarSolicitudAnticipadamente(id);
+        agregarMensaje(redirectAttributes, "Solicitud de cotización cerrada correctamente", TipoAlerta.SUCCESS);
+        return "redirect:" + URL_LISTA + "/" + id;
+    }
+
+    /**
      * Cancela a mano una solicitud pendiente de confirmación o abierta y vuelve a su detalle. El motivo es obligatorio: si
      * falta o el service rechaza la cancelación, el {@code ControllerAdvices} vuelve al origen con el motivo del rechazo.
      */

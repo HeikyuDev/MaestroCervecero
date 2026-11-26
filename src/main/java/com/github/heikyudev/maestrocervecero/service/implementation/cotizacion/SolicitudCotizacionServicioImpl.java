@@ -565,8 +565,41 @@ public class SolicitudCotizacionServicioImpl implements ISolicitudCotizacionServ
                 || encontrada.get().getFechaLimiteRespuesta().isAfter(ahora)) {
             return;
         }
-        SolicitudCotizacionEntity solicitud = encontrada.get();
+        cerrarYGenerarPlan(encontrada.get(), ahora);
+    }
 
+    @Override
+    @Transactional
+    public SolicitudCotizacionResponseDTO cerrarSolicitudAnticipadamente(Long id) {
+        // 1. Localizar la solicitud bloqueándola, igual que el cierre programado
+        SolicitudCotizacionEntity solicitud = solicitudRepository.buscarPorIdParaActualizar(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la solicitud de cotización con ID: " + id));
+
+        // 2. Validar que esté abierta
+        if (solicitud.getEstado() != EstadoSolicitudCotizacion.ABIERTA) {
+            throw new ReglaNegocioException("Solo se pueden cerrar solicitudes de cotización abiertas");
+        }
+
+        // 3. Adelantar el plazo: la fecha límite y el vencimiento de los enlaces pasan a ser ahora, así que los
+        //    proveedores ya no pueden responder
+        LocalDateTime ahora = LocalDateTime.now();
+        solicitud.setFechaLimiteRespuesta(ahora);
+        solicitud.getInvitaciones().forEach(invitacion -> {
+            if (invitacion.getFechaExpiracion() == null || invitacion.getFechaExpiracion().isAfter(ahora)) {
+                invitacion.setFechaExpiracion(ahora);
+            }
+        });
+
+        // 4. Cerrar y generar el plan con las respuestas recibidas hasta ahora
+        cerrarYGenerarPlan(solicitud, ahora);
+        return MapperSolicitudCotizacion.toDTO(solicitud);
+    }
+
+    /**
+     * Cierre común de una solicitud abierta, programado o a mano: la deja cerrada, fija sus respuestas, genera el plan
+     * con las ofertas de los proveedores activos y avisa a los gerentes de compras. La solicitud ya está bloqueada.
+     */
+    private void cerrarYGenerarPlan(SolicitudCotizacionEntity solicitud, LocalDateTime ahora) {
         // 2. Cerrar la solicitud
         solicitud.setEstado(EstadoSolicitudCotizacion.CERRADA);
         solicitud.setFechaCierre(ahora);
