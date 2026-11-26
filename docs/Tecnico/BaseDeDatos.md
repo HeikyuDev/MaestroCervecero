@@ -446,10 +446,10 @@ Los planes de producción se calculan al momento y no tienen tabla propia: confi
 | `configuracion_compras` | Fila única (`id = 1`, `ck_configuracion_compras_id`) con el plazo de respuesta en horas (por defecto 48), el criterio con el que se arma el plan (`MENOR_PRECIO`, `MAYOR_CANTIDAD` o `PONDERADO`, por defecto `PONDERADO`) y el peso del precio del criterio ponderado (0 a 100, por defecto 50). La edita el gerente de compras (ver `V34`) |
 | `solicitud_cotizacion` | Solicitud de una planificación (`fk_solicitud_cotizacion_planificacion_produccion_id`) con su estado (`PENDIENTE_DE_CONFIRMACION`, `ABIERTA`, `CERRADA`, `PLAN_GENERADO`, `FINALIZADA` o `CANCELADA`, ver `V38`); la fecha de confirmación del envío y la fecha límite de respuesta (las dos nulas mientras está pendiente de confirmación: el plazo corre desde la confirmación); las fechas de cierre, de generación del plan (`fecha_generacion_plan`) y de cancelación con su motivo; y los intentos fallidos del cierre programado (`intentos_cierre`, `falla_cierre` y `motivo_falla_cierre`: al tercer intento se marca la falla y se deja de reintentar). El índice parcial `udx_solicitud_cotizacion_planificacion_vigente` admite una sola solicitud no cancelada por planificación, y `idx_solicitud_cotizacion_estado_fecha_limite_respuesta` acelera el cierre de las abiertas vencidas |
 | `linea_solicitud_cotizacion` | Insumo faltante con el cálculo que lo originó: requerido, disponible sin reservar, comprometido en lotes registrados sin iniciar (`cantidad_comprometida_lotes`), pendiente de recibir y faltante (mayor a 0), en la unidad del insumo, y si ningún proveedor lo ofrecía. Un insumo por solicitud (`uk_linea_solicitud_cotizacion_solicitud_insumo`) |
-| `invitacion_cotizacion` | Proveedor candidato de una solicitud (uno por proveedor, `uk_invitacion_cotizacion_solicitud_proveedor`) y su enlace: hash SHA-256 del token (`varchar(64)`, único por `uk_invitacion_cotizacion_token_hash`, nulo hasta el primer envío; el token viaja solo en el correo y cada intento de envío genera uno nuevo), vencimiento (la fecha límite, nulo mientras la solicitud está pendiente de confirmación), resultado del envío del correo (`estado_envio`, ver `V31`), intentos de envío (hasta 3) y fecha de la última respuesta. El proveedor no indica fecha de entrega: la indica el gerente de compras en la orden de compra (ver `V36`) |
+| `invitacion_cotizacion` | Proveedor candidato de una solicitud (uno por proveedor, `uk_invitacion_cotizacion_solicitud_proveedor`) y su enlace: hash SHA-256 del token (`varchar(64)`, único por `uk_invitacion_cotizacion_token_hash`, nulo hasta el primer envío; el token viaja solo en el correo y cada intento de envío genera uno nuevo), vencimiento (la fecha límite, nulo mientras la solicitud está pendiente de confirmación), resultado del envío del correo (`estado_envio`, ver `V31`), intentos de envío (hasta 3), fecha de la última respuesta y fecha estimada de entrega que indicó el proveedor (`fecha_entrega_estimada`, una por respuesta; nula si no respondió o no ofrece ninguna presentación con stock; ver `V40`) |
 | `oferta_cotizacion` | Oferta del proveedor para una línea en una presentación: ítem de su catálogo (insumo y presentación), precio de cada unidad de la presentación (`numeric(14,4)`, mayor a 0; nulo si no tiene stock, ver `V33`) y unidades disponibles (mayor a 0, o 0 si no tiene stock). Un proveedor puede ofrecer un mismo insumo en varias presentaciones: una oferta por invitación, línea y presentación (`uk_oferta_cotizacion_invitacion_linea_catalogo`, ver `V32`) |
 | `plan_compra` | Plan generado: uno por solicitud (`uk_plan_compra_solicitud_cotizacion_id`), con su estado (`PROPUESTO`, `FINALIZADO` o `CANCELADO`, ver `V38`) |
-| `orden_compra_propuesta` | Orden que un plan propone a un proveedor, con su estado (`PROPUESTA`, `CONFIRMADA` o `DESCARTADA`) y, una vez confirmada, la orden de compra definitiva (`orden_compra_id`, única) |
+| `orden_compra_propuesta` | Orden que un plan propone a un proveedor, con su estado (`PROPUESTA`, `CONFIRMADA` o `DESCARTADA`), la fecha estimada de entrega del proveedor copiada al generar el plan (`fecha_entrega_estimada`, nula si no la indicó; ver `V40`) y, una vez confirmada, la orden de compra definitiva (`orden_compra_id`, única) |
 | `item_orden_compra_propuesta` | Unidades de un ítem del catálogo al precio ofrecido, para una línea de la solicitud |
 
 La restricción `ck_audit_log_concepto_auditoria` admite además `CONFIGURACION_COMPRAS`, con el que la bitácora registra los cambios de la configuración de compras.
@@ -473,7 +473,7 @@ La pantalla pública de cotización (`/cotizacion/{token}`) guarda el token CSRF
 `V32__ofertas_por_presentacion_y_fecha_entrega_cotizacion.sql`:
 
 - Reemplaza `uk_oferta_cotizacion_invitacion_linea` por `uk_oferta_cotizacion_invitacion_linea_catalogo` (`invitacion_cotizacion_id`, `linea_solicitud_cotizacion_id`, `catalogo_proveedor_id`): un proveedor puede ofrecer un mismo insumo en varias presentaciones de su catálogo a la vez (por ejemplo, 2 bolsas de 25 kg y 3 bolsas de 10 kg). Cada presentación es una oferta aparte, el plan las compara por precio por unidad de medida del insumo y la orden propuesta al proveedor lleva un ítem por presentación.
-- Agrega `invitacion_cotizacion.fecha_entrega_estimada` (`date`, nula), que `V36` elimina.
+- Agrega `invitacion_cotizacion.fecha_entrega_estimada` (`date`, nula), que `V36` elimina y `V40` vuelve a agregar.
 
 ### Ofertas sin stock
 
@@ -492,9 +492,9 @@ La pantalla pública de cotización (`/cotizacion/{token}`) guarda el token CSRF
 
 Datos existentes: de cada solicitud se conserva un solo plan, el `ELEGIDO` si lo hay; si no, el que tiene alguna orden propuesta vinculada a una orden de compra; y si no, el de menor número (el mejor según el criterio). Los demás planes de la solicitud (los `DESCARTADO` y los alternativos sin elegir) se borran junto con sus órdenes propuestas y sus ítems. Ninguno de ellos tiene órdenes de compra confirmadas, porque confirmar una orden propuesta elige su plan, así que no se pierde ningún vínculo con `orden_compra`.
 
-### Fecha estimada de entrega en la orden de compra
+### Columna intermedia de la fecha estimada de entrega
 
-`V36__quitar_fecha_entrega_estimada_cotizacion.sql` elimina `invitacion_cotizacion.fecha_entrega_estimada`: el proveedor cotiza solo el precio y la cantidad de cada presentación. La fecha estimada de entrega la indica el gerente de compras en el formulario de la orden de compra que se abre prearmado desde la orden propuesta del plan; llega vacía y es obligatoria, con las reglas del alta de órdenes de compra.
+`V36__quitar_fecha_entrega_estimada_cotizacion.sql` elimina `invitacion_cotizacion.fecha_entrega_estimada`; `V40` la vuelve a agregar.
 
 ### Criterio fijo de los planes de producción
 
@@ -510,6 +510,19 @@ Datos existentes: de cada solicitud se conserva un solo plan, el `ELEGIDO` si lo
 | `solicitud_cotizacion.estado` | `ck_solicitud_cotizacion_estado` admite `PENDIENTE_DE_CONFIRMACION`, `ABIERTA`, `CERRADA`, `PLAN_GENERADO`, `FINALIZADA` y `CANCELADA`. La solicitud con el plan generado pasa a `FINALIZADA` en la misma transacción en que se confirma o se descarta su última orden propuesta pendiente |
 
 Datos existentes: un plan `ELEGIDO` pasa a `FINALIZADO` si ya no tiene órdenes propuestas pendientes y a `PROPUESTO` si todavía tiene alguna. Una solicitud `PLAN_GENERADO` cuyo plan no tiene órdenes propuestas pendientes pasa a `FINALIZADA` y su plan, a `FINALIZADO`.
+
+### Configuración de producción sin capacidad de lote estándar
+
+`V39__quitar_capacidad_lote_estandar.sql` elimina `configuracion_produccion.capacidad_lote_estandar`: ningún proceso usa una capacidad de lote estándar. Usa `IF EXISTS`.
+
+### Fecha estimada de entrega del proveedor
+
+`V40__fecha_entrega_estimada_cotizacion_y_orden_propuesta.sql` agrega dos columnas `date` nulas:
+
+| Tabla y columna | Contenido |
+|---|---|
+| `invitacion_cotizacion.fecha_entrega_estimada` | Fecha en que el proveedor estima entregar lo que ofrece. Es una por respuesta porque cada proveedor da lugar a una sola orden de compra; se exige si ofrece alguna presentación con stock, con las mismas reglas que la fecha estimada de entrega de una orden de compra (desde hoy y hasta un año). No interviene en el orden de las ofertas del plan |
+| `orden_compra_propuesta.fecha_entrega_estimada` | La fecha del proveedor copiada al generar el plan. Prearma la orden de compra que se confirma desde la orden propuesta; el gerente de compras la puede cambiar, y si ya pasó la orden llega sin fecha y con un aviso |
 
 ## Auditoría y transacciones
 

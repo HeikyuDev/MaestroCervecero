@@ -33,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,8 +125,15 @@ class CotizacionProveedorServicioImplTest {
                 .precioUnitario(precio == null ? null : new BigDecimal(precio)).cantidadDisponible(cantidad).build();
     }
 
+    private static final LocalDate ENTREGA = LocalDate.now().plusDays(10);
+
+    /** Respuesta con la fecha estimada de entrega {@link #ENTREGA}. */
     private static CotizacionProveedorFormDTO form(OfertaCotizacionFormDTO... filas) {
-        return CotizacionProveedorFormDTO.builder().ofertas(new ArrayList<>(Arrays.asList(filas))).build();
+        return formConEntrega(ENTREGA, filas);
+    }
+
+    private static CotizacionProveedorFormDTO formConEntrega(LocalDate entrega, OfertaCotizacionFormDTO... filas) {
+        return CotizacionProveedorFormDTO.builder().fechaEntregaEstimada(entrega).ofertas(new ArrayList<>(Arrays.asList(filas))).build();
     }
 
     private void verificarRegla(CotizacionProveedorFormDTO formDTO, String mensaje, String campo) {
@@ -190,10 +198,11 @@ class CotizacionProveedorServicioImplTest {
     // ==================== buscarCotizacion ====================
 
     @Test
-    @DisplayName("CP-CPV-05: el proveedor ve solo los insumos solicitados que ofrece, con una fila por presentación con su respuesta actual")
+    @DisplayName("CP-CPV-05: el proveedor ve solo los insumos solicitados que ofrece, con una fila por presentación con su respuesta actual y su fecha estimada de entrega")
     void buscar_muestraSoloLoQueOfrece() {
         // === PREPARACION DE DATOS ===
         invitacion.setFechaRespuesta(LocalDateTime.now().minusHours(1));
+        invitacion.setFechaEntregaEstimada(ENTREGA);
         invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).lineaSolicitud(lineaMalta)
                 .catalogoProveedor(maltaBolsa25).precioUnitario(new BigDecimal("32500")).cantidadDisponible(4).build());
 
@@ -204,6 +213,7 @@ class CotizacionProveedorServicioImplTest {
         assertThat(cotizacion.getRazonSocial()).isEqualTo("MALTERIA SUR");
         assertThat(cotizacion.getFechaLimiteRespuesta()).isEqualTo(solicitud.getFechaLimiteRespuesta());
         assertThat(cotizacion.getFechaRespuesta()).isEqualTo(invitacion.getFechaRespuesta());
+        assertThat(cotizacion.getFechaEntregaEstimada()).isEqualTo(ENTREGA);
         // La levadura no figura en su catálogo: no se le muestra
         assertThat(cotizacion.getLineas()).extracting(l -> l.getNombreInsumo()).containsExactly("Malta Pilsen", "Cascade");
         assertThat(cotizacion.getLineas().get(0).getPresentaciones()).extracting(p -> p.getNombre())
@@ -251,7 +261,7 @@ class CotizacionProveedorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CPV-08: registrarCotizacion guarda una oferta por fila completa, ignora las vacías y registra la fecha de respuesta, con la solicitud bloqueada")
+    @DisplayName("CP-CPV-08: registrarCotizacion guarda una oferta por fila completa, ignora las vacías y registra la fecha de respuesta y la de entrega, con la solicitud bloqueada")
     void registrar_guardaOfertas() {
         // === EJECUCION ===
         CotizacionProveedorResponseDTO resultado = servicio.registrarCotizacion(TOKEN,
@@ -266,7 +276,9 @@ class CotizacionProveedorServicioImplTest {
             assertThat(oferta.getInvitacion()).isSameAs(invitacion);
         });
         assertThat(invitacion.getFechaRespuesta()).isNotNull();
+        assertThat(invitacion.getFechaEntregaEstimada()).isEqualTo(ENTREGA);
         assertThat(resultado.getLineas().get(0).getPresentaciones().get(1).getCantidadDisponibleOfertada()).isEqualTo(4);
+        assertThat(resultado.getFechaEntregaEstimada()).isEqualTo(ENTREGA);
         InOrder orden = inOrder(invitacionRepository, solicitudRepository);
         orden.verify(invitacionRepository).buscarIdSolicitudPorTokenHash(HASH);
         orden.verify(solicitudRepository).buscarPorIdParaActualizar(90L);
@@ -345,17 +357,35 @@ class CotizacionProveedorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CPV-15: una respuesta sin ofertas quita las ofertas anteriores y registra la fecha de respuesta")
+    @DisplayName("CP-CPV-14: si ofrece alguna presentación con stock, la fecha estimada de entrega es obligatoria, desde hoy y hasta un año")
+    void registrar_validaFechaEntregaEstimada() {
+        verificarRegla(formConEntrega(null, fila(501L, 100L, "10", 1)), "La fecha estimada de entrega es obligatoria", "fechaEntregaEstimada");
+        verificarRegla(formConEntrega(LocalDate.now().minusDays(1), fila(501L, 100L, "10", 1)),
+                "La fecha estimada de entrega no puede ser anterior a la fecha actual", "fechaEntregaEstimada");
+        verificarRegla(formConEntrega(LocalDate.now().plusDays(366), fila(501L, 100L, "10", 1)),
+                "La fecha estimada de entrega no puede superar un año desde la fecha actual", "fechaEntregaEstimada");
+
+        // Los límites se aceptan
+        servicio.registrarCotizacion(TOKEN, formConEntrega(LocalDate.now(), fila(501L, 100L, "10", 1)));
+        assertThat(invitacion.getFechaEntregaEstimada()).isEqualTo(LocalDate.now());
+        servicio.registrarCotizacion(TOKEN, formConEntrega(LocalDate.now().plusDays(365), fila(501L, 100L, "10", 1)));
+        assertThat(invitacion.getFechaEntregaEstimada()).isEqualTo(LocalDate.now().plusDays(365));
+    }
+
+    @Test
+    @DisplayName("CP-CPV-15: una respuesta sin ofertas no exige la fecha estimada de entrega, quita las ofertas y la fecha anteriores y registra la fecha de respuesta")
     void registrar_sinOfertasQuitaLasAnteriores() {
         // === PREPARACION DE DATOS ===
+        invitacion.setFechaEntregaEstimada(ENTREGA);
         invitacion.getOfertas().add(OfertaCotizacionEntity.builder().id(1L).invitacion(invitacion).lineaSolicitud(lineaMalta)
                 .catalogoProveedor(maltaBolsa25).precioUnitario(new BigDecimal("30000")).cantidadDisponible(2).build());
 
         // === EJECUCION ===
-        servicio.registrarCotizacion(TOKEN, form(fila(501L, 100L, null, null), fila(501L, 101L, null, null)));
+        servicio.registrarCotizacion(TOKEN, formConEntrega(null, fila(501L, 100L, null, null), fila(501L, 101L, null, null)));
 
         // === ASSERTS ===
         assertThat(invitacion.getOfertas()).isEmpty();
+        assertThat(invitacion.getFechaEntregaEstimada()).isNull();
         assertThat(invitacion.getFechaRespuesta()).isNotNull();
     }
 
@@ -370,15 +400,16 @@ class CotizacionProveedorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CPV-17: una fila sin precio con cantidad 0 se guarda como sin stock")
+    @DisplayName("CP-CPV-17: una fila sin precio con cantidad 0 se guarda como sin stock y, sola, no exige la fecha estimada de entrega")
     void fila_sinPrecioConCantidadCero_esSinStock() {
-        servicio.registrarCotizacion(TOKEN, form(fila(501L, 100L, null, 0)));
+        servicio.registrarCotizacion(TOKEN, formConEntrega(null, fila(501L, 100L, null, 0)));
 
         assertThat(invitacion.getOfertas()).singleElement().satisfies(oferta -> {
             assertThat(oferta.getCatalogoProveedor()).isSameAs(maltaBolsa25);
             assertThat(oferta.getCantidadDisponible()).isZero();
             assertThat(oferta.getPrecioUnitario()).isNull();
         });
+        assertThat(invitacion.getFechaEntregaEstimada()).isNull();
     }
 
     @Test
@@ -407,13 +438,17 @@ class CotizacionProveedorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CPV-21: una fila con precio y cantidad mayor a 0 es una oferta, también junto a una sin stock")
+    @DisplayName("CP-CPV-21: una fila con precio y cantidad mayor a 0 es una oferta; junto a una sin stock exige la fecha estimada de entrega")
     void fila_conPrecioYCantidad_esOferta() {
+        verificarRegla(formConEntrega(null, fila(501L, 100L, null, 0), fila(501L, 101L, "6000", 3)),
+                "La fecha estimada de entrega es obligatoria", "fechaEntregaEstimada");
+
         servicio.registrarCotizacion(TOKEN, form(fila(501L, 100L, null, 0), fila(501L, 101L, "6000", 3)));
 
         assertThat(invitacion.getOfertas()).extracting(oferta -> oferta.getCatalogoProveedor().getId(), OfertaCotizacionEntity::getCantidadDisponible)
                 .containsExactly(tuple(100L, 0), tuple(101L, 3));
         assertThat(invitacion.getOfertas().get(1).getPrecioUnitario()).isEqualByComparingTo("6000");
+        assertThat(invitacion.getFechaEntregaEstimada()).isEqualTo(ENTREGA);
     }
 
     @Test

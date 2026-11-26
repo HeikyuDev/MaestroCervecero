@@ -204,7 +204,7 @@ class ProcesosCotizacionTest {
     }
 
     @Test
-    @DisplayName("CP-PRC-08: la plantilla real de la invitación pide precio y cantidad por presentación, sin la fecha estimada de entrega")
+    @DisplayName("CP-PRC-08: la plantilla real de la invitación pide precio y cantidad por presentación y la fecha estimada de entrega")
     void plantillaInvitacion_pidePrecioYCantidadPorPresentacion() {
         // === PREPARACION DE DATOS ===
         ClassLoaderTemplateResolver resolutor = new ClassLoaderTemplateResolver();
@@ -223,10 +223,9 @@ class ProcesosCotizacionTest {
 
         // === ASSERTS ===
         assertThat(html).contains("Hola MALTERIA SUR:").contains("Malta Pilsen")
-                .contains("Para indicar el precio y la cantidad que puede entregar en cada presentación, presione el botón.")
+                .contains("Para indicar el precio y la cantidad que puede entregar en cada presentación, y la fecha estimada de entrega, presione el botón.")
                 .contains("href=\"https://cerveceria.com/cotizacion/abc123\"")
-                .doesNotContain("puede combinar varias")
-                .doesNotContain("fecha estimada de entrega");
+                .doesNotContain("puede combinar varias");
     }
 
     @Test

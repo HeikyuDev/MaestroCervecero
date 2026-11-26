@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -41,6 +42,11 @@ public class CotizacionProveedorResponseDTO {
      * Momento del último envío de su respuesta, o {@code null}.
      */
     private LocalDateTime fechaRespuesta;
+
+    /**
+     * Fecha en que estima entregar lo que ofrece según su respuesta actual, o {@code null}.
+     */
+    private LocalDate fechaEntregaEstimada;
 
     /**
      * Insumos solicitados que el proveedor ofrece.

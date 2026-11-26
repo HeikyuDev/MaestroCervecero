@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -55,13 +56,16 @@ class CotizacionProveedorControllerTest {
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
 
+    private static final LocalDate ENTREGA = LocalDate.of(2026, 12, 5);
+
     /**
      * Cotización de MALTERIA SUR: la malta en Bolsa (25 kg) y Balde (5 kg) y el lúpulo en Paquete (1 kg). Con
-     * {@code precio} la Bolsa ya está cotizada con esa cantidad.
+     * {@code precio} la Bolsa ya está cotizada con esa cantidad y la fecha estimada de entrega {@link #ENTREGA}.
      */
     private static CotizacionProveedorResponseDTO cotizacion(LocalDateTime fechaRespuesta, String precio, Integer cantidad) {
         return CotizacionProveedorResponseDTO.builder().idSolicitud(90L).razonSocial("MALTERIA SUR").nombreComercial("Maltería Sur")
                 .fechaLimiteRespuesta(LocalDateTime.of(2026, 11, 20, 9, 0)).fechaRespuesta(fechaRespuesta)
+                .fechaEntregaEstimada(precio == null ? null : ENTREGA)
                 .lineas(List.of(
                         LineaCotizacionProveedorResponseDTO.builder().idLinea(501L).nombreInsumo("Malta Pilsen").tipoInsumo("Malta").unidad("kg")
                                 .cantidadSolicitada(150.0)
@@ -77,7 +81,7 @@ class CotizacionProveedorControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CPC-01: la pantalla es pública, sin el menú de la aplicación, y muestra por insumo una fila por presentación con la respuesta actual, sin la cantidad solicitada ni la fecha estimada de entrega")
+    @DisplayName("CP-CPC-01: la pantalla es pública, sin el menú de la aplicación, y muestra la fecha estimada de entrega y, por insumo, una fila por presentación con la respuesta actual, sin la cantidad solicitada")
     void caso_cp_cpc_01() throws Exception {
         // Arrange
         when(cotizacionProveedorServicio.buscarCotizacion(TOKEN)).thenReturn(cotizacion(LocalDateTime.of(2026, 11, 19, 10, 15), "32500", 4));
@@ -101,7 +105,9 @@ class CotizacionProveedorControllerTest {
                 .contains("name=\"ofertas[2].idLinea\" value=\"502\"").contains("name=\"ofertas[2].idCatalogoProveedor\" value=\"102\"")
                 .contains("Bolsa (25 kg)").contains("Balde (5 kg)").contains("Paquete (1 kg)")
                 .doesNotContain("<select")
-                .doesNotContain("Fecha estimada de entrega").doesNotContain("fechaEntregaEstimada")
+                .contains("Fecha estimada de entrega").contains("name=\"fechaEntregaEstimada\" value=\"2026-12-05\"").contains("placeholder=\"Ej: 15/07/2027\"")
+                .containsPattern("Fecha estimada de entrega <span class=\"text-rose-600\"[^>]*>\\*</span>")
+                .contains("Obligatoria si ofrece alguna presentación con stock")
                 .contains("Complete las presentaciones que pueda entregar. Indique 0 unidades")
                 .doesNotContain("aunque no alcancen lo solicitado").doesNotContain("puede combinar varias")
                 .contains("name=\"ofertas[0].precioUnitario\" value=\"32500\"")
@@ -122,7 +128,8 @@ class CotizacionProveedorControllerTest {
 
         assertThat(html).contains("Todavía no respondió")
                 .contains("name=\"ofertas[0].precioUnitario\" value=\"\"")
-                .contains("name=\"ofertas[2].cantidadDisponible\" value=\"\"");
+                .contains("name=\"ofertas[2].cantidadDisponible\" value=\"\"")
+                .contains("name=\"fechaEntregaEstimada\" value=\"\"");
     }
 
     @Test
@@ -140,13 +147,14 @@ class CotizacionProveedorControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CPC-04: enviar la cotización delega las filas en el service y vuelve al formulario con el aviso de que puede modificarla hasta el cierre")
+    @DisplayName("CP-CPC-04: enviar la cotización delega la fecha estimada de entrega y las filas en el service y vuelve al formulario con el aviso de que puede modificarla hasta el cierre")
     void caso_cp_cpc_04() throws Exception {
         // Arrange
         when(cotizacionProveedorServicio.registrarCotizacion(eq(TOKEN), any())).thenReturn(cotizacion(LocalDateTime.now(), "32500", 4));
 
         // Act + Assert
         mockMvc.perform(post(URL).with(csrf())
+                        .param("fechaEntregaEstimada", "2026-12-05")
                         .param("ofertas[0].idLinea", "501").param("ofertas[0].idCatalogoProveedor", "100")
                         .param("ofertas[0].precioUnitario", "32500.50").param("ofertas[0].cantidadDisponible", "4")
                         .param("ofertas[1].idLinea", "501").param("ofertas[1].idCatalogoProveedor", "101")
@@ -160,6 +168,7 @@ class CotizacionProveedorControllerTest {
 
         ArgumentCaptor<CotizacionProveedorFormDTO> captor = ArgumentCaptor.forClass(CotizacionProveedorFormDTO.class);
         verify(cotizacionProveedorServicio).registrarCotizacion(eq(TOKEN), captor.capture());
+        assertThat(captor.getValue().getFechaEntregaEstimada()).isEqualTo(ENTREGA);
         assertThat(captor.getValue().getOfertas()).hasSize(3);
         assertThat(captor.getValue().getOfertas().get(0).getPrecioUnitario()).isEqualByComparingTo("32500.50");
         assertThat(captor.getValue().getOfertas().get(0).getCantidadDisponible()).isEqualTo(4);
@@ -248,6 +257,30 @@ class CotizacionProveedorControllerTest {
     }
 
     @Test
+    @DisplayName("CP-CPC-10: una regla de la fecha estimada de entrega vuelve al formulario con el error junto a la fecha")
+    void caso_cp_cpc_10() throws Exception {
+        // Arrange
+        when(cotizacionProveedorServicio.registrarCotizacion(eq(TOKEN), any()))
+                .thenThrow(new ReglaNegocioException("La fecha estimada de entrega es obligatoria", "fechaEntregaEstimada"));
+        when(cotizacionProveedorServicio.buscarCotizacion(TOKEN)).thenReturn(cotizacion(null, null, null));
+
+        // Act
+        String html = mockMvc.perform(post(URL).with(csrf())
+                        .param("ofertas[0].idLinea", "501").param("ofertas[0].idCatalogoProveedor", "100")
+                        .param("ofertas[0].precioUnitario", "100").param("ofertas[0].cantidadDisponible", "2")
+                        .param("ofertas[1].idLinea", "501").param("ofertas[1].idCatalogoProveedor", "101")
+                        .param("ofertas[2].idLinea", "502").param("ofertas[2].idCatalogoProveedor", "102"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("La fecha estimada de entrega es obligatoria")
+                .containsPattern("id=\"fechaEntregaEstimada\"[^>]*border-rose-400")
+                .contains("name=\"ofertas[0].cantidadDisponible\" value=\"2\"");
+    }
+
+    @Test
     @DisplayName("CP-CPC-11: un precio con cantidad 0 vuelve al formulario con el error en el precio de esa fila y conserva lo cargado")
     void caso_cp_cpc_11() throws Exception {
         // Arrange
@@ -256,7 +289,7 @@ class CotizacionProveedorControllerTest {
         when(cotizacionProveedorServicio.buscarCotizacion(TOKEN)).thenReturn(cotizacion(null, null, null));
 
         // Act
-        String html = mockMvc.perform(post(URL).with(csrf())
+        String html = mockMvc.perform(post(URL).with(csrf()).param("fechaEntregaEstimada", "2026-12-05")
                         .param("ofertas[0].idLinea", "501").param("ofertas[0].idCatalogoProveedor", "100")
                         .param("ofertas[0].precioUnitario", "32500").param("ofertas[0].cantidadDisponible", "2")
                         .param("ofertas[1].idLinea", "501").param("ofertas[1].idCatalogoProveedor", "101")
@@ -271,7 +304,8 @@ class CotizacionProveedorControllerTest {
                 .containsPattern("id=\"precio-1\"[^>]*border-rose-400")
                 .contains("name=\"ofertas[1].precioUnitario\" value=\"6000\"")
                 .contains("name=\"ofertas[1].cantidadDisponible\" value=\"0\"")
-                .contains("name=\"ofertas[0].precioUnitario\" value=\"32500\"");
+                .contains("name=\"ofertas[0].precioUnitario\" value=\"32500\"")
+                .contains("name=\"fechaEntregaEstimada\" value=\"2026-12-05\"");
     }
 
     @Test

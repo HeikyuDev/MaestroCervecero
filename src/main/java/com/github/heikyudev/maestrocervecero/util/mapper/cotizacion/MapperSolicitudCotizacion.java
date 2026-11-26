@@ -266,6 +266,7 @@ public final class MapperSolicitudCotizacion {
                                 .thenComparing(vigente -> vigente.itemVigente().getId()))
                         .map(vigente -> descripcionOferta(vigente.oferta()))
                         .toList())
+                .fechaEntregaEstimada(invitacion.getFechaEntregaEstimada())
                 .estadoEnvio(invitacion.getEstadoEnvio())
                 .intentosEnvio(invitacion.getIntentosEnvio() == null ? 0 : invitacion.getIntentosEnvio())
                 .build();
@@ -418,6 +419,7 @@ public final class MapperSolicitudCotizacion {
                 .idOrdenCompra(orden.getOrdenCompra() == null ? null : orden.getOrdenCompra().getId())
                 .total(items.stream().map(ItemOrdenCompraPropuestaResponseDTO::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add))
                 .items(items)
+                .fechaEntregaEstimada(orden.getFechaEntregaEstimada())
                 .build();
     }
 

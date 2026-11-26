@@ -109,7 +109,7 @@ public class CotizacionProveedorController {
 
     /**
      * El formulario con una fila por presentación de cada insumo, en el orden de la pantalla, completado con la
-     * respuesta actual del proveedor.
+     * respuesta actual del proveedor y su fecha estimada de entrega.
      */
     private static CotizacionProveedorFormDTO formularioDe(CotizacionProveedorResponseDTO cotizacion) {
         List<OfertaCotizacionFormDTO> filas = new ArrayList<>();
@@ -124,6 +124,7 @@ public class CotizacionProveedorController {
             }
         }
         return CotizacionProveedorFormDTO.builder()
+                .fechaEntregaEstimada(cotizacion.getFechaEntregaEstimada())
                 .ofertas(filas)
                 .build();
     }

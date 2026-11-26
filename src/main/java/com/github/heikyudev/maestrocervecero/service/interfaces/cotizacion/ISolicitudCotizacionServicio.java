@@ -220,11 +220,13 @@ public interface ISolicitudCotizacionServicio {
 
     /**
      * Arma los datos con los que se prearma el alta de una orden de compra a partir de una orden propuesta: la
-     * planificación de la solicitud, el proveedor y los ítems con sus cantidades y precios, traducidos al catálogo
-     * vigente del proveedor.
+     * planificación de la solicitud, el proveedor, la fecha estimada de entrega que indicó el proveedor y los ítems con
+     * sus cantidades y precios, traducidos al catálogo vigente del proveedor. Si la fecha del proveedor ya pasó, no se
+     * propone y se avisa para que el gerente de compras indique una nueva.
      *
      * @param idOrdenPropuesta ID de la orden propuesta.
-     * @return Los datos de la orden prearmada, con un aviso por cada ítem que el proveedor ya no ofrece.
+     * @return Los datos de la orden prearmada, con un aviso por cada ítem que el proveedor ya no ofrece y otro si la fecha
+     * del proveedor ya pasó.
      * @throws RecursoNoEncontradoException Si no existe la orden propuesta.
      * @throws ReglaNegocioException Si la orden propuesta no está pendiente de confirmar, si su plan no está propuesto, si su solicitud no tiene el plan vigente o si el proveedor fue dado de baja.
      */

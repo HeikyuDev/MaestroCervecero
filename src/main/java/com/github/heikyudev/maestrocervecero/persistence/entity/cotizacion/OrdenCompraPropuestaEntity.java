@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Provee
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,10 @@ public class OrdenCompraPropuestaEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoOrdenCompraPropuesta estado;
+
+    // Fecha estimada de entrega que el proveedor indicó en su respuesta, copiada al generar el plan; nula si no la indicó
+    @Column(name = "fecha_entrega_estimada")
+    private LocalDate fechaEntregaEstimada;
 
     // Orden de compra definitiva registrada a partir de esta propuesta; nula mientras no se confirmó
     @OneToOne(fetch = FetchType.LAZY)

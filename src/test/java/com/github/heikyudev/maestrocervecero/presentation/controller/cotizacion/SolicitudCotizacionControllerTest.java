@@ -85,6 +85,7 @@ class SolicitudCotizacionControllerTest {
     private static OrdenCompraPropuestaResponseDTO orden(Long id, EstadoOrdenCompraPropuesta estado, Long idOrdenCompra) {
         return OrdenCompraPropuestaResponseDTO.builder().id(id).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
                 .proveedorActivo(true).estado(estado).idOrdenCompra(idOrdenCompra).total(new BigDecimal("120000"))
+                .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5))
                 .items(List.of(ItemOrdenCompraPropuestaResponseDTO.builder().id(1L).idCatalogoProveedor(100L).nombreInsumo("Malta Pilsen")
                         .nombrePresentacion("Bolsa (25 kg)").cantidad(4).precioUnitario(new BigDecimal("30000")).subtotal(new BigDecimal("120000"))
                         .cantidadEnUnidadDelInsumo(100.0).unidad("kg").precioPorUnidadDelInsumo(new BigDecimal("1200")).build()))
@@ -113,7 +114,8 @@ class SolicitudCotizacionControllerTest {
                         InvitacionCotizacionResponseDTO.builder().id(1L).idProveedor(1L).razonSocial("MALTERIA SUR").cuit("30-12345678-9")
                                 .proveedorActivo(true).fechaRespuesta(LocalDateTime.of(2026, 11, 19, 10, 15)).cantidadOfertas(1)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.ENVIADA).intentosEnvio(1)
-                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00")).build(),
+                                .estadoParticipacion("Respondió").insumosCotizados(List.of("Malta Pilsen: 4 x Bolsa (25 kg) a $ 30.000,00", "Malta Pilsen: 3 x Bolsa (10 kg) a $ 13.000,00"))
+                                .fechaEntregaEstimada(java.time.LocalDate.of(2026, 12, 5)).build(),
                         InvitacionCotizacionResponseDTO.builder().id(2L).idProveedor(2L).razonSocial("LUPULOS DEL VALLE").cuit("30-87654321-0")
                                 .proveedorActivo(false).cantidadOfertas(0)
                                 .estadoEnvio(com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoEnvioInvitacion.FALLIDA).intentosEnvio(3)
@@ -178,7 +180,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-03: con el plan generado y sin pestaña pedida, el detalle abre en la pestaña del plan: el encabezado sin cancelar, los avisos y las tres pestañas arriba, el plan con confirmar y descartar en cada orden pendiente y sin el contenido de las otras pestañas")
+    @DisplayName("CP-SCC-03: con el plan generado y sin pestaña pedida, el detalle abre en la pestaña del plan: el encabezado sin cancelar, los avisos y las tres pestañas arriba, el plan con la fecha de entrega del proveedor y confirmar y descartar en cada orden pendiente, y sin el contenido de las otras pestañas")
     void caso_cp_scc_03() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
@@ -208,6 +210,7 @@ class SolicitudCotizacionControllerTest {
                 .doesNotContain("?plan=").doesNotContain("Plan 1").doesNotContain("Planes de órdenes de compra")
                 .contains("Cobertura de los insumos").contains("50 kg")
                 .contains("Bolsa (25 kg)").contains("$ 1.200,00 / kg").contains("$ 120.000,00")
+                .containsPattern("data-fecha-entrega-propuesta>\\s*Fecha de entrega estimada indicada por el proveedor: <strong[^>]*>05/12/2026</strong>")
                 .contains("href=\"/ordenes-compra/nuevo?idOrdenPropuesta=801\"")
                 .contains("action=\"/solicitudes-cotizacion/90/ordenes-propuestas/801/descartar\"")
                 .doesNotContain("Datos de la solicitud").doesNotContain("Insumos solicitados").doesNotContain("Proveedores participantes");
@@ -453,7 +456,7 @@ class SolicitudCotizacionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-SCC-18: la pestaña de proveedores muestra la situación de cada proveedor con cada presentación que cotizó; sin invitaciones muestra que no hay proveedores participantes")
+    @DisplayName("CP-SCC-18: la pestaña de proveedores muestra la situación de cada proveedor con su fecha estimada de entrega y cada presentación que cotizó; sin invitaciones muestra que no hay proveedores participantes")
     void caso_cp_scc_18() throws Exception {
         // Arrange
         when(solicitudCotizacionServicio.buscarPorId(90L)).thenReturn(detalle(EstadoSolicitudCotizacion.PLAN_GENERADO,
@@ -478,7 +481,7 @@ class SolicitudCotizacionControllerTest {
                 .contains("Proveedores participantes").contains("MALTERIA SUR").contains("19/11/2026 10:15")
                 .contains("Respondió").contains("Dado de baja").contains("No entregada (3 intentos)")
                 .containsPattern("data-insumos-cotizados>\\s*<p[^>]*>Malta Pilsen: 4 x Bolsa \\(25 kg\\) a \\$ 30\\.000,00</p>\\s*<p[^>]*>Malta Pilsen: 3 x Bolsa \\(10 kg\\) a \\$ 13\\.000,00</p>")
-                .doesNotContain("Entrega estimada").doesNotContain("data-fecha-entrega")
+                .contains("Entrega estimada").containsPattern("data-fecha-entrega>\\s*05/12/2026")
                 .doesNotContain("Insumos solicitados").doesNotContain("data-plan>").doesNotContain("data-sin-proveedores");
         assertThat(vacio).contains("Proveedores participantes").contains("data-sin-proveedores").contains("No hay proveedores participantes")
                 .doesNotContain("data-estado-participacion");

@@ -1842,4 +1842,65 @@ class SolicitudCotizacionServicioImplTest {
         assertThat(otraConPlan.getEstado()).isEqualTo(EstadoSolicitudCotizacion.CANCELADA);
         verify(notificador, never()).avisarCancelacionAProveedor(any(), any(), any());
     }
+
+    // ==================== Fecha estimada de entrega del proveedor ====================
+
+    @Test
+    @DisplayName("CP-SCO-44: el plan copia a cada orden propuesta la fecha estimada de entrega del proveedor, que llega a la orden prearmada y al detalle")
+    void cerrar_copiaLaFechaEstimadaDeEntregaDelProveedor() {
+        // === PREPARACION DE DATOS ===
+        SolicitudCotizacionEntity solicitud = solicitudAbierta(LocalDateTime.now().minusMinutes(1));
+        LineaSolicitudCotizacionEntity linea = solicitud.getLineas().get(0);
+        java.time.LocalDate entrega = java.time.LocalDate.now().plusDays(12);
+        InvitacionCotizacionEntity malteria = invitar(solicitud, proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta), LocalDateTime.now());
+        malteria.setFechaEntregaEstimada(entrega);
+        ofertar(malteria, 1L, linea, "20000", 2);
+        InvitacionCotizacionEntity lupulos = invitar(solicitud, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta), LocalDateTime.now());
+        ofertar(lupulos, 2L, linea, "21000", 2);
+        when(solicitudRepository.buscarPorIdParaActualizar(90L)).thenReturn(Optional.of(solicitud));
+
+        // === EJECUCION ===
+        servicio.cerrarSolicitud(90L);
+
+        // === ASSERTS ===
+        assertThat(solicitud.getPlan().getOrdenes())
+                .extracting(orden -> orden.getProveedor().getId(), OrdenCompraPropuestaEntity::getFechaEntregaEstimada)
+                .containsExactly(org.assertj.core.api.Assertions.tuple(1L, entrega), org.assertj.core.api.Assertions.tuple(2L, null));
+        // Un cambio posterior de la invitación no modifica la orden propuesta ya generada
+        malteria.setFechaEntregaEstimada(entrega.plusDays(30));
+        OrdenCompraPropuestaEntity conFecha = solicitud.getPlan().getOrdenes().get(0);
+        OrdenCompraPropuestaEntity sinFecha = solicitud.getPlan().getOrdenes().get(1);
+        conFecha.setId(801L);
+        conOrdenPropuesta(conFecha);
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(conFecha).getFechaEntregaEstimada()).isEqualTo(entrega);
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(sinFecha).getFechaEntregaEstimada()).isNull();
+        OrdenCompraPrearmadaResponseDTO prearmada = servicio.prepararOrdenCompra(801L);
+        assertThat(prearmada.getFechaEntregaEstimada()).isEqualTo(entrega);
+        assertThat(prearmada.getAvisos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-SCO-53: si la fecha estimada de entrega del proveedor ya pasó, la orden prearmada llega sin fecha y con un aviso para indicar una nueva")
+    void preparar_fechaDelProveedorVencida() {
+        // === PREPARACION DE DATOS ===
+        ProveedorEntity p1 = proveedor(1L, "MALTERIA SUR", Estado.ACTIVO, malta);
+        SolicitudCotizacionEntity solicitud = solicitudConPlan(p1, proveedor(2L, "LUPULOS DEL VALLE", Estado.ACTIVO, malta));
+        java.time.LocalDate vencida = java.time.LocalDate.now().minusDays(1);
+        OrdenCompraPropuestaEntity orden = solicitud.getPlan().getOrdenes().get(0);
+        orden.setFechaEntregaEstimada(vencida);
+        conOrdenPropuesta(orden);
+
+        // === EJECUCION ===
+        OrdenCompraPrearmadaResponseDTO prearmada = servicio.prepararOrdenCompra(801L);
+
+        // === ASSERTS ===
+        assertThat(prearmada.getFechaEntregaEstimada()).isNull();
+        assertThat(prearmada.getAvisos()).containsExactly("La fecha de entrega indicada por el proveedor ("
+                + vencida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ") ya pasó; indique una nueva");
+        // El detalle de la solicitud sigue mostrando la fecha que indicó el proveedor
+        assertThat(MapperSolicitudCotizacion.toOrdenDTO(orden).getFechaEntregaEstimada()).isEqualTo(vencida);
+        // La de hoy todavía sirve
+        orden.setFechaEntregaEstimada(java.time.LocalDate.now());
+        assertThat(servicio.prepararOrdenCompra(801L).getFechaEntregaEstimada()).isEqualTo(java.time.LocalDate.now());
+    }
 }

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -45,4 +46,10 @@ public class OrdenCompraPrearmadaResponseDTO {
      * Ítems que no se pudieron prearmar (el proveedor ya no los ofrece en su catálogo vigente).
      */
     private List<String> avisos;
+
+    /**
+     * Fecha estimada de entrega que indicó el proveedor en su cotización, o {@code null} si no la indicó o ya pasó. El
+     * gerente de compras la puede cambiar antes de confirmar la orden.
+     */
+    private LocalDate fechaEntregaEstimada;
 }

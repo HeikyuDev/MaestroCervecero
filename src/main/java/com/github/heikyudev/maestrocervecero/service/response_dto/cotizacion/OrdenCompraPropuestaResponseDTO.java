@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.cotizacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.cotizacion.EstadoOrdenCompraPropuesta;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -62,4 +63,9 @@ public class OrdenCompraPropuestaResponseDTO {
      * Ítems propuestos.
      */
     private List<ItemOrdenCompraPropuestaResponseDTO> items;
+
+    /**
+     * Fecha estimada de entrega que indicó el proveedor en su cotización, o {@code null}.
+     */
+    private LocalDate fechaEntregaEstimada;
 }

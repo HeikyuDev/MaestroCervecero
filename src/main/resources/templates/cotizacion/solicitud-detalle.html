@@ -160,6 +160,7 @@
                 <th class="px-4 py-3">Situación</th>
                 <th class="px-4 py-3">Correo</th>
                 <th class="px-4 py-3">Respuesta</th>
+                <th class="px-4 py-3">Entrega estimada</th>
                 <th class="px-4 py-3">Presentaciones cotizadas</th>
             </tr>
             </thead>
@@ -182,6 +183,9 @@
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
                     <th:block th:if="${i.fechaRespuesta != null}" th:replace="~{planificacion_produccion/formato :: fechaHora(${i.fechaRespuesta})}"></th:block>
                     <span th:if="${i.fechaRespuesta == null}" class="text-slate-400">-</span>
+                </td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-fecha-entrega>
+                    <th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.fechaEntregaEstimada})}"></th:block>
                 </td>
                 <td class="px-4 py-3 text-slate-700" data-insumos-cotizados>
                     <p th:each="oferta : ${i.insumosCotizados}" class="whitespace-nowrap" th:text="${oferta}">Malta Pilsen: 2 x Bolsa (25 kg) a $ 32.500,00</p>
@@ -310,7 +314,9 @@
                 </tbody>
             </table>
             </div>
-            <p class="px-5 py-3 border-t border-slate-100 text-sm text-right text-slate-700">
+            <p class="px-5 py-3 border-t border-slate-100 text-sm text-right text-slate-700" data-fecha-entrega-propuesta>
+                Fecha de entrega estimada indicada por el proveedor: <strong class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></strong>
+                <span class="mx-2 text-slate-300">|</span>
                 Total de la orden: <strong class="text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(o.total)}">$ 120.000,00</strong>
             </p>
         </div>
