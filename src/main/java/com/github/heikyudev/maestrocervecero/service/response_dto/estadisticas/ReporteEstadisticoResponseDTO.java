@@ -25,7 +25,7 @@ public final class ReporteEstadisticoResponseDTO {
     private final String descripcion;
 
     /**
-     * Qué fecha decide qué registros entran en el período (por ejemplo, "Lotes con inicio estimado dentro del período"),
+     * Qué fecha decide qué registros entran en el período (por ejemplo, "Se consideran los lotes con inicio estimado dentro del período, en cualquier estado"),
      * sin punto final; {@code null} si el reporte no la aclara.
      */
     private final String criterioDeFecha;

@@ -113,7 +113,7 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCostos(new CriteriosReporteCostos(DESDE, HASTA, null, null), PAGINA);
 
         assertThat(reporte.getDescripcion()).isEqualTo("Cuánto costó producir cada litro en el período");
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Lotes con envasado finalizado dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran los lotes con envasado finalizado dentro del período y litros envasados registrados");
         assertThat(valores(reporte)).containsExactly(pesos("250"), "150 L", "80 %");
         assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre)
                 .containsExactly("Costo total", "Litros envasados", "Peso de los insumos");
@@ -340,7 +340,7 @@ class EstadisticaProduccionReportesServicioImplTest {
 
         assertThat(valores(reporte)).containsExactly(pesos("1000"), "2", "Pilsen", "10 %");
         assertThat(reporte.getIndicadores().get(2).getAclaracion()).isEqualTo(pesos("600"));
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Consumos registrados dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran los consumos registrados dentro del período, sin contar los anulados");
         assertThat(reporte.getIndicadores().get(0).getAyuda()).isNull();
         assertThat(reporte.getIndicadores().get(0).getAclaracion()).isEqualTo("Al costo de cada consumo");
         assertThat(reporte.getTabla().getColumnas()).extracting(c -> c.getTitulo()).containsExactly("Insumo", "Tipo", "Cantidad", "Valor", "% del total", "Lotes de producción");
@@ -419,7 +419,7 @@ class EstadisticaProduccionReportesServicioImplTest {
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeEquipamiento(new CriteriosReporteEquipamiento(desde, hasta, null, null, null), PAGINA);
 
         // MOL-03 está dado de baja sin actividad: no figura. Con actividad: FER-01, MOL-01, MAC-01, OLL-01 y MOL-02 (de baja)
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Etapas superpuestas con el período e intervenciones registradas dentro de él");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran las etapas superpuestas con el período y las intervenciones de equipamiento registradas dentro de él");
         assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre).containsExactly("Limpiezas", "Fallas", "Mantenimientos");
         assertThat(valores(reporte)).containsExactly("3", "1", "1");
         assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getAclaracion).containsExactly("Registradas", "Registradas", "Registrados");

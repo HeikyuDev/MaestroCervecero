@@ -173,7 +173,7 @@ class EstadisticasControllerTest {
                 .contains("href=\"/estadisticas/pdf?pestana=lotes&amp;desde=2026-11-01&amp;hasta=2026-11-30&amp;estado=FINALIZADO\"".replace("&amp;", "&"))
                 .contains("href=\"/estadisticas?pestana=lotes\" data-limpiar-filtros");
         assertThat(html).contains("Resultados del 01/11/2026 al 30/11/2026").contains("data-criterio-fecha")
-                .contains("Lotes con inicio estimado dentro del período");
+                .contains("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado");
         assertThat(html).contains("method=\"get\" novalidate").contains("<option value=\"FINALIZADO\" selected=\"selected\">Finalizado</option>");
     }
 

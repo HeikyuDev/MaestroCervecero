@@ -54,7 +54,7 @@ public final class ReportesDePrueba {
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Lotes")
                 .descripcion("Cuántos lotes se planificaron en el período y cómo terminaron")
-                .criterioDeFecha("Lotes con inicio estimado dentro del período")
+                .criterioDeFecha("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado")
                 .desde(LocalDate.of(2026, 11, 1))
                 .hasta(LocalDate.of(2026, 11, 30))
                 .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", null, "Todas"), CriterioAplicadoResponseDTO.de("Estado", "Finalizado", "Todos")))
@@ -89,7 +89,7 @@ public final class ReportesDePrueba {
         }
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Costos").descripcion("Cuánto costó producir cada litro en el período")
-                .criterioDeFecha("Lotes con envasado finalizado dentro del período")
+                .criterioDeFecha("Se consideran los lotes con envasado finalizado dentro del período y litros envasados registrados")
                 .desde(LocalDate.of(2026, 11, 1)).hasta(LocalDate.of(2026, 11, 30))
                 .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", null, "Todas")))
                 .indicadores(List.of(new IndicadorResponseDTO("costo-total", "Costo total", "$ 300,00", null, null),

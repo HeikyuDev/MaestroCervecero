@@ -142,10 +142,10 @@ class ReporteEstadisticoResponseDTOTest {
     @DisplayName("CP-ERG-09: el reporte lleva la aclaración de qué fecha decide qué registros entran en el período, o null si no la aclara")
     void criterioDeFecha() {
         assertThat(reporte(0).getCriterioDeFecha()).isNull();
-        assertThat(ReporteEstadisticoResponseDTO.builder().titulo("Lotes").descripcion("P").criterioDeFecha("Lotes con inicio estimado dentro del período")
+        assertThat(ReporteEstadisticoResponseDTO.builder().titulo("Lotes").descripcion("P").criterioDeFecha("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado")
                 .criterios(List.of()).indicadores(List.of()).grafico(new GraficoReporteResponseDTO("G", List.of(), null))
                 .tabla(new TablaReporteResponseDTO(COLUMNAS, new PageImpl<>(List.of()), null, "lote|lotes")).build().getCriterioDeFecha())
-                .isEqualTo("Lotes con inicio estimado dentro del período");
+                .isEqualTo("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado");
     }
 
     private static ReporteEstadisticoResponseDTO reporte(int indicadores) {

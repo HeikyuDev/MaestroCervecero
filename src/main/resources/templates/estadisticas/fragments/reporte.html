@@ -11,7 +11,7 @@
     con su ancho normal de columna. "Limpiar" (vuelve al período por defecto y quita los criterios) y "Filtrar" van en su
     propia fila debajo de los campos, a la derecha, como en el resto de las listas.
     resultados(desde, hasta, urlPdf, criterioDeFecha): encabezado de los resultados, debajo de los filtros y solo si hay reporte:
-    "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) y, debajo, qué fecha decide qué registros entran en el período (criterioDeFecha, por ejemplo "Lotes con inicio estimado dentro del período") a la izquierda y, en la misma línea a la derecha, el
+    "Resultados del dd/MM/yyyy al dd/MM/yyyy" (el período aplicado) y, debajo, una nota informativa con los registros que entran en el período (criterioDeFecha, por ejemplo "Se consideran los lotes con inicio estimado dentro del período, en cualquier estado") a la izquierda y, en la misma línea a la derecha, el
     botón secundario (con borde, sin relleno) "Exportar PDF", que abre el PDF en otra pestaña con los mismos criterios.
     indicadores(indicadores): hasta cuatro tarjetas (IndicadorResponseDTO) en una sola fila que ocupa todo el ancho (la grilla toma tantas columnas como tarjetas; con menos de cuatro, las tarjetas son algo más amplias y su valor algo más grande), con el nombre, el valor
     grande (algo más chico si es largo, como un importe de siete cifras, para que no se parta), una aclaración de una línea y, si el indicador tiene definición, el tooltip de ayuda junto al nombre.
@@ -67,7 +67,7 @@
     <div>
         <h2 class="text-base font-semibold text-slate-900"
             th:text="|Resultados del ${#temporals.format(desde, 'dd/MM/yyyy')} al ${#temporals.format(hasta, 'dd/MM/yyyy')}|">Resultados del 01/11/2026 al 15/11/2026</h2>
-        <p th:if="${criterioDeFecha != null}" data-criterio-fecha class="mt-0.5 text-sm text-slate-500" th:text="${criterioDeFecha}">Lotes con inicio estimado dentro del período</p>
+        <p th:if="${criterioDeFecha != null}" data-criterio-fecha class="mt-0.5 text-sm text-slate-500" th:text="${criterioDeFecha}">Se consideran los lotes con inicio estimado dentro del período, en cualquier estado</p>
     </div>
     <a th:href="@{${urlPdf}}" data-exportar-pdf target="_blank" rel="noopener"
        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition-colors">

@@ -186,7 +186,7 @@ class EstadisticaProduccionServicioImplTest {
         when(repository.sumarLitrosEnvasadosPorLote(List.of(11L))).thenReturn(List.<Object[]>of(new Object[]{11L, 480.5}));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeLotes(criterios(DESDE, HASTA), segunda);
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Lotes con inicio estimado dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado");
 
         assertThat(reporte.getTabla().getColumnas()).extracting(ColumnaReporteResponseDTO::getTitulo, ColumnaReporteResponseDTO::getTipo)
                 .containsExactly(tuple("Lote", TipoColumna.TEXTO), tuple("Estado", TipoColumna.TEXTO),

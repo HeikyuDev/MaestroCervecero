@@ -118,7 +118,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo(TITULO_LOTES)
                 .descripcion(PestanaEstadistica.LOTES.getDescripcion())
-                .criterioDeFecha("Lotes con inicio estimado dentro del período")
+                .criterioDeFecha("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado")
                 .desde(desde)
                 .hasta(hasta)
                 .criterios(List.of(
@@ -209,7 +209,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Costos")
                 .descripcion(PestanaEstadistica.COSTOS.getDescripcion())
-                .criterioDeFecha("Lotes con envasado finalizado dentro del período")
+                .criterioDeFecha("Se consideran los lotes con envasado finalizado dentro del período y litros envasados registrados")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(CriterioAplicadoResponseDTO.de("Receta", criterios.textoReceta(), "Todas")))
@@ -434,7 +434,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Insumos")
                 .descripcion(PestanaEstadistica.INSUMOS.getDescripcion())
-                .criterioDeFecha("Consumos registrados dentro del período")
+                .criterioDeFecha("Se consideran los consumos registrados dentro del período, sin contar los anulados")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(
@@ -538,7 +538,7 @@ public class EstadisticaProduccionServicioImpl implements IEstadisticaProduccion
         return ReporteEstadisticoResponseDTO.builder()
                 .titulo("Equipamiento")
                 .descripcion(PestanaEstadistica.EQUIPAMIENTO.getDescripcion())
-                .criterioDeFecha("Etapas superpuestas con el período e intervenciones registradas dentro de él")
+                .criterioDeFecha("Se consideran las etapas superpuestas con el período y las intervenciones de equipamiento registradas dentro de él")
                 .desde(periodo.desde())
                 .hasta(periodo.hasta())
                 .criterios(List.of(

@@ -179,14 +179,17 @@ class EstadisticasPlantillasTest {
                 .contains("content: counter(page)").contains("content: counter(pages)")
                 .contains("Página <span class=\"numero-pagina\"></span> de <span class=\"total-paginas\"></span>")
                 .contains("font-family: 'Liberation Sans'")
-                .contains("Emitido por").contains("Fecha de emisión").contains("<th>Terminal</th>").contains("${encabezado.terminal}").contains("Período").contains("${reporte.criterioDeFecha}").contains("Criterios de filtro")
+                .contains("Emitido por").contains("Fecha de emisión").contains("<th>Terminal</th>").contains("${encabezado.terminal}").contains("Período").contains("Criterios de filtro")
+                .contains("<p class=\"criterio-fecha\" th:if=\"${reporte.criterioDeFecha != null}\" th:text=\"${reporte.criterioDeFecha}\">")
                 .contains("th:each=\"tabla : ${reporte.tablas}\"").contains("${tabla.titulo}")
                 .contains("dd/MM/yyyy HH:mm").contains(">Maestro Cervecero<")
                 .contains("table.detalle thead { display: table-header-group; }").contains("table.detalle tr { page-break-inside: avoid; }")
                 .contains("${tabla.columnasImprimibles}").contains("${tabla.celdasImprimibles(f)}").contains("<tr class=\"totales\"")
                 .contains("se alcanzó el máximo de filas de un reporte impreso").contains("Sin resultados para los criterios indicados")
                 .contains("estadisticas/fragments/grafico :: grafico(${grafico})").contains(".grafico { width: 170mm;");
-        assertThat(html).doesNotContain("@{/").doesNotContain("sec:authorize");
+        assertThat(html).doesNotContain("@{/").doesNotContain("sec:authorize").doesNotContain("Fecha considerada");
+        assertThat(html.indexOf("class=\"criterio-fecha\" th:if")).isGreaterThan(html.indexOf("Criterios de filtro"))
+                .isLessThan(html.indexOf("<p class=\"pregunta\""));
     }
 
     @Test

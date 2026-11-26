@@ -81,7 +81,7 @@ class GeneradorPdfServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-GPDF-02: el reporte lleva el encabezado, los datos de emisión (con la terminal) con todos los criterios, la pregunta, los indicadores con su definición, el gráfico, la tabla sin la columna de acciones con totales y el pie con la página")
+    @DisplayName("CP-GPDF-02: el reporte lleva el encabezado, los datos de emisión (con la terminal) con todos los criterios, la nota de los registros considerados, la pregunta, los indicadores con su definición, el gráfico, la tabla sin la columna de acciones con totales y el pie con la página")
     void generar_debeIncluirLosElementosEstandar() throws IOException {
         // === EJECUCION ===
         String texto = textoDe(generador.generar(PLANTILLA, modelo(3, 3)));
@@ -93,6 +93,7 @@ class GeneradorPdfServicioImplTest {
                 .contains("Terminal").contains("pc-gerencia (192.168.0.20)")
                 .contains("Período").contains("Desde 01/11/2026 hasta 30/11/2026")
                 .contains("Criterios de filtro").contains("Receta: Todas").contains("Estado: Finalizado")
+                .contains("Se consideran los lotes con inicio estimado dentro del período, en cualquier estado")
                 .contains("Cuántos lotes se planificaron en el período y cómo terminaron")
                 .contains("LOTES DEL PERÍODO").contains("TERMINADOS EN PLAZO").contains("66,67 %").contains("2 de 3 finalizados")
                 .contains("Terminados en plazo: Porcentaje de los lotes finalizados")
@@ -102,7 +103,7 @@ class GeneradorPdfServicioImplTest {
                 .contains("Totales del período").contains("1.441,5")
                 .contains("Página 1 de 1").contains("Emitido el 14/11/2026 09:30");
         assertThat(texto).doesNotContain("Acciones").doesNotContain("Abrir").doesNotContain("Sin resultados")
-                .doesNotContain("se alcanzó el máximo");
+                .doesNotContain("se alcanzó el máximo").doesNotContain("Fecha considerada");
     }
 
     @Test

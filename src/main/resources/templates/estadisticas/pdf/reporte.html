@@ -52,6 +52,7 @@
         .emision td { padding: 1.5mm 3mm; vertical-align: top; }
         .emision .criterio { display: block; }
 
+        .criterio-fecha { margin: -2mm 0 4mm 0; font-size: 8pt; color: #64748b; }
         .pregunta { margin: 0 0 4mm 0; font-size: 10pt; }
         h2 { margin: 0 0 2mm 0; font-size: 10.5pt; }
         h2.titulo-tabla { margin-top: 5mm; page-break-after: avoid; }
@@ -123,10 +124,6 @@
         <th>Período</th>
         <td th:text="|Desde ${#temporals.format(reporte.desde, 'dd/MM/yyyy')} hasta ${#temporals.format(reporte.hasta, 'dd/MM/yyyy')}|">Desde 01/07/2027 hasta 31/07/2027</td>
     </tr>
-    <tr th:if="${reporte.criterioDeFecha != null}">
-        <th>Fecha considerada</th>
-        <td th:text="${reporte.criterioDeFecha}">Lotes con inicio estimado dentro del período</td>
-    </tr>
     <tr>
         <th>Criterios de filtro</th>
         <td>
@@ -134,6 +131,9 @@
         </td>
     </tr>
 </table>
+
+<!-- Qué registros entran en el período, como nota informativa debajo de los datos de emisión -->
+<p class="criterio-fecha" th:if="${reporte.criterioDeFecha != null}" th:text="${reporte.criterioDeFecha}">Se consideran los lotes con inicio estimado dentro del período, en cualquier estado</p>
 
 <p class="pregunta" th:text="${reporte.descripcion}">Cuántos lotes se planificaron en el período y cómo terminaron</p>
 

@@ -132,7 +132,7 @@ class EstadisticasPestanasControllerTest {
         assertThat(html.split("data-tabla-reporte", -1).length - 1).isEqualTo(2);
         assertThat(html.split("data-titulo-tabla", -1).length - 1).isEqualTo(2);
         assertThat(html.indexOf(">Pale Ale</h2>")).isNotNegative().isLessThan(html.indexOf(">Stout</h2>"));
-        assertThat(html).doesNotContain("Página <span>").contains("Lotes con envasado finalizado dentro del período");
+        assertThat(html).doesNotContain("Página <span>").contains("Se consideran los lotes con envasado finalizado dentro del período y litros envasados registrados");
     }
 
     @Test

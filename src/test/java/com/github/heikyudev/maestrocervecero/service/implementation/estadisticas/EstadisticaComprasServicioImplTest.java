@@ -100,7 +100,7 @@ class EstadisticaComprasServicioImplTest {
                 orden(1, LocalDateTime.of(2026, 11, 2, 9, 0), 1, "Maltería", EstadoSolicitud.FINALIZADA, 1, "100")));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeCompras(new CriteriosReporteCompras(DESDE, HASTA, null, null, null), PAGINA);
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Órdenes de compra emitidas dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran las órdenes de compra emitidas dentro del período, en cualquier estado");
 
         assertThat(reporte.getDescripcion()).isEqualTo("Cuánto se compró y a qué proveedores");
         assertThat(valores(reporte)).containsExactly(pesos("500"), "4", pesos("166.6667"), "25 %");
@@ -169,7 +169,7 @@ class EstadisticaComprasServicioImplTest {
                 new Object[]{3L, 50.0, LocalDate.of(2026, 11, 12)}));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeProveedores(new CriteriosReporteProveedores(DESDE, HASTA, null, null, null), PAGINA);
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Órdenes de compra no anuladas emitidas dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran las órdenes de compra no anuladas emitidas dentro del período");
 
         assertThat(valores(reporte)).containsExactly("50 %", "50 %");
         assertThat(reporte.getIndicadores()).extracting(IndicadorResponseDTO::getNombre).containsExactly("Entregas a tiempo", "Entregas fuera de plazo");
@@ -229,7 +229,7 @@ class EstadisticaComprasServicioImplTest {
                 item(5, 4, LocalDateTime.of(2026, 11, 9, 9, 0), LocalDate.of(2026, 11, 20), EstadoSolicitud.PENDIENTE, null, 2, "Lupulera", 3, "Mosaic", 1, "250")));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDePrecios(new CriteriosReportePrecios(DESDE, HASTA, null, null, null), PAGINA);
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Ítems de órdenes de compra no anuladas emitidas dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran los ítems de las órdenes de compra no anuladas emitidas dentro del período");
 
         assertThat(valores(reporte)).containsExactly("3", "1", "1");
         assertThat(reporte.getIndicadores().get(1).getAclaracion()).isEqualTo("De 2 con más de una compra");
@@ -296,7 +296,7 @@ class EstadisticaComprasServicioImplTest {
         when(repository.contarOrdenesPendientes(any(LocalDate.class), any())).thenReturn(List.<Object[]>of(new Object[]{4L, 1L}));
 
         ReporteEstadisticoResponseDTO reporte = servicio.generarReporteDeRecepcion(new CriteriosReporteRecepcion(DESDE, HASTA, null, null, null), PAGINA);
-        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Ingresos con fecha de ingreso dentro del período");
+        assertThat(reporte.getCriterioDeFecha()).isEqualTo("Se consideran los ingresos de insumos con fecha de ingreso dentro del período, por compra o directos");
 
         assertThat(valores(reporte)).containsExactly("2", pesos("280"), "4", "1");
         assertThat(reporte.getTabla().getColumnas().get(5).isVer()).isTrue();
