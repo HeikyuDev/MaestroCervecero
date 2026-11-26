@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.distribuci
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoSolicitudBusqueda;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.implementation.distribucion.EnvioRecordatoriosRetiroProgramado;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitudBusquedaServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.cliente.IClienteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.SolicitudBusquedaResponseDTO;
@@ -21,8 +22,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -40,6 +43,10 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * fecha propuesta del retiro y estado (pendiente, buscada o cancelada). El detalle muestra todos los datos, con las observaciones
  * del cliente.
  * </p>
+ * <p>
+ * Desde la lista, quien tiene el permiso {@code RECORDATORIO_RETIRO_ENVIAR} puede enviar los recordatorios de retiro de
+ * hoy sin esperar la hora configurada.
+ * </p>
  */
 @Controller
 @RequestMapping("/solicitudes-retiro")
@@ -54,6 +61,7 @@ public class SolicitudRetiroController {
 
     private final ISolicitudBusquedaServicio solicitudBusquedaServicio;
     private final IClienteServicio clienteServicio;
+    private final EnvioRecordatoriosRetiroProgramado envioRecordatoriosRetiro;
 
     /**
      * Lista las solicitudes de a {@code TAMANIO_PAGINA} y con la última registrada arriba. Los criterios (cliente, rango
@@ -101,6 +109,27 @@ public class SolicitudRetiroController {
             model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
         }
         return VISTA_LISTA;
+    }
+
+    /**
+     * Envía ahora los recordatorios de retiro de hoy, sin esperar la hora configurada, y vuelve a la lista con cuántos
+     * clientes se notificaron. Si los de hoy ya se enviaron, el {@code ControllerAdvices} vuelve al origen con el motivo.
+     */
+    @PostMapping("/recordatorios")
+    @PreAuthorize("hasAuthority('RECORDATORIO_RETIRO_ENVIAR')")
+    public String enviarRecordatorios(RedirectAttributes redirectAttributes) {
+        EnvioRecordatoriosRetiroProgramado.ResultadoEnvio resultado = envioRecordatoriosRetiro.enviarRecordatoriosDeHoy();
+        int notificados = resultado.clientesNotificados();
+        String clientes = notificados == 1 ? "1 cliente" : notificados + " clientes";
+        if (!resultado.completo()) {
+            agregarMensaje(redirectAttributes, "Se envió el recordatorio de retiro a " + clientes
+                    + ", pero algunos envíos fallaron: se reintentan automáticamente", TipoAlerta.WARNING);
+        } else if (notificados == 0) {
+            agregarMensaje(redirectAttributes, "No hay clientes con barriles para recordarles el retiro hoy", TipoAlerta.INFO);
+        } else {
+            agregarMensaje(redirectAttributes, "Recordatorios de retiro enviados correctamente a " + clientes, TipoAlerta.SUCCESS);
+        }
+        return "redirect:" + URL_LISTA;
     }
 
     /** El estado de solicitud indicado, o {@code null} si falta o no es válido. */

@@ -10,13 +10,24 @@
     propuesta y estado). Es de solo lectura: una solicitud queda buscada al registrar la devolución del barril y
     cancelada al anular el despacho. Una
     solicitud pendiente cuya fecha propuesta ya pasó se resalta como vencida. "Ver" abre el detalle con las observaciones.
+    Con el permiso de enviar recordatorios, el encabezado ofrece enviar los de hoy sin esperar la hora configurada.
 -->
 <div id="solicitudes-retiro-content" class="space-y-6">
 
     <!-- Encabezado de la página -->
-    <div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Solicitudes de Retiro</h1>
-        <p class="text-sm text-slate-500">Retiros de barriles coordinados por los clientes, con la última solicitud arriba.</p>
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Solicitudes de Retiro</h1>
+            <p class="text-sm text-slate-500">Retiros de barriles coordinados por los clientes, con la última solicitud arriba.</p>
+        </div>
+        <form sec:authorize="hasAuthority('RECORDATORIO_RETIRO_ENVIAR')" method="post" th:action="@{/solicitudes-retiro/recordatorios}"
+              class="flex shrink-0 flex-wrap items-center justify-end gap-3">
+            <button type="submit" data-boton-enviar-recordatorios data-confirmar-titulo="Enviar recordatorios de retiro"
+                    data-confirmar-mensaje="Se envía ahora el recordatorio de hoy a cada cliente con barriles con la devolución vencida y sin una solicitud de retiro pendiente, sin esperar la hora configurada. Se hace una sola vez por día."
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                <i class="bi bi-envelope"></i> Enviar recordatorios de retiro
+            </button>
+        </form>
     </div>
 
     <section data-solicitudes-retiro class="space-y-4">
@@ -118,6 +129,7 @@
                     false)}"></div>
         </div>
     </section>
+    <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
 </div>
 
 </body>

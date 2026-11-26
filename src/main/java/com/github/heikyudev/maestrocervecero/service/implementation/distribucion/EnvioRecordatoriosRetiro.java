@@ -28,11 +28,13 @@ public class EnvioRecordatoriosRetiro {
      *
      * @param idCliente ID del cliente.
      * @param fecha Día del recordatorio.
+     * @return {@code true} si el servidor de correo aceptó el recordatorio; {@code false} si no correspondía enviarlo o
+     * si el correo no salió.
      */
-    public void enviar(Long idCliente, LocalDate fecha) {
+    public boolean enviar(Long idCliente, LocalDate fecha) {
         Optional<EnvioRecordatorioRetiroPreparado> preparado = recordatorioRetiroServicio.prepararRecordatorio(idCliente, fecha);
         if (preparado.isEmpty()) {
-            return;
+            return false;
         }
         EnvioRecordatorioRetiroPreparado envio = preparado.get();
         boolean enviado;
@@ -43,5 +45,6 @@ public class EnvioRecordatoriosRetiro {
             enviado = false;
         }
         recordatorioRetiroServicio.registrarResultadoEnvio(envio.idInvitacion(), enviado);
+        return enviado;
     }
 }

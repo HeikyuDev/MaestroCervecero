@@ -58,7 +58,7 @@ class ProcesoRecordatoriosRetiroTest {
         }
 
         @Test
-        @DisplayName("CP-PRR-01: el envío prepara el recordatorio, envía el correo y registra que el servidor lo aceptó, en ese orden")
+        @DisplayName("CP-PRR-01: el envío prepara el recordatorio, envía el correo y registra que el servidor lo aceptó, en ese orden, e informa que se notificó al cliente")
         void envia_yRegistraElResultado() {
             LocalDate hoy = LocalDate.of(2026, 11, 19);
             EnvioRecordatorioRetiroPreparado preparado = new EnvioRecordatorioRetiroPreparado(90L, "compras@donjorge.com", "Bar Don Jorge",
@@ -66,7 +66,7 @@ class ProcesoRecordatoriosRetiroTest {
             when(recordatorioRetiroServicio.prepararRecordatorio(5L, hoy)).thenReturn(Optional.of(preparado));
             when(notificador.recordarRetiro("compras@donjorge.com", "Bar Don Jorge", TOKEN, EXPIRACION, List.of("N.º de serie SN-1001 (BRL-01)"))).thenReturn(true);
 
-            envio().enviar(5L, hoy);
+            assertThat(envio().enviar(5L, hoy)).isTrue();
 
             InOrder orden = inOrder(recordatorioRetiroServicio, notificador);
             orden.verify(recordatorioRetiroServicio).prepararRecordatorio(5L, hoy);
@@ -75,7 +75,7 @@ class ProcesoRecordatoriosRetiroTest {
         }
 
         @Test
-        @DisplayName("CP-PRR-02: si el correo falla o lanza una excepción, el envío queda registrado como fallido")
+        @DisplayName("CP-PRR-02: si el correo falla o lanza una excepción, el envío queda registrado como fallido y no cuenta como notificado")
         void falla_registraFallido() {
             LocalDate hoy = LocalDate.of(2026, 11, 19);
             EnvioRecordatorioRetiroPreparado preparado = new EnvioRecordatorioRetiroPreparado(90L, "compras@donjorge.com", "Bar Don Jorge",
@@ -83,8 +83,8 @@ class ProcesoRecordatoriosRetiroTest {
             when(recordatorioRetiroServicio.prepararRecordatorio(5L, hoy)).thenReturn(Optional.of(preparado));
             when(notificador.recordarRetiro(any(), any(), any(), any(), any())).thenReturn(false).thenThrow(new IllegalStateException("SMTP caído"));
 
-            envio().enviar(5L, hoy);
-            envio().enviar(5L, hoy);
+            assertThat(envio().enviar(5L, hoy)).isFalse();
+            assertThat(envio().enviar(5L, hoy)).isFalse();
 
             verify(recordatorioRetiroServicio, times(2)).registrarResultadoEnvio(90L, false);
         }
@@ -95,7 +95,7 @@ class ProcesoRecordatoriosRetiroTest {
             LocalDate hoy = LocalDate.of(2026, 11, 19);
             when(recordatorioRetiroServicio.prepararRecordatorio(5L, hoy)).thenReturn(Optional.empty());
 
-            envio().enviar(5L, hoy);
+            assertThat(envio().enviar(5L, hoy)).isFalse();
 
             verify(notificador, never()).recordarRetiro(any(), any(), any(), any(), any());
             verify(recordatorioRetiroServicio, never()).registrarResultadoEnvio(any(), anyBoolean());
@@ -193,6 +193,56 @@ class ProcesoRecordatoriosRetiroTest {
 
             verify(envioRecordatorios).enviar(3L, hoy);
             verify(recordatorioRetiroServicio, never()).buscarIdsClientesAInvitar(any());
+            verify(recordatorioRetiroServicio, never()).registrarEjecucion(any());
+        }
+
+        @Test
+        @DisplayName("CP-PRR-11: el envío pedido a mano no espera la hora de envío: envía el día, lo registra y cuenta los clientes notificados")
+        void envioAMano_noEsperaLaHora() {
+            LocalDate hoy = LocalDate.now();
+            when(recordatorioRetiroServicio.seEnviaronLosRecordatorios(hoy)).thenReturn(false);
+            when(recordatorioRetiroServicio.buscarIdsClientesConEnviosPendientes(hoy)).thenReturn(List.of());
+            when(recordatorioRetiroServicio.buscarIdsClientesAInvitar(hoy)).thenReturn(List.of(5L, 8L, 9L));
+            when(envioRecordatorios.enviar(5L, hoy)).thenReturn(true);
+            when(envioRecordatorios.enviar(8L, hoy)).thenReturn(false);
+            when(envioRecordatorios.enviar(9L, hoy)).thenReturn(true);
+
+            EnvioRecordatoriosRetiroProgramado.ResultadoEnvio resultado = proceso().enviarRecordatoriosDeHoy();
+
+            assertThat(resultado.clientesNotificados()).isEqualTo(2);
+            assertThat(resultado.completo()).isTrue();
+            verify(recordatorioRetiroServicio, never()).alcanzoLaHoraDeEnvio(any());
+            verify(recordatorioRetiroServicio).registrarEjecucion(hoy);
+        }
+
+        @Test
+        @DisplayName("CP-PRR-12: el envío pedido a mano se rechaza si los recordatorios de hoy ya se enviaron, sin enviar nada")
+        void envioAMano_diaYaEnviado_seRechaza() {
+            LocalDate hoy = LocalDate.now();
+            when(recordatorioRetiroServicio.seEnviaronLosRecordatorios(hoy)).thenReturn(true);
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> proceso().enviarRecordatoriosDeHoy())
+                    .isInstanceOf(com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException.class)
+                    .hasMessage("Los recordatorios de retiro de hoy ya se enviaron: los que fallaron se reintentan automáticamente");
+
+            verify(envioRecordatorios, never()).enviar(any(), any());
+            verify(recordatorioRetiroServicio, never()).registrarEjecucion(any());
+        }
+
+        @Test
+        @DisplayName("CP-PRR-13: si en el envío pedido a mano un cliente falla, informa el envío incompleto y no registra el día")
+        void envioAMano_conFalla_quedaIncompleto() {
+            LocalDate hoy = LocalDate.now();
+            when(recordatorioRetiroServicio.seEnviaronLosRecordatorios(hoy)).thenReturn(false);
+            when(recordatorioRetiroServicio.buscarIdsClientesConEnviosPendientes(hoy)).thenReturn(List.of(3L));
+            when(recordatorioRetiroServicio.buscarIdsClientesAInvitar(hoy)).thenReturn(List.of(5L));
+            when(envioRecordatorios.enviar(3L, hoy)).thenReturn(true);
+            doThrow(new IllegalStateException("Falla puntual")).when(envioRecordatorios).enviar(5L, hoy);
+
+            EnvioRecordatoriosRetiroProgramado.ResultadoEnvio resultado = proceso().enviarRecordatoriosDeHoy();
+
+            assertThat(resultado.clientesNotificados()).isEqualTo(1);
+            assertThat(resultado.completo()).isFalse();
             verify(recordatorioRetiroServicio, never()).registrarEjecucion(any());
         }
     }

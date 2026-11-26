@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.implementation.distribucion.EnvioRecordatoriosRetiroProgramado;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitudBusquedaServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.cliente.IClienteServicio;
@@ -36,12 +37,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -64,6 +69,9 @@ class SolicitudRetiroControllerTest {
 
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
+
+    @MockitoBean
+    private EnvioRecordatoriosRetiroProgramado envioRecordatoriosRetiro;
 
     private static SolicitudBusquedaResponseDTO solicitud(Long id, LocalDateTime fechaBusqueda, EstadoSolicitudBusqueda estado) {
         return SolicitudBusquedaResponseDTO.builder().id(id).fechaBusqueda(fechaBusqueda).estado(estado)
@@ -186,6 +194,74 @@ class SolicitudRetiroControllerTest {
         mockMvc.perform(get(URL).with(como(Rol.valueOf(rol)))).andExpect(status().is3xxRedirection());
         mockMvc.perform(get(URL + "/71").with(user("usuario").roles(rol))).andExpect(status().is3xxRedirection());
 
-        verifyNoInteractions(solicitudBusquedaServicio, clienteServicio);
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.valueOf(rol))).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(solicitudBusquedaServicio, clienteServicio, envioRecordatoriosRetiro);
+    }
+
+    // ==================== Envío de los recordatorios de retiro ====================
+
+    @Test
+    @DisplayName("CP-SRC-08: el encabezado de la lista ofrece enviar los recordatorios de retiro con un diálogo de confirmación; sin el permiso no se muestra")
+    void caso_cp_src_08() throws Exception {
+        when(solicitudBusquedaServicio.filtrarSolicitudesBusqueda(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        String html = mockMvc.perform(get(URL).with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String sinPermiso = mockMvc.perform(get(URL).with(user("consulta").authorities(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("SOLICITUD_BUSQUEDA_CONSULTAR"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("action=\"/solicitudes-retiro/recordatorios\"").contains("data-boton-enviar-recordatorios")
+                .contains("data-confirmar-titulo=\"Enviar recordatorios de retiro\"")
+                .contains("sin esperar la hora configurada")
+                .containsPattern("<i class=\"bi bi-envelope\"></i> Enviar recordatorios de retiro")
+                .contains("id=\"dialogo-confirmacion\"")
+                .doesNotContain("Simular");
+        assertThat(sinPermiso).contains("Solicitudes de Retiro").doesNotContain("data-boton-enviar-recordatorios");
+    }
+
+    @Test
+    @DisplayName("CP-SRC-09: enviar los recordatorios vuelve a la lista con cuántos clientes se notificaron, en singular o plural, o con que no había a quién recordarles")
+    void caso_cp_src_09() throws Exception {
+        when(envioRecordatoriosRetiro.enviarRecordatoriosDeHoy())
+                .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(3, true))
+                .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(1, true))
+                .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(0, true));
+
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "Recordatorios de retiro enviados correctamente a 3 clientes"))
+                .andExpect(flash().attribute("tipo", "success"));
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
+                .andExpect(flash().attribute("mensaje", "Recordatorios de retiro enviados correctamente a 1 cliente"));
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
+                .andExpect(flash().attribute("mensaje", "No hay clientes con barriles para recordarles el retiro hoy"))
+                .andExpect(flash().attribute("tipo", "info"));
+    }
+
+    @Test
+    @DisplayName("CP-SRC-10: un envío incompleto avisa que algunos fallaron; si los de hoy ya se enviaron vuelve al origen con el motivo; sin CSRF no envía nada")
+    void caso_cp_src_10() throws Exception {
+        when(envioRecordatoriosRetiro.enviarRecordatoriosDeHoy())
+                .thenReturn(new EnvioRecordatoriosRetiroProgramado.ResultadoEnvio(2, false))
+                .thenThrow(new ReglaNegocioException("Los recordatorios de retiro de hoy ya se enviaron: los que fallaron se reintentan automáticamente"));
+
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()))
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "Se envió el recordatorio de retiro a 2 clientes, pero algunos envíos fallaron: se reintentan automáticamente"))
+                .andExpect(flash().attribute("tipo", "warning"));
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)).with(csrf()).header("Referer", URL))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "Los recordatorios de retiro de hoy ya se enviaron: los que fallaron se reintentan automáticamente"));
+        org.mockito.Mockito.clearInvocations(envioRecordatoriosRetiro);
+        mockMvc.perform(post(URL + "/recordatorios").with(como(Rol.ENCARGADO_DE_DISTRIBUCION)))
+                .andExpect(status().is3xxRedirection());
+
+        verify(envioRecordatoriosRetiro, never()).enviarRecordatoriosDeHoy();
     }
 }

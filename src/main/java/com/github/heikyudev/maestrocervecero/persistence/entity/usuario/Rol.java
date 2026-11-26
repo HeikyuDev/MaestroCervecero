@@ -155,7 +155,8 @@ public enum Rol {
             Permiso.DEVOLUCION_BARRIL_REGISTRAR,
             Permiso.DEVOLUCION_BARRIL_ANULAR,
             Permiso.DEVOLUCION_BARRIL_CONSULTAR,
-            Permiso.SOLICITUD_BUSQUEDA_CONSULTAR
+            Permiso.SOLICITUD_BUSQUEDA_CONSULTAR,
+            Permiso.RECORDATORIO_RETIRO_ENVIAR
     )),
 
     ADMINISTRADOR("Administrador", Set.of(
