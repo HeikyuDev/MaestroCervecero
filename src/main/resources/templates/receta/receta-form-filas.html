@@ -14,6 +14,9 @@
       data-etiqueta-insumo  nombre del insumo tal como lo muestra su selector; "Modificar" (data-modificar-fila) lo usa
                    para volver a abrir la ventana con la fila cargada.
 
+    Una fila cuyo insumo ya no existe (tiene id pero no nombre) solo ofrece "Quitar": no hay qué volver a cargar en la
+    ventana. La plantilla (sin id) sí lleva "Modificar", para las filas que se agregan desde la ventana.
+
     Parámetros comunes: indice (posición en la lista), nombre (del insumo, null si ya no existe) y
     conError (true si el servidor rechazó algún campo de la fila: se resalta; la plantilla pasa false).
 -->
@@ -27,7 +30,7 @@
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'kg')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
         <div class="flex items-center justify-end gap-1">
-            <button type="button" data-modificar-fila
+            <button type="button" data-modificar-fila th:if="${idMalta == null or nombre != null}"
                     class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
                 <i class="bi bi-pencil-square"></i> Modificar
             </button>
@@ -58,7 +61,7 @@
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
         <div class="flex items-center justify-end gap-1">
-            <button type="button" data-modificar-fila
+            <button type="button" data-modificar-fila th:if="${idLupulo == null or nombre != null}"
                     class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
                 <i class="bi bi-pencil-square"></i> Modificar
             </button>
@@ -79,7 +82,7 @@
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="col-acciones px-4 py-3 text-right">
         <div class="flex items-center justify-end gap-1">
-            <button type="button" data-modificar-fila
+            <button type="button" data-modificar-fila th:if="${idLevadura == null or nombre != null}"
                     class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
                 <i class="bi bi-pencil-square"></i> Modificar
             </button>

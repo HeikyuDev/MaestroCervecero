@@ -2,6 +2,11 @@ package com.github.heikyudev.maestrocervecero.presentation.template;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
+import org.thymeleaf.templateresolver.StringTemplateResolver;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -82,7 +88,9 @@ class FilasModificablesPlantillasTest {
                     .contains("function prepararModo(dialogo, fila)").contains("data-titulo-modificar").contains("data-texto-modificar")
                     .contains("reemplazada.replaceWith(fila)").contains("escribirFila(seccion, datos, dialogo.filaModificada)")
                     .contains("return fila !== excluida;")
-                    .contains("setAttribute('data-etiqueta-insumo'");
+                    .contains("setAttribute('data-etiqueta-insumo'")
+                    // Al cerrar la ventana de cualquier forma (Cancelar, Esc o tras confirmar) deja de modificar la fila
+                    .containsPattern("(?s)document\\.addEventListener\\('close', function \\(evento\\) \\{.*?filaModificada = null;.*?\\}, true\\);");
         }
         assertThat(leer("static/js/receta-form.js")).contains("clavesExistentes(tipo, seccion, dialogo.filaModificada)");
         assertThat(leer("static/js/proveedor-form.js")).contains("clavesExistentes(seccion, dialogo.filaModificada)")
@@ -91,6 +99,51 @@ class FilasModificablesPlantillasTest {
         assertThat(leer("static/js/orden-compra-form.js"))
                 .contains("idsAgregados(seccion, dialogo.filaModificada)")
                 .containsPattern("(?s)function escribirFila\\(seccion, datos, reemplazada\\).*?sincronizar\\(seccion\\);");
+    }
+
+    @Test
+    @DisplayName("CP-FMP-04: una fila cuyo ítem ya no existe solo ofrece \"Quitar\"; la fila con su ítem y la plantilla vacía ofrecen también \"Modificar\"")
+    void filaNoDisponible_soloOfreceQuitar() {
+        SpringTemplateEngine motor = motor();
+        Map<String, List<String>> casos = Map.of(
+                "receta/receta-form-filas :: malta", List.of("malta(0, 7, 'Pilsen', null, false)", "malta(0, 7, null, null, false)", "malta(0, null, null, null, false)"),
+                "receta/receta-form-filas :: lupulo", List.of("lupulo(0, 7, 'Cascade', null, null, null, null, true, false)",
+                        "lupulo(0, 7, null, null, null, null, null, true, false)", "lupulo(0, null, null, null, null, null, null, true, false)"),
+                "receta/receta-form-filas :: levadura", List.of("levadura(0, 7, 'US-05', null, false)", "levadura(0, 7, null, null, false)", "levadura(0, null, null, null, false)"),
+                "proveedor/proveedor-form-filas :: item", List.of("item(0, 7, 9, 'Pilsen', 'Malta', 'Bolsa de 25 Kg', null, null, false)",
+                        "item(0, 7, 9, 'Pilsen', 'Malta', null, null, null, false)", "item(0, null, null, null, null, null, null, null, false)"),
+                "orden_compra/orden-form-filas :: item", List.of("item(0, 7, null, null, 'Pilsen', 'Bolsa de 25 Kg', '25 kg', false)",
+                        "item(0, 7, null, null, null, null, null, false)", "item(0, null, null, null, null, null, null, false)"));
+        for (Map.Entry<String, List<String>> caso : casos.entrySet()) {
+            String plantilla = caso.getKey().substring(0, caso.getKey().indexOf(" :: "));
+            String disponible = renderizar(motor, plantilla, caso.getValue().get(0));
+            String noDisponible = renderizar(motor, plantilla, caso.getValue().get(1));
+            String vacia = renderizar(motor, plantilla, caso.getValue().get(2));
+            assertThat(disponible).as(caso.getKey() + " disponible").contains("data-modificar-fila").contains("data-quitar-fila");
+            assertThat(noDisponible).as(caso.getKey() + " no disponible").doesNotContain("data-modificar-fila").contains("data-quitar-fila")
+                    .containsPattern("no disponible</span>");
+            assertThat(vacia).as(caso.getKey() + " plantilla").contains("data-modificar-fila").contains("data-quitar-fila");
+        }
+    }
+
+    private static SpringTemplateEngine motor() {
+        ClassLoaderTemplateResolver fragmentos = new ClassLoaderTemplateResolver();
+        fragmentos.setPrefix("templates/");
+        fragmentos.setSuffix(".html");
+        fragmentos.setTemplateMode(TemplateMode.HTML);
+        fragmentos.setResolvablePatterns(Set.of("receta/*", "proveedor/*", "orden_compra/*"));
+        fragmentos.setOrder(1);
+        StringTemplateResolver literal = new StringTemplateResolver();
+        literal.setTemplateMode(TemplateMode.HTML);
+        literal.setOrder(2);
+        SpringTemplateEngine motor = new SpringTemplateEngine();
+        motor.addTemplateResolver(fragmentos);
+        motor.addTemplateResolver(literal);
+        return motor;
+    }
+
+    private static String renderizar(SpringTemplateEngine motor, String plantilla, String llamada) {
+        return motor.process("<table><tbody><tr th:replace=\"~{" + plantilla + " :: " + llamada + "}\"></tr></tbody></table>", new Context());
     }
 
     private static String leer(String relativo) throws IOException {

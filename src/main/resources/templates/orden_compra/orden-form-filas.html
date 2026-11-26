@@ -14,6 +14,10 @@
       data-etiqueta-insumo  nombre del insumo del ítem; "Modificar" (data-modificar-fila) lo usa, con la presentación,
                    la medida, la cantidad y el costo de la fila, para volver a abrir el modal con la fila cargada.
 
+    Una fila cuyo ítem ya no existe en el catálogo vigente del proveedor (tiene id pero no insumo, "Ítem no disponible")
+    solo ofrece "Quitar": no hay qué volver a cargar en el modal. La plantilla (sin id) sí lleva "Modificar", para las
+    filas que se agregan desde el modal.
+
     Parámetros: indice (posición en la lista), el id del ítem del catálogo, la cantidad y el costo unitario, el nombre del
     insumo, el de la presentación comercial y su medida ya escrita ("25 kg"; null si el ítem ya no existe en el catálogo
     vigente del proveedor) y conError (true si el servidor rechazó algún campo de la fila: se resalta; la plantilla pasa false).
@@ -38,7 +42,7 @@
         th:text="${cantidad != null and costoUnitario != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoUnitario * cantidad)}">12.505,00</td>
     <td class="col-acciones px-3 py-3 text-right">
         <div class="flex items-center justify-end gap-1">
-            <button type="button" data-modificar-fila
+            <button type="button" data-modificar-fila th:if="${idCatalogoProveedor == null or insumo != null}"
                     class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
                 <i class="bi bi-pencil-square"></i> Modificar
             </button>

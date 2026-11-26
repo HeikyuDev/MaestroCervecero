@@ -306,6 +306,14 @@
         }
     });
 
+    // Al cerrar la ventana de cualquier forma (Cancelar, Esc o tras confirmar) deja de modificar la fila: el evento
+    // close no burbujea, por eso se escucha en la fase de captura
+    document.addEventListener('close', function (evento) {
+        if (evento.target.matches && evento.target.matches('dialog[data-dialogo-agregar]')) {
+            evento.target.filaModificada = null;
+        }
+    }, true);
+
     document.addEventListener('DOMContentLoaded', function () {
         var formulario = document.getElementById('proveedor-form');
         var secciones = document.querySelectorAll('[data-detalle]');
